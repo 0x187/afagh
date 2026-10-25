@@ -38,3 +38,8 @@ afagh-next/CLAUDE.md
 
 # ── یادداشت/فشردهٔ جلسهٔ محلی (هرگز commit نشود) ──
 SESSION-COMPRESSED.md
+
+# ── بازنویسی Go/React (فاز ۰) ──
+backend-go/backend-go-dev
+backend-go/vendor/
+frontend-react/dist/
