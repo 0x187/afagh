@@ -71,3 +71,24 @@ func TestTermCodeNumberPersianDigits(t *testing.T) {
 		t.Fatal("کد خالی باید -Inf باشد")
 	}
 }
+
+func TestTermOrdinalForEntry(t *testing.T) {
+	y := 1403
+	term := 2
+	// ورودی ۱۴۰۳۲: همان ترم = ۱؛ ۱۴۰۴۱ = ۲؛ ۱۴۰۳۱ (قبل از ورود) = nil
+	if got := TermOrdinalForEntry(&y, &term, "14032"); got == nil || *got != 1 {
+		t.Fatalf("۱۴۰۳۲: %v", got)
+	}
+	if got := TermOrdinalForEntry(&y, &term, "14041"); got == nil || *got != 2 {
+		t.Fatalf("۱۴۰۴۱: %v", got)
+	}
+	if got := TermOrdinalForEntry(&y, &term, "14031"); got != nil {
+		t.Fatalf("ترم قبل از ورود باید nil باشد: %v", *got)
+	}
+	if got := TermOrdinalForEntry(nil, nil, "14031"); got != nil {
+		t.Fatal("بدون سال ورود باید nil بدهد")
+	}
+	if got := TermOrdinalForEntry(&y, &term, ""); got != nil {
+		t.Fatal("بدون کد ترم باید nil بدهد")
+	}
+}

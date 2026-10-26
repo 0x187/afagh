@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { getSiblingAccounts, switchAccount } from '@/lib/auth-api';
@@ -137,6 +138,16 @@ export function PanelSwitcher({ roles, current }: { roles: string[]; current?: P
                   >
                     {body}
                   </div>
+                ) : l.spaHref ? (
+                  <Link
+                    key={l.key}
+                    to={l.spaHref}
+                    role="menuitem"
+                    onClick={close}
+                    className="flex items-start gap-2 rounded-lg px-2 py-2 transition hover:bg-muted"
+                  >
+                    {body}
+                  </Link>
                 ) : (
                   <a
                     key={l.key}

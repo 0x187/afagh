@@ -31,6 +31,7 @@ import (
 	"backend-go/internal/session"
 	"backend-go/internal/sessionlock"
 	"backend-go/internal/settings"
+	"backend-go/internal/student"
 	"backend-go/internal/verification"
 )
 
@@ -104,6 +105,9 @@ func main() {
 	lockAPI.Register(ginEngine.Group(""))
 	scopeAPI := &httpapi.ScopeAPI{Store: store, Svc: scopeSvc, Production: cfg.IsProduction()}
 	scopeAPI.Register(ginEngine.Group(""))
+	studentSvc := student.New(database.Pool, scopeSvc)
+	studentAPI := &httpapi.StudentAPI{Svc: studentSvc, Store: store}
+	studentAPI.Register(ginEngine.Group(""))
 	publicAPI := &httpapi.PublicAPI{Pool: database.Pool, Settings: settingsStore}
 	publicAPI.Register(ginEngine.Group(""))
 

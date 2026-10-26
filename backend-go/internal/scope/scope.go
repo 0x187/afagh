@@ -545,3 +545,33 @@ func (s *Service) ValidateTermForUniversity(ctx context.Context, termID, univers
 		`select id from academic_terms where id = $1 and "universityId" = $2`, termID, universityID).Scan(&id)
 	return err == nil
 }
+
+// ListAllTermsForUniversity فهرست بدون سقف ترم‌ها — برای محاسبهٔ شمارهٔ ترم.
+func (s *Service) ListAllTermsForUniversity(ctx context.Context, universityID *int64) []TermScope {
+	return s.loadOrderedTerms(ctx, universityID)
+}
+
+// TermOrdinalForEntry پورت termOrdinalForEntry: شمارهٔ ترتیب ترم تحصیلی بر مبنای
+// ورودی — هر سال = ۲ نیمسال؛ مستقل از تعداد ترم‌های ثبت‌شده.
+func TermOrdinalForEntry(entryYear *int, entryTerm *int, targetTermCode string) *int {
+	if entryYear == nil || strings.TrimSpace(targetTermCode) == "" {
+		return nil
+	}
+	et := 1
+	if entryTerm != nil {
+		et = *entryTerm
+	}
+	entryCode := float64(*entryYear*10 + et)
+	targetCode := TermCodeNumber(targetTermCode)
+	if math.IsInf(targetCode, -1) {
+		return nil
+	}
+	semOf := func(code float64) float64 {
+		return math.Floor(code/10)*2 + math.Mod(code, 10)
+	}
+	ord := int(semOf(targetCode) - semOf(entryCode) + 1)
+	if ord < 1 {
+		return nil
+	}
+	return &ord
+}
