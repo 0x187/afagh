@@ -6,6 +6,9 @@ import { ChangePassword } from '@/routes/ChangePassword';
 import { LoginPage } from '@/routes/login/LoginPage';
 import { Home } from '@/routes/Home';
 import { StudentSchedulePage } from '@/routes/student/SchedulePage';
+import { StudentDashboardPage } from '@/routes/student/DashboardPage';
+import { StudentTranscriptPage } from '@/routes/student/TranscriptPage';
+import { StudentExamCardPage } from '@/routes/student/ExamCardPage';
 import { NotFound } from '@/routes/NotFound';
 
 export function App() {
@@ -20,7 +23,10 @@ export function App() {
         {/* شل محافظت‌شده — گارد نشست داخل AppShell است */}
         <Route element={<AppShell />}>
           <Route index element={<Home />} />
+          <Route path="student" element={<StudentDashboardPage />} />
           <Route path="student/schedule" element={<StudentSchedulePage />} />
+          <Route path="student/transcript" element={<StudentTranscriptPage />} />
+          <Route path="student/exam-card" element={<StudentExamCardPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

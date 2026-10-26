@@ -175,3 +175,27 @@
     }
   }
 }
+
+/* ═══ چاپ اسناد رسمی (کارنامه/کارت آزمون) — فقط ناحیهٔ سند روی کاغذ ═══ */
+@media print {
+  body {
+    background: #fff !important;
+  }
+  header,
+  .no-print {
+    display: none !important;
+  }
+  main {
+    max-width: none !important;
+    padding: 0 !important;
+  }
+  .print-area {
+    border-width: 2px !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+}

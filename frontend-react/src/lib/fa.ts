@@ -15,3 +15,15 @@ export function toEnDigits(input: string): string {
     .replace(/[\u06F0-\u06F9]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
     .replace(/[\u0660-\u0669]/g, (d) => String(d.charCodeAt(0) - 0x0660));
 }
+
+/** عدد با جداکنندهٔ هزارگان + ارقام فارسی */
+export function faNumber(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return '—';
+  return faDigits(Math.round(value).toLocaleString('en-US'));
+}
+
+/** مبلغ ریالی خوانا: «۳٬۰۰۰٬۰۰۰ ریال» */
+export function faRial(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return '—';
+  return `${faNumber(value)} ریال`;
+}

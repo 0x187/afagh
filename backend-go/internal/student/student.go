@@ -9,11 +9,13 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"backend-go/internal/scope"
+	"backend-go/internal/verification"
 )
 
 // Record پروندهٔ دانشجو.
@@ -24,20 +26,36 @@ type Record struct {
 	UniversityID  *int64
 	MajorID       *int64
 	DegreeLevelID *int64
+	RegulationID  *int64
 	EntryYear     int
 	EntryTerm     *int
 	CurrentTermNo *int
 	Status        string
+	StudyType     *string
+}
+
+var errNoStudent = errors.New("پروندهٔ دانشجویی یافت نشد.")
+
+// Settings حداقل وابستگی تنظیمات برای TTL توکن‌ها.
+type Settings interface {
+	Get(ctx context.Context, key string) (string, error)
+	GetNumber(ctx context.Context, key string, fallback float64) float64
 }
 
 // Service دسترسی به دادهٔ دانشجو.
 type Service struct {
-	Pool  *pgxpool.Pool
-	Scope *scope.Service
+	Pool     *pgxpool.Pool
+	Scope    *scope.Service
+	Settings Settings
+	Signer   *verification.Signer
 }
 
-func New(pool *pgxpool.Pool, scopeSvc *scope.Service) *Service {
-	return &Service{Pool: pool, Scope: scopeSvc}
+func New(pool *pgxpool.Pool, scopeSvc *scope.Service, settings Settings, signer *verification.Signer) *Service {
+	return &Service{Pool: pool, Scope: scopeSvc, Settings: settings, Signer: signer}
+}
+
+func expiresAtISO(ttlSec int) string {
+	return time.Now().Add(time.Duration(ttlSec) * time.Second).UTC().Format(time.RFC3339)
 }
 
 // Resolve پورت getStudentByUser: ACTIVE اول، بعد جدیدترین.
@@ -45,13 +63,15 @@ func (s *Service) Resolve(ctx context.Context, userID int64) (*Record, error) {
 	var r Record
 	err := s.Pool.QueryRow(ctx, `
 		select id, "userId", "studentCode", "universityId", "majorId", "degreeLevelId",
-		       "entryYear", "entryTerm", "currentTermNo", status
+		       "regulationId", "entryYear", "entryTerm", "currentTermNo", status,
+		       "studyType"
 		  from students
 		 where "userId" = $1
 		 order by case when status = 'ACTIVE' then 0 else 1 end, id desc
 		 limit 1`, userID).
 		Scan(&r.ID, &r.UserID, &r.StudentCode, &r.UniversityID, &r.MajorID, &r.DegreeLevelID,
-			&r.EntryYear, &r.EntryTerm, &r.CurrentTermNo, &r.Status)
+			&r.RegulationID, &r.EntryYear, &r.EntryTerm, &r.CurrentTermNo, &r.Status,
+			&r.StudyType)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return nil, nil
 	}
@@ -152,17 +172,9 @@ func clock5(v string) string {
 	return v
 }
 
-// GetSchedule پورت student/schedule/page.tsx.
-func (s *Service) GetSchedule(ctx context.Context, userID int64, userName string, termCookie *int64) (*ScheduleResponse, error) {
-	me, err := s.Resolve(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	if me == nil {
-		return nil, errors.New("پروندهٔ دانشجویی یافت نشد.")
-	}
-
-	// ترم: کوکی انتخاب، وگرنه ترم مؤثر جاریِ دانشگاه دانشجو.
+// describeStudent اطلاعات نمایشی دانشجو + ترم مؤثر را می‌سازد. مشترک بین
+// برنامهٔ هفتگی، داشبورد و کارنامه تا هر سه یک ترم و یک عنوان ببینند.
+func (s *Service) describeStudent(ctx context.Context, me *Record, userName string, termCookie *int64) (StudentInfo, *int64, string, string) {
 	selection := s.Scope.GetTermScope(ctx, me.UniversityID, termCookie)
 	termID := selection.EffectiveID
 	if selection.SelectedID != nil {
@@ -180,7 +192,6 @@ func (s *Service) GetSchedule(ctx context.Context, userID int64, userName string
 		ordinal = scope.TermOrdinalForEntry(&me.EntryYear, me.EntryTerm, termCode)
 	}
 
-	// عنوان رشته/مقطع/دانشگاه.
 	majorName, degreeTitle := "مهندسی کامپیوتر", "کارشناسی پیوسته"
 	if me.MajorID != nil {
 		var v string
@@ -194,17 +205,6 @@ func (s *Service) GetSchedule(ctx context.Context, userID int64, userName string
 			degreeTitle = v
 		}
 	}
-	uniTitle := "دانشگاه آفاق"
-	var uniLogo *string
-	if me.UniversityID != nil {
-		var title string
-		var logo *string
-		if err := s.Pool.QueryRow(ctx, `select title, "logoUrl" from universities where id = $1`, *me.UniversityID).
-			Scan(&title, &logo); err == nil {
-			uniTitle = title
-			uniLogo = logo
-		}
-	}
 
 	termNo := 1
 	if ordinal != nil {
@@ -212,14 +212,46 @@ func (s *Service) GetSchedule(ctx context.Context, userID int64, userName string
 	} else if me.CurrentTermNo != nil && *me.CurrentTermNo > 0 {
 		termNo = *me.CurrentTermNo
 	}
+	return StudentInfo{
+		Name: userName, StudentCode: me.StudentCode,
+		MajorName: majorName, DegreeTitle: degreeTitle,
+		CurrentTermNo: termNo, EntryYear: me.EntryYear,
+	}, termID, termTitle, termCode
+}
+
+// universityInfo عنوان/آرم دانشگاه دانشجو (با پشتوانهٔ نام پیش‌فرض سامانه).
+func (s *Service) universityInfo(ctx context.Context, universityID *int64) UniversityInfo {
+	info := UniversityInfo{Title: "دانشگاه آفاق"}
+	if universityID == nil {
+		return info
+	}
+	var title string
+	var logo *string
+	if err := s.Pool.QueryRow(ctx, `select title, "logoUrl" from universities where id = $1`, *universityID).
+		Scan(&title, &logo); err == nil {
+		if title != "" {
+			info.Title = title
+		}
+		info.LogoURL = logo
+	}
+	return info
+}
+
+// GetSchedule پورت student/schedule/page.tsx.
+func (s *Service) GetSchedule(ctx context.Context, userID int64, userName string, termCookie *int64) (*ScheduleResponse, error) {
+	me, err := s.Resolve(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if me == nil {
+		return nil, errNoStudent
+	}
+
+	info, termID, termTitle, termCode := s.describeStudent(ctx, me, userName, termCookie)
 	resp := &ScheduleResponse{
-		Student: StudentInfo{
-			Name: userName, StudentCode: me.StudentCode,
-			MajorName: majorName, DegreeTitle: degreeTitle,
-			CurrentTermNo: termNo, EntryYear: me.EntryYear,
-		},
+		Student:    info,
 		Term:       TermInfo{ID: termID, Title: termTitle, TermCode: termCode},
-		University: UniversityInfo{Title: uniTitle, LogoURL: uniLogo},
+		University: s.universityInfo(ctx, me.UniversityID),
 		Courses:    []Course{},
 		WeekFilter: []string{"ALL", "EVEN", "ODD"},
 	}
@@ -237,7 +269,7 @@ func (s *Service) GetSchedule(ctx context.Context, userID int64, userName string
 	// ثبت‌نام‌های ترم با جلسات.
 	rows, err := s.Pool.Query(ctx, `
 		select e.id, e."offeringId", e.status,
-		       o."courseId", c.code, c.title, coalesce(c.units, 0),
+		       o."courseId", c.code, c.title, coalesce(c.units, 0)::int,
 		       coalesce(c."courseType", 'تخصصی'), o."groupNumber",
 		       o."professorId", o."enrolledCount", o.capacity, o."sharedScheduleGroupKey"
 		  from enrollments e
@@ -307,8 +339,8 @@ func (s *Service) GetSchedule(ctx context.Context, userID int64, userName string
 	examMap := map[int64]*ExamSlot{}
 	if len(offeringIDs) > 0 {
 		srows, err := s.Pool.Query(ctx, `
-			select sc."offeringId", sc."scheduleType", sc."dayOfWeek", sc."examDate",
-			       sc."startTime", sc."endTime", cr.name, cr."buildingName"
+			select sc."offeringId", sc."scheduleType", sc."dayOfWeek", sc."examDate"::text,
+			       sc."startTime"::text, sc."endTime"::text, cr.name, cr."buildingName"
 			  from schedules sc
 			  join course_offerings o on o.id = sc."offeringId"
 			  left join classrooms cr on cr.id = sc."roomId"
