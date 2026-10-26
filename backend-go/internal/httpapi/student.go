@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"backend-go/internal/enroll"
 	"backend-go/internal/session"
 	"backend-go/internal/settings"
 	"backend-go/internal/student"
@@ -17,6 +18,7 @@ import (
 // StudentAPI هندلرهای دادهٔ دانشجو.
 type StudentAPI struct {
 	Svc      *student.Service
+	Enroll   *enroll.Service
 	Store    *session.Store
 	Settings *settings.Store
 }

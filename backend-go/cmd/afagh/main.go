@@ -24,6 +24,7 @@ import (
 	"backend-go/internal/config"
 	"backend-go/internal/db"
 	"backend-go/internal/edge"
+	"backend-go/internal/enroll"
 	"backend-go/internal/httpapi"
 	"backend-go/internal/logger"
 	"backend-go/internal/ratelimit"
@@ -106,8 +107,11 @@ func main() {
 	scopeAPI := &httpapi.ScopeAPI{Store: store, Svc: scopeSvc, Production: cfg.IsProduction()}
 	scopeAPI.Register(ginEngine.Group(""))
 	studentSvc := student.New(database.Pool, scopeSvc, settingsStore, signer)
+	enrollSvc := enroll.NewService(database, rdb, settingsStore, scopeSvc, cfg.IsProduction())
+	enrollSvc.StartWorker()
 	studentAPI := &httpapi.StudentAPI{Svc: studentSvc, Store: store, Settings: settingsStore}
 	studentAPI.Register(ginEngine.Group(""))
+	studentAPI.RegisterEnrollRoutes(ginEngine.Group(""), enrollSvc)
 	publicAPI := &httpapi.PublicAPI{Pool: database.Pool, Settings: settingsStore}
 	publicAPI.Register(ginEngine.Group(""))
 

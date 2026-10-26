@@ -182,4 +182,14 @@ var PhaseOneDefs = []Def{
 	{Key: "SESSION_REAUTH_MINUTES", Env: "SESSION_REAUTH_MINUTES", Default: "30"},
 	{Key: "UNIVERSITY_NAME", Env: "AFAGH_UNIVERSITY_NAME", Default: "دانشگاه آفاق"},
 	{Key: "UNIVERSITY_LOGO", Env: "AFAGH_UNIVERSITY_LOGO", Default: ""},
+
+	// ── انتخاب واحد (فاز ۳) — عیناً از SETTING_DEFS سیستم فعلی ──
+	{Key: "ENROLLMENT_WINDOW_OPEN", Env: "AFAGH_ENROLLMENT_WINDOW_OPEN", Default: "true"},
+	{Key: "ENROLL_REQUIRE_CURRICULUM_CHART", Env: "AFAGH_ENROLL_REQUIRE_CURRICULUM_CHART", Default: "true"},
+	{Key: "EMERGENCY_WITHDRAW_OPEN", Env: "AFAGH_EMERGENCY_WITHDRAW_OPEN", Default: "false"},
+	{Key: "ENFORCE_TERM_ACTIVATION", Env: "AFAGH_ENFORCE_TERM_ACTIVATION", Default: "false"},
+	{Key: "ENROLLMENT_DEBT_THRESHOLD", Env: "AFAGH_ENROLLMENT_DEBT_THRESHOLD", Default: "0"},
+	{Key: "PUBLIC_BASE_URL", Env: "AFAGH_PUBLIC_BASE_URL", Default: "http://localhost:8080"},
+	{Key: "TRANSCRIPT_TTL_MINUTES", Env: "TRANSCRIPT_TTL_MINUTES", Default: "10080"},
+	{Key: "EXAM_TICKET_TTL_MINUTES", Env: "EXAM_TICKET_TTL_MINUTES", Default: "180"},
 }
