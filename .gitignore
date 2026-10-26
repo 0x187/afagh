@@ -43,3 +43,6 @@ SESSION-COMPRESSED.md
 backend-go/backend-go-dev
 backend-go/vendor/
 frontend-react/dist/
+
+# ── تنظیمات محلی ZCode ──
+/.zcode/

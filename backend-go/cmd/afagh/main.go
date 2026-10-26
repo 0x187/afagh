@@ -18,13 +18,20 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/redis/go-redis/v9"
 
+	"backend-go/internal/authn"
 	"backend-go/internal/config"
 	"backend-go/internal/db"
 	"backend-go/internal/edge"
 	"backend-go/internal/httpapi"
 	"backend-go/internal/logger"
+	"backend-go/internal/ratelimit"
+	"backend-go/internal/scope"
 	"backend-go/internal/session"
+	"backend-go/internal/sessionlock"
+	"backend-go/internal/settings"
+	"backend-go/internal/verification"
 )
 
 func main() {
@@ -52,6 +59,26 @@ func main() {
 
 	store := session.NewStore(database.Pool)
 
+	// ── سرویس‌های فاز ۱: تنظیمات، rate-limit، امضای توکن، قفل، scope ──
+	settingsStore := settings.New(database.Pool, settings.PhaseOneDefs)
+
+	var rdb *redis.Client
+	if cfg.RedisURL != "" {
+		opt, err := redis.ParseURL(cfg.RedisURL)
+		if err != nil {
+			log.Error("redis_url_invalid", logger.Fields{"error": err.Error()})
+			os.Exit(1)
+		}
+		rdb = redis.NewClient(opt)
+		defer rdb.Close()
+	}
+	limiter := ratelimit.New(rdb)
+	signer := verification.New(settingsStore)
+	locks := sessionlock.New(rdb, settingsStore)
+	authCfg := authn.ConfigFromEnv()
+	authSvc := authn.NewService(database.Pool, authCfg, limiter, signer, locks)
+	scopeSvc := scope.New(database.Pool)
+
 	// ── gin API (/api/v2) ──
 	if cfg.IsProduction() {
 		gin.SetMode(gin.ReleaseMode)
@@ -68,6 +95,17 @@ func main() {
 	ginEngine.GET("/health", healthAPI.HealthGET)
 	sessionAPI := &httpapi.SessionAPI{Store: store}
 	sessionAPI.Register(ginEngine.Group(""))
+
+	authAPI := &httpapi.AuthAPI{Svc: authSvc}
+	authAPI.Register(ginEngine.Group(""))
+	lockAPI := &httpapi.SessionLockAPI{
+		Store: store, Locks: locks, Limiter: limiter, Verifier: authSvc,
+	}
+	lockAPI.Register(ginEngine.Group(""))
+	scopeAPI := &httpapi.ScopeAPI{Store: store, Svc: scopeSvc, Production: cfg.IsProduction()}
+	scopeAPI.Register(ginEngine.Group(""))
+	publicAPI := &httpapi.PublicAPI{Pool: database.Pool, Settings: settingsStore}
+	publicAPI.Register(ginEngine.Group(""))
 
 	// ── SPA: پروکسی (dev/Vite) یا فایل‌های dist (production) ──
 	var spaHandler http.Handler

@@ -1,11 +1,13 @@
-import { CheckCircle2, ExternalLink, XCircle, TriangleAlert } from 'lucide-react';
+import { CheckCircle2, ExternalLink, XCircle, TriangleAlert, ArrowLeft } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { apiGet, type HealthResponse, type SessionUser } from '@/lib/api';
 import { faDigits } from '@/lib/fa';
+import { homeFor } from '@/lib/home-route';
 import { useSession } from '@/lib/session';
 
 // ═══ خانهٔ فاز ۰ — اثبات اتصال سالم هر دو سمت ═══
@@ -124,6 +126,14 @@ export function Home() {
               <div className="text-sm text-muted-foreground">
                 شناسهٔ کاربر: {faDigits(user.id)}
                 {user.universityId ? ` — دانشگاه: ${faDigits(user.universityId)}` : ''}
+              </div>
+              <div>
+                <Button asChild>
+                  <a href={homeFor(user.roles)}>
+                    ورود به کارتابل من
+                    <ArrowLeft aria-hidden />
+                  </a>
+                </Button>
               </div>
             </div>
           ) : data?.pendingPasswordChange ? (
