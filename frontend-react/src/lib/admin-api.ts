@@ -55,3 +55,69 @@ export async function getAdminStaff(q?: string): Promise<{ id: number; staffCode
   const res = await apiGet<{ ok: boolean; rows: { id: number; staffCode: string; fullName: string; nationalCode: string | null; academicRank: string | null; staffType: string | null; departmentName: string | null; isActive: number }[] }>(`/admin/staff${qs}`);
   return res.rows;
 }
+
+export type AdminOfferingsData = {
+  term: { id: number | null; title: string; termCode: string; isEnrollmentOpen: boolean };
+  window: { open: boolean; state: string; label: string; start: string | null; end: string | null };
+  offerings: {
+    id: number;
+    code: string;
+    title: string;
+    group: number;
+    capacity: number;
+    enrolled: number;
+    targetDegreeLevelId: number | null;
+    targetMajorId: number | null;
+    entryYearStart: number | null;
+    entryYearEnd: number | null;
+    offeringType: string | null;
+    targetLabel: string;
+  }[];
+  degrees: { id: number; title: string }[];
+  majors: { id: number; title: string }[];
+};
+
+export async function getAdminOfferings(): Promise<AdminOfferingsData> {
+  const res = await apiGet<{ ok: boolean; data: AdminOfferingsData }>('/admin/offerings');
+  return res.data;
+}
+
+export async function saveEnrollmentWindow(input: { termId: number; open: boolean; start: string; end: string }): Promise<void> {
+  await apiPost('/admin/offerings/window', input);
+}
+
+export async function saveOfferingTargeting(input: {
+  offeringId: number;
+  degree: number | null;
+  major: number | null;
+  entryYearStart: number | null;
+  entryYearEnd: number | null;
+}): Promise<void> {
+  await apiPost('/admin/offerings/targeting', input);
+}
+
+export async function saveOfferingType(offeringId: number, type: string): Promise<void> {
+  await apiPost('/admin/offerings/type', { offeringId, type });
+}
+
+export type AdminEvaluationsData = {
+  terms: { id: number; title: string; termCode: string }[];
+  periods: { id: number; title: string; termId: number | null; termTitle: string | null; startDate: string | null; endDate: string | null; isActive: number; open: boolean }[];
+};
+
+export async function getAdminEvaluations(): Promise<AdminEvaluationsData> {
+  const res = await apiGet<{ ok: boolean; data: AdminEvaluationsData }>('/admin/evaluations');
+  return res.data;
+}
+
+export async function createEvaluationPeriod(input: { title: string; termId: number; start: string; end: string; isActive: boolean }): Promise<void> {
+  await apiPost('/admin/evaluations', input);
+}
+
+export async function toggleEvaluationPeriod(id: number): Promise<void> {
+  await apiPost('/admin/evaluations/toggle', { id });
+}
+
+export async function deleteEvaluationPeriod(id: number): Promise<void> {
+  await apiPost('/admin/evaluations/delete', { id });
+}

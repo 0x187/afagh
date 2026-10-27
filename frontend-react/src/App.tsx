@@ -41,6 +41,8 @@ import { AdminDashboardPage } from '@/routes/admin/DashboardPage';
 import { AdminStudentsPage } from '@/routes/admin/StudentsPage';
 import { AdminDepartmentsPage } from '@/routes/admin/DepartmentsPage';
 import { AdminStaffPage } from '@/routes/admin/StaffPage';
+import { AdminOfferingsPage } from '@/routes/admin/OfferingsPage';
+import { AdminEvaluationsPage } from '@/routes/admin/EvaluationsPage';
 import { NotFound } from '@/routes/NotFound';
 
 export function App() {
@@ -93,6 +95,8 @@ export function App() {
           <Route path="admin/students" element={<AdminStudentsPage />} />
           <Route path="admin/departments" element={<AdminDepartmentsPage />} />
           <Route path="admin/staff" element={<AdminStaffPage />} />
+          <Route path="admin/offerings" element={<AdminOfferingsPage />} />
+          <Route path="admin/evaluations" element={<AdminEvaluationsPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

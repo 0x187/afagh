@@ -26,6 +26,14 @@ func (a *AdminAPI) Register(r gin.IRouter) {
 	r.POST("/admin/students/reset-password", a.studentResetPassword)
 	r.GET("/admin/departments", a.departments)
 	r.GET("/admin/staff", a.staff)
+	r.GET("/admin/offerings", a.offerings)
+	r.POST("/admin/offerings/window", a.offeringsWindow)
+	r.POST("/admin/offerings/targeting", a.offeringsTargeting)
+	r.POST("/admin/offerings/type", a.offeringsType)
+	r.GET("/admin/evaluations", a.evaluations)
+	r.POST("/admin/evaluations", a.createEvaluation)
+	r.POST("/admin/evaluations/toggle", a.toggleEvaluation)
+	r.POST("/admin/evaluations/delete", a.deleteEvaluation)
 }
 
 var adminRoles = []string{
@@ -146,6 +154,158 @@ func (a *AdminAPI) departments(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
+}
+
+func (a *AdminAPI) offerings(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	resp, err := a.Svc.GetOfferings(c.Request.Context(), user, a.uniCookie(c))
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
+}
+
+func (a *AdminAPI) offeringsWindow(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	var body struct {
+		TermID int64  `json:"termId"`
+		Open   bool   `json:"open"`
+		Start  string `json:"start"`
+		End    string `json:"end"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.TermID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	if err := a.Svc.SaveWindow(c.Request.Context(), user, a.uniCookie(c), body.TermID, body.Open, body.Start, body.End); err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *AdminAPI) offeringsTargeting(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	var body struct {
+		OfferingID     int64  `json:"offeringId"`
+		Degree         *int64 `json:"degree"`
+		Major          *int64 `json:"major"`
+		EntryYearStart *int   `json:"entryYearStart"`
+		EntryYearEnd   *int   `json:"entryYearEnd"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.OfferingID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	if err := a.Svc.SaveTargeting(c.Request.Context(), user, a.uniCookie(c), body.OfferingID, body.Degree, body.Major, body.EntryYearStart, body.EntryYearEnd); err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *AdminAPI) offeringsType(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	var body struct {
+		OfferingID int64  `json:"offeringId"`
+		Type       string `json:"type"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.OfferingID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	if err := a.Svc.SaveOfferingType(c.Request.Context(), user, a.uniCookie(c), body.OfferingID, body.Type); err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *AdminAPI) evaluations(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	resp, err := a.Svc.GetEvaluations(c.Request.Context(), user, a.uniCookie(c))
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
+}
+
+func (a *AdminAPI) createEvaluation(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	var body struct {
+		Title    string `json:"title"`
+		TermID   int64  `json:"termId"`
+		Start    string `json:"start"`
+		End      string `json:"end"`
+		IsActive bool   `json:"isActive"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	if err := a.Svc.CreateEvalPeriod(c.Request.Context(), user, a.uniCookie(c), body.Title, body.TermID, body.Start, body.End, body.IsActive); err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *AdminAPI) toggleEvaluation(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	var body struct {
+		ID int64 `json:"id"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.ID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	if err := a.Svc.ToggleEvalPeriod(c.Request.Context(), user, a.uniCookie(c), body.ID); err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *AdminAPI) deleteEvaluation(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	var body struct {
+		ID int64 `json:"id"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.ID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	if err := a.Svc.DeleteEvalPeriod(c.Request.Context(), user, a.uniCookie(c), body.ID); err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
 func (a *AdminAPI) staff(c *gin.Context) {
