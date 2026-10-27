@@ -211,4 +211,11 @@ var PhaseOneDefs = []Def{
 	{Key: "GRAD_REQUIRE_PHOTO", Env: "GRAD_REQUIRE_PHOTO", Default: "true"},
 	{Key: "SAJJAD_PORTAL_URL", Env: "SAJJAD_PORTAL_URL", Default: "https://portal.saorg.ir"},
 	{Key: "NOTIFY_CHANNELS", Env: "NOTIFY_CHANNELS", Default: "INAPP,SMS"},
+	{Key: "FA_YEAR", Env: "FA_YEAR", Default: ""},
+
+	// ── قرارداد و حق‌التدریس (فاز ۴) ──
+	{Key: "HOURLY_RATE_TMN", Env: "HOURLY_RATE_TMN", Default: "850000"},
+	{Key: "CONTRACT_TAX_PERCENT", Env: "CONTRACT_TAX_PERCENT", Default: "10"},
+	{Key: "CONTRACT_INSURANCE_PERCENT", Env: "CONTRACT_INSURANCE_PERCENT", Default: "7"},
+	{Key: "CONTRACT_MINUTES_PER_UNIT", Env: "CONTRACT_MINUTES_PER_UNIT", Default: "0"},
 }

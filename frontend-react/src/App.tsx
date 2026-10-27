@@ -19,6 +19,12 @@ import { StudentFinancePage } from '@/routes/student/FinancePage';
 import { StudentChartPage } from '@/routes/student/ChartPage';
 import { StudentGraduationPage } from '@/routes/student/GraduationPage';
 import { StudentThesisPage } from '@/routes/student/ThesisPage';
+import { ProfessorDashboardPage } from '@/routes/professor/DashboardPage';
+import { ProfessorSchedulePage } from '@/routes/professor/SchedulePage';
+import { ProfessorContractPage } from '@/routes/professor/ContractPage';
+import { ProfessorDocumentsPage } from '@/routes/professor/DocumentsPage';
+import { ProfessorBroadcastPage } from '@/routes/professor/BroadcastPage';
+import { ProfessorAvailabilityPage } from '@/routes/professor/AvailabilityPage';
 import { NotFound } from '@/routes/NotFound';
 
 export function App() {
@@ -47,6 +53,12 @@ export function App() {
           <Route path="student/chart" element={<StudentChartPage />} />
           <Route path="student/graduation" element={<StudentGraduationPage />} />
           <Route path="student/thesis-proposal" element={<StudentThesisPage />} />
+          <Route path="professor" element={<ProfessorDashboardPage />} />
+          <Route path="professor/schedule" element={<ProfessorSchedulePage />} />
+          <Route path="professor/contract" element={<ProfessorContractPage />} />
+          <Route path="professor/documents" element={<ProfessorDocumentsPage />} />
+          <Route path="professor/broadcast" element={<ProfessorBroadcastPage />} />
+          <Route path="professor/availability" element={<ProfessorAvailabilityPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

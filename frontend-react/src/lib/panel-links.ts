@@ -61,7 +61,7 @@ export function availablePanels(roles: readonly string[], permissionCount = 0): 
   if (permissionCount > 0 || ADMIN_PANEL_ROLES.some(has)) {
     out.push({ key: 'admin', href: '/admin', label: 'داشبورد مدیریت', icon: '🗂️' });
   }
-  if (has('PROFESSOR')) out.push({ key: 'professor', href: '/professor', label: 'کارتابل استاد', icon: '👨‍🏫' });
+  if (has('PROFESSOR')) out.push({ key: 'professor', href: '/professor', label: 'کارتابل استاد', icon: '👨‍🏫', spaHref: '/professor' });
   if (has('DEP_HEAD')) out.push({ key: 'group-manager', href: '/group-manager', label: 'پنل مدیر گروه', icon: '🏛️' });
   if (has('PROCTOR')) out.push({ key: 'proctor', href: '/proctor', label: 'پورتال مراقب', icon: '📷' });
   if (has('STUDENT')) out.push({ key: 'student', href: '/student', label: 'پنل دانشجو', icon: '🎓', spaHref: '/student' });

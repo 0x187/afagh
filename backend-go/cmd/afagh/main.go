@@ -28,6 +28,7 @@ import (
 	"backend-go/internal/enroll"
 	"backend-go/internal/httpapi"
 	"backend-go/internal/logger"
+	"backend-go/internal/professor"
 	"backend-go/internal/ratelimit"
 	"backend-go/internal/scope"
 	"backend-go/internal/session"
@@ -116,6 +117,10 @@ func main() {
 	studentAPI := &httpapi.StudentAPI{Svc: studentSvc, Store: store, Settings: settingsStore}
 	studentAPI.Register(ginEngine.Group(""))
 	studentAPI.RegisterEnrollRoutes(ginEngine.Group(""), enrollSvc)
+	professorSvc := professor.New(database, settingsStore, scopeSvc)
+	professorSvc.Production = cfg.IsProduction()
+	professorAPI := &httpapi.ProfessorAPI{Svc: professorSvc, Store: store}
+	professorAPI.Register(ginEngine.Group(""))
 	publicAPI := &httpapi.PublicAPI{Pool: database.Pool, Settings: settingsStore}
 	publicAPI.Register(ginEngine.Group(""))
 
