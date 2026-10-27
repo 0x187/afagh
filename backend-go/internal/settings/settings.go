@@ -192,4 +192,5 @@ var PhaseOneDefs = []Def{
 	{Key: "PUBLIC_BASE_URL", Env: "AFAGH_PUBLIC_BASE_URL", Default: "http://localhost:8080"},
 	{Key: "TRANSCRIPT_TTL_MINUTES", Env: "TRANSCRIPT_TTL_MINUTES", Default: "10080"},
 	{Key: "EXAM_TICKET_TTL_MINUTES", Env: "EXAM_TICKET_TTL_MINUTES", Default: "180"},
+	{Key: "ENROLL_CONFIRM_TTL_MINUTES", Env: "ENROLL_CONFIRM_TTL_MINUTES", Default: "20160"},
 }

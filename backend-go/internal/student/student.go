@@ -414,3 +414,5 @@ func (s *Service) GetSchedule(ctx context.Context, userID int64, userName string
 	}
 	return resp, nil
 }
+
+func nowISO() string { return time.Now().UTC().Format(time.RFC3339) }

@@ -10,6 +10,7 @@ import { StudentDashboardPage } from '@/routes/student/DashboardPage';
 import { StudentTranscriptPage } from '@/routes/student/TranscriptPage';
 import { StudentExamCardPage } from '@/routes/student/ExamCardPage';
 import { StudentEnrollPage } from '@/routes/student/EnrollPage';
+import { StudentEnrollConfirmPage } from '@/routes/student/EnrollConfirmPage';
 import { NotFound } from '@/routes/NotFound';
 
 export function App() {
@@ -29,6 +30,7 @@ export function App() {
           <Route path="student/transcript" element={<StudentTranscriptPage />} />
           <Route path="student/exam-card" element={<StudentExamCardPage />} />
           <Route path="student/enroll" element={<StudentEnrollPage />} />
+          <Route path="student/enroll-confirm" element={<StudentEnrollConfirmPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

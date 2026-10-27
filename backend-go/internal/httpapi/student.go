@@ -29,6 +29,7 @@ func (a *StudentAPI) Register(r gin.IRouter) {
 	r.GET("/student/dashboard", a.dashboard)
 	r.GET("/student/transcript", a.transcript)
 	r.GET("/student/exam-card", a.examCard)
+	r.GET("/student/enroll-confirm", a.enrollConfirm)
 }
 
 func (a *StudentAPI) currentUser(c *gin.Context) *session.User {
@@ -157,6 +158,20 @@ func (a *StudentAPI) publicBaseURL(c *gin.Context) string {
 		host = c.Request.Host
 	}
 	return proto + "://" + host
+}
+
+// enrollConfirm تأییدیهٔ انتخاب واحد نیمسال انتخابی + QR.
+func (a *StudentAPI) enrollConfirm(c *gin.Context) {
+	user := a.requireStudent(c)
+	if user == nil {
+		return
+	}
+	resp, err := a.Svc.GetEnrollConfirm(c.Request.Context(), user.ID, termIDFromCookie(c), a.publicBaseURL(c))
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
 }
 
 // dashboard دادهٔ صفحهٔ اول دانشجو.

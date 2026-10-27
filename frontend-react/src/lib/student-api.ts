@@ -221,3 +221,38 @@ export async function getStudentExamCard(termId?: number | null): Promise<Studen
   const res = await apiGet<{ ok: boolean; data: StudentExamCardData }>(`/student/exam-card${qs}`);
   return res.data;
 }
+
+// ───────────────────────── تأییدیهٔ انتخاب واحد ─────────────────────────
+
+export type EnrollConfirmData = {
+  termTitle: string;
+  blocked: string | null;
+  verifyUrl: string | null;
+  expiresAt: string | null;
+  qrSvg: string;
+  emptyMessage: string | null;
+  data: {
+    studentId: number;
+    studentName: string;
+    studentCode: string;
+    nationalIdMasked: string;
+    majorName: string | null;
+    termId: number;
+    termTitle: string;
+    courses: {
+      courseTitle: string;
+      courseCode: string;
+      units: number;
+      groupNumber: number;
+      professorName: string | null;
+      status: string;
+    }[];
+    totalUnits: number;
+    checkedAt: string;
+  } | null;
+};
+
+export async function getEnrollConfirm(): Promise<EnrollConfirmData> {
+  const res = await apiGet<{ ok: boolean; data: EnrollConfirmData }>('/student/enroll-confirm');
+  return res.data;
+}
