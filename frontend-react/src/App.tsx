@@ -14,6 +14,7 @@ import { StudentEnrollConfirmPage } from '@/routes/student/EnrollConfirmPage';
 import { StudentVirtualClassesPage } from '@/routes/student/VirtualClassesPage';
 import { StudentDocumentsPage } from '@/routes/student/DocumentsPage';
 import { StudentLessonPlanPage } from '@/routes/student/LessonPlanPage';
+import { StudentRequestsPage } from '@/routes/student/RequestsPage';
 import { NotFound } from '@/routes/NotFound';
 
 export function App() {
@@ -37,6 +38,7 @@ export function App() {
           <Route path="student/virtual-classes" element={<StudentVirtualClassesPage />} />
           <Route path="student/documents" element={<StudentDocumentsPage />} />
           <Route path="student/lesson-plan/:offeringId" element={<StudentLessonPlanPage />} />
+          <Route path="student/requests" element={<StudentRequestsPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

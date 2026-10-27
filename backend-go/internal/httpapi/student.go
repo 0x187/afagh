@@ -3,6 +3,7 @@ package httpapi
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -34,6 +35,10 @@ func (a *StudentAPI) Register(r gin.IRouter) {
 	r.POST("/student/virtual-classes/join", a.virtualClassJoin)
 	r.GET("/student/documents", a.documents)
 	r.GET("/student/lesson-plan/:offeringId", a.lessonPlan)
+	r.GET("/student/requests", a.requests)
+	r.POST("/student/requests/submit", a.requestSubmit)
+	r.POST("/student/requests/satisfaction", a.requestSatisfaction)
+	r.POST("/student/requests/attachment", a.requestAttachment)
 }
 
 func (a *StudentAPI) currentUser(c *gin.Context) *session.User {
@@ -251,6 +256,118 @@ func (a *StudentAPI) lessonPlan(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": view})
+}
+
+// requests میز خدمات — فرایندها و درخواست‌های دانشجو.
+func (a *StudentAPI) requests(c *gin.Context) {
+	user := a.requireStudent(c)
+	if user == nil {
+		return
+	}
+	resp, err := a.Svc.ListRequests(c.Request.Context(), user.ID, user.Name)
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
+}
+
+// requestSubmit ثبت درخواست جدید.
+func (a *StudentAPI) requestSubmit(c *gin.Context) {
+	user := a.requireStudent(c)
+	if user == nil {
+		return
+	}
+	rec, err := a.Svc.Resolve(c.Request.Context(), user.ID)
+	if err != nil || rec == nil {
+		c.JSON(http.StatusNotFound, gin.H{"ok": false, "error": "پروندهٔ دانشجویی یافت نشد."})
+		return
+	}
+	var body struct {
+		ProcessCode string         `json:"processCode"`
+		FormData    map[string]any `json:"formData"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || strings.TrimSpace(body.ProcessCode) == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	res := a.Svc.SubmitRequest(c.Request.Context(), user.ID, rec.ID, body.ProcessCode, body.FormData)
+	if !res.OK {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": res.Error})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "trackingCode": res.TrackingCode, "status": res.Status})
+}
+
+// requestSatisfaction ثبت امتیاز رضایت (فقط درخواست خود دانشجو).
+func (a *StudentAPI) requestSatisfaction(c *gin.Context) {
+	user := a.requireStudent(c)
+	if user == nil {
+		return
+	}
+	rec, err := a.Svc.Resolve(c.Request.Context(), user.ID)
+	if err != nil || rec == nil {
+		c.JSON(http.StatusNotFound, gin.H{"ok": false, "error": "پروندهٔ دانشجویی یافت نشد."})
+		return
+	}
+	var body struct {
+		RequestID int64  `json:"requestId"`
+		Score     int    `json:"score"`
+		Feedback  string `json:"feedback"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.RequestID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	if err := a.Svc.RateSatisfaction(c.Request.Context(), rec.ID, body.RequestID, body.Score, body.Feedback); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// requestAttachment آپلود پیوست درخواست (multipart/form-data — فیلد file).
+func (a *StudentAPI) requestAttachment(c *gin.Context) {
+	user := a.requireStudent(c)
+	if user == nil {
+		return
+	}
+	rec, err := a.Svc.Resolve(c.Request.Context(), user.ID)
+	if err != nil || rec == nil {
+		c.JSON(http.StatusNotFound, gin.H{"ok": false, "error": "پروندهٔ دانشجویی یافت نشد."})
+		return
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 10*1024*1024+1024)
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "فایلی انتخاب نشده است."})
+		return
+	}
+	if fileHeader.Size <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "فایلی انتخاب نشده است."})
+		return
+	}
+	if fileHeader.Size > 10*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "حجم پیوست نباید بیش از ۱۰ مگابایت باشد."})
+		return
+	}
+	f, err := fileHeader.Open()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "خواندن فایل ناموفق بود."})
+		return
+	}
+	defer f.Close()
+	buf := make([]byte, fileHeader.Size)
+	if _, err := io.ReadFull(f, buf); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "خواندن فایل ناموفق بود."})
+		return
+	}
+	att, err := a.Svc.UploadRequestAttachment(c.Request.Context(), rec.ID, fileHeader.Filename, fileHeader.Header.Get("Content-Type"), buf)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "attachment": att})
 }
 
 // dashboard دادهٔ صفحهٔ اول دانشجو.

@@ -20,6 +20,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 
+	"backend-go/internal/archive"
 	"backend-go/internal/authn"
 	"backend-go/internal/config"
 	"backend-go/internal/db"
@@ -107,6 +108,9 @@ func main() {
 	scopeAPI := &httpapi.ScopeAPI{Store: store, Svc: scopeSvc, Production: cfg.IsProduction()}
 	scopeAPI.Register(ginEngine.Group(""))
 	studentSvc := student.New(database.Pool, scopeSvc, settingsStore, signer)
+	if ar, err := archive.New(cfg.S3Endpoint, cfg.S3AccessKey, cfg.S3SecretKey, cfg.S3Bucket); err == nil {
+		studentSvc.Archive = ar
+	}
 	enrollSvc := enroll.NewService(database, rdb, settingsStore, scopeSvc, cfg.IsProduction())
 	enrollSvc.StartWorker()
 	studentAPI := &httpapi.StudentAPI{Svc: studentSvc, Store: store, Settings: settingsStore}

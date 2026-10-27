@@ -14,6 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"backend-go/internal/archive"
 	"backend-go/internal/scope"
 	"backend-go/internal/verification"
 )
@@ -49,6 +50,7 @@ type Service struct {
 	Scope    *scope.Service
 	Settings Settings
 	Signer   *verification.Signer
+	Archive  *archive.Store
 }
 
 func New(pool *pgxpool.Pool, scopeSvc *scope.Service, settings Settings, signer *verification.Signer) *Service {

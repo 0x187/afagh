@@ -317,3 +317,117 @@ export async function getLessonPlan(offeringId: number): Promise<LessonPlanData>
   const res = await apiGet<{ ok: boolean; data: LessonPlanData }>(`/student/lesson-plan/${offeringId}`);
   return res.data;
 }
+
+// ───────────────────────── میز خدمات / گردش‌کار ─────────────────────────
+
+export type RequestFormField = {
+  key: string;
+  label: string;
+  type: 'text' | 'textarea' | 'number' | 'select' | 'date' | 'file';
+  required?: boolean;
+  placeholder?: string;
+  options?: { value: string; label: string }[];
+  helperText?: string;
+  defaultValue?: string | number;
+};
+
+export type RequestProcess = {
+  id: number;
+  code: string;
+  title: string;
+  category: string;
+  description: string;
+  feeAmount: number;
+  formSchema: RequestFormField[];
+  steps: { stepOrder: number; title: string; stepType: string; roleCode: string; slaHours: number }[];
+};
+
+export type RequestLog = {
+  id: number;
+  actorRole: string | null;
+  action: string | null;
+  note: string | null;
+  assignedAt: string | null;
+  completedAt: string | null;
+  durationMinutes: number | null;
+  slaStatus: string | null;
+};
+
+export type RequestCheckpoint = {
+  id: number;
+  departmentCode: string;
+  departmentTitle: string;
+  isCleared: number;
+  notes: string | null;
+};
+
+export type StudentRequestRow = {
+  id: number;
+  trackingCode: string;
+  status: string;
+  created: string | null;
+  updated: string | null;
+  formData: Record<string, unknown>;
+  processCode: string;
+  processTitle: string;
+  category: string;
+  certificateNumber: string | null;
+  digitalStampHash: string | null;
+  satisfactionScore: number | null;
+  feedbackText: string | null;
+  logs: RequestLog[];
+  checkpoints: RequestCheckpoint[];
+};
+
+export type RequestsPageData = {
+  student: { id: number; name: string; status: string };
+  studentCode: string;
+  nationalCode: string | null;
+  majorName: string;
+  degreeTitle: string;
+  universityTitle: string;
+  universityLogo: string | null;
+  processes: RequestProcess[];
+  myRequests: StudentRequestRow[];
+};
+
+export async function getRequestsPage(): Promise<RequestsPageData> {
+  const res = await apiGet<{ ok: boolean; data: RequestsPageData }>('/student/requests');
+  return res.data;
+}
+
+export async function submitRequest(processCode: string, formData: Record<string, unknown>): Promise<{ trackingCode: string; status: string }> {
+  const res = await apiPost<{ ok: boolean; trackingCode: string; status: string }>('/student/requests/submit', {
+    processCode,
+    formData,
+  });
+  return { trackingCode: res.trackingCode, status: res.status };
+}
+
+export async function rateRequest(requestId: number, score: number, feedback: string): Promise<void> {
+  await apiPost('/student/requests/satisfaction', { requestId, score, feedback });
+}
+
+export async function uploadRequestAttachment(file: File): Promise<{ key: string; name: string; size: number; mimeType: string }> {
+  const body = new FormData();
+  body.append('file', file);
+  const res = await fetch('/api/v2/student/requests/attachment', {
+    method: 'POST',
+    credentials: 'same-origin',
+    body,
+  });
+  let payload: unknown = null;
+  try {
+    payload = await res.json();
+  } catch {
+    /* غیر JSON */
+  }
+  if (!res.ok) {
+    const msg =
+      payload && typeof payload === 'object' && 'error' in payload && typeof (payload as { error: unknown }).error === 'string'
+        ? (payload as { error: string }).error
+        : `خطای سرور (${res.status})`;
+    throw new Error(msg);
+  }
+  return (payload as { attachment: { key: string; name: string; size: number; mimeType: string } }).attachment;
+}
