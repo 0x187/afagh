@@ -26,6 +26,10 @@ import { ProfessorDocumentsPage } from '@/routes/professor/DocumentsPage';
 import { ProfessorBroadcastPage } from '@/routes/professor/BroadcastPage';
 import { ProfessorAvailabilityPage } from '@/routes/professor/AvailabilityPage';
 import { ProfessorAttendancePage } from '@/routes/professor/AttendancePage';
+import { ProfessorGradesPage } from '@/routes/professor/GradesPage';
+import { ProfessorEvaluationPage } from '@/routes/professor/EvaluationPage';
+import { ProfessorPerformancePage } from '@/routes/professor/PerformancePage';
+import { ProfessorLessonPlanPage } from '@/routes/professor/LessonPlanPage';
 import { NotFound } from '@/routes/NotFound';
 
 export function App() {
@@ -61,6 +65,11 @@ export function App() {
           <Route path="professor/broadcast" element={<ProfessorBroadcastPage />} />
           <Route path="professor/availability" element={<ProfessorAvailabilityPage />} />
           <Route path="professor/attendance" element={<ProfessorAttendancePage />} />
+          <Route path="professor/grades" element={<ProfessorGradesPage />} />
+          <Route path="professor/evaluation" element={<ProfessorEvaluationPage />} />
+          <Route path="professor/performance" element={<ProfessorPerformancePage />} />
+          <Route path="professor/lesson-plan" element={<ProfessorLessonPlanPage />} />
+          <Route path="professor/lesson-plan/:offeringId" element={<ProfessorLessonPlanPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

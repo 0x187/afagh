@@ -317,3 +317,164 @@ export async function scheduleMakeup(input: {
   const res = await apiPost<{ ok: boolean; sessionId: number }>('/professor/attendance/makeup', input);
   return res.sessionId;
 }
+
+// ───────────────────────── دفترچهٔ نمرات ─────────────────────────
+
+export type GradeStudent = {
+  studentId: number;
+  studentCode: string;
+  fullName: string;
+  enrollmentId: number;
+  enrollmentOfferingId: number;
+  entryYear: number;
+  gradeValue: number | null;
+  status: string;
+  samaGradeStatusCode: string | null;
+};
+
+export type GradeAppeal = {
+  id: number;
+  studentId: number;
+  studentCode: string;
+  fullName: string;
+  currentGrade: number | null;
+  studentMessage: string;
+  status: string;
+  professorReply: string | null;
+  newGrade: number | null;
+  createdAt: string | null;
+  enrollmentOfferingId: number;
+};
+
+export type GradeOffering = {
+  id: number;
+  code: string;
+  title: string;
+  groupNumber: number;
+  units: number;
+  courseType: string;
+  isCoTaught: boolean;
+  coTaughtRole: string | null;
+  coPartnerName: string | null;
+  isFinalized: boolean;
+  finalizedAt: string | null;
+  finalSignatureHash: string | null;
+  gradeDeadline: string | null;
+  isThesis: boolean;
+  rubric: { midterm: number; homework: number; participation: number; practical: number; finalExam: number };
+  students: GradeStudent[];
+  appeals: GradeAppeal[];
+};
+
+export type GradesData = { professor: ProfessorInfo; term: ProfTerm; offerings: GradeOffering[] };
+
+export async function getGrades(): Promise<GradesData> {
+  const res = await apiGet<{ ok: boolean; data: GradesData }>('/professor/grades');
+  return res.data;
+}
+
+export async function saveGrade(offeringId: number, studentId: number, value: number | null): Promise<void> {
+  await apiPost('/professor/grades/score', { offeringId, studentId, value });
+}
+
+export async function submitGradesTemporary(offeringId: number): Promise<void> {
+  await apiPost('/professor/grades/temporary', { offeringId });
+}
+
+export async function requestGradeFinalizeOTP(offeringId: number): Promise<{ devOtp?: string; expiresInSeconds: number }> {
+  return apiPost('/professor/grades/finalize/otp', { offeringId });
+}
+
+export async function finalizeGrades(offeringId: number, otp: string): Promise<void> {
+  await apiPost('/professor/grades/finalize', { offeringId, otp });
+}
+
+export async function resolveAppeal(input: { appealId: number; decision: 'ACCEPTED' | 'REJECTED'; newGrade: number | null; reply: string }): Promise<void> {
+  await apiPost('/professor/grades/appeal', input);
+}
+
+export async function requestUnfinalize(offeringId: number, reason: string): Promise<void> {
+  await apiPost('/professor/grades/unfinalize', { offeringId, reason });
+}
+
+export async function getUnfinalizeRequests(): Promise<{ id: number; offeringId: number; reason: string; status: string; createdAt: string | null; reviewNote: string | null }[]> {
+  const res = await apiGet<{ ok: boolean; requests: { id: number; offeringId: number; reason: string; status: string; createdAt: string | null; reviewNote: string | null }[] }>('/professor/grades/unfinalize');
+  return res.requests;
+}
+
+// ───────────────────────── ارزشیابی و عملکرد ─────────────────────────
+
+export type EvaluationData = {
+  name: string;
+  rank: string | null;
+  department: string | null;
+  term: string;
+  period: string | null;
+  score: number | null;
+  deptAvg: number | null;
+  respondents: number;
+  threshold: number;
+  flagged: boolean;
+  axes: { label: string; mine: number | null; dept: number | null; responses: number }[];
+  trend: { period: string; term: string; score: number | null }[];
+  words: { word: string; count: number }[];
+};
+
+export async function getEvaluation(): Promise<EvaluationData> {
+  const res = await apiGet<{ ok: boolean; data: EvaluationData }>('/professor/evaluation');
+  return res.data;
+}
+
+export type PerformanceData = {
+  staffCode: string;
+  fullName: string;
+  academicRank: string | null;
+  departmentName: string | null;
+  term: string;
+  teaching: { offerings: number; students: number; courses: string[] };
+  sessions: { held: number; absent: number; makeUp: number; scheduled: number; heldRate: number | null; holdTarget: number };
+  grades: { entered: number; pending: number; total: number; completionPercent: number | null; deadline: string | null; appealsOpen: number };
+  evaluation: { score: number | null; respondents: number; deptAvg: number | null; evalTarget: number };
+  peers: { count: number; evalRank: number | null; avgEvalScore: number | null };
+  desk: { resolvedThisMonth: number; openQueue: number; mttrHours: number | null; slaOnTimePercent: number | null; slaBreached: number };
+  badge: { title: string; level: string };
+  incentive: { eligible: boolean; percent: number; reasons: string[] };
+};
+
+export async function getPerformance(): Promise<PerformanceData> {
+  const res = await apiGet<{ ok: boolean; data: PerformanceData }>('/professor/performance');
+  return res.data;
+}
+
+// ───────────────────────── طرح درس ─────────────────────────
+
+export type ProfPlanSession = { id: number; sessionNo: number; sessionKind: string; topic: string; details: string | null; weightId: number | null };
+
+export type ProfPlanData = {
+  offeringId: number;
+  courseTitle: string;
+  courseModeDefault: string;
+  required: boolean;
+  notice: string | null;
+  isOwner: boolean;
+  plan: { id: number; courseMode: string; totalSessions: number; objectives: string; resources: string; status: string; submittedAt: string | null } | null;
+  sessions: ProfPlanSession[];
+  weights: { id: number; title: string; percent: number }[];
+};
+
+export async function getProfessorPlan(offeringId: number): Promise<ProfPlanData> {
+  const res = await apiGet<{ ok: boolean; data: ProfPlanData }>(`/professor/lesson-plan/${offeringId}`);
+  return res.data;
+}
+
+export async function saveProfessorPlan(offeringId: number, input: {
+  courseMode: string;
+  totalSessions: number;
+  objectives: string;
+  resources: string;
+  status: 'DRAFT' | 'SUBMITTED';
+  sessions: { sessionNo: number; sessionKind: string; topic: string; details: string; weightId?: number | null }[];
+  weights: { title: string; percent: number }[];
+}): Promise<void> {
+  await apiPost(`/professor/lesson-plan/${offeringId}`, input);
+}

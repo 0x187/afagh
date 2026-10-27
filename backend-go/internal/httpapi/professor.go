@@ -37,6 +37,18 @@ func (a *ProfessorAPI) Register(r gin.IRouter) {
 	r.POST("/professor/attendance/generate", a.attendanceGenerate)
 	r.POST("/professor/attendance/save", a.attendanceSave)
 	r.POST("/professor/attendance/makeup", a.attendanceMakeup)
+	r.GET("/professor/grades", a.grades)
+	r.POST("/professor/grades/score", a.gradeScore)
+	r.POST("/professor/grades/temporary", a.gradeTemporary)
+	r.POST("/professor/grades/finalize/otp", a.gradeFinalizeOTP)
+	r.POST("/professor/grades/finalize", a.gradeFinalize)
+	r.POST("/professor/grades/appeal", a.gradeAppeal)
+	r.POST("/professor/grades/unfinalize", a.gradeUnfinalize)
+	r.GET("/professor/grades/unfinalize", a.gradeUnfinalizeList)
+	r.GET("/professor/evaluation", a.evaluation)
+	r.GET("/professor/performance", a.performance)
+	r.GET("/professor/lesson-plan/:offeringId", a.lessonPlan)
+	r.POST("/professor/lesson-plan/:offeringId", a.saveLessonPlan)
 }
 
 func (a *ProfessorAPI) currentUser(c *gin.Context) *session.User {
@@ -409,6 +421,219 @@ func (a *ProfessorAPI) attendanceMakeup(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true, "sessionId": id})
+}
+
+func (a *ProfessorAPI) grades(c *gin.Context) {
+	user := a.requireProfessor(c)
+	if user == nil {
+		return
+	}
+	resp, err := a.Svc.GetGrades(c.Request.Context(), user.ID, termIDFromCookie(c))
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
+}
+
+func (a *ProfessorAPI) gradeScore(c *gin.Context) {
+	user := a.requireProfessor(c)
+	if user == nil {
+		return
+	}
+	var body struct {
+		OfferingID int64    `json:"offeringId"`
+		StudentID  int64    `json:"studentId"`
+		Value      *float64 `json:"value"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.OfferingID <= 0 || body.StudentID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	if err := a.Svc.SaveScore(c.Request.Context(), user.ID, body.OfferingID, body.StudentID, body.Value); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *ProfessorAPI) gradeTemporary(c *gin.Context) {
+	user := a.requireProfessor(c)
+	if user == nil {
+		return
+	}
+	var body struct {
+		OfferingID int64 `json:"offeringId"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.OfferingID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درس نامعتبر است."})
+		return
+	}
+	if err := a.Svc.SubmitTemporary(c.Request.Context(), user.ID, body.OfferingID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *ProfessorAPI) gradeFinalizeOTP(c *gin.Context) {
+	user := a.requireProfessor(c)
+	if user == nil {
+		return
+	}
+	var body struct {
+		OfferingID int64 `json:"offeringId"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.OfferingID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درس نامعتبر است."})
+		return
+	}
+	code, err := a.Svc.RequestFinalizeOTP(c.Request.Context(), user.ID, body.OfferingID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
+		return
+	}
+	resp := gin.H{"ok": true, "sent": true, "expiresInSeconds": 300}
+	if code != "" {
+		resp["devOtp"] = code
+	}
+	c.JSON(http.StatusOK, resp)
+}
+
+func (a *ProfessorAPI) gradeFinalize(c *gin.Context) {
+	user := a.requireProfessor(c)
+	if user == nil {
+		return
+	}
+	var body struct {
+		OfferingID int64  `json:"offeringId"`
+		OTP        string `json:"otp"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.OfferingID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	if err := a.Svc.Finalize(c.Request.Context(), user.ID, body.OfferingID, body.OTP); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *ProfessorAPI) gradeAppeal(c *gin.Context) {
+	user := a.requireProfessor(c)
+	if user == nil {
+		return
+	}
+	var body professor.AppealDecision
+	if err := c.ShouldBindJSON(&body); err != nil || body.AppealID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	if err := a.Svc.ResolveAppealAction(c.Request.Context(), user.ID, body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *ProfessorAPI) gradeUnfinalize(c *gin.Context) {
+	user := a.requireProfessor(c)
+	if user == nil {
+		return
+	}
+	var body struct {
+		OfferingID int64  `json:"offeringId"`
+		Reason     string `json:"reason"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.OfferingID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	if err := a.Svc.RequestUnfinalize(c.Request.Context(), user.ID, body.OfferingID, body.Reason); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *ProfessorAPI) gradeUnfinalizeList(c *gin.Context) {
+	user := a.requireProfessor(c)
+	if user == nil {
+		return
+	}
+	list, err := a.Svc.GetUnfinalizeRequests(c.Request.Context(), user.ID)
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "requests": list})
+}
+
+func (a *ProfessorAPI) evaluation(c *gin.Context) {
+	user := a.requireProfessor(c)
+	if user == nil {
+		return
+	}
+	resp, err := a.Svc.GetEvaluation(c.Request.Context(), user.ID, termIDFromCookie(c))
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
+}
+
+func (a *ProfessorAPI) performance(c *gin.Context) {
+	user := a.requireProfessor(c)
+	if user == nil {
+		return
+	}
+	resp, err := a.Svc.GetPerformance(c.Request.Context(), user.ID, termIDFromCookie(c))
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
+}
+
+func (a *ProfessorAPI) lessonPlan(c *gin.Context) {
+	user := a.requireProfessor(c)
+	if user == nil {
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("offeringId"), 10, 64)
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "شناسهٔ ارائهٔ درس نامعتبر است."})
+		return
+	}
+	resp, err := a.Svc.GetProfessorPlan(c.Request.Context(), user.ID, id)
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
+}
+
+func (a *ProfessorAPI) saveLessonPlan(c *gin.Context) {
+	user := a.requireProfessor(c)
+	if user == nil {
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("offeringId"), 10, 64)
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "شناسهٔ ارائهٔ درس نامعتبر است."})
+		return
+	}
+	var body professor.SavePlanInput
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	if err := a.Svc.SaveProfessorPlan(c.Request.Context(), user.ID, id, body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
 func clientMeta(c *gin.Context) (string, string) {
