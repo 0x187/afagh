@@ -45,6 +45,7 @@ import { AdminOfferingsPage } from '@/routes/admin/OfferingsPage';
 import { AdminEvaluationsPage } from '@/routes/admin/EvaluationsPage';
 import { AdminWeeklyBoardPage } from '@/routes/admin/WeeklyBoardPage';
 import { AdminSettingsPage } from '@/routes/admin/SettingsPage';
+import { AdminExamsPage } from '@/routes/admin/ExamsPage';
 import { NotFound } from '@/routes/NotFound';
 
 export function App() {
@@ -101,6 +102,7 @@ export function App() {
           <Route path="admin/evaluations" element={<AdminEvaluationsPage />} />
           <Route path="admin/weekly-board" element={<AdminWeeklyBoardPage />} />
           <Route path="admin/settings" element={<AdminSettingsPage />} />
+          <Route path="admin/exams" element={<AdminExamsPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

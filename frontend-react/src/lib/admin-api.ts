@@ -167,3 +167,32 @@ export async function saveAdminSetting(key: string, value: string): Promise<void
 export async function resetAdminSetting(key: string): Promise<void> {
   await apiPost('/admin/settings/reset', { key });
 }
+
+export type ExamsData = {
+  term: { id: number | null; title: string; termCode: string; isEnrollmentOpen: boolean };
+  sessions: { id: number; termId: number | null; examDate: string; startTime: string; endTime: string; allocated: number }[];
+  courses: { offeringId: number; courseCode: string; courseTitle: string; groupNumber: number; examDate: string; startTime: string; endTime: string; roomName: string | null; sessionId: number | null }[];
+  halls: { id: number; name: string; capacity: number; rowsCount: number | null; colsCount: number | null; buildingName: string | null }[];
+  allocatedTotal: number;
+};
+
+export async function getExams(): Promise<ExamsData> {
+  const res = await apiGet<{ ok: boolean; data: ExamsData }>('/admin/exams');
+  return res.data;
+}
+
+export async function createExamSession(input: { termId: number; examDate: string; start: string; end: string }): Promise<void> {
+  await apiPost('/admin/exams/sessions', input);
+}
+
+export async function assignExamSession(offeringId: number, sessionId: number): Promise<void> {
+  await apiPost('/admin/exams/assign', { offeringId, sessionId });
+}
+
+export async function createExamHall(input: { name: string; capacity: number; rowsCount: number; colsCount: number; buildingName: string }): Promise<void> {
+  await apiPost('/admin/exams/halls', input);
+}
+
+export async function generateExamSeats(): Promise<{ allocated: number; sessionCount: number }> {
+  return apiPost('/admin/exams/seats');
+}
