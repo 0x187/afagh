@@ -127,6 +127,7 @@ func main() {
 	gmAPI := &httpapi.GroupManagerAPI{Svc: gmSvc, Store: store}
 	gmAPI.Register(ginEngine.Group(""))
 	adminSvc := admin.New(database, scopeSvc)
+	adminSvc.SetStore(&settingsStoreAdapter{store: settingsStore})
 	adminAPI := &httpapi.AdminAPI{Svc: adminSvc, Store: store}
 	adminAPI.Register(ginEngine.Group(""))
 	publicAPI := &httpapi.PublicAPI{Pool: database.Pool, Settings: settingsStore}
@@ -187,4 +188,34 @@ func newHostPreservingProxy(u *url.URL) http.Handler {
 		req.Host = u.Host
 	}
 	return p
+}
+
+// settingsStoreAdapter سازگارساز settings.Store با رابط بستهٔ admin.
+type settingsStoreAdapter struct {
+	store *settings.Store
+}
+
+func (a *settingsStoreAdapter) Get(ctx context.Context, key string) (string, error) {
+	return a.store.Get(ctx, key)
+}
+
+func (a *settingsStoreAdapter) Save(ctx context.Context, key, value string) error {
+	return a.store.Save(ctx, key, value)
+}
+
+func (a *settingsStoreAdapter) Delete(ctx context.Context, key string) error {
+	return a.store.Delete(ctx, key)
+}
+
+func (a *settingsStoreAdapter) AllDefs() []admin.SettingsDef {
+	defs := a.store.AllDefs()
+	out := make([]admin.SettingsDef, 0, len(defs))
+	for _, d := range defs {
+		out = append(out, admin.SettingsDef{Key: d.Key, Env: d.Env, Default: d.Default, EnvOnly: d.EnvOnly})
+	}
+	return out
+}
+
+func (a *settingsStoreAdapter) Invalidate() {
+	a.store.Invalidate()
 }

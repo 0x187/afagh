@@ -15,11 +15,32 @@ import (
 	"backend-go/internal/session"
 )
 
+// settingsStore برای جلوگیری از وابستگی چرخشی — همان رابط admin/settings.go.
+type settingsStore interface {
+	Get(ctx context.Context, key string) (string, error)
+	Save(ctx context.Context, key, value string) error
+	Delete(ctx context.Context, key string) error
+	AllDefs() []SettingsDef
+	Invalidate()
+}
+
+// SettingsDef تعریف یک تنظیم (عمومی برای آداپتور).
+type SettingsDef struct {
+	Key     string
+	Env     string
+	Default string
+	EnvOnly bool
+}
+
 // Service سرویس ادمین.
 type Service struct {
 	DB    *db.DB
 	Scope *scope.Service
+	Store settingsStore
 }
+
+// SetStore تنظیم مخزن تنظیمات.
+func (s *Service) SetStore(store settingsStore) { s.Store = store }
 
 func New(database *db.DB, scopeSvc *scope.Service) *Service {
 	return &Service{DB: database, Scope: scopeSvc}

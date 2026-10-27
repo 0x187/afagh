@@ -152,3 +152,18 @@ export async function getWeeklyBoard(): Promise<WeeklyBoardData> {
   const res = await apiGet<{ ok: boolean; data: WeeklyBoardData }>('/admin/weekly-board');
   return res.data;
 }
+
+export type AdminSetting = { key: string; value: string; default: string; source: string; isSecret: boolean };
+
+export async function getAdminSettings(): Promise<AdminSetting[]> {
+  const res = await apiGet<{ ok: boolean; data: { settings: AdminSetting[] } }>('/admin/settings');
+  return res.data.settings;
+}
+
+export async function saveAdminSetting(key: string, value: string): Promise<void> {
+  await apiPost('/admin/settings', { key, value });
+}
+
+export async function resetAdminSetting(key: string): Promise<void> {
+  await apiPost('/admin/settings/reset', { key });
+}

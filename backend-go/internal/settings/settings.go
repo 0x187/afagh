@@ -7,6 +7,7 @@ package settings
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -106,6 +107,56 @@ func (s *Store) dbSettings(ctx context.Context) map[string]string {
 	s.cache = &cacheEntry{at: time.Now(), rows: rows}
 	s.mu.Unlock()
 	return rows
+}
+
+// Save ذخیرهٔ مقدار در جدول system_settings (پنل مدیر).
+func (s *Store) Save(ctx context.Context, key, value string) error {
+	def, ok := s.defs[key]
+	if !ok {
+		return errors.New("تنظیم ناشناخته: " + key)
+	}
+	if def.EnvOnly {
+		return errors.New("این تنظیم فقط از ENV خوانده می‌شود و در دیتابیس ذخیره نمی‌شود: " + key)
+	}
+	if s.reader == nil {
+		return errors.New("اتصال دیتابیس در دسترس نیست.")
+	}
+	if _, err := s.pool().Exec(ctx, `
+		insert into system_settings ("key", value) values ($1,$2)
+		on conflict ("key") do update set value = excluded.value`, key, value); err != nil {
+		return err
+	}
+	s.Invalidate()
+	return nil
+}
+
+// Delete حذف ردیف (بازگشت به پیش‌فرض).
+func (s *Store) Delete(ctx context.Context, key string) error {
+	if s.reader == nil {
+		return errors.New("اتصال دیتابیس در دسترس نیست.")
+	}
+	if _, err := s.pool().Exec(ctx, `delete from system_settings where "key" = $1`, key); err != nil {
+		return err
+	}
+	s.Invalidate()
+	return nil
+}
+
+// AllDefs تعریف‌های ثبت‌شده را برمی‌گرداند (برای پنل مدیر).
+func (s *Store) AllDefs() []Def {
+	out := make([]Def, 0, len(s.defs))
+	for _, d := range s.defs {
+		out = append(out, d)
+	}
+	return out
+}
+
+// pool استخر زیرین (nil-safe برای تست).
+func (s *Store) pool() *pgxpool.Pool {
+	if p, ok := s.reader.(pgReader); ok {
+		return p.pool
+	}
+	return nil
 }
 
 // Invalidate پاک‌کردن کش (معادل invalidateSettingsCache).
@@ -218,4 +269,17 @@ var PhaseOneDefs = []Def{
 	{Key: "CONTRACT_TAX_PERCENT", Env: "CONTRACT_TAX_PERCENT", Default: "10"},
 	{Key: "CONTRACT_INSURANCE_PERCENT", Env: "CONTRACT_INSURANCE_PERCENT", Default: "7"},
 	{Key: "CONTRACT_MINUTES_PER_UNIT", Env: "CONTRACT_MINUTES_PER_UNIT", Default: "0"},
+
+	// ── ارزشیابی/عملکرد/اعلان‌ها (فاز ۶) ──
+	{Key: "EVAL_FLAG_THRESHOLD", Env: "EVAL_FLAG_THRESHOLD", Default: "3.5"},
+	{Key: "EVAL_TREND_TERMS", Env: "EVAL_TREND_TERMS", Default: "3"},
+	{Key: "PERF_SLA_TARGET", Env: "PERF_SLA_TARGET", Default: "90"},
+	{Key: "PERF_EVAL_TARGET", Env: "PERF_EVAL_TARGET", Default: "4"},
+	{Key: "PERF_SESSION_HOLD_TARGET", Env: "PERF_SESSION_HOLD_TARGET", Default: "90"},
+	{Key: "PERF_INCENTIVE_PERCENT", Env: "PERF_INCENTIVE_PERCENT", Default: "10"},
+	{Key: "BI_STOPWORDS", Env: "BI_STOPWORDS", Default: "و,به,از,که,در,این,آن,با,را,برای,است,بود,شد,هم,نیز,تا,یا,اما,خیلی,بسیار,بر,دارد,می,های,یک,دو,سه,من,او,ما,شما,باید,نمی,کنم,کرد,کردم,کنند,مورد,همه,چون,اگر,روی,بی,هر,چه,می‌شود,بودن,کلاس,استاد,درس"},
+	{Key: "NOTIFY_ENABLED", Env: "NOTIFY_ENABLED", Default: "false"},
+	{Key: "NOTIFY_SIGNATURE", Env: "NOTIFY_SIGNATURE", Default: ""},
+	{Key: "EXAM_GRADE_DEADLINE_DAYS", Env: "EXAM_GRADE_DEADLINE_DAYS", Default: "5"},
+	{Key: "GRADE_EDIT_NOTIFY_BOARD", Env: "GRADE_EDIT_NOTIFY_BOARD", Default: "true"},
 }
