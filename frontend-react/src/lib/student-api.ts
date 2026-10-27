@@ -431,3 +431,67 @@ export async function uploadRequestAttachment(file: File): Promise<{ key: string
   }
   return (payload as { attachment: { key: string; name: string; size: number; mimeType: string } }).attachment;
 }
+
+// ───────────────────────── امور مالی ─────────────────────────
+
+export type FinanceEvent = { kind: string; label: string; amount: number; dateMs: number | null; sign: number };
+
+export type FinanceTerm = {
+  termId: number;
+  termTitle: string;
+  termCode: string | null;
+  charges: number;
+  discounts: number;
+  sponsorships: number;
+  payments: number;
+  chequesCleared: number;
+  chequesPending: number;
+  chequesBounced: number;
+  loans: number;
+  netPayable: number;
+  balance: number;
+  events: FinanceEvent[];
+};
+
+export type FinanceData = {
+  student: {
+    studentId: number;
+    userId: number;
+    studentCode: string;
+    fullName: string;
+    nationalCode: string | null;
+    majorTitle: string | null;
+    degreeTitle: string | null;
+    entryYear: number;
+    status: string;
+    entryTerm: number | null;
+  };
+  records: { id: number; studentCode: string; status: string; degreeTitle: string | null; entryYear: number }[];
+  activeRecordId: number;
+  terms: FinanceTerm[];
+  totals: {
+    charges: number;
+    discounts: number;
+    sponsorships: number;
+    payments: number;
+    chequesCleared: number;
+    chequesPending: number;
+    chequesBounced: number;
+    loans: number;
+    balance: number;
+  };
+  cheques: { id: number; termId: number | null; chequeNo: string | null; bankName: string | null; amount: number; dueDate: string | null; status: string | null }[];
+  loans: { id: number; termId: number | null; productTitle: string | null; lender: string | null; amount: number; installments: number | null; status: string | null }[];
+  notifications: { id: number; text: string; dateMs: number | null; event: string | null }[];
+  dueSoon: { id: number; chequeNo: string | null; bankName: string | null; amount: number; daysLeft: number | null; overdue: boolean }[];
+  selectedTermTitle: string | null;
+  university: StudentScheduleData['university'];
+  issuedAt: string;
+  qr: { url: string; svg: string; expiresAt: string } | null;
+};
+
+export async function getFinance(params?: { record?: number | null }): Promise<FinanceData> {
+  const qs = params?.record ? `?record=${params.record}` : '';
+  const res = await apiGet<{ ok: boolean; data: FinanceData }>(`/student/finance${qs}`);
+  return res.data;
+}

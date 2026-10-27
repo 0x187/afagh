@@ -200,4 +200,8 @@ var PhaseOneDefs = []Def{
 	{Key: "BBB_MODERATOR_PW", Env: "BIGBLUEBUTTON_MODERATOR_PW", Default: ""},
 	{Key: "BBB_ATTENDEE_PW", Env: "BIGBLUEBUTTON_ATTENDEE_PW", Default: ""},
 	{Key: "BBB_AUTO_RECORD", Env: "BIGBLUEBUTTON_AUTO_RECORD", Default: "false"},
+
+	// ── مالی (فاز ۳) ──
+	{Key: "CHEQUE_REMIND_DAYS", Env: "AFAGH_CHEQUE_REMIND_DAYS", Default: "7"},
+	{Key: "FINANCE_STMT_TTL_MINUTES", Env: "FINANCE_STMT_TTL_MINUTES", Default: "10080"},
 }

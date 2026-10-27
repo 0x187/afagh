@@ -39,6 +39,7 @@ func (a *StudentAPI) Register(r gin.IRouter) {
 	r.POST("/student/requests/submit", a.requestSubmit)
 	r.POST("/student/requests/satisfaction", a.requestSatisfaction)
 	r.POST("/student/requests/attachment", a.requestAttachment)
+	r.GET("/student/finance", a.finance)
 }
 
 func (a *StudentAPI) currentUser(c *gin.Context) *session.User {
@@ -256,6 +257,26 @@ func (a *StudentAPI) lessonPlan(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": view})
+}
+
+// finance کارنامهٔ مالی ترم‌به‌ترم + چک/وام + QR.
+func (a *StudentAPI) finance(c *gin.Context) {
+	user := a.requireStudent(c)
+	if user == nil {
+		return
+	}
+	var recordID *int64
+	if raw := strings.TrimSpace(c.Query("record")); raw != "" {
+		if n, err := strconv.ParseInt(raw, 10, 64); err == nil && n > 0 {
+			recordID = &n
+		}
+	}
+	resp, err := a.Svc.GetFinance(c.Request.Context(), user.ID, recordID, termIDFromCookie(c), a.publicBaseURL(c))
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
 }
 
 // requests میز خدمات — فرایندها و درخواست‌های دانشجو.
