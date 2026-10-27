@@ -34,6 +34,7 @@ func (a *AdminAPI) Register(r gin.IRouter) {
 	r.POST("/admin/evaluations", a.createEvaluation)
 	r.POST("/admin/evaluations/toggle", a.toggleEvaluation)
 	r.POST("/admin/evaluations/delete", a.deleteEvaluation)
+	r.GET("/admin/weekly-board", a.weeklyBoard)
 }
 
 var adminRoles = []string{
@@ -306,6 +307,19 @@ func (a *AdminAPI) deleteEvaluation(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *AdminAPI) weeklyBoard(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	resp, err := a.Svc.GetWeeklyBoard(c.Request.Context(), user, a.uniCookie(c))
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
 }
 
 func (a *AdminAPI) staff(c *gin.Context) {

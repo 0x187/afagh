@@ -121,3 +121,34 @@ export async function toggleEvaluationPeriod(id: number): Promise<void> {
 export async function deleteEvaluationPeriod(id: number): Promise<void> {
   await apiPost('/admin/evaluations/delete', { id });
 }
+
+export type WeeklyBoardRow = {
+  offeringId: number;
+  groupNumber: number;
+  courseCode: string;
+  courseTitle: string;
+  courseType: string;
+  dayOfWeek: number | null;
+  startTime: string;
+  endTime: string;
+  roomId: number | null;
+  roomName: string | null;
+  buildingName: string | null;
+  professor: string;
+  departmentName: string | null;
+  enrolledCount: number;
+  capacity: number;
+};
+
+export type WeeklyBoardData = {
+  term: { id: number | null; title: string; termCode: string; isEnrollmentOpen: boolean };
+  rows: WeeklyBoardRow[];
+  rooms: { id: number; title: string }[];
+  departments: { id: number; title: string }[];
+  professors: { id: number; title: string }[];
+};
+
+export async function getWeeklyBoard(): Promise<WeeklyBoardData> {
+  const res = await apiGet<{ ok: boolean; data: WeeklyBoardData }>('/admin/weekly-board');
+  return res.data;
+}
