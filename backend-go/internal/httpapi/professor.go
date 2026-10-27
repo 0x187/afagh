@@ -33,6 +33,10 @@ func (a *ProfessorAPI) Register(r gin.IRouter) {
 	r.POST("/professor/broadcast/send", a.broadcastSend)
 	r.GET("/professor/availability", a.availability)
 	r.POST("/professor/availability", a.saveAvailability)
+	r.GET("/professor/attendance", a.attendance)
+	r.POST("/professor/attendance/generate", a.attendanceGenerate)
+	r.POST("/professor/attendance/save", a.attendanceSave)
+	r.POST("/professor/attendance/makeup", a.attendanceMakeup)
 }
 
 func (a *ProfessorAPI) currentUser(c *gin.Context) *session.User {
@@ -327,6 +331,84 @@ func (a *ProfessorAPI) saveAvailability(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *ProfessorAPI) attendance(c *gin.Context) {
+	user := a.requireProfessor(c)
+	if user == nil {
+		return
+	}
+	var offeringID *int64
+	if raw := strings.TrimSpace(c.Query("offeringId")); raw != "" {
+		if n, err := strconv.ParseInt(raw, 10, 64); err == nil && n > 0 {
+			offeringID = &n
+		}
+	}
+	resp, err := a.Svc.GetAttendance(c.Request.Context(), user.ID, termIDFromCookie(c), offeringID)
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
+}
+
+func (a *ProfessorAPI) attendanceGenerate(c *gin.Context) {
+	user := a.requireProfessor(c)
+	if user == nil {
+		return
+	}
+	var body struct {
+		OfferingID int64 `json:"offeringId"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.OfferingID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درس نامعتبر است."})
+		return
+	}
+	res := a.Svc.GenerateSessions(c.Request.Context(), user.ID, body.OfferingID)
+	if !res.OK {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": res.Error})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "generated": res.Generated, "skipped": res.Skipped, "already": res.Already})
+}
+
+func (a *ProfessorAPI) attendanceSave(c *gin.Context) {
+	user := a.requireProfessor(c)
+	if user == nil {
+		return
+	}
+	var body struct {
+		SessionID int64                       `json:"sessionId"`
+		Entries   []professor.AttendanceEntry `json:"entries"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.SessionID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	saved, sessions, err := a.Svc.SaveSessionAttendance(c.Request.Context(), user.ID, body.SessionID, body.Entries)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "savedCount": saved, "sessionCount": sessions})
+}
+
+func (a *ProfessorAPI) attendanceMakeup(c *gin.Context) {
+	user := a.requireProfessor(c)
+	if user == nil {
+		return
+	}
+	var body professor.MakeupInput
+	if err := c.ShouldBindJSON(&body); err != nil || body.OfferingID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	id, err := a.Svc.ScheduleMakeup(c.Request.Context(), user.ID, body)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "sessionId": id})
 }
 
 func clientMeta(c *gin.Context) (string, string) {

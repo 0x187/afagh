@@ -223,3 +223,97 @@ export async function getAvailability(): Promise<AvailabilityData> {
 export async function saveAvailability(termId: number, cells: AvailabilityCell[], notes: string): Promise<void> {
   await apiPost('/professor/availability', { termId, cells, notes });
 }
+
+// ───────────────────────── حضور و غیاب ─────────────────────────
+
+export type AttendanceStudent = { id: number; studentCode: string; fullName: string };
+export type AttendanceStatus = 'PRESENT' | 'LATE' | 'ABSENT' | 'EXCUSED';
+
+export type AttendanceSession = {
+  id: number;
+  sessionNo: number;
+  sessionDate: string;
+  startTime: string;
+  endTime: string;
+  roomName: string;
+  topic: string;
+  isHeld: boolean;
+  isMakeUp: boolean;
+  replacedSessionNo: number | null;
+  professorStatus: string;
+  verificationDetail: string;
+  professorCheck: { verificationMethod: string; ipAddress: string | null; recordedAt: string | null } | null;
+  studentStatuses: Record<string, { status: AttendanceStatus }>;
+};
+
+export type AttendanceOffering = {
+  id: number;
+  code: string;
+  title: string;
+  groupNumber: number;
+  units: number;
+  roomName: string;
+  scheduleTime: string;
+  hasSchedules: boolean;
+  canGenerate: boolean;
+  merged: boolean;
+  memberCount: number;
+  students: AttendanceStudent[];
+  sessions: AttendanceSession[];
+};
+
+export type MakeupRecord = {
+  id: number;
+  offeringId: number;
+  courseTitle: string;
+  groupNumber: number;
+  professorName: string;
+  replacedSessionNo: number;
+  sessionDate: string;
+  sessionTime: string;
+  roomName: string;
+  topic: string;
+  reason: string;
+  status: string;
+  allocatedAt: string;
+};
+
+export type AttendanceData = {
+  professor: ProfessorInfo;
+  termTitle: string;
+  termId: number | null;
+  offerings: AttendanceOffering[];
+  defaultOfferingId: number | null;
+  initialMakeupHistory: MakeupRecord[];
+  todayJalali: string;
+  rooms: { id: number; name: string; capacity: number; type: string }[];
+};
+
+export async function getAttendance(offeringId?: number | null): Promise<AttendanceData> {
+  const qs = offeringId ? `?offeringId=${offeringId}` : '';
+  const res = await apiGet<{ ok: boolean; data: AttendanceData }>(`/professor/attendance${qs}`);
+  return res.data;
+}
+
+export async function generateAttendanceSessions(offeringId: number): Promise<{ generated: number; skipped: number; already?: boolean }> {
+  return apiPost('/professor/attendance/generate', { offeringId });
+}
+
+export async function saveAttendance(sessionId: number, entries: { studentId: number; status: AttendanceStatus }[]): Promise<{ savedCount: number; sessionCount: number }> {
+  return apiPost('/professor/attendance/save', { sessionId, entries });
+}
+
+export async function scheduleMakeup(input: {
+  offeringId: number;
+  replacedSessionId?: number | null;
+  sessionDate: string;
+  startTime: string;
+  endTime: string;
+  roomName: string;
+  isDirect: boolean;
+  topic?: string;
+  absenceReason?: string;
+}): Promise<number> {
+  const res = await apiPost<{ ok: boolean; sessionId: number }>('/professor/attendance/makeup', input);
+  return res.sessionId;
+}

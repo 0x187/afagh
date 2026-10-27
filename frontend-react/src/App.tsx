@@ -25,6 +25,7 @@ import { ProfessorContractPage } from '@/routes/professor/ContractPage';
 import { ProfessorDocumentsPage } from '@/routes/professor/DocumentsPage';
 import { ProfessorBroadcastPage } from '@/routes/professor/BroadcastPage';
 import { ProfessorAvailabilityPage } from '@/routes/professor/AvailabilityPage';
+import { ProfessorAttendancePage } from '@/routes/professor/AttendancePage';
 import { NotFound } from '@/routes/NotFound';
 
 export function App() {
@@ -59,6 +60,7 @@ export function App() {
           <Route path="professor/documents" element={<ProfessorDocumentsPage />} />
           <Route path="professor/broadcast" element={<ProfessorBroadcastPage />} />
           <Route path="professor/availability" element={<ProfessorAvailabilityPage />} />
+          <Route path="professor/attendance" element={<ProfessorAttendancePage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
