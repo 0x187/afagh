@@ -40,6 +40,7 @@ var errNoStudent = errors.New("پروندهٔ دانشجویی یافت نشد."
 type Settings interface {
 	Get(ctx context.Context, key string) (string, error)
 	GetNumber(ctx context.Context, key string, fallback float64) float64
+	GetBool(ctx context.Context, key string) bool
 }
 
 // Service دسترسی به دادهٔ دانشجو.

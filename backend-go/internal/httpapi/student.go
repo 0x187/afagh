@@ -30,6 +30,10 @@ func (a *StudentAPI) Register(r gin.IRouter) {
 	r.GET("/student/transcript", a.transcript)
 	r.GET("/student/exam-card", a.examCard)
 	r.GET("/student/enroll-confirm", a.enrollConfirm)
+	r.GET("/student/virtual-classes", a.virtualClasses)
+	r.POST("/student/virtual-classes/join", a.virtualClassJoin)
+	r.GET("/student/documents", a.documents)
+	r.GET("/student/lesson-plan/:offeringId", a.lessonPlan)
 }
 
 func (a *StudentAPI) currentUser(c *gin.Context) *session.User {
@@ -172,6 +176,81 @@ func (a *StudentAPI) enrollConfirm(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
+}
+
+// virtualClasses جلسات کلاس مجازی ترم انتخابی.
+func (a *StudentAPI) virtualClasses(c *gin.Context) {
+	user := a.requireStudent(c)
+	if user == nil {
+		return
+	}
+	rec, err := a.Svc.Resolve(c.Request.Context(), user.ID)
+	if err != nil || rec == nil {
+		c.JSON(http.StatusNotFound, gin.H{"ok": false, "error": "پروندهٔ دانشجویی یافت نشد."})
+		return
+	}
+	termID := termIDFromCookie(c)
+	sessions, err := a.Svc.ListVirtualClasses(c.Request.Context(), rec.ID, termID)
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "sessions": sessions})
+}
+
+// virtualClassJoin صدور لینک SSO بیگ‌بلوباتن — نقش سمت سرور تعیین می‌شود.
+func (a *StudentAPI) virtualClassJoin(c *gin.Context) {
+	user := a.currentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"ok": false, "error": "ابتدا وارد شوید."})
+		return
+	}
+	var body struct {
+		MeetingID string `json:"meetingId"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "شناسهٔ جلسه نامعتبر است."})
+		return
+	}
+	link, err := a.Svc.JoinVirtualClass(c.Request.Context(), user.ID, user.Roles, body.MeetingID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "url": link})
+}
+
+// documents مدارک بارگذاری‌شدهٔ دانشجو.
+func (a *StudentAPI) documents(c *gin.Context) {
+	user := a.requireStudent(c)
+	if user == nil {
+		return
+	}
+	docs, err := a.Svc.ListDocuments(c.Request.Context(), user.ID)
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "documents": docs})
+}
+
+// lessonPlan طرح درس منتشرشده — فقط برای دانشجوی ثبت‌نام‌شدهٔ همان ارائه.
+func (a *StudentAPI) lessonPlan(c *gin.Context) {
+	user := a.requireStudent(c)
+	if user == nil {
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("offeringId"), 10, 64)
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "شناسهٔ ارائهٔ درس نامعتبر است."})
+		return
+	}
+	view, err := a.Svc.GetLessonPlan(c.Request.Context(), user.ID, id)
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": view})
 }
 
 // dashboard دادهٔ صفحهٔ اول دانشجو.

@@ -193,4 +193,11 @@ var PhaseOneDefs = []Def{
 	{Key: "TRANSCRIPT_TTL_MINUTES", Env: "TRANSCRIPT_TTL_MINUTES", Default: "10080"},
 	{Key: "EXAM_TICKET_TTL_MINUTES", Env: "EXAM_TICKET_TTL_MINUTES", Default: "180"},
 	{Key: "ENROLL_CONFIRM_TTL_MINUTES", Env: "ENROLL_CONFIRM_TTL_MINUTES", Default: "20160"},
+
+	// ── کلاس مجازی / BBB (فاز ۳/۱۰) ──
+	{Key: "BBB_URL", Env: "BIGBLUEBUTTON_URL", Default: ""},
+	{Key: "BBB_SECRET", Env: "BIGBLUEBUTTON_SECRET", Default: ""},
+	{Key: "BBB_MODERATOR_PW", Env: "BIGBLUEBUTTON_MODERATOR_PW", Default: ""},
+	{Key: "BBB_ATTENDEE_PW", Env: "BIGBLUEBUTTON_ATTENDEE_PW", Default: ""},
+	{Key: "BBB_AUTO_RECORD", Env: "BIGBLUEBUTTON_AUTO_RECORD", Default: "false"},
 }

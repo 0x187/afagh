@@ -1,5 +1,5 @@
 // ═══ کلاینت دادهٔ پرتال دانشجو (فاز ۳) ═══
-import { apiGet } from './api';
+import { apiGet, apiPost } from './api';
 
 export type StudentGridClass = {
   dayOfWeek: number | null;
@@ -254,5 +254,66 @@ export type EnrollConfirmData = {
 
 export async function getEnrollConfirm(): Promise<EnrollConfirmData> {
   const res = await apiGet<{ ok: boolean; data: EnrollConfirmData }>('/student/enroll-confirm');
+  return res.data;
+}
+
+// ───────────────────────── کلاس مجازی / مدارک / طرح درس ─────────────────────────
+
+export type VirtualClassSession = {
+  courseId: number;
+  courseCode: string;
+  courseTitle: string;
+  professorName: string;
+  meetingId: string;
+  startTime: string;
+  endTime: string;
+  isRunning: boolean;
+  activeParticipantsCount: number;
+  recordingsCount: number;
+};
+
+export async function getVirtualClasses(): Promise<VirtualClassSession[]> {
+  const res = await apiGet<{ ok: boolean; sessions: VirtualClassSession[] }>('/student/virtual-classes');
+  return res.sessions;
+}
+
+export async function joinVirtualClass(meetingId: string): Promise<string> {
+  const res = await apiPost<{ ok: boolean; url: string; error?: string }>('/student/virtual-classes/join', { meetingId });
+  return res.url;
+}
+
+export type StudentDocument = {
+  id: number;
+  fileName: string | null;
+  status: string;
+  reason: string | null;
+  uploadedAt: string | null;
+  category: string | null;
+  type: string | null;
+};
+
+export async function getStudentDocuments(): Promise<StudentDocument[]> {
+  const res = await apiGet<{ ok: boolean; documents: StudentDocument[] }>('/student/documents');
+  return res.documents;
+}
+
+export type LessonPlanData = {
+  published: boolean;
+  courseTitle: string;
+  plan: {
+    id: number;
+    courseMode: string;
+    totalSessions: number;
+    objectives: string;
+    resources: string;
+    status: string;
+    submittedAt: string | null;
+  } | null;
+  sessions: { id: number; sessionNo: number; sessionKind: string; topic: string; details: string | null }[];
+  weights: { id: number; title: string; percent: number }[];
+};
+
+export async function getLessonPlan(offeringId: number): Promise<LessonPlanData> {
+  const res = await apiGet<{ ok: boolean; data: LessonPlanData }>(`/student/lesson-plan/${offeringId}`);
   return res.data;
 }
