@@ -196,3 +196,68 @@ export async function createExamHall(input: { name: string; capacity: number; ro
 export async function generateExamSeats(): Promise<{ allocated: number; sessionCount: number }> {
   return apiPost('/admin/exams/seats');
 }
+
+export type ManualAttendanceData = {
+  term: { id: number | null; title: string; termCode: string; isEnrollmentOpen: boolean };
+  terms: { id: number; title: string; termCode: string }[];
+  rows: {
+    sessionId: number;
+    sessionNo: number;
+    sessionDate: string;
+    startTime: string;
+    endTime: string;
+    isMakeUp: boolean;
+    isHoliday: boolean;
+    sessionStatus: string;
+    courseCode: string;
+    courseTitle: string;
+    professorName: string;
+    method: string | null;
+    status: string | null;
+    merged: boolean;
+    memberCount: number;
+    memberSessionIds: number[];
+  }[];
+};
+
+export async function getManualAttendance(): Promise<ManualAttendanceData> {
+  const res = await apiGet<{ ok: boolean; data: ManualAttendanceData }>('/admin/attendance/manual');
+  return res.data;
+}
+
+export async function confirmAttendance(sessionId: number): Promise<void> {
+  await apiPost('/admin/attendance/confirm', { sessionId });
+}
+
+export async function setSessionStatus(sessionId: number, status: string): Promise<void> {
+  await apiPost('/admin/attendance/status', { sessionId, status });
+}
+
+export type ControlData = {
+  todayJalali: string;
+  rows: {
+    roomId: number;
+    roomName: string;
+    buildingName: string | null;
+    sessionId: number;
+    startTime: string;
+    endTime: string;
+    courseTitle: string;
+    courseCode: string;
+    groupNumber: number;
+    professorName: string;
+    recorded: boolean;
+    recordedAt: string | null;
+    merged: boolean;
+    memberCount: number;
+  }[];
+};
+
+export async function getAttendanceControl(): Promise<ControlData> {
+  const res = await apiGet<{ ok: boolean; data: ControlData }>('/admin/attendance/control');
+  return res.data;
+}
+
+export async function recordClassPresence(sessionId: number): Promise<void> {
+  await apiPost('/admin/attendance/record', { sessionId });
+}

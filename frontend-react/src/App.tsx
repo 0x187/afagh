@@ -46,6 +46,7 @@ import { AdminEvaluationsPage } from '@/routes/admin/EvaluationsPage';
 import { AdminWeeklyBoardPage } from '@/routes/admin/WeeklyBoardPage';
 import { AdminSettingsPage } from '@/routes/admin/SettingsPage';
 import { AdminExamsPage } from '@/routes/admin/ExamsPage';
+import { AdminManualAttendancePage, AdminAttendanceControlPage } from '@/routes/admin/AttendancePages';
 import { NotFound } from '@/routes/NotFound';
 
 export function App() {
@@ -103,6 +104,8 @@ export function App() {
           <Route path="admin/weekly-board" element={<AdminWeeklyBoardPage />} />
           <Route path="admin/settings" element={<AdminSettingsPage />} />
           <Route path="admin/exams" element={<AdminExamsPage />} />
+          <Route path="admin/attendance-manual" element={<AdminManualAttendancePage />} />
+          <Route path="admin/attendance-control" element={<AdminAttendanceControlPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

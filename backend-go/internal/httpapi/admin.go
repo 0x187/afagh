@@ -43,6 +43,11 @@ func (a *AdminAPI) Register(r gin.IRouter) {
 	r.POST("/admin/exams/assign", a.assignExamSession)
 	r.POST("/admin/exams/halls", a.createExamHall)
 	r.POST("/admin/exams/seats", a.generateExamSeats)
+	r.GET("/admin/attendance/manual", a.attendanceManual)
+	r.POST("/admin/attendance/confirm", a.attendanceConfirm)
+	r.POST("/admin/attendance/status", a.attendanceStatus)
+	r.GET("/admin/attendance/control", a.attendanceControl)
+	r.POST("/admin/attendance/record", a.attendanceRecord)
 }
 
 var adminRoles = []string{
@@ -481,6 +486,90 @@ func (a *AdminAPI) generateExamSeats(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true, "allocated": allocated, "sessionCount": sessions})
+}
+
+func (a *AdminAPI) attendanceManual(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	resp, err := a.Svc.GetManualAttendance(c.Request.Context(), user, a.uniCookie(c))
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
+}
+
+func (a *AdminAPI) attendanceConfirm(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	var body struct {
+		SessionID int64 `json:"sessionId"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.SessionID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	if err := a.Svc.ConfirmProfessorAttendance(c.Request.Context(), user, body.SessionID); err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *AdminAPI) attendanceStatus(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	var body struct {
+		SessionID int64  `json:"sessionId"`
+		Status    string `json:"status"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.SessionID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	if err := a.Svc.MarkClassHeld(c.Request.Context(), user, body.SessionID, body.Status); err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *AdminAPI) attendanceControl(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	resp, err := a.Svc.GetControl(c.Request.Context(), user, a.uniCookie(c))
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
+}
+
+func (a *AdminAPI) attendanceRecord(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	var body struct {
+		SessionID int64 `json:"sessionId"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.SessionID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	if err := a.Svc.RecordClassPresence(c.Request.Context(), user, body.SessionID); err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
 func (a *AdminAPI) staff(c *gin.Context) {
