@@ -11,12 +11,14 @@ import (
 	"backend-go/internal/admin"
 	"backend-go/internal/scope"
 	"backend-go/internal/session"
+	"backend-go/internal/student"
 )
 
 // AdminAPI هندلرهای ادمین.
 type AdminAPI struct {
-	Svc   *admin.Service
-	Store *session.Store
+	Svc            *admin.Service
+	Store          *session.Store
+	StudentFinance *student.Service
 }
 
 func (a *AdminAPI) Register(r gin.IRouter) {
@@ -48,6 +50,11 @@ func (a *AdminAPI) Register(r gin.IRouter) {
 	r.POST("/admin/attendance/status", a.attendanceStatus)
 	r.GET("/admin/attendance/control", a.attendanceControl)
 	r.POST("/admin/attendance/record", a.attendanceRecord)
+	r.GET("/admin/finance", a.financeStudents)
+	r.GET("/admin/finance/student/:id", a.financeStudent)
+	r.POST("/admin/finance/adjust", a.financeAdjust)
+	r.GET("/admin/course-finance", a.courseFinance)
+	r.POST("/admin/course-finance", a.setCourseFinance)
 }
 
 var adminRoles = []string{
@@ -566,6 +573,93 @@ func (a *AdminAPI) attendanceRecord(c *gin.Context) {
 		return
 	}
 	if err := a.Svc.RecordClassPresence(c.Request.Context(), user, body.SessionID); err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *AdminAPI) financeStudents(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	resp, err := a.Svc.ListFinanceStudents(c.Request.Context(), user, a.uniCookie(c),
+		strings.TrimSpace(c.Query("q")), c.Query("debtors") == "1")
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
+}
+
+func (a *AdminAPI) financeStudent(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil || id <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "شناسهٔ دانشجو نامعتبر است."})
+		return
+	}
+	resp, err := a.StudentFinance.GetFinanceByStudentID(c.Request.Context(), id, termIDFromCookie(c))
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	txns, err := a.Svc.ListLedgerTxns(c.Request.Context(), id)
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"finance": resp, "txns": txns}})
+}
+
+func (a *AdminAPI) financeAdjust(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	var body admin.AdjustInput
+	if err := c.ShouldBindJSON(&body); err != nil || body.StudentID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	if err := a.Svc.AdjustLedger(c.Request.Context(), user, a.uniCookie(c), body); err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *AdminAPI) courseFinance(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	resp, err := a.Svc.ListCourseFinance(c.Request.Context(), user, a.uniCookie(c), strings.TrimSpace(c.Query("q")))
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
+}
+
+func (a *AdminAPI) setCourseFinance(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	var body struct {
+		CourseID int64 `json:"courseId"`
+		MaliType int   `json:"maliType"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.CourseID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	if err := a.Svc.SetCourseFinanceType(c.Request.Context(), user, body.CourseID, body.MaliType); err != nil {
 		a.fail(c, err)
 		return
 	}

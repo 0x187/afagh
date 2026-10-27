@@ -1,5 +1,6 @@
 // ═══ کلاینت پنل ادمین (فاز ۶) ═══
 import { apiGet, apiPost } from './api';
+import type { FinanceData } from './student-api';
 
 export type AdminDashboardData = {
   universityTitle: string;
@@ -260,4 +261,71 @@ export async function getAttendanceControl(): Promise<ControlData> {
 
 export async function recordClassPresence(sessionId: number): Promise<void> {
   await apiPost('/admin/attendance/record', { sessionId });
+}
+
+export type FinanceStudentsData = {
+  students: {
+    studentId: number;
+    studentCode: string;
+    fullName: string;
+    charges: number;
+    discounts: number;
+    sponsorships: number;
+    payments: number;
+    chequesCleared: number;
+    chequesPending: number;
+    loans: number;
+    balance: number;
+  }[];
+  totals: {
+    charges: number;
+    discounts: number;
+    sponsorships: number;
+    payments: number;
+    chequesCleared: number;
+    loans: number;
+    balance: number;
+    debtorCount: number;
+  };
+};
+
+export async function getFinanceStudents(params: { q?: string; onlyDebtors?: boolean }): Promise<FinanceStudentsData> {
+  const q = new URLSearchParams();
+  if (params.q) q.set('q', params.q);
+  if (params.onlyDebtors) q.set('debtors', '1');
+  const res = await apiGet<{ ok: boolean; data: FinanceStudentsData }>(`/admin/finance?${q.toString()}`);
+  return res.data;
+}
+
+export type StudentFinanceDetail = {
+  finance: FinanceData;
+  txns: { id: number; studentId: number; transactionType: string; amount: number; description: string | null; createdAt: string | null }[];
+};
+
+export async function getStudentFinanceDetail(id: number): Promise<StudentFinanceDetail> {
+  const res = await apiGet<{ ok: boolean; data: StudentFinanceDetail }>(`/admin/finance/student/${id}`);
+  return res.data;
+}
+
+export async function adjustLedger(input: { studentId: number; transactionType: string; amount: number; description: string }): Promise<void> {
+  await apiPost('/admin/finance/adjust', input);
+}
+
+export type CourseFinanceRow = {
+  id: number;
+  code: string;
+  title: string;
+  units: number | null;
+  courseType: string | null;
+  legacyMaliType: number | null;
+};
+
+export async function getCourseFinance(q?: string): Promise<CourseFinanceRow[]> {
+  const qs = q ? `?q=${encodeURIComponent(q)}` : '';
+  const res = await apiGet<{ ok: boolean; data: { courses: CourseFinanceRow[] } }>(`/admin/course-finance${qs}`);
+  return res.data.courses;
+}
+
+export async function setCourseFinanceType(courseId: number, maliType: number): Promise<void> {
+  await apiPost('/admin/course-finance', { courseId, maliType });
 }

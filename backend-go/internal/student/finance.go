@@ -144,7 +144,30 @@ func (s *Service) GetFinance(ctx context.Context, userID int64, recordID *int64,
 	if err != nil {
 		return nil, err
 	}
+	return s.buildFinance(ctx, userID, me, termCookie, publicBaseURL)
+}
 
+// GetFinanceByStudentID نسخهٔ ادمینیِ همان موتور (پورت admin/finance/student/[id]
+// که خودش getStudentFinance را صدا می‌زند) — عدد کارتابل و کارنامهٔ مالی
+// نمی‌تواند واگرا شود چون هر دو از یک مسیر عبور می‌کنند.
+func (s *Service) GetFinanceByStudentID(ctx context.Context, studentID int64, termCookie *int64) (*FinanceResponse, error) {
+	var rec Record
+	err := s.Pool.QueryRow(ctx, `
+		select id, "userId", "studentCode", "universityId", "majorId", "degreeLevelId",
+		       "regulationId", "entryYear", "entryTerm", "currentTermNo", status,
+		       "studyType"
+		  from students where id = $1`, studentID).
+		Scan(&rec.ID, &rec.UserID, &rec.StudentCode, &rec.UniversityID, &rec.MajorID, &rec.DegreeLevelID,
+			&rec.RegulationID, &rec.EntryYear, &rec.EntryTerm, &rec.CurrentTermNo, &rec.Status,
+			&rec.StudyType)
+	if err != nil {
+		return nil, errNoStudent
+	}
+	return s.buildFinance(ctx, rec.UserID, &rec, termCookie, "")
+}
+
+// buildFinance بدنهٔ مشترک کارنامهٔ مالی (دانشجو و ادمین).
+func (s *Service) buildFinance(ctx context.Context, userID int64, me *Record, termCookie *int64, publicBaseURL string) (*FinanceResponse, error) {
 	var (
 		fullName, nationalCode, majorTitle, degreeTitle *string
 	)

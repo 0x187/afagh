@@ -128,7 +128,7 @@ func main() {
 	gmAPI.Register(ginEngine.Group(""))
 	adminSvc := admin.New(database, scopeSvc)
 	adminSvc.SetStore(&settingsStoreAdapter{store: settingsStore})
-	adminAPI := &httpapi.AdminAPI{Svc: adminSvc, Store: store}
+	adminAPI := &httpapi.AdminAPI{Svc: adminSvc, Store: store, StudentFinance: studentSvc}
 	adminAPI.Register(ginEngine.Group(""))
 	publicAPI := &httpapi.PublicAPI{Pool: database.Pool, Settings: settingsStore}
 	publicAPI.Register(ginEngine.Group(""))

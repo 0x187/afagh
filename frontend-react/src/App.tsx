@@ -47,6 +47,7 @@ import { AdminWeeklyBoardPage } from '@/routes/admin/WeeklyBoardPage';
 import { AdminSettingsPage } from '@/routes/admin/SettingsPage';
 import { AdminExamsPage } from '@/routes/admin/ExamsPage';
 import { AdminManualAttendancePage, AdminAttendanceControlPage } from '@/routes/admin/AttendancePages';
+import { AdminFinancePage, AdminStudentFinanceRoute, AdminCourseFinancePage } from '@/routes/admin/FinancePages';
 import { NotFound } from '@/routes/NotFound';
 
 export function App() {
@@ -106,6 +107,9 @@ export function App() {
           <Route path="admin/exams" element={<AdminExamsPage />} />
           <Route path="admin/attendance-manual" element={<AdminManualAttendancePage />} />
           <Route path="admin/attendance-control" element={<AdminAttendanceControlPage />} />
+          <Route path="admin/finance" element={<AdminFinancePage />} />
+          <Route path="admin/finance/student/:id" element={<AdminStudentFinanceRoute />} />
+          <Route path="admin/course-finance" element={<AdminCourseFinancePage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
