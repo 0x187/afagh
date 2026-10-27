@@ -20,6 +20,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
 
+	"backend-go/internal/admin"
 	"backend-go/internal/archive"
 	"backend-go/internal/authn"
 	"backend-go/internal/config"
@@ -125,6 +126,9 @@ func main() {
 	gmSvc := groupmanager.New(database, settingsStore, scopeSvc)
 	gmAPI := &httpapi.GroupManagerAPI{Svc: gmSvc, Store: store}
 	gmAPI.Register(ginEngine.Group(""))
+	adminSvc := admin.New(database, scopeSvc)
+	adminAPI := &httpapi.AdminAPI{Svc: adminSvc, Store: store}
+	adminAPI.Register(ginEngine.Group(""))
 	publicAPI := &httpapi.PublicAPI{Pool: database.Pool, Settings: settingsStore}
 	publicAPI.Register(ginEngine.Group(""))
 

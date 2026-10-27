@@ -37,6 +37,10 @@ import { GmGrantsPage } from '@/routes/groupmanager/GrantsPage';
 import { GmCompensatoryPage } from '@/routes/groupmanager/CompensatoryPage';
 import { GmBypassPage } from '@/routes/groupmanager/BypassPage';
 import { GmEquivalencePage } from '@/routes/groupmanager/EquivalencePage';
+import { AdminDashboardPage } from '@/routes/admin/DashboardPage';
+import { AdminStudentsPage } from '@/routes/admin/StudentsPage';
+import { AdminDepartmentsPage } from '@/routes/admin/DepartmentsPage';
+import { AdminStaffPage } from '@/routes/admin/StaffPage';
 import { NotFound } from '@/routes/NotFound';
 
 export function App() {
@@ -85,6 +89,10 @@ export function App() {
           <Route path="group-manager/compensatory" element={<GmCompensatoryPage />} />
           <Route path="group-manager/bypass" element={<GmBypassPage />} />
           <Route path="group-manager/equivalence" element={<GmEquivalencePage />} />
+          <Route path="admin" element={<AdminDashboardPage />} />
+          <Route path="admin/students" element={<AdminStudentsPage />} />
+          <Route path="admin/departments" element={<AdminDepartmentsPage />} />
+          <Route path="admin/staff" element={<AdminStaffPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

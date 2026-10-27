@@ -59,7 +59,7 @@ export function availablePanels(roles: readonly string[], permissionCount = 0): 
   const has = (r: string) => roles.includes(r);
   const out: PanelLink[] = [];
   if (permissionCount > 0 || ADMIN_PANEL_ROLES.some(has)) {
-    out.push({ key: 'admin', href: '/admin', label: 'داشبورد مدیریت', icon: '🗂️' });
+    out.push({ key: 'admin', href: '/admin', label: 'داشبورد مدیریت', icon: '🗂️', spaHref: '/admin' });
   }
   if (has('PROFESSOR')) out.push({ key: 'professor', href: '/professor', label: 'کارتابل استاد', icon: '👨‍🏫', spaHref: '/professor' });
   if (has('DEP_HEAD')) out.push({ key: 'group-manager', href: '/group-manager', label: 'پنل مدیر گروه', icon: '🏛️', spaHref: '/group-manager' });
