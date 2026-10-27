@@ -495,3 +495,194 @@ export async function getFinance(params?: { record?: number | null }): Promise<F
   const res = await apiGet<{ ok: boolean; data: FinanceData }>(`/student/finance${qs}`);
   return res.data;
 }
+
+// ───────────────────────── چارت تحصیلی ─────────────────────────
+
+export type ChartRow = {
+  id: number;
+  courseId: number;
+  code: string;
+  title: string;
+  units: number;
+  roleType: string;
+  prereqCodes: string[];
+  status: 'PASSED' | 'IN_PROGRESS' | 'MISSING_PAST' | 'FUTURE';
+};
+
+export type ChartData = {
+  student: { name: string; studentCode: string; entryYear: number };
+  majorName: string;
+  degreeTitle: string;
+  versionCode: string | null;
+  chartUnits: number;
+  requiredUnits: number;
+  entryYear: number;
+  semesters: { key: number; title: string; units: number; isCurrent: boolean; isHighlighted: boolean; rows: ChartRow[] }[];
+  roleSummary: { roleType: string; total: number; passed: number; units: number; passedUnits: number }[];
+  enrollmentCount: number;
+  filteredTermTitle: string | null;
+  currentSemesterNo: number | null;
+  highlightAnchor: string | null;
+};
+
+export async function getChart(): Promise<ChartData> {
+  const res = await apiGet<{ ok: boolean; data: ChartData }>('/student/chart');
+  return res.data;
+}
+
+// ───────────────────────── فارغ‌التحصیلی و پایان‌نامه ─────────────────────────
+
+export type TrackerData = {
+  open: boolean;
+  audit?: {
+    studentId: number;
+    studentCode: string;
+    fullName: string;
+    majorName: string | null;
+    degreeCode: string | null;
+    requiredUnits: number;
+    passedUnits: number;
+    gpa: number | null;
+    missing: { code: string; title: string; units: number }[];
+    catalogOk: boolean;
+    reasons: string[];
+  } | null;
+  needPhoto: boolean;
+  sajjadRequired: boolean;
+  needSajjad: boolean;
+  sajjadPortal: string;
+  dossier?: {
+    audit: {
+      id: number;
+      workflowStatus: string;
+      requiredUnits: number;
+      passedUnits: number;
+      gpa: number | null;
+      headApprovalStatus: number;
+      headNote: string | null;
+      thesisRequired: number;
+      sajjadStatus: string | null;
+      sajjadRequestCode: string | null;
+      photoDocumentId: number | null;
+      stampFeeAmount: number;
+      stampFeePaid: number;
+      note: string | null;
+    };
+    student: { studentCode: string; fullName: string; majorName: string | null; degreeTitle: string | null; status: string };
+    checklist: { id: number; department: string; title: string; status: string; amountDue: number; detail: string | null; autoChecked: boolean; resolvedAt: string | null }[];
+    degrees: { id: number; degreeType: string; serialNo: string; verifyCode: string; isDelivered: boolean; issuedAt: string }[];
+  };
+  steps?: { code: string; title: string; actor: string; state: 'DONE' | 'CURRENT' | 'TODO' }[];
+};
+
+export async function getTracker(): Promise<TrackerData> {
+  const res = await apiGet<{ ok: boolean; tracker: TrackerData }>('/student/graduation');
+  return res.tracker;
+}
+
+export async function submitSajjad(auditId: number, code: string): Promise<void> {
+  await apiPost('/student/graduation/sajjad', { auditId, code });
+}
+
+export async function uploadGraduationPhoto(auditId: number, file: File): Promise<void> {
+  const body = new FormData();
+  body.append('auditId', String(auditId));
+  body.append('file', file);
+  const res = await fetch('/api/v2/student/graduation/photo', { method: 'POST', credentials: 'same-origin', body });
+  if (!res.ok) {
+    let msg = `خطای سرور (${res.status})`;
+    try {
+      const j = (await res.json()) as { error?: string };
+      if (j.error) msg = j.error;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(msg);
+  }
+}
+
+export type ChannelsData = { active: string[]; mine: { channel: string; address: string }[] };
+
+export async function getChannels(): Promise<ChannelsData> {
+  const res = await apiGet<{ ok: boolean; data: ChannelsData }>('/student/channels');
+  return res.data;
+}
+
+export async function saveChannel(channel: string, address: string): Promise<void> {
+  await apiPost('/student/channels', { channel, address });
+}
+
+export type ThesisData = {
+  open: boolean;
+  thesisDegree: boolean;
+  inTrack: boolean;
+  student: { name: string; studentCode: string };
+  degreeTitle: string | null;
+  auditId: number | null;
+  workflowStatus: string | null;
+  progress: {
+    id: number;
+    supervisorId: number | null;
+    advisorId: number | null;
+    titleFa: string | null;
+    titleEn: string | null;
+    keywords: string | null;
+    abstract: string | null;
+    irandocPriorStatus: string | null;
+    proposalFileId: number | null;
+    proposalSubmittedAt: string | null;
+    proposalSimilarity: number | null;
+    proposalStatus: string | null;
+    proposalApprovedAt: string | null;
+    irandocUploadStatus: string | null;
+    defenseRequestedAt: string | null;
+    defenseRequestStatus: string | null;
+    defenseScheduledAt: string | null;
+    defenseConductedAt: string | null;
+    defenseResult: string | null;
+    defenseNote: string | null;
+    finalThesisFileId: number | null;
+    finalThesisSubmittedAt: string | null;
+    finalIrandocStatus: string | null;
+  } | null;
+  logs: { id: number; checkType: string; trackingCode: string | null; similarityPercentage: number | null; decision: string | null; checkedAt: string | null }[];
+  staffList: { id: number; name: string; rank: string }[];
+  audit: { passedUnits: number; requiredUnits: number; gpa: number | null; catalogOk: boolean } | null;
+};
+
+export async function getThesis(): Promise<ThesisData> {
+  const res = await apiGet<{ ok: boolean; data: ThesisData }>('/student/thesis');
+  return res.data;
+}
+
+export async function submitThesisTitle(input: {
+  auditId: number;
+  supervisorId: number;
+  titleFa: string;
+  titleEn?: string;
+  keywords?: string;
+  abstract?: string;
+}): Promise<void> {
+  await apiPost('/student/thesis/title', input);
+}
+
+export async function uploadThesisFile(kind: 'proposal' | 'final', auditId: number, file: File): Promise<void> {
+  const body = new FormData();
+  body.append('auditId', String(auditId));
+  body.append('file', file);
+  const res = await fetch(`/api/v2/student/thesis/${kind}`, { method: 'POST', credentials: 'same-origin', body });
+  if (!res.ok) {
+    let msg = `خطای سرور (${res.status})`;
+    try {
+      const j = (await res.json()) as { error?: string };
+      if (j.error) msg = j.error;
+    } catch {
+      /* ignore */
+    }
+    throw new Error(msg);
+  }
+}
+
+export async function requestThesisDefense(auditId: number): Promise<void> {
+  await apiPost('/student/thesis/defense', { auditId });
+}

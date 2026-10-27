@@ -16,6 +16,9 @@ import { StudentDocumentsPage } from '@/routes/student/DocumentsPage';
 import { StudentLessonPlanPage } from '@/routes/student/LessonPlanPage';
 import { StudentRequestsPage } from '@/routes/student/RequestsPage';
 import { StudentFinancePage } from '@/routes/student/FinancePage';
+import { StudentChartPage } from '@/routes/student/ChartPage';
+import { StudentGraduationPage } from '@/routes/student/GraduationPage';
+import { StudentThesisPage } from '@/routes/student/ThesisPage';
 import { NotFound } from '@/routes/NotFound';
 
 export function App() {
@@ -41,6 +44,9 @@ export function App() {
           <Route path="student/lesson-plan/:offeringId" element={<StudentLessonPlanPage />} />
           <Route path="student/requests" element={<StudentRequestsPage />} />
           <Route path="student/finance" element={<StudentFinancePage />} />
+          <Route path="student/chart" element={<StudentChartPage />} />
+          <Route path="student/graduation" element={<StudentGraduationPage />} />
+          <Route path="student/thesis-proposal" element={<StudentThesisPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

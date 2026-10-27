@@ -40,6 +40,17 @@ func (a *StudentAPI) Register(r gin.IRouter) {
 	r.POST("/student/requests/satisfaction", a.requestSatisfaction)
 	r.POST("/student/requests/attachment", a.requestAttachment)
 	r.GET("/student/finance", a.finance)
+	r.GET("/student/chart", a.chart)
+	r.GET("/student/graduation", a.graduationTracker)
+	r.POST("/student/graduation/sajjad", a.graduationSajjad)
+	r.POST("/student/graduation/photo", a.graduationPhoto)
+	r.GET("/student/channels", a.channels)
+	r.POST("/student/channels", a.saveChannel)
+	r.GET("/student/thesis", a.thesis)
+	r.POST("/student/thesis/title", a.thesisTitle)
+	r.POST("/student/thesis/proposal", a.thesisProposal)
+	r.POST("/student/thesis/defense", a.thesisDefense)
+	r.POST("/student/thesis/final", a.thesisFinal)
 }
 
 func (a *StudentAPI) currentUser(c *gin.Context) *session.User {
@@ -257,6 +268,277 @@ func (a *StudentAPI) lessonPlan(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": view})
+}
+
+// thesis نمای پایان‌نامه و پروپوزال.
+func (a *StudentAPI) thesis(c *gin.Context) {
+	user := a.requireStudent(c)
+	if user == nil {
+		return
+	}
+	resp, err := a.Svc.GetThesis(c.Request.Context(), user.ID, user.Name)
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
+}
+
+// thesisTitle ثبت فاز ۱ (عنوان و استاد راهنما).
+func (a *StudentAPI) thesisTitle(c *gin.Context) {
+	user := a.requireStudent(c)
+	if user == nil {
+		return
+	}
+	rec, err := a.Svc.Resolve(c.Request.Context(), user.ID)
+	if err != nil || rec == nil {
+		c.JSON(http.StatusNotFound, gin.H{"ok": false, "error": "پروندهٔ دانشجویی یافت نشد."})
+		return
+	}
+	var body struct {
+		AuditID      int64  `json:"auditId"`
+		SupervisorID int64  `json:"supervisorId"`
+		TitleFa      string `json:"titleFa"`
+		TitleEn      string `json:"titleEn"`
+		Keywords     string `json:"keywords"`
+		Abstract     string `json:"abstract"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.AuditID <= 0 || body.SupervisorID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	if err := a.Svc.SubmitThesisTitle(c.Request.Context(), user.ID, rec.ID, body.AuditID, body.SupervisorID, body.TitleFa, body.TitleEn, body.Keywords, body.Abstract); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// thesisUploadItem کمکی برای دو مسیر آپلود.
+func (a *StudentAPI) thesisUploadItem(c *gin.Context) (auditID int64, fileName, mime string, data []byte, ok bool) {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 10*1024*1024+2048)
+	auditID, _ = strconv.ParseInt(c.PostForm("auditId"), 10, 64)
+	if auditID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "شناسهٔ پرونده نامعتبر است."})
+		return 0, "", "", nil, false
+	}
+	fileHeader, err := c.FormFile("file")
+	if err != nil || fileHeader.Size <= 0 || fileHeader.Size > 10*1024*1024 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "فایل نامعتبر است (حداکثر ۱۰ مگابایت)."})
+		return 0, "", "", nil, false
+	}
+	f, err := fileHeader.Open()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "خواندن فایل ناموفق بود."})
+		return 0, "", "", nil, false
+	}
+	defer f.Close()
+	buf := make([]byte, fileHeader.Size)
+	if _, err := io.ReadFull(f, buf); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "خواندن فایل ناموفق بود."})
+		return 0, "", "", nil, false
+	}
+	return auditID, fileHeader.Filename, fileHeader.Header.Get("Content-Type"), buf, true
+}
+
+// thesisProposal بارگذاری پروپوزال.
+func (a *StudentAPI) thesisProposal(c *gin.Context) {
+	user := a.requireStudent(c)
+	if user == nil {
+		return
+	}
+	rec, err := a.Svc.Resolve(c.Request.Context(), user.ID)
+	if err != nil || rec == nil {
+		c.JSON(http.StatusNotFound, gin.H{"ok": false, "error": "پروندهٔ دانشجویی یافت نشد."})
+		return
+	}
+	auditID, name, mime, data, ok := a.thesisUploadItem(c)
+	if !ok {
+		return
+	}
+	if err := a.Svc.SubmitThesisProposal(c.Request.Context(), user.ID, rec.ID, auditID, name, mime, data); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// thesisDefense درخواست دفاع.
+func (a *StudentAPI) thesisDefense(c *gin.Context) {
+	user := a.requireStudent(c)
+	if user == nil {
+		return
+	}
+	rec, err := a.Svc.Resolve(c.Request.Context(), user.ID)
+	if err != nil || rec == nil {
+		c.JSON(http.StatusNotFound, gin.H{"ok": false, "error": "پروندهٔ دانشجویی یافت نشد."})
+		return
+	}
+	var body struct {
+		AuditID int64 `json:"auditId"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.AuditID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	if err := a.Svc.RequestThesisDefense(c.Request.Context(), rec.ID, body.AuditID); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// thesisFinal بارگذاری پایان‌نامهٔ نهایی.
+func (a *StudentAPI) thesisFinal(c *gin.Context) {
+	user := a.requireStudent(c)
+	if user == nil {
+		return
+	}
+	rec, err := a.Svc.Resolve(c.Request.Context(), user.ID)
+	if err != nil || rec == nil {
+		c.JSON(http.StatusNotFound, gin.H{"ok": false, "error": "پروندهٔ دانشجویی یافت نشد."})
+		return
+	}
+	auditID, name, mime, data, ok := a.thesisUploadItem(c)
+	if !ok {
+		return
+	}
+	if err := a.Svc.SubmitFinalThesis(c.Request.Context(), user.ID, rec.ID, auditID, name, mime, data); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// graduationTracker ردیاب فارغ‌التحصیلی.
+func (a *StudentAPI) graduationTracker(c *gin.Context) {
+	user := a.requireStudent(c)
+	if user == nil {
+		return
+	}
+	rec, err := a.Svc.Resolve(c.Request.Context(), user.ID)
+	if err != nil || rec == nil {
+		c.JSON(http.StatusNotFound, gin.H{"ok": false, "error": "پروندهٔ دانشجویی یافت نشد."})
+		return
+	}
+	tracker, err := a.Svc.GetTracker(c.Request.Context(), rec.ID)
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "tracker": tracker})
+}
+
+// graduationSajjad ثبت کد رهگیری سجاد.
+func (a *StudentAPI) graduationSajjad(c *gin.Context) {
+	user := a.requireStudent(c)
+	if user == nil {
+		return
+	}
+	rec, err := a.Svc.Resolve(c.Request.Context(), user.ID)
+	if err != nil || rec == nil {
+		c.JSON(http.StatusNotFound, gin.H{"ok": false, "error": "پروندهٔ دانشجویی یافت نشد."})
+		return
+	}
+	var body struct {
+		AuditID int64  `json:"auditId"`
+		Code    string `json:"code"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.AuditID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	if err := a.Svc.SubmitSajjad(c.Request.Context(), rec.ID, body.AuditID, body.Code); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// graduationPhoto آپلود عکس ۴×۳ (multipart: auditId + file).
+func (a *StudentAPI) graduationPhoto(c *gin.Context) {
+	user := a.requireStudent(c)
+	if user == nil {
+		return
+	}
+	rec, err := a.Svc.Resolve(c.Request.Context(), user.ID)
+	if err != nil || rec == nil {
+		c.JSON(http.StatusNotFound, gin.H{"ok": false, "error": "پروندهٔ دانشجویی یافت نشد."})
+		return
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 10*1024*1024+2048)
+	auditID, _ := strconv.ParseInt(c.PostForm("auditId"), 10, 64)
+	if auditID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "شناسهٔ پرونده نامعتبر است."})
+		return
+	}
+	fileHeader, err := c.FormFile("file")
+	if err != nil || fileHeader.Size <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "فایلی انتخاب نشده است."})
+		return
+	}
+	f, err := fileHeader.Open()
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "خواندن فایل ناموفق بود."})
+		return
+	}
+	defer f.Close()
+	buf := make([]byte, fileHeader.Size)
+	if _, err := io.ReadFull(f, buf); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "خواندن فایل ناموفق بود."})
+		return
+	}
+	if err := a.Svc.AttachGraduationPhoto(c.Request.Context(), user.ID, rec.ID, auditID, fileHeader.Filename, fileHeader.Header.Get("Content-Type"), buf); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// channels کانال‌های اطلاع‌رسانی.
+func (a *StudentAPI) channels(c *gin.Context) {
+	user := a.currentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"ok": false, "error": "ابتدا وارد شوید."})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": a.Svc.GetChannels(c.Request.Context(), user.ID)})
+}
+
+// saveChannel ثبت/حذف نشانی کانال.
+func (a *StudentAPI) saveChannel(c *gin.Context) {
+	user := a.currentUser(c)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"ok": false, "error": "ابتدا وارد شوید."})
+		return
+	}
+	var body struct {
+		Channel string `json:"channel"`
+		Address string `json:"address"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	if err := a.Svc.SaveChannel(c.Request.Context(), user.ID, body.Channel, body.Address); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// chart چارت تحصیلی مصوب + وضعیت دروس دانشجو.
+func (a *StudentAPI) chart(c *gin.Context) {
+	user := a.requireStudent(c)
+	if user == nil {
+		return
+	}
+	resp, err := a.Svc.GetChart(c.Request.Context(), user.ID, user.Name, termIDFromCookie(c))
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
 }
 
 // finance کارنامهٔ مالی ترم‌به‌ترم + چک/وام + QR.

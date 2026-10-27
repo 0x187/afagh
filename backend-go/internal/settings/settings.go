@@ -204,4 +204,11 @@ var PhaseOneDefs = []Def{
 	// ── مالی (فاز ۳) ──
 	{Key: "CHEQUE_REMIND_DAYS", Env: "AFAGH_CHEQUE_REMIND_DAYS", Default: "7"},
 	{Key: "FINANCE_STMT_TTL_MINUTES", Env: "FINANCE_STMT_TTL_MINUTES", Default: "10080"},
+
+	// ── فارغ‌التحصیلی و پایان‌نامه (فاز ۳) ──
+	{Key: "GRAD_MIN_GPA", Env: "GRAD_MIN_GPA", Default: "12"},
+	{Key: "GRAD_REQUIRE_SAJJAD", Env: "GRAD_REQUIRE_SAJJAD", Default: "true"},
+	{Key: "GRAD_REQUIRE_PHOTO", Env: "GRAD_REQUIRE_PHOTO", Default: "true"},
+	{Key: "SAJJAD_PORTAL_URL", Env: "SAJJAD_PORTAL_URL", Default: "https://portal.saorg.ir"},
+	{Key: "NOTIFY_CHANNELS", Env: "NOTIFY_CHANNELS", Default: "INAPP,SMS"},
 }
