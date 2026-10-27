@@ -26,6 +26,7 @@ import (
 	"backend-go/internal/db"
 	"backend-go/internal/edge"
 	"backend-go/internal/enroll"
+	"backend-go/internal/groupmanager"
 	"backend-go/internal/httpapi"
 	"backend-go/internal/logger"
 	"backend-go/internal/professor"
@@ -121,6 +122,9 @@ func main() {
 	professorSvc.Production = cfg.IsProduction()
 	professorAPI := &httpapi.ProfessorAPI{Svc: professorSvc, Store: store}
 	professorAPI.Register(ginEngine.Group(""))
+	gmSvc := groupmanager.New(database, settingsStore, scopeSvc)
+	gmAPI := &httpapi.GroupManagerAPI{Svc: gmSvc, Store: store}
+	gmAPI.Register(ginEngine.Group(""))
 	publicAPI := &httpapi.PublicAPI{Pool: database.Pool, Settings: settingsStore}
 	publicAPI.Register(ginEngine.Group(""))
 

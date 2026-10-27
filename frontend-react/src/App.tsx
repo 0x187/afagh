@@ -30,6 +30,13 @@ import { ProfessorGradesPage } from '@/routes/professor/GradesPage';
 import { ProfessorEvaluationPage } from '@/routes/professor/EvaluationPage';
 import { ProfessorPerformancePage } from '@/routes/professor/PerformancePage';
 import { ProfessorLessonPlanPage } from '@/routes/professor/LessonPlanPage';
+import { GmCoursesPage } from '@/routes/groupmanager/CoursesPage';
+import { GmOfferingsPage } from '@/routes/groupmanager/OfferingsPage';
+import { GmClassroomsPage } from '@/routes/groupmanager/ClassroomsPage';
+import { GmGrantsPage } from '@/routes/groupmanager/GrantsPage';
+import { GmCompensatoryPage } from '@/routes/groupmanager/CompensatoryPage';
+import { GmBypassPage } from '@/routes/groupmanager/BypassPage';
+import { GmEquivalencePage } from '@/routes/groupmanager/EquivalencePage';
 import { NotFound } from '@/routes/NotFound';
 
 export function App() {
@@ -70,6 +77,14 @@ export function App() {
           <Route path="professor/performance" element={<ProfessorPerformancePage />} />
           <Route path="professor/lesson-plan" element={<ProfessorLessonPlanPage />} />
           <Route path="professor/lesson-plan/:offeringId" element={<ProfessorLessonPlanPage />} />
+          <Route path="group-manager" element={<GmCoursesPage />} />
+          <Route path="group-manager/courses" element={<GmCoursesPage />} />
+          <Route path="group-manager/offerings" element={<GmOfferingsPage />} />
+          <Route path="group-manager/classrooms" element={<GmClassroomsPage />} />
+          <Route path="group-manager/grants" element={<GmGrantsPage />} />
+          <Route path="group-manager/compensatory" element={<GmCompensatoryPage />} />
+          <Route path="group-manager/bypass" element={<GmBypassPage />} />
+          <Route path="group-manager/equivalence" element={<GmEquivalencePage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
