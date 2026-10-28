@@ -56,6 +56,7 @@ import { AdminDisciplinePage } from '@/routes/admin/DisciplinePage';
 import { AdminCouncilPage } from '@/routes/admin/CouncilPage';
 import { NotFound } from '@/routes/NotFound';
 import { ExamTicketPage, VerifyEnrollmentPage, VerifyFinancePage, VerifyTranscriptPage } from '@/routes/public/PublicVerifyPages';
+import { StudentIdCardPage, VerifyCertificatePage, VerifyDegreePage } from '@/routes/public/PublicExtraPages';
 
 export function App() {
   return (
@@ -69,6 +70,11 @@ export function App() {
         <Route path="verify-finance/:token" element={<VerifyFinancePage />} />
         <Route path="verify-enrollment/:token" element={<VerifyEnrollmentPage />} />
         <Route path="exam-ticket/:token" element={<ExamTicketPage />} />
+        <Route path="id/:token" element={<StudentIdCardPage />} />
+        <Route path="verify-degree" element={<VerifyDegreePage />} />
+        <Route path="verify-degree/:code" element={<VerifyDegreePage />} />
+        <Route path="verify-certificate" element={<VerifyCertificatePage />} />
+        <Route path="verify-certificate/:code" element={<VerifyCertificatePage />} />
         <Route path="change-password" element={<ChangePassword />} />
 
         {/* شل محافظت‌شده — گارد نشست داخل AppShell است */}

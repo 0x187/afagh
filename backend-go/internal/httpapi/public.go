@@ -57,6 +57,33 @@ type PublicAPI struct {
 func (a *PublicAPI) Register(r gin.IRouter) {
 	r.GET("/public/login-showcase", a.loginShowcase)
 	r.GET("/public/verify/:token", a.verifyToken)
+	r.GET("/public/id/:token", a.verifyStudentCard)
+	r.GET("/public/degree/:code", a.verifyDegree)
+	r.GET("/public/certificate/:code", a.verifyCertificate)
+}
+
+func (a *PublicAPI) verifyStudentCard(c *gin.Context) {
+	if a.Verify == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"ok": false, "error": "استعلام در دسترس نیست."})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": a.Verify.VerifyStudentCard(c.Request.Context(), c.Param("token"))})
+}
+
+func (a *PublicAPI) verifyDegree(c *gin.Context) {
+	if a.Verify == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"ok": false, "error": "استعلام در دسترس نیست."})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": a.Verify.VerifyDegree(c.Request.Context(), c.Param("code"))})
+}
+
+func (a *PublicAPI) verifyCertificate(c *gin.Context) {
+	if a.Verify == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"ok": false, "error": "استعلام در دسترس نیست."})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": a.Verify.VerifyCertificate(c.Request.Context(), c.Param("code"))})
 }
 
 // verifyToken استعلام عمومی توکن امضاشده (کارنامه/مالی/انتخاب واحد/کارت آزمون).
