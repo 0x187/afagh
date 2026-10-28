@@ -55,6 +55,7 @@ import { AdminWorkflowsPage } from '@/routes/admin/WorkflowsPage';
 import { AdminDisciplinePage } from '@/routes/admin/DisciplinePage';
 import { AdminCouncilPage } from '@/routes/admin/CouncilPage';
 import { NotFound } from '@/routes/NotFound';
+import { ExamTicketPage, VerifyEnrollmentPage, VerifyFinancePage, VerifyTranscriptPage } from '@/routes/public/PublicVerifyPages';
 
 export function App() {
   return (
@@ -63,6 +64,11 @@ export function App() {
       <Routes>
         {/* مسیرهای عمومی (بدون شل/سربرگ) */}
         <Route path="login" element={<LoginPage />} />
+        {/* صفحات استعلام عمومی (ریشه، بدون شل/نشست) */}
+        <Route path="verify-transcript/:token" element={<VerifyTranscriptPage />} />
+        <Route path="verify-finance/:token" element={<VerifyFinancePage />} />
+        <Route path="verify-enrollment/:token" element={<VerifyEnrollmentPage />} />
+        <Route path="exam-ticket/:token" element={<ExamTicketPage />} />
         <Route path="change-password" element={<ChangePassword />} />
 
         {/* شل محافظت‌شده — گارد نشست داخل AppShell است */}

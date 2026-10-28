@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"backend-go/internal/publicverify"
 	"backend-go/internal/settings"
 )
 
@@ -50,10 +51,27 @@ type LoginShowcase struct {
 type PublicAPI struct {
 	Pool     *pgxpool.Pool
 	Settings *settings.Store
+	Verify   *publicverify.Service
 }
 
 func (a *PublicAPI) Register(r gin.IRouter) {
 	r.GET("/public/login-showcase", a.loginShowcase)
+	r.GET("/public/verify/:token", a.verifyToken)
+}
+
+// verifyToken استعلام عمومی توکن امضاشده (کارنامه/مالی/انتخاب واحد/کارت آزمون).
+func (a *PublicAPI) verifyToken(c *gin.Context) {
+	if a.Verify == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"ok": false, "error": "استعلام در دسترس نیست."})
+		return
+	}
+	token := strings.TrimSpace(c.Param("token"))
+	res := a.Verify.Verify(c.Request.Context(), token)
+	if !res.OK {
+		c.JSON(http.StatusOK, gin.H{"ok": true, "data": res})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": res})
 }
 
 var fallbackShowcaseUni = ShowcaseUniversity{ID: 0, Code: "AFAGH", Title: "دانشگاه آفاق"}

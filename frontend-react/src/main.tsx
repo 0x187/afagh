@@ -18,8 +18,8 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      {/* basename='/app' — هم‌خوان با پیشوند لبهٔ Go (strangler) */}
-      <BrowserRouter basename="/app">
+      {/* basename پویا: پوستهٔ پنل زیر /app و صفحات عمومی در ریشه — هر دو یک SPA */}
+      <BrowserRouter basename={window.location.pathname === '/app' || window.location.pathname.startsWith('/app/') ? '/app' : '/'}>
         <App />
       </BrowserRouter>
     </QueryClientProvider>

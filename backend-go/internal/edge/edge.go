@@ -95,6 +95,15 @@ func Root(owned []string, api http.Handler, spa http.Handler, spaDist string, ne
 	}))
 }
 
+// assetExts پسوندهای دارایی واقعی؛ مسیرهای دیگر (حتی با نقطه — مثل توکن)
+// به index.html می‌افتند تا router داخلی SPA آن را بگیرد.
+var assetExts = map[string]bool{
+	".js": true, ".mjs": true, ".css": true, ".map": true, ".json": true,
+	".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".svg": true, ".webp": true, ".ico": true,
+	".woff": true, ".woff2": true, ".ttf": true, ".otf": true, ".txt": true, ".webmanifest": true,
+	".wasm": true,
+}
+
 // spaStaticHandler فایل‌های dist را زیر «prefix» سرو می‌کند؛ هر مسیر بدون
 // پسوند (مسیر کلاینتی مثل /app/student/enroll) به index.html می‌افتد تا
 // router داخلی SPA آن را بگیرد؛ دارایی گمشده 404 واقعی می‌دهد.
@@ -109,7 +118,7 @@ func spaStaticHandler(prefix, dist string) http.Handler {
 			index.ServeHTTP(w, r)
 			return
 		}
-		if path.Ext(rel) != "" {
+		if assetExts[strings.ToLower(path.Ext(rel))] {
 			if st, err := os.Stat(filepath.Join(dist, rel)); err == nil && !st.IsDir() {
 				files.ServeHTTP(w, r)
 				return
@@ -117,6 +126,7 @@ func spaStaticHandler(prefix, dist string) http.Handler {
 			http.NotFound(w, r)
 			return
 		}
+		// مسیرهای کلاینتی که «نقطه» دارند (مثل توکن T1.<b64>.<sig>) هم index می‌گیرند
 		index.ServeHTTP(w, r)
 	})
 }
