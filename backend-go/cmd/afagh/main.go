@@ -30,6 +30,7 @@ import (
 	"backend-go/internal/groupmanager"
 	"backend-go/internal/httpapi"
 	"backend-go/internal/logger"
+	"backend-go/internal/payroll"
 	"backend-go/internal/professor"
 	"backend-go/internal/ratelimit"
 	"backend-go/internal/scope"
@@ -130,6 +131,40 @@ func main() {
 	adminSvc.SetStore(&settingsStoreAdapter{store: settingsStore})
 	adminAPI := &httpapi.AdminAPI{Svc: adminSvc, Store: store, StudentFinance: studentSvc}
 	adminAPI.Register(ginEngine.Group(""))
+	payrollEngine := payroll.New(database.Pool, settingsStore)
+	payrollApprovals := payroll.NewApprovals(payrollEngine)
+	payrollApprovals.StaffByUser = func(ctx context.Context, userID int64) (*payroll.StaffRef, error) {
+		var ref payroll.StaffRef
+		err := database.Pool.QueryRow(ctx, `select id, "departmentId", "universityId" from staff where "userId" = $1 limit 1`, userID).
+			Scan(&ref.StaffID, &ref.DepartmentID, &ref.UniversityID)
+		if err != nil {
+			return nil, err
+		}
+		return &ref, nil
+	}
+	payrollApprovals.HeadedDepts = func(ctx context.Context, staffID int64, ownDeptID *int64) ([]int64, error) {
+		out := []int64{}
+		rows, err := database.Pool.Query(ctx, `select id from departments where "headStaffId" = $1 order by name`, staffID)
+		if err == nil {
+			for rows.Next() {
+				var id int64
+				if err := rows.Scan(&id); err == nil {
+					out = append(out, id)
+				}
+			}
+			rows.Close()
+		}
+		if len(out) == 0 && ownDeptID != nil {
+			out = append(out, *ownDeptID)
+		}
+		return out, nil
+	}
+	payrollApprovals.CanActUni = func(ctx context.Context, u *payroll.SessionUser, universityID int64) bool {
+		su := &session.User{ID: u.ID, Roles: u.Roles}
+		return scopeSvc.CanActOnUniversity(ctx, su, &universityID)
+	}
+	payrollAPI := &httpapi.PayrollAPI{Engine: payrollEngine, Approvals: payrollApprovals, Store: store, Pool: database.Pool, Scope: scopeSvc}
+	payrollAPI.Register(ginEngine.Group(""))
 	publicAPI := &httpapi.PublicAPI{Pool: database.Pool, Settings: settingsStore}
 	publicAPI.Register(ginEngine.Group(""))
 
