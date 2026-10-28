@@ -329,3 +329,110 @@ export async function getCourseFinance(q?: string): Promise<CourseFinanceRow[]> 
 export async function setCourseFinanceType(courseId: number, maliType: number): Promise<void> {
   await apiPost('/admin/course-finance', { courseId, maliType });
 }
+
+// ─────────────────── تعاریف موتور مالی (rules) ───────────────────
+
+export type FinanceDiscountType = {
+  id: number; code: string; title: string; kind: string;
+  defaultPercent: number; defaultAmount: number; maxPercent: number | null;
+  requiresApproval: boolean; requiresDocument: boolean; isActive: boolean; note: string | null;
+};
+
+export type FinanceSponsor = {
+  id: number; code: string; title: string; contactInfo: string | null;
+  settlementMethod: string; isActive: boolean; note: string | null;
+};
+
+export type FinanceFormula = {
+  id: number; code: string; title: string; degreeLevelId: number | null; majorId: number | null;
+  entryYearFrom: number | null; entryYearTo: number | null;
+  fixedAmount: number; perUnitTheory: number; perUnitPractical: number; perUnitGeneral: number;
+  priority: number; isActive: boolean; note: string | null;
+};
+
+export type FinanceLoanProduct = {
+  id: number; code: string; title: string; lender: string; maxAmount: number | null;
+  defaultAmount: number; defaultInstallments: number;
+  isInterestFree: boolean; requiresApproval: boolean; isActive: boolean; note: string | null;
+};
+
+export type FinanceRulesData = {
+  discountTypes: FinanceDiscountType[];
+  sponsors: FinanceSponsor[];
+  formulas: FinanceFormula[];
+  degrees: { id: number; title: string }[];
+  majors: { id: number; title: string }[];
+  loanProducts: FinanceLoanProduct[];
+  coefficients: { id: number; termId: number | null; variableCoefficient: number; fixedCoefficient: number; note: string | null; termTitle: string | null; termCode: string | null }[];
+  subjectFeeTypes: { id: number; code: string; title: string; kind: string; fixedAmount: number; variablePercent: number; appliesTo: string | null; isActive: boolean; note: string | null }[];
+  terms: { id: number; termCode: string; termTitle: string }[];
+};
+
+export async function getFinanceRules(): Promise<FinanceRulesData> {
+  const res = await apiGet<{ ok: boolean; data: FinanceRulesData }>('/admin/finance/rules');
+  return res.data;
+}
+
+export async function saveDiscountType(input: Record<string, unknown>): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/finance/rules/discount-type', input);
+}
+export async function deleteDiscountType(id: number): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/finance/rules/discount-type/delete', { id });
+}
+export async function saveSponsor(input: Record<string, unknown>): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/finance/rules/sponsor', input);
+}
+export async function deleteSponsor(id: number): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/finance/rules/sponsor/delete', { id });
+}
+export async function saveFormula(input: Record<string, unknown>): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/finance/rules/formula', input);
+}
+export async function deleteFormula(id: number): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/finance/rules/formula/delete', { id });
+}
+export async function saveLoanProduct(input: Record<string, unknown>): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/finance/rules/loan-product', input);
+}
+export async function deleteLoanProduct(id: number): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/finance/rules/loan-product/delete', { id });
+}
+
+// ─────────────────── POS ───────────────────
+
+export type PosTerminal = {
+  id: number; code: string; title: string; location: string | null;
+  terminalId: string | null; merchantId: string | null; isActive: boolean;
+};
+
+export type PosTxn = {
+  id: number; stan: string; rrn: string | null; amount: number; txnType: string; entryMode: string;
+  status: string; responseCode: string | null; cardPan: string | null; cardholderName: string | null;
+  createdAt: string | null; terminalCode: string; terminalTitle: string;
+  studentCode: string; studentName: string;
+};
+
+export async function getPosTerminals(): Promise<PosTerminal[]> {
+  const res = await apiGet<{ ok: boolean; data: { terminals: PosTerminal[] } }>('/admin/pos/terminals');
+  return res.data.terminals;
+}
+
+export async function getPosTransactions(params: { studentCode?: string; status?: string; limit?: number } = {}): Promise<PosTxn[]> {
+  const q = new URLSearchParams();
+  if (params.studentCode) q.set('studentCode', params.studentCode);
+  if (params.status) q.set('status', params.status);
+  q.set('limit', String(params.limit ?? 100));
+  const res = await apiGet<{ ok: boolean; data: { transactions: PosTxn[] } }>(`/admin/pos/transactions?${q.toString()}`);
+  return res.data.transactions;
+}
+
+export async function recordPosSale(input: {
+  terminalCode: string; studentCode: string; amount: number; stan: string; rrn?: string;
+  authorizationRef: string; entryMode: string; cardPan: string; cardholderName?: string; description?: string;
+}): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/pos/sale', input);
+}
+
+export async function voidPosTransaction(terminalCode: string, stan: string, reason: string): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/pos/void', { terminalCode, stan, reason });
+}
