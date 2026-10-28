@@ -32,6 +32,7 @@ import (
 	"backend-go/internal/httpapi"
 	"backend-go/internal/logger"
 	"backend-go/internal/payroll"
+	"backend-go/internal/opencourses"
 	"backend-go/internal/professor"
 	"backend-go/internal/publicverify"
 	"backend-go/internal/tuition"
@@ -179,7 +180,9 @@ func main() {
 	workflowAPI := &httpapi.WorkflowAPI{Engine: workflowEngine, Store: store, Admin: adminSvc}
 	workflowAPI.Register(ginEngine.Group(""))
 	publicAPI := &httpapi.PublicAPI{Pool: database.Pool, Settings: settingsStore,
-		Verify: &publicverify.Service{Student: studentSvc, Signer: signer, Pool: database.Pool}}
+		Verify:  &publicverify.Service{Student: studentSvc, Signer: signer, Pool: database.Pool},
+		Open:    &opencourses.Service{Pool: database.Pool},
+		Limiter: limiter}
 	publicAPI.Register(ginEngine.Group(""))
 
 	// ── SPA: پروکسی (dev/Vite) یا فایل‌های dist (production) ──

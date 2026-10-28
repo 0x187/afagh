@@ -13,7 +13,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"backend-go/internal/opencourses"
 	"backend-go/internal/publicverify"
+	"backend-go/internal/ratelimit"
 	"backend-go/internal/settings"
 )
 
@@ -52,6 +54,8 @@ type PublicAPI struct {
 	Pool     *pgxpool.Pool
 	Settings *settings.Store
 	Verify   *publicverify.Service
+	Open     *opencourses.Service
+	Limiter  *ratelimit.Limiter
 }
 
 func (a *PublicAPI) Register(r gin.IRouter) {
@@ -60,6 +64,77 @@ func (a *PublicAPI) Register(r gin.IRouter) {
 	r.GET("/public/id/:token", a.verifyStudentCard)
 	r.GET("/public/degree/:code", a.verifyDegree)
 	r.GET("/public/certificate/:code", a.verifyCertificate)
+	r.GET("/public/open-courses", a.openCourses)
+	r.POST("/public/open-courses/discount", a.openCourseDiscount)
+	r.POST("/public/open-courses/register", a.openCourseRegister)
+}
+
+func (a *PublicAPI) openCourses(c *gin.Context) {
+	if a.Open == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"ok": false, "error": "در دسترس نیست."})
+		return
+	}
+	rows, err := a.Open.List(c.Request.Context())
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "دریافت کاتالوگ ناموفق بود."})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"courses": rows}})
+}
+
+func (a *PublicAPI) allowPublic(c *gin.Context, key string, limit, windowSec int) bool {
+	if a.Limiter == nil {
+		return true
+	}
+	ok, _, err := a.Limiter.Allow(c.Request.Context(), key, limit, windowSec)
+	if err != nil {
+		return true
+	}
+	if !ok {
+		c.JSON(http.StatusTooManyRequests, gin.H{"ok": false, "error": "تعداد درخواست‌ها بیش از حد مجاز است؛ کمی بعد تلاش کنید."})
+	}
+	return ok
+}
+
+func (a *PublicAPI) openCourseDiscount(c *gin.Context) {
+	if a.Open == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"ok": false, "error": "در دسترس نیست."})
+		return
+	}
+	if !a.allowPublic(c, "open-discount:"+c.ClientIP(), 30, 60) {
+		return
+	}
+	var body struct {
+		CourseID int64  `json:"courseId"`
+		Code     string `json:"code"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.CourseID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	res := a.Open.ValidateDiscount(c.Request.Context(), body.CourseID, body.Code)
+	if !res.OK {
+		c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"ok": false, "error": res.Error}})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"ok": true, "discountAmount": res.DiscountAmount}})
+}
+
+func (a *PublicAPI) openCourseRegister(c *gin.Context) {
+	if a.Open == nil {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"ok": false, "error": "در دسترس نیست."})
+		return
+	}
+	if !a.allowPublic(c, "open-register:"+c.ClientIP(), 5, 600) {
+		return
+	}
+	var body opencourses.RegisterInput
+	if err := c.ShouldBindJSON(&body); err != nil || body.CourseID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "درخواست نامعتبر است."})
+		return
+	}
+	res := a.Open.Register(c.Request.Context(), body)
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": res})
 }
 
 func (a *PublicAPI) verifyStudentCard(c *gin.Context) {

@@ -57,6 +57,7 @@ import { AdminCouncilPage } from '@/routes/admin/CouncilPage';
 import { NotFound } from '@/routes/NotFound';
 import { ExamTicketPage, VerifyEnrollmentPage, VerifyFinancePage, VerifyTranscriptPage } from '@/routes/public/PublicVerifyPages';
 import { StudentIdCardPage, VerifyCertificatePage, VerifyDegreePage } from '@/routes/public/PublicExtraPages';
+import { OpenCoursesPage } from '@/routes/public/OpenCoursesPage';
 
 export function App() {
   return (
@@ -75,6 +76,7 @@ export function App() {
         <Route path="verify-degree/:code" element={<VerifyDegreePage />} />
         <Route path="verify-certificate" element={<VerifyCertificatePage />} />
         <Route path="verify-certificate/:code" element={<VerifyCertificatePage />} />
+        <Route path="open-courses" element={<OpenCoursesPage />} />
         <Route path="change-password" element={<ChangePassword />} />
 
         {/* شل محافظت‌شده — گارد نشست داخل AppShell است */}
