@@ -8,6 +8,7 @@ package main
 
 import (
 	"context"
+	"strconv"
 	"errors"
 	"net/http"
 	"net/http/httputil"
@@ -32,6 +33,8 @@ import (
 	"backend-go/internal/logger"
 	"backend-go/internal/payroll"
 	"backend-go/internal/professor"
+	"backend-go/internal/tuition"
+	"backend-go/internal/workflow"
 	"backend-go/internal/ratelimit"
 	"backend-go/internal/scope"
 	"backend-go/internal/session"
@@ -165,6 +168,15 @@ func main() {
 	}
 	payrollAPI := &httpapi.PayrollAPI{Engine: payrollEngine, Approvals: payrollApprovals, Store: store, Pool: database.Pool, Scope: scopeSvc}
 	payrollAPI.Register(ginEngine.Group(""))
+	tuitionEngine := tuition.New(database.Pool, settingsStore)
+	workflowEngine := workflow.New(database.Pool, settingsStore)
+	workflowEngine.RegisterDefaultHandlers(tuitionEngine)
+	workflowEngine.Notify = func(ctx context.Context, userID int64, eventCode, text string) {
+		payload := `{"text":` + strconv.Quote(text) + `}`
+		_, _ = database.Pool.Exec(ctx, `insert into notifications ("userId","eventCode",payload) values ($1,$2,$3)`, userID, eventCode, payload)
+	}
+	workflowAPI := &httpapi.WorkflowAPI{Engine: workflowEngine, Store: store, Admin: adminSvc}
+	workflowAPI.Register(ginEngine.Group(""))
 	publicAPI := &httpapi.PublicAPI{Pool: database.Pool, Settings: settingsStore}
 	publicAPI.Register(ginEngine.Group(""))
 

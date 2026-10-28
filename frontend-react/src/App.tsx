@@ -51,6 +51,7 @@ import { AdminFinancePage, AdminStudentFinanceRoute, AdminCourseFinancePage } fr
 import { AdminPayrollPage } from '@/routes/admin/PayrollPage';
 import { AdminFinanceRulesPage } from '@/routes/admin/FinanceRulesPage';
 import { AdminPosPage } from '@/routes/admin/PosPage';
+import { AdminWorkflowsPage } from '@/routes/admin/WorkflowsPage';
 import { NotFound } from '@/routes/NotFound';
 
 export function App() {
@@ -116,6 +117,7 @@ export function App() {
           <Route path="admin/payroll" element={<AdminPayrollPage />} />
           <Route path="admin/finance/rules" element={<AdminFinanceRulesPage />} />
           <Route path="admin/finance/pos" element={<AdminPosPage />} />
+          <Route path="admin/workflows" element={<AdminWorkflowsPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
