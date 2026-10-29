@@ -53,6 +53,7 @@ import { AdminFinanceRulesPage } from '@/routes/admin/FinanceRulesPage';
 import { AdminPosPage } from '@/routes/admin/PosPage';
 import { AdminWorkflowsPage } from '@/routes/admin/WorkflowsPage';
 import { AdminArchivePage } from '@/routes/admin/ArchivePage';
+import { PayrollCoveragePage, PayrollRolesPage, TeachingRolesPage } from '@/routes/admin/PayrollExtraPages';
 import { AdminDisciplinePage } from '@/routes/admin/DisciplinePage';
 import { AdminCouncilPage } from '@/routes/admin/CouncilPage';
 import { NotFound } from '@/routes/NotFound';
@@ -132,6 +133,9 @@ export function App() {
           <Route path="admin/finance/student/:id" element={<AdminStudentFinanceRoute />} />
           <Route path="admin/course-finance" element={<AdminCourseFinancePage />} />
           <Route path="admin/payroll" element={<AdminPayrollPage />} />
+          <Route path="admin/payroll/roles" element={<PayrollRolesPage />} />
+          <Route path="admin/payroll/teaching-roles" element={<TeachingRolesPage />} />
+          <Route path="admin/payroll/coverage" element={<PayrollCoveragePage />} />
           <Route path="admin/finance/rules" element={<AdminFinanceRulesPage />} />
           <Route path="admin/finance/pos" element={<AdminPosPage />} />
           <Route path="admin/workflows" element={<AdminWorkflowsPage />} />

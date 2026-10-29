@@ -133,3 +133,104 @@ export async function getPayrollConfig(): Promise<PayrollConfig> {
   const res = await apiGet<{ ok: boolean; data: PayrollConfig }>('/admin/payroll/config');
   return res.data;
 }
+
+// ─────────────────── مدیریت حقوق: سمتها/نقشها/پوشش ───────────────────
+
+export type DutyRole = {
+  id: number; code: string; title: string; dutyUnits: number | null;
+  reductionUnits: number; isTeaching: boolean; sortOrder: number;
+};
+
+export async function getDutyRoles(): Promise<DutyRole[]> {
+  const res = await apiGet<{ ok: boolean; data: { roles: DutyRole[] } }>('/admin/payroll/duty-roles');
+  return res.data.roles;
+}
+
+export async function createDutyRole(input: Omit<DutyRole, 'id'>): Promise<DutyRole> {
+  const res = await apiPost<{ ok: boolean; data: { role: DutyRole } }>('/admin/payroll/duty-roles', input);
+  return res.data.role;
+}
+
+export async function updateDutyRole(id: number, input: Omit<DutyRole, 'id'>): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/payroll/duty-roles/update', { id, ...input });
+}
+
+export async function deleteDutyRole(id: number): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/payroll/duty-roles/delete', { id });
+}
+
+export type StaffHit = { id: number; staffCode: string | null; name: string; rank: string | null };
+
+export async function searchPayrollStaff(q: string): Promise<StaffHit[]> {
+  const res = await apiGet<{ ok: boolean; data: { list: StaffHit[] } }>(`/admin/payroll/staff-search?q=${encodeURIComponent(q)}`);
+  return res.data.list;
+}
+
+export type StaffTermRole = {
+  assignmentId: number; roleId: number; code: string; title: string;
+  dutyUnits: number | null; reductionUnits: number; isTeaching: boolean; sortOrder: number; isPrimary: boolean;
+};
+
+export type AssignmentsSummary = {
+  assigned: StaffTermRole[];
+  effectiveDuty: number | null;
+  fallbackDuty: number;
+};
+
+export async function getAssignments(staffId: number, termId: number): Promise<AssignmentsSummary> {
+  const res = await apiGet<{ ok: boolean; data: AssignmentsSummary }>(`/admin/payroll/assignments?staffId=${staffId}&termId=${termId}`);
+  return res.data;
+}
+
+export async function assignStaffTermRole(staffId: number, termId: number, roleId: number, isPrimary: boolean): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/payroll/assignments', { staffId, termId, roleId, isPrimary });
+}
+
+export async function unassignStaffTermRole(assignmentId: number): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/payroll/assignments/unassign', { assignmentId });
+}
+
+export type PayrollTerm = { id: number; title: string; termCode: string; isCurrent: boolean };
+
+export async function getPayrollTerms(): Promise<PayrollTerm[]> {
+  const res = await apiGet<{ ok: boolean; data: { terms: PayrollTerm[] } }>('/admin/payroll/terms');
+  return res.data.terms;
+}
+
+export type RoleDef = { id: number; code: string; title: string; description: string | null; isActive: boolean };
+
+export async function getRoleDefs(): Promise<RoleDef[]> {
+  const res = await apiGet<{ ok: boolean; data: { roleDefs: RoleDef[] } }>('/admin/payroll/role-defs');
+  return res.data.roleDefs;
+}
+
+export async function createRoleDef(input: { code: string; title: string; description?: string; isActive?: boolean }): Promise<RoleDef> {
+  const res = await apiPost<{ ok: boolean; data: { roleDef: RoleDef } }>('/admin/payroll/role-defs', input);
+  return res.data.roleDef;
+}
+
+export async function updateRoleDef(id: number, input: { code: string; title: string; description?: string; isActive?: boolean }): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/payroll/role-defs/update', { id, ...input });
+}
+
+export async function deleteRoleDef(id: number): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/payroll/role-defs/delete', { id });
+}
+
+export async function setOfferingPayRole(offeringId: number, staffId: number, payRoleOverride: string | null): Promise<void> {
+  await apiPost<{ ok: boolean }>(`/admin/payroll/offering-extras?offeringId=${offeringId}&staffId=${staffId}`, { payRoleOverride });
+}
+
+export type CoverageRow = {
+  staffId: number; staffName: string; offeringId: number; courseCode: string; courseTitle: string;
+  groupNumber: number | null; offeringType: string; offeringTypeFa: string; role: string; roleFa: string;
+  enrolled: number; hasClass: boolean; nth: number; merged: boolean; memberCount: number;
+  ruleId: number | null; ruleTitle: string | null; expression: string | null;
+  missDim: string | null; missReason: string | null; overrideCode: string | null; overrideTitle: string | null;
+};
+
+export async function getRuleCoverage(termId?: number): Promise<CoverageRow[]> {
+  const q = termId ? `?termId=${termId}` : '';
+  const res = await apiGet<{ ok: boolean; data: { rows: CoverageRow[] } }>(`/admin/payroll/coverage${q}`);
+  return res.data.rows;
+}

@@ -172,7 +172,7 @@ func main() {
 		su := &session.User{ID: u.ID, Roles: u.Roles}
 		return scopeSvc.CanActOnUniversity(ctx, su, &universityID)
 	}
-	payrollAPI := &httpapi.PayrollAPI{Engine: payrollEngine, Approvals: payrollApprovals, Store: store, Pool: database.Pool, Scope: scopeSvc}
+	payrollAPI := &httpapi.PayrollAPI{Engine: payrollEngine, Approvals: payrollApprovals, Store: store, Pool: database.Pool, Scope: scopeSvc, Admin: adminSvc}
 	payrollAPI.Register(ginEngine.Group(""))
 	messagingSvc := messaging.New(database.Pool, settingsStore)
 	messaging.Default = messagingSvc

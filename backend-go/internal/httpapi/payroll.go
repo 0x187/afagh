@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"backend-go/internal/admin"
 	"backend-go/internal/payroll"
 	"backend-go/internal/scope"
 	"backend-go/internal/session"
@@ -23,6 +24,15 @@ type PayrollAPI struct {
 	Store     *session.Store
 	Pool      *pgxpool.Pool
 	Scope     *scope.Service
+	Admin     *admin.Service
+}
+
+// uniCookie دانشگاه فعال از کوکی.
+func (a *PayrollAPI) uniCookie(c *gin.Context) string {
+	if v, err := c.Cookie(scope.UniversityCookie); err == nil {
+		return v
+	}
+	return ""
 }
 
 var payrollViewRoles = []string{"ADMIN", "EDU_EXPERT", "VICE_EDU", "FINANCE_EXPERT", "FINANCE", "DEP_HEAD"}
@@ -86,6 +96,297 @@ func (a *PayrollAPI) Register(r gin.IRouter) {
 	r.POST("/admin/payroll/approvals", a.payrollApprovalsPost)
 	r.GET("/admin/payroll/export", a.payrollExportCSV)
 	r.GET("/admin/payroll/config", a.payrollConfig)
+	r.GET("/admin/payroll/duty-roles", a.dutyRoles)
+	r.POST("/admin/payroll/duty-roles", a.dutyRoleCreate)
+	r.POST("/admin/payroll/duty-roles/update", a.dutyRoleUpdate)
+	r.POST("/admin/payroll/duty-roles/delete", a.dutyRoleDelete)
+	r.GET("/admin/payroll/staff-search", a.payrollStaffSearch)
+	r.GET("/admin/payroll/assignments", a.payrollAssignments)
+	r.POST("/admin/payroll/assignments", a.payrollAssign)
+	r.POST("/admin/payroll/assignments/unassign", a.payrollUnassign)
+	r.GET("/admin/payroll/terms", a.payrollTerms)
+	r.GET("/admin/payroll/role-defs", a.roleDefs)
+	r.POST("/admin/payroll/role-defs", a.roleDefCreate)
+	r.POST("/admin/payroll/role-defs/update", a.roleDefUpdate)
+	r.POST("/admin/payroll/role-defs/delete", a.roleDefDelete)
+	r.POST("/admin/payroll/offering-extras", a.setOfferingPayRole)
+	r.GET("/admin/payroll/coverage", a.payrollCoverage)
+}
+
+// ─────────────────── مدیریت حقوق (سمت‌ها/نقش‌ها/پوشش) ───────────────────
+
+func (a *PayrollAPI) dutyRoles(c *gin.Context) {
+	user := a.requireRoles(c, payrollViewRoles)
+	if user == nil {
+		return
+	}
+	uniID := a.Admin.UniversityID(c.Request.Context(), user, a.uniCookie(c))
+	rows, err := a.Engine.ListDutyRoles(c.Request.Context(), uniID)
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"roles": rows}})
+}
+
+func (a *PayrollAPI) dutyRoleCreate(c *gin.Context) {
+	user := a.requireRoles(c, []string{"ADMIN"})
+	if user == nil {
+		return
+	}
+	var body payroll.CreateDutyRoleInput
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})
+		return
+	}
+	uniID := a.Admin.UniversityID(c.Request.Context(), user, a.uniCookie(c))
+	row, err := a.Engine.CreateDutyRole(c.Request.Context(), uniID, body)
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"role": row}})
+}
+
+func (a *PayrollAPI) dutyRoleUpdate(c *gin.Context) {
+	user := a.requireRoles(c, []string{"ADMIN"})
+	if user == nil {
+		return
+	}
+	var body struct {
+		ID int64 `json:"id"`
+		payroll.CreateDutyRoleInput
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.ID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})
+		return
+	}
+	uniID := a.Admin.UniversityID(c.Request.Context(), user, a.uniCookie(c))
+	if err := a.Engine.UpdateDutyRole(c.Request.Context(), uniID, body.ID, body.CreateDutyRoleInput); err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *PayrollAPI) dutyRoleDelete(c *gin.Context) {
+	user := a.requireRoles(c, []string{"ADMIN"})
+	if user == nil {
+		return
+	}
+	var body struct {
+		ID int64 `json:"id"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.ID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})
+		return
+	}
+	uniID := a.Admin.UniversityID(c.Request.Context(), user, a.uniCookie(c))
+	if err := a.Engine.DeleteDutyRole(c.Request.Context(), uniID, body.ID); err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *PayrollAPI) payrollStaffSearch(c *gin.Context) {
+	user := a.requireRoles(c, payrollViewRoles)
+	if user == nil {
+		return
+	}
+	list, err := a.Engine.SearchPayrollStaff(c.Request.Context(), c.Query("q"))
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"list": list}})
+}
+
+func (a *PayrollAPI) payrollAssignments(c *gin.Context) {
+	user := a.requireRoles(c, payrollViewRoles)
+	if user == nil {
+		return
+	}
+	staffID, _ := strconv.ParseInt(c.Query("staffId"), 10, 64)
+	termID, _ := strconv.ParseInt(c.Query("termId"), 10, 64)
+	if staffID <= 0 || termID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "شناسهٔ استاد/ترم نامعتبر است."})
+		return
+	}
+	sum, err := a.Engine.AssignmentSummary(c.Request.Context(), staffID, termID)
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": sum})
+}
+
+func (a *PayrollAPI) payrollAssign(c *gin.Context) {
+	user := a.requireRoles(c, []string{"ADMIN", "EDU_EXPERT"})
+	if user == nil {
+		return
+	}
+	var body struct {
+		StaffID   int64 `json:"staffId"`
+		TermID    int64 `json:"termId"`
+		RoleID    int64 `json:"roleId"`
+		IsPrimary bool  `json:"isPrimary"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})
+		return
+	}
+	if err := a.Engine.AssignStaffTermRole(c.Request.Context(), body.StaffID, body.TermID, body.RoleID, body.IsPrimary); err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *PayrollAPI) payrollUnassign(c *gin.Context) {
+	user := a.requireRoles(c, []string{"ADMIN", "EDU_EXPERT"})
+	if user == nil {
+		return
+	}
+	var body struct {
+		AssignmentID int64 `json:"assignmentId"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})
+		return
+	}
+	if err := a.Engine.UnassignStaffTermRole(c.Request.Context(), body.AssignmentID); err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *PayrollAPI) payrollTerms(c *gin.Context) {
+	user := a.requireRoles(c, payrollViewRoles)
+	if user == nil {
+		return
+	}
+	uniID := a.Admin.UniversityID(c.Request.Context(), user, a.uniCookie(c))
+	rows, err := a.Engine.ListTerms(c.Request.Context(), uniID)
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"terms": rows}})
+}
+
+func (a *PayrollAPI) roleDefs(c *gin.Context) {
+	user := a.requireRoles(c, []string{"ADMIN", "EDU_EXPERT", "VICE_EDU", "FINANCE"})
+	if user == nil {
+		return
+	}
+	uniID := a.Admin.UniversityID(c.Request.Context(), user, a.uniCookie(c))
+	rows, err := a.Engine.ListRoleDefs(c.Request.Context(), uniID)
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"roleDefs": rows}})
+}
+
+func (a *PayrollAPI) roleDefCreate(c *gin.Context) {
+	user := a.requireRoles(c, []string{"ADMIN"})
+	if user == nil {
+		return
+	}
+	var body payroll.RoleDefInput
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})
+		return
+	}
+	uniID := a.Admin.UniversityID(c.Request.Context(), user, a.uniCookie(c))
+	row, err := a.Engine.CreateRoleDef(c.Request.Context(), uniID, body)
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"roleDef": row}})
+}
+
+func (a *PayrollAPI) roleDefUpdate(c *gin.Context) {
+	user := a.requireRoles(c, []string{"ADMIN"})
+	if user == nil {
+		return
+	}
+	var body struct {
+		ID int64 `json:"id"`
+		payroll.RoleDefInput
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.ID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})
+		return
+	}
+	if err := a.Engine.UpdateRoleDef(c.Request.Context(), body.ID, body.RoleDefInput); err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *PayrollAPI) roleDefDelete(c *gin.Context) {
+	user := a.requireRoles(c, []string{"ADMIN"})
+	if user == nil {
+		return
+	}
+	var body struct {
+		ID int64 `json:"id"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.ID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})
+		return
+	}
+	if err := a.Engine.DeleteRoleDef(c.Request.Context(), body.ID); err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *PayrollAPI) setOfferingPayRole(c *gin.Context) {
+	user := a.requireRoles(c, []string{"ADMIN"})
+	if user == nil {
+		return
+	}
+	offeringID, _ := strconv.ParseInt(c.Query("offeringId"), 10, 64)
+	staffID, _ := strconv.ParseInt(c.Query("staffId"), 10, 64)
+	var body struct {
+		PayRoleOverride *string `json:"payRoleOverride"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})
+		return
+	}
+	uniID := a.Admin.UniversityID(c.Request.Context(), user, a.uniCookie(c))
+	if err := a.Engine.SetOfferingPayRole(c.Request.Context(), uniID, offeringID, staffID, body.PayRoleOverride); err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *PayrollAPI) payrollCoverage(c *gin.Context) {
+	user := a.requireRoles(c, payrollViewRoles)
+	if user == nil {
+		return
+	}
+	var termID *int64
+	if raw := c.Query("termId"); raw != "" {
+		if v, err := strconv.ParseInt(raw, 10, 64); err == nil && v > 0 {
+			termID = &v
+		}
+	}
+	rows, err := a.Engine.ComputeRuleCoverage(c.Request.Context(), termID)
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"rows": rows}})
 }
 
 // staffRefOf پروندهٔ کارمندی کاربر — برای دامنهٔ مدیر گروه.
