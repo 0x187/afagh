@@ -234,3 +234,44 @@ export async function getRuleCoverage(termId?: number): Promise<CoverageRow[]> {
   const res = await apiGet<{ ok: boolean; data: { rows: CoverageRow[] } }>(`/admin/payroll/coverage${q}`);
   return res.data.rows;
 }
+
+// ─────────────────── ابلاغ‌های آموزشی ───────────────────
+
+export type DecreeListItem = {
+  id: number; staffId: number; staffName: string; staffCode: string | null;
+  termId: number; termTitle: string | null; secretariatNo: number; status: string;
+  issuedAt: string | null; createdAt: string | null;
+};
+
+export type DecreeSigner = { title: string; name: string };
+
+export async function listDecrees(termId: number, staffId?: number): Promise<DecreeListItem[]> {
+  const q = staffId ? `&staffId=${staffId}` : '';
+  const res = await apiGet<{ ok: boolean; data: { list: DecreeListItem[] } }>(`/admin/payroll/decrees?termId=${termId}${q}`);
+  return res.data.list;
+}
+
+export async function issueDecree(staffId: number, termId: number, signers: DecreeSigner[]): Promise<number> {
+  const res = await apiPost<{ ok: boolean; data: { id: number } }>('/admin/payroll/decrees/issue', { staffId, termId, signers });
+  return res.data.id;
+}
+
+export type DecreeDetail = DecreeListItem & {
+  snapshot: Record<string, unknown> | null;
+  signers: DecreeSigner[];
+  items: { id: number; section: string; title: string; units: number | null; amount: number | null }[];
+  issuedByName: string | null;
+};
+
+export async function getDecreeDetail(id: number): Promise<DecreeDetail> {
+  const res = await apiGet<{ ok: boolean; data: { decree: DecreeDetail } }>(`/admin/payroll/decrees/detail?id=${id}`);
+  return res.data.decree;
+}
+
+export async function finalizeDecree(id: number): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/payroll/decrees/finalize', { id });
+}
+
+export async function deleteDecreeDraft(id: number): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/payroll/decrees/delete', { id });
+}

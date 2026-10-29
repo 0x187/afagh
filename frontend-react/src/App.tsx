@@ -54,6 +54,7 @@ import { AdminPosPage } from '@/routes/admin/PosPage';
 import { AdminWorkflowsPage } from '@/routes/admin/WorkflowsPage';
 import { AdminArchivePage } from '@/routes/admin/ArchivePage';
 import { PayrollCoveragePage, PayrollRolesPage, TeachingRolesPage } from '@/routes/admin/PayrollExtraPages';
+import { PayrollDecreesPage } from '@/routes/admin/PayrollDecreesPage';
 import { AdminDisciplinePage } from '@/routes/admin/DisciplinePage';
 import { AdminCouncilPage } from '@/routes/admin/CouncilPage';
 import { NotFound } from '@/routes/NotFound';
@@ -136,6 +137,7 @@ export function App() {
           <Route path="admin/payroll/roles" element={<PayrollRolesPage />} />
           <Route path="admin/payroll/teaching-roles" element={<TeachingRolesPage />} />
           <Route path="admin/payroll/coverage" element={<PayrollCoveragePage />} />
+          <Route path="admin/payroll/decrees" element={<PayrollDecreesPage />} />
           <Route path="admin/finance/rules" element={<AdminFinanceRulesPage />} />
           <Route path="admin/finance/pos" element={<AdminPosPage />} />
           <Route path="admin/workflows" element={<AdminWorkflowsPage />} />

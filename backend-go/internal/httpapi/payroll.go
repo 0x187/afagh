@@ -111,6 +111,11 @@ func (a *PayrollAPI) Register(r gin.IRouter) {
 	r.POST("/admin/payroll/role-defs/delete", a.roleDefDelete)
 	r.POST("/admin/payroll/offering-extras", a.setOfferingPayRole)
 	r.GET("/admin/payroll/coverage", a.payrollCoverage)
+	r.GET("/admin/payroll/decrees", a.payrollDecrees)
+	r.POST("/admin/payroll/decrees/issue", a.payrollDecreeIssue)
+	r.GET("/admin/payroll/decrees/detail", a.payrollDecreeDetail)
+	r.POST("/admin/payroll/decrees/finalize", a.payrollDecreeFinalize)
+	r.POST("/admin/payroll/decrees/delete", a.payrollDecreeDelete)
 }
 
 // ─────────────────── مدیریت حقوق (سمت‌ها/نقش‌ها/پوشش) ───────────────────
@@ -673,4 +678,110 @@ func (a *PayrollAPI) payrollConfig(c *gin.Context) {
 
 func (a *PayrollAPI) payrollFail(c *gin.Context, err error) {
 	c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
+}
+
+// ─────────────────── ابلاغ‌های آموزشی ───────────────────
+
+func (a *PayrollAPI) payrollDecrees(c *gin.Context) {
+	user := a.requireRoles(c, payrollViewRoles)
+	if user == nil {
+		return
+	}
+	termID, _ := strconv.ParseInt(c.Query("termId"), 10, 64)
+	if termID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "شناسهٔ ترم نامعتبر است."})
+		return
+	}
+	uniID := a.Admin.UniversityID(c.Request.Context(), user, a.uniCookie(c))
+	var staffID *int64
+	if raw := c.Query("staffId"); raw != "" {
+		if v, err := strconv.ParseInt(raw, 10, 64); err == nil && v > 0 {
+			staffID = &v
+		}
+	}
+	rows, err := a.Engine.ListDecrees(c.Request.Context(), termID, uniID, staffID)
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"list": rows}})
+}
+
+func (a *PayrollAPI) payrollDecreeIssue(c *gin.Context) {
+	user := a.requireRoles(c, []string{"ADMIN", "EDU_EXPERT"})
+	if user == nil {
+		return
+	}
+	var body struct {
+		StaffID int64                  `json:"staffId"`
+		TermID  int64                  `json:"termId"`
+		Signers []payroll.DecreeSigner `json:"signers"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.StaffID <= 0 || body.TermID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})
+		return
+	}
+	uniID := a.Admin.UniversityID(c.Request.Context(), user, a.uniCookie(c))
+	if uniID == nil {
+		a.payrollFail(c, errors.New("دانشگاه فعال مشخص نیست."))
+		return
+	}
+	id, err := a.Engine.IssueDecree(c.Request.Context(), body.StaffID, body.TermID, *uniID, body.Signers)
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"id": id}})
+}
+
+func (a *PayrollAPI) payrollDecreeDetail(c *gin.Context) {
+	user := a.requireRoles(c, payrollViewRoles)
+	if user == nil {
+		return
+	}
+	id, _ := strconv.ParseInt(c.Query("id"), 10, 64)
+	d, err := a.Engine.GetDecreeDetail(c.Request.Context(), id)
+	if err != nil || d == nil {
+		a.payrollFail(c, errors.New("ابلاغ یافت نشد."))
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"decree": d}})
+}
+
+func (a *PayrollAPI) payrollDecreeFinalize(c *gin.Context) {
+	user := a.requireRoles(c, []string{"ADMIN", "EDU_EXPERT"})
+	if user == nil {
+		return
+	}
+	var body struct {
+		ID int64 `json:"id"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.ID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})
+		return
+	}
+	if err := a.Engine.FinalizeDecree(c.Request.Context(), body.ID, user.ID); err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *PayrollAPI) payrollDecreeDelete(c *gin.Context) {
+	user := a.requireRoles(c, []string{"ADMIN", "EDU_EXPERT"})
+	if user == nil {
+		return
+	}
+	var body struct {
+		ID int64 `json:"id"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.ID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})
+		return
+	}
+	if err := a.Engine.DeleteDraftDecree(c.Request.Context(), body.ID); err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
