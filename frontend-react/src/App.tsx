@@ -52,6 +52,7 @@ import { AdminPayrollPage } from '@/routes/admin/PayrollPage';
 import { AdminFinanceRulesPage } from '@/routes/admin/FinanceRulesPage';
 import { AdminPosPage } from '@/routes/admin/PosPage';
 import { AdminWorkflowsPage } from '@/routes/admin/WorkflowsPage';
+import { AdminArchivePage } from '@/routes/admin/ArchivePage';
 import { AdminDisciplinePage } from '@/routes/admin/DisciplinePage';
 import { AdminCouncilPage } from '@/routes/admin/CouncilPage';
 import { NotFound } from '@/routes/NotFound';
@@ -134,6 +135,7 @@ export function App() {
           <Route path="admin/finance/rules" element={<AdminFinanceRulesPage />} />
           <Route path="admin/finance/pos" element={<AdminPosPage />} />
           <Route path="admin/workflows" element={<AdminWorkflowsPage />} />
+          <Route path="admin/archive" element={<AdminArchivePage />} />
           <Route path="admin/discipline" element={<AdminDisciplinePage />} />
           <Route path="admin/council" element={<AdminCouncilPage />} />
           <Route path="*" element={<NotFound />} />

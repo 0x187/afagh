@@ -436,3 +436,40 @@ export async function recordPosSale(input: {
 export async function voidPosTransaction(terminalCode: string, stan: string, reason: string): Promise<void> {
   await apiPost<{ ok: boolean }>('/admin/pos/void', { terminalCode, stan, reason });
 }
+
+// ─────────────────── بایگانی مدارک ───────────────────
+
+export type ArchiveDoc = {
+  id: number; fileName: string; mimeType: string | null; status: string; reason: string | null;
+  uploadedAt: string | null; student: string; nationalCode: string | null;
+  category: string; type: string;
+};
+
+export type ArchiveData = {
+  rows: ArchiveDoc[];
+  categories: { id: number; title: string }[];
+  types: { id: number; title: string; categoryId: number | null }[];
+};
+
+export async function getArchiveDocuments(): Promise<ArchiveData> {
+  const res = await apiGet<{ ok: boolean; data: ArchiveData }>('/admin/archive/documents');
+  return res.data;
+}
+
+export async function verifyArchiveDoc(docId: number, decision: 'VERIFIED' | 'REJECTED', reason?: string): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/archive/verify', { docId, decision, reason });
+}
+
+export async function uploadArchiveDocument(input: { file: File; studentUserId: number; categoryId: number; typeId?: number }): Promise<number> {
+  const fd = new FormData();
+  fd.set('file', input.file);
+  fd.set('studentUserId', String(input.studentUserId));
+  fd.set('categoryId', String(input.categoryId));
+  if (input.typeId) fd.set('typeId', String(input.typeId));
+  const res = await fetch('/api/v2/admin/archive/upload', { method: 'POST', body: fd, credentials: 'same-origin' });
+  const payload = await res.json().catch(() => null) as { ok?: boolean; error?: string; data?: { docId: number } } | null;
+  if (!res.ok || !payload?.ok) throw new Error(payload?.error ?? `خطای سرور (${res.status})`);
+  return payload.data?.docId ?? 0;
+}
+
+export const archiveFileUrl = (docId: number) => `/api/v2/admin/archive/file/${docId}`;

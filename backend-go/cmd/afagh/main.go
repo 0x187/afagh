@@ -119,8 +119,10 @@ func main() {
 	scopeAPI := &httpapi.ScopeAPI{Store: store, Svc: scopeSvc, Production: cfg.IsProduction()}
 	scopeAPI.Register(ginEngine.Group(""))
 	studentSvc := student.New(database.Pool, scopeSvc, settingsStore, signer)
+	var arStore *archive.Store
 	if ar, err := archive.New(cfg.S3Endpoint, cfg.S3AccessKey, cfg.S3SecretKey, cfg.S3Bucket); err == nil {
 		studentSvc.Archive = ar
+		arStore = ar
 	}
 	enrollSvc := enroll.NewService(database, rdb, settingsStore, scopeSvc, cfg.IsProduction())
 	enrollSvc.StartWorker()
@@ -136,7 +138,7 @@ func main() {
 	gmAPI.Register(ginEngine.Group(""))
 	adminSvc := admin.New(database, scopeSvc)
 	adminSvc.SetStore(&settingsStoreAdapter{store: settingsStore})
-	adminAPI := &httpapi.AdminAPI{Svc: adminSvc, Store: store, StudentFinance: studentSvc}
+	adminAPI := &httpapi.AdminAPI{Svc: adminSvc, Store: store, StudentFinance: studentSvc, Archive: arStore}
 	adminAPI.Register(ginEngine.Group(""))
 	payrollEngine := payroll.New(database.Pool, settingsStore)
 	payrollApprovals := payroll.NewApprovals(payrollEngine)

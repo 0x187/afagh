@@ -50,3 +50,24 @@ func (s *Store) Put(ctx context.Context, key, mime string, data []byte) error {
 		minio.PutObjectOptions{ContentType: mime})
 	return err
 }
+
+// Get خواندن شیء (کلید) از باکت.
+func (s *Store) Get(ctx context.Context, key string) ([]byte, string, error) {
+	if s == nil || s.Client == nil {
+		return nil, "", errors.New("آرشیو پیکربندی نشده است.")
+	}
+	obj, err := s.Client.GetObject(ctx, s.Bucket, key, minio.GetObjectOptions{})
+	if err != nil {
+		return nil, "", err
+	}
+	defer obj.Close()
+	info, err := obj.Stat()
+	if err != nil {
+		return nil, "", err
+	}
+	buf := bytes.NewBuffer(nil)
+	if _, err := buf.ReadFrom(obj); err != nil {
+		return nil, "", err
+	}
+	return buf.Bytes(), info.ContentType, nil
+}
