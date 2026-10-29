@@ -18,6 +18,7 @@ import (
 	"backend-go/internal/gpa"
 	"backend-go/internal/jalali"
 	"backend-go/internal/safeinput"
+	"backend-go/internal/messaging"
 )
 
 // MissingCourse درس باقی‌ماندهٔ سرفصل.
@@ -610,6 +611,7 @@ func (s *Service) advanceDossier(ctx context.Context, auditID int64, depth int) 
 			_, _ = s.Pool.Exec(ctx, `
 				insert into notifications ("userId","eventCode",payload) values ($1,$2,$3)`,
 				userID, "GRADUATION_"+next, string(payload))
+			messaging.NotifyExternalDefault(ctx, userID, "GRADUATION_"+next, text)
 		}
 	}
 	return nil

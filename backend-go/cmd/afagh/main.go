@@ -25,12 +25,14 @@ import (
 	"backend-go/internal/archive"
 	"backend-go/internal/authn"
 	"backend-go/internal/config"
+	"backend-go/internal/cron"
 	"backend-go/internal/db"
 	"backend-go/internal/edge"
 	"backend-go/internal/enroll"
 	"backend-go/internal/groupmanager"
 	"backend-go/internal/httpapi"
 	"backend-go/internal/logger"
+	"backend-go/internal/messaging"
 	"backend-go/internal/payroll"
 	"backend-go/internal/opencourses"
 	"backend-go/internal/professor"
@@ -170,6 +172,8 @@ func main() {
 	}
 	payrollAPI := &httpapi.PayrollAPI{Engine: payrollEngine, Approvals: payrollApprovals, Store: store, Pool: database.Pool, Scope: scopeSvc}
 	payrollAPI.Register(ginEngine.Group(""))
+	messagingSvc := messaging.New(database.Pool, settingsStore)
+	messaging.Default = messagingSvc
 	tuitionEngine := tuition.New(database.Pool, settingsStore)
 	workflowEngine := workflow.New(database.Pool, settingsStore)
 	workflowEngine.RegisterDefaultHandlers(tuitionEngine)
@@ -179,6 +183,9 @@ func main() {
 	}
 	workflowAPI := &httpapi.WorkflowAPI{Engine: workflowEngine, Store: store, Admin: adminSvc}
 	workflowAPI.Register(ginEngine.Group(""))
+	cronEngine := cron.New(database.Pool, settingsStore, workflowEngine)
+	cronAPI := &httpapi.CronAPI{Engine: cronEngine, Limiter: limiter}
+	cronAPI.Register(ginEngine.Group(""))
 	publicAPI := &httpapi.PublicAPI{Pool: database.Pool, Settings: settingsStore,
 		Verify:  &publicverify.Service{Student: studentSvc, Signer: signer, Pool: database.Pool},
 		Open:    &opencourses.Service{Pool: database.Pool},

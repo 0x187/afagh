@@ -23,6 +23,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"backend-go/internal/jalali"
+	"backend-go/internal/messaging"
 )
 
 // Settings حداقل وابستگی تنظیمات.
@@ -1575,6 +1576,7 @@ func (e *Engine) notify(ctx context.Context, userID int64, eventCode, text strin
 	}
 	payload := `{"text":` + jsonString(text) + `}`
 	_, _ = e.Pool.Exec(ctx, `insert into notifications ("userId","eventCode",payload) values ($1,$2,$3)`, userID, eventCode, payload)
+	messaging.NotifyExternalDefault(ctx, userID, eventCode, text)
 }
 
 func jsonString(v string) string {

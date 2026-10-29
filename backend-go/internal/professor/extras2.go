@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"backend-go/internal/otp"
+	"backend-go/internal/messaging"
 )
 
 // ProfDocument سند الکترونیک استاد.
@@ -128,6 +129,7 @@ func (s *Service) SendDocumentOTP(ctx context.Context, userID, documentID int64)
 	_, _ = s.DB.Pool.Exec(ctx, `
 		insert into notifications ("userId","eventCode",payload) values ($1,'SIGN_OTP_SENT',$2)`,
 		st.UserID, `{"documentId":`+itoa64(documentID)+`}`)
+	messaging.NotifyExternalDefault(ctx, st.UserID, "SIGN_OTP_SENT", "کد تأیید امضای الکترونیکی سند")
 	if s.Production {
 		return "", nil
 	}
@@ -223,6 +225,7 @@ func (s *Service) VerifyDocumentSign(ctx context.Context, userID, documentID int
 	_, _ = tx.Exec(ctx, `
 		insert into notifications ("userId","eventCode",payload) values ($1,'DOC_SIGNED',$2)`,
 		st.UserID, `{"documentId":`+itoa64(documentID)+`,"title":`+jsonString(title)+`}`)
+	messaging.NotifyExternalDefault(ctx, st.UserID, "DOC_SIGNED", "سند «"+title+"» با امضای الکترونیکی ثبت شد.")
 	return tx.Commit(ctx)
 }
 
@@ -453,6 +456,7 @@ func (s *Service) SendClassMessage(ctx context.Context, userID, offeringID int64
 		if err != nil {
 			continue
 		}
+		messaging.NotifyExternalDefault(ctx, uid, eventCode, body)
 		inbox++
 		for _, ch := range validChannels {
 			if ch != "INAPP" {

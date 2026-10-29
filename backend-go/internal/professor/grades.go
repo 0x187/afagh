@@ -14,6 +14,7 @@ import (
 
 	"backend-go/internal/jalali"
 	"backend-go/internal/otp"
+	"backend-go/internal/messaging"
 )
 
 // GradeStudent دانشجو در دفترچه.
@@ -396,6 +397,7 @@ func (s *Service) RequestFinalizeOTP(ctx context.Context, userID, offeringID int
 	_, _ = s.DB.Pool.Exec(ctx, `
 		insert into notifications ("userId","eventCode",payload) values ($1,'GRADE_FINALIZE_OTP',$2)`,
 		st.UserID, string(payload))
+	messaging.NotifyExternalDefault(ctx, st.UserID, "GRADE_FINALIZE_OTP", text)
 	if s.Production {
 		return "", nil
 	}

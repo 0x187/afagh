@@ -10,6 +10,7 @@ import (
 
 	"backend-go/internal/enroll"
 	"backend-go/internal/scope"
+	"backend-go/internal/messaging"
 )
 
 // ───────────────────────── تخصیص درس ترم بالاتر ─────────────────────────
@@ -545,6 +546,7 @@ func (s *Service) notifyStudent(ctx context.Context, studentID int64, eventCode,
 	payload, _ := json.Marshal(map[string]string{"text": text})
 	_, _ = s.DB.Pool.Exec(ctx, `insert into notifications ("userId","eventCode",payload) values ($1,$2,$3)`,
 		userID, eventCode, string(payload))
+	messaging.NotifyExternalDefault(ctx, userID, eventCode, text)
 }
 
 // ───────────────────────── معادل‌سازی ─────────────────────────

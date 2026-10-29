@@ -227,6 +227,9 @@ func (s *Store) GetBool(ctx context.Context, key string) bool {
 // SETTING_DEFS در settings.ts.
 var PhaseOneDefs = []Def{
 	{Key: "TICKET_TOKEN_SECRET", Env: "TICKET_TOKEN_SECRET", Default: ""},
+	{Key: "BYPASS_CRON_SECRET", Env: "BYPASS_CRON_SECRET", Default: ""},
+	{Key: "CHEQUE_CRON_SECRET", Env: "CHEQUE_CRON_SECRET", Default: ""},
+	{Key: "WORKFLOW_CRON_SECRET", Env: "WORKFLOW_CRON_SECRET", Default: ""},
 	{Key: "PREVIOUS_TICKET_TOKEN_SECRET", Env: "PREVIOUS_TICKET_TOKEN_SECRET", Default: "", EnvOnly: true},
 	{Key: "SESSION_LOCK_MINUTES", Env: "SESSION_LOCK_MINUTES", Default: "15"},
 	{Key: "SESSION_LOCK_MINUTES_ROLES", Env: "SESSION_LOCK_MINUTES_ROLES", Default: ""},
