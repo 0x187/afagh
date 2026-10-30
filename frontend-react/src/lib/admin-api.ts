@@ -534,3 +534,50 @@ export async function assignSubjectFee(input: { studentId: number; termId: numbe
 export async function deleteSubjectFeeAssignment(id: number): Promise<void> {
   await apiPost<{ ok: boolean }>('/admin/finance/subject-fees/assign/delete', { id });
 }
+
+// ─────────────────── کنترل زمانی + فرمول ویژهٔ دانشجو ───────────────────
+
+export type LockState = {
+  configured: boolean; locked: boolean; entryAllowed: boolean; reason: string;
+  period: { id: number; periodName: string | null; opensAt: string; closesAt: string; isLocked: boolean } | null;
+  now: string;
+};
+
+export async function getTimeControl(): Promise<LockState> {
+  const res = await apiGet<{ ok: boolean; data: LockState }>('/admin/finance/time-control');
+  return res.data;
+}
+
+export async function saveAccountingPeriod(input: { id?: number; periodName?: string; opensAt: string; closesAt: string; isLocked: boolean }): Promise<LockState> {
+  const res = await apiPost<{ ok: boolean; data: LockState }>('/admin/finance/time-control', input);
+  return res.data;
+}
+
+export type TuitionOverride = {
+  id: number; studentId: number; studentCode: string; studentName: string; termId: number | null;
+  termTitle: string; fixedAmount: number; perUnitAmount: number; reason: string | null;
+  isActive: boolean; createdAt: string | null; updatedAt: string | null;
+};
+
+export async function getTuitionOverrides(params: { q?: string; studentId?: number; active?: boolean; page?: number } = {}): Promise<{ rows: TuitionOverride[]; total: number; page: number }> {
+  const q = new URLSearchParams();
+  if (params.q) q.set('q', params.q);
+  if (params.studentId) q.set('studentId', String(params.studentId));
+  if (params.active) q.set('active', '1');
+  q.set('page', String(params.page ?? 1));
+  const res = await apiGet<{ ok: boolean; data: { rows: TuitionOverride[]; total: number; page: number } }>(`/admin/finance/student-formula?${q.toString()}`);
+  return res.data;
+}
+
+export async function createTuitionOverride(input: { studentId: number; termId?: number | null; fixedAmount: number; perUnitAmount: number; reason?: string | null }): Promise<number> {
+  const res = await apiPost<{ ok: boolean; data: { id: number } }>('/admin/finance/student-formula', input);
+  return res.data.id;
+}
+
+export async function updateTuitionOverride(id: number, patch: Record<string, unknown>): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/finance/student-formula/update', { id, ...patch });
+}
+
+export async function deleteTuitionOverride(id: number): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/finance/student-formula/delete', { id });
+}
