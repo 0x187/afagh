@@ -14,6 +14,7 @@ import (
 
 	"backend-go/internal/admin"
 	"backend-go/internal/archive"
+	"backend-go/internal/bi"
 	"backend-go/internal/graduation"
 	"backend-go/internal/reports"
 	"backend-go/internal/scope"
@@ -31,6 +32,7 @@ type AdminAPI struct {
 	Reports        *reports.Service
 	Graduation     *graduation.Service
 	Signer         *verification.Signer
+	BI             *bi.Service
 }
 
 func (a *AdminAPI) Register(r gin.IRouter) {
@@ -184,6 +186,12 @@ func (a *AdminAPI) Register(r gin.IRouter) {
 	r.PATCH("/admin/curriculum/grade-codes", a.curriculumGradeCodes)
 	r.GET("/admin/grade-thresholds", a.gradeThresholdsGet)
 	r.POST("/admin/grade-thresholds", a.gradeThresholdsSave)
+	r.GET("/admin/bi", a.biDashboard)
+	r.POST("/admin/bi/refresh-dashboards", a.biRefreshDashboards)
+	r.POST("/admin/bi/refresh", a.biRefreshAll)
+	r.POST("/admin/bi/invalidate", a.biInvalidate)
+	r.GET("/admin/bi/status", a.biStatus)
+	r.POST("/admin/bi/professor-panel", a.biProfessorPanel)
 	r.POST("/admin/finance/adjust", a.financeAdjust)
 	r.GET("/admin/course-finance", a.courseFinance)
 	r.POST("/admin/course-finance", a.setCourseFinance)

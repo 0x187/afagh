@@ -339,8 +339,17 @@ func (s *Service) teachingStaff(ctx context.Context, termID int64) []teachingSta
 	return out
 }
 
-// ManagementOverview پورت managementOverview — بدترین رکورد اول.
+// ManagementOverview پورت managementOverview — بدترین رکورد اول (با کش).
 func (s *Service) ManagementOverview(ctx context.Context) *ManagementOverview {
+	return s.managementOverview(ctx, false)
+}
+
+// ManagementOverviewForce محاسبهٔ دوباره بدون خواندن کش.
+func (s *Service) ManagementOverviewForce(ctx context.Context) *ManagementOverview {
+	return s.managementOverview(ctx, true)
+}
+
+func (s *Service) managementOverview(ctx context.Context, force bool) *ManagementOverview {
 	term := s.currentTerm(ctx)
 	if term == nil {
 		return &ManagementOverview{
@@ -349,7 +358,7 @@ func (s *Service) ManagementOverview(ctx context.Context) *ManagementOverview {
 	}
 	key := "bi:overview:term:" + itoa(term.ID)
 	var cached ManagementOverview
-	if age, ok := s.readCache(ctx, key, &cached); ok {
+	if age, ok := s.readCache(ctx, key, &cached); ok && !force {
 		cached.CacheAgeSeconds = age
 		if cached.List == nil {
 			cached.List = []ManagementRow{}
@@ -454,8 +463,17 @@ func (s *Service) ManagementOverview(ctx context.Context) *ManagementOverview {
 	return report
 }
 
-// FacilitiesReport پورت facilitiesReport.
+// FacilitiesReport پورت facilitiesReport (با کش).
 func (s *Service) FacilitiesReport(ctx context.Context) *FacilitiesReport {
+	return s.facilitiesReport(ctx, false)
+}
+
+// FacilitiesReportForce محاسبهٔ دوباره بدون خواندن کش.
+func (s *Service) FacilitiesReportForce(ctx context.Context) *FacilitiesReport {
+	return s.facilitiesReport(ctx, true)
+}
+
+func (s *Service) facilitiesReport(ctx context.Context, force bool) *FacilitiesReport {
 	term := s.currentTerm(ctx)
 	if term == nil {
 		report := &FacilitiesReport{Term: "—", RepairThreshold: 3, Rooms: []FacilityRow{}}
@@ -463,7 +481,7 @@ func (s *Service) FacilitiesReport(ctx context.Context) *FacilitiesReport {
 	}
 	key := "bi:facilities:term:" + itoa(term.ID)
 	var cached FacilitiesReport
-	if age, ok := s.readCache(ctx, key, &cached); ok {
+	if age, ok := s.readCache(ctx, key, &cached); ok && !force {
 		cached.CacheAgeSeconds = age
 		if cached.Rooms == nil {
 			cached.Rooms = []FacilityRow{}

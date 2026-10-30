@@ -184,6 +184,7 @@ func main() {
 	payrollAPI := &httpapi.PayrollAPI{Engine: payrollEngine, Approvals: payrollApprovals, Store: store, Pool: database.Pool, Scope: scopeSvc, Admin: adminSvc}
 	payrollAPI.Register(ginEngine.Group(""))
 	biSvc := bi.New(database.Pool, settingsStore)
+	adminAPI.BI = biSvc
 	adminAPI.Reports = reports.New(database.Pool, adminSvc, payrollEngine, biSvc)
 	messagingSvc := messaging.New(database.Pool, settingsStore)
 	messaging.Default = messagingSvc
