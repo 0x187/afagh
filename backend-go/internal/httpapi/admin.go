@@ -2,6 +2,7 @@
 package httpapi
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -84,6 +85,12 @@ func (a *AdminAPI) Register(r gin.IRouter) {
 	r.POST("/admin/finance/student-formula", a.financeStudentFormulaCreate)
 	r.POST("/admin/finance/student-formula/update", a.financeStudentFormulaUpdate)
 	r.POST("/admin/finance/student-formula/delete", a.financeStudentFormulaDelete)
+	r.GET("/admin/finance/welfare", a.financeWelfareFunds)
+	r.GET("/admin/finance/welfare/loans", a.financeWelfareLoans)
+	r.POST("/admin/finance/welfare", a.financeWelfareFundCreate)
+	r.POST("/admin/finance/welfare/update", a.financeWelfareFundUpdate)
+	r.POST("/admin/finance/welfare/delete", a.financeWelfareFundDelete)
+	r.POST("/admin/finance/welfare/assign-loan", a.financeWelfareAssignLoan)
 	r.GET("/admin/finance/time-control", a.financeTimeControl)
 	r.POST("/admin/finance/time-control", a.financeTimeControlSave)
 	r.GET("/admin/finance/coefficients", a.financeCoefficients)
@@ -1547,6 +1554,140 @@ func (a *AdminAPI) financeStudentFormulaDelete(c *gin.Context) {
 		return
 	}
 	if err := a.Svc.DeleteTuitionOverride(c.Request.Context(), user, body.ID); err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// ─────────────────── صندوق رفاه ───────────────────
+
+func (a *AdminAPI) financeWelfareFunds(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	funds, err := a.Svc.ListWelfareFunds(c.Request.Context(), user, a.uniCookie(c))
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"funds": funds}})
+}
+
+func (a *AdminAPI) financeWelfareLoans(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	raw := strings.TrimSpace(c.Query("fundId"))
+	var fundID *int64
+	if raw != "" && raw != "unassigned" {
+		v, err := strconv.ParseInt(raw, 10, 64)
+		if err != nil || v <= 0 {
+			c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "invalid_fund"})
+			return
+		}
+		fundID = &v
+	}
+	page, _ := strconv.Atoi(c.Query("page"))
+	rows, total, err := a.Svc.ListWelfareLoans(c.Request.Context(), user, a.uniCookie(c), fundID, page)
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"rows": rows, "total": total, "page": page, "pageSize": 50}})
+}
+
+func (a *AdminAPI) financeWelfareFundCreate(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	var body admin.WelfareFundInput
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "invalid_body"})
+		return
+	}
+	id, err := a.Svc.CreateWelfareFund(c.Request.Context(), user, a.uniCookie(c), body)
+	if err != nil {
+		if err.Error() == "duplicate_code" {
+			c.JSON(http.StatusConflict, gin.H{"ok": false, "error": "duplicate_code"})
+			return
+		}
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, gin.H{"ok": true, "data": gin.H{"id": id}})
+}
+
+func (a *AdminAPI) financeWelfareFundUpdate(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	var body struct {
+		ID int64 `json:"id"`
+		admin.WelfareFundInput
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.ID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "invalid_id"})
+		return
+	}
+	if err := a.Svc.UpdateWelfareFund(c.Request.Context(), user, body.ID, body.WelfareFundInput); err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *AdminAPI) financeWelfareFundDelete(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	var body struct {
+		ID int64 `json:"id"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.ID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "invalid_id"})
+		return
+	}
+	if err := a.Svc.DeleteWelfareFund(c.Request.Context(), user, body.ID); err != nil {
+		if strings.HasPrefix(err.Error(), "fund_in_use:") {
+			c.JSON(http.StatusConflict, gin.H{"ok": false, "error": "fund_in_use", "loanCount": strings.TrimPrefix(err.Error(), "fund_in_use:")})
+			return
+		}
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *AdminAPI) financeWelfareAssignLoan(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	var body map[string]json.RawMessage
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "invalid_loan"})
+		return
+	}
+	var loanID int64
+	if raw, ok := body["loanId"]; ok {
+		_ = json.Unmarshal(raw, &loanID)
+	}
+	fundRaw, fundSet := body["fundId"]
+	var fundID *int64
+	if fundSet && string(fundRaw) != "null" {
+		var v int64
+		if err := json.Unmarshal(fundRaw, &v); err == nil {
+			fundID = &v
+		}
+	}
+	in := admin.AssignLoanInput{LoanID: loanID, FundID: fundID, FundIDSet: fundSet}
+	if err := a.Svc.AssignLoanToFund(c.Request.Context(), user, a.uniCookie(c), in); err != nil {
 		a.fail(c, err)
 		return
 	}

@@ -581,3 +581,43 @@ export async function updateTuitionOverride(id: number, patch: Record<string, un
 export async function deleteTuitionOverride(id: number): Promise<void> {
   await apiPost<{ ok: boolean }>('/admin/finance/student-formula/delete', { id });
 }
+
+// ─────────────────── صندوق رفاه ───────────────────
+
+export type WelfareFund = {
+  id: number; code: string; title: string; description: string | null;
+  isActive: boolean; loanCount: number; createdAt: string | null;
+};
+
+export async function getWelfareFunds(): Promise<WelfareFund[]> {
+  const res = await apiGet<{ ok: boolean; data: { funds: WelfareFund[] } }>('/admin/finance/welfare');
+  return res.data.funds;
+}
+
+export type WelfareLoan = {
+  id: number; studentId: number; studentCode: string; studentName: string;
+  lender: string | null; loanCode: string | null; amount: number; installments: number | null;
+  status: string | null; welfareFundId: number | null; fundTitle: string | null; createdAt: string | null;
+};
+
+export async function getWelfareLoans(fundId: number | 'unassigned', page = 1): Promise<{ rows: WelfareLoan[]; total: number; page: number }> {
+  const res = await apiGet<{ ok: boolean; data: { rows: WelfareLoan[]; total: number; page: number } }>(`/admin/finance/welfare/loans?fundId=${fundId}&page=${page}`);
+  return res.data;
+}
+
+export async function createWelfareFund(input: { code: string; title: string; description?: string | null; isActive?: boolean }): Promise<number> {
+  const res = await apiPost<{ ok: boolean; data: { id: number } }>('/admin/finance/welfare', input);
+  return res.data.id;
+}
+
+export async function updateWelfareFund(id: number, input: { code: string; title: string; description?: string | null; isActive?: boolean }): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/finance/welfare/update', { id, ...input });
+}
+
+export async function deleteWelfareFund(id: number): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/finance/welfare/delete', { id });
+}
+
+export async function assignLoanToFund(loanId: number, fundId: number | null): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/finance/welfare/assign-loan', { loanId, fundId });
+}
