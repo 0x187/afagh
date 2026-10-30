@@ -186,6 +186,8 @@ func (a *AdminAPI) Register(r gin.IRouter) {
 	r.PATCH("/admin/curriculum/grade-codes", a.curriculumGradeCodes)
 	r.GET("/admin/grade-thresholds", a.gradeThresholdsGet)
 	r.POST("/admin/grade-thresholds", a.gradeThresholdsSave)
+	r.POST("/admin/sanjesh/preview", a.sanjeshPreview)
+	r.POST("/admin/sanjesh/commit", a.sanjeshCommit)
 	r.GET("/admin/bi", a.biDashboard)
 	r.POST("/admin/bi/refresh-dashboards", a.biRefreshDashboards)
 	r.POST("/admin/bi/refresh", a.biRefreshAll)
