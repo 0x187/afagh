@@ -42,9 +42,19 @@ const CARDS: CardDef[] = [
   { kind: 'jame', cat: 'research', icon: '🧮', title: 'دانشجویان واجد شرایط آزمون جامع' },
   { kind: 'docs', cat: 'research', icon: '📎', title: 'مدارک دانشجویان' },
   { kind: 'third-attempt', cat: 'program', icon: '🔁', title: 'دروس بار سوم (مردودی دو بار)', needsTerm: true },
+  { kind: 'empty-rooms', cat: 'program', icon: '🏚', title: 'کلاس‌های خالی', needsTerm: true },
+  { kind: 'weekly-timetable', cat: 'program', icon: '🗓', title: 'برنامه هفتگی کلاس‌ها', needsTerm: true },
+  { kind: 'room-conflicts', cat: 'program', icon: '⚠️', title: 'تداخل برنامه کلاس‌ها', needsTerm: true },
+  { kind: 'low-enrollment', cat: 'program', icon: '📉', title: 'ظرفیت به حدنصاب نرسیده', needsTerm: true },
+  { kind: 'makeup-courses', cat: 'program', icon: '🩹', title: 'دروس جبرانی/پیش‌دانشگاهی' },
+  { kind: 'offered-course-roster', cat: 'students', icon: '👥', title: 'دانشجویان درس ارائه‌شده', needsTerm: true },
+  { kind: 'no-photo', cat: 'students', icon: '📷', title: 'دانشجویان فاقد عکس' },
+  { kind: 'graduates-info', cat: 'research', icon: '🎓', title: 'اطلاعات دانش‌آموختگان' },
 ];
 
-const COURSE_LEVEL_KINDS = new Set(['payesh', 'tuition']);
+const COURSE_LEVEL_KINDS = new Set([
+  'payesh', 'tuition', 'empty-rooms', 'weekly-timetable', 'room-conflicts', 'low-enrollment', 'makeup-courses',
+]);
 
 const faNum = (v: unknown): string =>
   v === null || v === undefined || v === '' ? '—' : String(v).replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]);
