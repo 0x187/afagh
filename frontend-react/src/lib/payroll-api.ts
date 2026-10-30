@@ -339,3 +339,75 @@ export async function createProfessorObjection(statementId: number, text: string
   const res = await apiPost<{ ok: boolean; data: { id: number } }>('/professor/payroll/objections', { statementId, text });
   return res.data.id;
 }
+
+// ─────────────────── پرداخت‌های امتحانی ───────────────────
+
+export type ExamPaymentRow = {
+  id: number; staffId: number; termId: number; source: string; sessionCount: number;
+  unitCount: number; amount: number; decreeId: number | null; createdAt: string | null;
+  staffCode: string | null; staffName: string; archiveDeliveries: number; archivePending: number;
+};
+
+export type NotReadyRow = { staffId: number; staffCode: string | null; name: string; pending: number; payments: number };
+
+export async function getExamPayments(termId: number): Promise<{ list: ExamPaymentRow[]; notReady: NotReadyRow[] }> {
+  const res = await apiGet<{ ok: boolean; data: { list: ExamPaymentRow[]; notReady: NotReadyRow[] } }>(`/admin/payroll/exam-payments?termId=${termId}`);
+  return res.data;
+}
+
+export async function createExamPayment(input: {
+  staffId: number; termId: number; source: string; sessionCount: number; unitCount: number; amount: number;
+}): Promise<number> {
+  const res = await apiPost<{ ok: boolean; data: { id: number } }>('/admin/payroll/exam-payments', input);
+  return res.data.id;
+}
+
+export async function deleteExamPayment(id: number): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/payroll/exam-payments/delete', { id });
+}
+
+// ─────────────────── دفتر پایان‌نامه ───────────────────
+
+export type SupervisionItem = {
+  id: number; staffId: number; staffName: string; studentId: number | null; studentName: string;
+  title: string; totalUnits: number; drawnUnits: number; remainingUnits: number;
+  role: string; status: string; startTermTitle: string | null; createdAt: string | null;
+};
+
+export async function getThesisSupervisions(staffId?: number): Promise<SupervisionItem[]> {
+  const q = staffId ? `?staffId=${staffId}` : '';
+  const res = await apiGet<{ ok: boolean; data: { list: SupervisionItem[] } }>(`/admin/payroll/thesis${q}`);
+  return res.data.list;
+}
+
+export async function createThesisSupervision(input: {
+  staffId: number; studentId?: number | null; studentNameManual?: string | null;
+  title: string; totalUnits: number; role: string; startTermId?: number | null;
+}): Promise<number> {
+  const res = await apiPost<{ ok: boolean; data: { id: number } }>('/admin/payroll/thesis', input);
+  return res.data.id;
+}
+
+export async function setThesisStatus(id: number, status: string): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/payroll/thesis/status', { id, status });
+}
+
+export async function deleteThesisSupervision(id: number): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/payroll/thesis/delete', { id });
+}
+
+export type ThesisDraw = { id: number; termId: number; termTitle: string | null; units: number; note: string | null; createdAt: string | null };
+
+export async function getThesisDraws(supervisionId: number): Promise<ThesisDraw[]> {
+  const res = await apiGet<{ ok: boolean; data: { draws: ThesisDraw[] } }>(`/admin/payroll/thesis/draws?supervisionId=${supervisionId}`);
+  return res.data.draws;
+}
+
+export async function addThesisDraw(input: { supervisionId: number; termId: number; units: number; note?: string | null }): Promise<number> {
+  const res = await apiPost<{ ok: boolean; data: { id: number } }>('/admin/payroll/thesis/draws', input);
+  return res.data.id;
+}
+
+export async function deleteThesisDraw(id: number): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/payroll/thesis/draws/delete', { id });
+}

@@ -119,6 +119,16 @@ func (a *PayrollAPI) Register(r gin.IRouter) {
 	r.GET("/admin/payroll/objections/open", a.payrollObjectionsOpen)
 	r.GET("/admin/payroll/objections/history", a.payrollObjectionsHistory)
 	r.POST("/admin/payroll/objections/review", a.payrollObjectionsReview)
+	r.GET("/admin/payroll/thesis", a.payrollThesis)
+	r.POST("/admin/payroll/thesis", a.payrollThesisCreate)
+	r.POST("/admin/payroll/thesis/status", a.payrollThesisStatus)
+	r.POST("/admin/payroll/thesis/delete", a.payrollThesisDelete)
+	r.GET("/admin/payroll/thesis/draws", a.payrollThesisDraws)
+	r.POST("/admin/payroll/thesis/draws", a.payrollThesisDrawCreate)
+	r.POST("/admin/payroll/thesis/draws/delete", a.payrollThesisDrawDelete)
+	r.GET("/admin/payroll/exam-payments", a.payrollExamPayments)
+	r.POST("/admin/payroll/exam-payments", a.payrollExamPaymentCreate)
+	r.POST("/admin/payroll/exam-payments/delete", a.payrollExamPaymentDelete)
 	r.GET("/admin/payroll/regulations", a.payrollRegulations)
 	r.POST("/admin/payroll/regulations", a.payrollRegulationCreate)
 	r.POST("/admin/payroll/regulations/activate", a.payrollRegulationActivate)
@@ -1041,4 +1051,231 @@ func (a *PayrollAPI) professorPayslip(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
+}
+
+// ─────────────────── پرداخت‌های امتحانی ───────────────────
+
+func (a *PayrollAPI) payrollExamPayments(c *gin.Context) {
+	user := a.requireRoles(c, payrollViewRoles)
+	if user == nil {
+		return
+	}
+	termID, _ := strconv.ParseInt(c.Query("termId"), 10, 64)
+	if termID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "شناسهٔ ترم نامعتبر است."})
+		return
+	}
+	uniID := a.Admin.UniversityID(c.Request.Context(), user, a.uniCookie(c))
+	rows, err := a.Engine.ListExamPayments(c.Request.Context(), termID, uniID)
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	notReady, err := a.Engine.NotReadyForTerm(c.Request.Context(), termID)
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"list": rows, "notReady": notReady}})
+}
+
+func (a *PayrollAPI) payrollExamPaymentCreate(c *gin.Context) {
+	user := a.requireRoles(c, []string{"ADMIN", "EDU_EXPERT"})
+	if user == nil {
+		return
+	}
+	var body struct {
+		StaffID      int64   `json:"staffId"`
+		TermID       int64   `json:"termId"`
+		Source       string  `json:"source"`
+		SessionCount int     `json:"sessionCount"`
+		UnitCount    float64 `json:"unitCount"`
+		Amount       float64 `json:"amount"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.StaffID <= 0 || body.TermID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})
+		return
+	}
+	uniID := a.Admin.UniversityID(c.Request.Context(), user, a.uniCookie(c))
+	id, err := a.Engine.CreateExamPayment(c.Request.Context(), payroll.CreateExamPaymentInput{
+		StaffID: body.StaffID, TermID: body.TermID, Source: body.Source,
+		SessionCount: body.SessionCount, UnitCount: body.UnitCount, Amount: body.Amount,
+		UniversityID: uniID, CreatedBy: user.ID,
+	})
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"id": id}})
+}
+
+func (a *PayrollAPI) payrollExamPaymentDelete(c *gin.Context) {
+	user := a.requireRoles(c, []string{"ADMIN", "EDU_EXPERT"})
+	if user == nil {
+		return
+	}
+	var body struct {
+		ID int64 `json:"id"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.ID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})
+		return
+	}
+	if err := a.Engine.DeleteExamPayment(c.Request.Context(), body.ID); err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// ─────────────────── دفتر پایان‌نامه ───────────────────
+
+func (a *PayrollAPI) payrollThesis(c *gin.Context) {
+	user := a.requireRoles(c, payrollViewRoles)
+	if user == nil {
+		return
+	}
+	uniID := a.Admin.UniversityID(c.Request.Context(), user, a.uniCookie(c))
+	var staffID *int64
+	if raw := c.Query("staffId"); raw != "" {
+		if v, err := strconv.ParseInt(raw, 10, 64); err == nil && v > 0 {
+			staffID = &v
+		}
+	}
+	rows, err := a.Engine.ListThesisSupervisions(c.Request.Context(), uniID, staffID)
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"list": rows}})
+}
+
+func (a *PayrollAPI) payrollThesisCreate(c *gin.Context) {
+	user := a.requireRoles(c, []string{"ADMIN", "EDU_EXPERT"})
+	if user == nil {
+		return
+	}
+	var body struct {
+		StaffID           int64   `json:"staffId"`
+		StudentID         *int64  `json:"studentId"`
+		StudentNameManual *string `json:"studentNameManual"`
+		Title             string  `json:"title"`
+		TotalUnits        float64 `json:"totalUnits"`
+		Role              string  `json:"role"`
+		StartTermID       *int64  `json:"startTermId"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.StaffID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})
+		return
+	}
+	uniID := a.Admin.UniversityID(c.Request.Context(), user, a.uniCookie(c))
+	id, err := a.Engine.CreateSupervision(c.Request.Context(), payroll.CreateSupervisionInput{
+		StaffID: body.StaffID, StudentID: body.StudentID, StudentNameManual: body.StudentNameManual,
+		Title: body.Title, TotalUnits: body.TotalUnits, Role: body.Role,
+		StartTermID: body.StartTermID, CreatedBy: &user.ID, UniversityID: uniID,
+	})
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"id": id}})
+}
+
+func (a *PayrollAPI) payrollThesisStatus(c *gin.Context) {
+	user := a.requireRoles(c, []string{"ADMIN", "EDU_EXPERT"})
+	if user == nil {
+		return
+	}
+	var body struct {
+		ID     int64  `json:"id"`
+		Status string `json:"status"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.ID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})
+		return
+	}
+	if err := a.Engine.SetSupervisionStatus(c.Request.Context(), body.ID, body.Status); err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *PayrollAPI) payrollThesisDelete(c *gin.Context) {
+	user := a.requireRoles(c, []string{"ADMIN", "EDU_EXPERT"})
+	if user == nil {
+		return
+	}
+	var body struct {
+		ID int64 `json:"id"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.ID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})
+		return
+	}
+	if err := a.Engine.DeleteSupervision(c.Request.Context(), body.ID); err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *PayrollAPI) payrollThesisDraws(c *gin.Context) {
+	user := a.requireRoles(c, payrollViewRoles)
+	if user == nil {
+		return
+	}
+	sid, _ := strconv.ParseInt(c.Query("supervisionId"), 10, 64)
+	rows, err := a.Engine.ListThesisDraws(c.Request.Context(), sid)
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"draws": rows}})
+}
+
+func (a *PayrollAPI) payrollThesisDrawCreate(c *gin.Context) {
+	user := a.requireRoles(c, []string{"ADMIN", "EDU_EXPERT"})
+	if user == nil {
+		return
+	}
+	var body struct {
+		SupervisionID int64   `json:"supervisionId"`
+		TermID        int64   `json:"termId"`
+		Units         float64 `json:"units"`
+		Note          *string `json:"note"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.SupervisionID <= 0 || body.TermID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})
+		return
+	}
+	uniID := a.Admin.UniversityID(c.Request.Context(), user, a.uniCookie(c))
+	id, err := a.Engine.AddThesisDraw(c.Request.Context(), payroll.AddThesisDrawInput{
+		SupervisionID: body.SupervisionID, TermID: body.TermID, Units: body.Units,
+		Note: body.Note, CreatedBy: &user.ID, UniversityID: uniID,
+	})
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"id": id}})
+}
+
+func (a *PayrollAPI) payrollThesisDrawDelete(c *gin.Context) {
+	user := a.requireRoles(c, []string{"ADMIN", "EDU_EXPERT"})
+	if user == nil {
+		return
+	}
+	var body struct {
+		ID int64 `json:"id"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.ID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})
+		return
+	}
+	if err := a.Engine.DeleteThesisDraw(c.Request.Context(), body.ID); err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
