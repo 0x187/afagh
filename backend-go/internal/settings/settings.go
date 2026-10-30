@@ -282,6 +282,7 @@ var PhaseOneDefs = []Def{
 	{Key: "NOTIFY_CHANNELS", Env: "NOTIFY_CHANNELS", Default: "INAPP,SMS"},
 	{Key: "FA_YEAR", Env: "FA_YEAR", Default: ""},
 	{Key: "STUDENT_CARD_VALID_DAYS", Env: "STUDENT_CARD_VALID_DAYS", Default: "365"},
+	{Key: "ENROLL_EXPERT_OVERRIDE", Env: "AFAGH_ENROLL_EXPERT_OVERRIDE", Default: "true"},
 
 	// ── قرارداد و حق‌التدریس (فاز ۴) ──
 	{Key: "HOURLY_RATE_TMN", Env: "HOURLY_RATE_TMN", Default: "850000"},
