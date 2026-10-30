@@ -59,6 +59,12 @@ const CARDS: CardDef[] = [
   { kind: 'staff-courses', cat: 'program', icon: '📚', title: 'استادان مدرس دروس', needsTerm: true },
   { kind: 'staff-timetable', cat: 'program', icon: '🗓', title: 'برنامه هفتگی اساتید', needsTerm: true },
   { kind: 'attendance-list', cat: 'program', icon: '📝', title: 'حضور و غیاب', needsTerm: true },
+  { kind: 'status-report', cat: 'students', icon: '📊', title: 'وضعیت دانشجویان' },
+  { kind: 'major-change-report', cat: 'students', icon: '🔀', title: 'تغییر رشته' },
+  { kind: 'status-change-report', cat: 'students', icon: '🔄', title: 'تغییر وضعیت' },
+  { kind: 'gpa-refresh-preview', cat: 'program', icon: '🧮', title: 'به‌روزرسانی معدل نیمسال', needsTerm: true },
+  { kind: 'profile-refresh', cat: 'program', icon: '👤', title: 'به‌روزرسانی نیمرخ تحصیلی' },
+  { kind: 'portal-export', cat: 'research', icon: '📡', title: 'ارسال به پرتال دانش‌آموختگان' },
 ];
 
 const COURSE_LEVEL_KINDS = new Set([

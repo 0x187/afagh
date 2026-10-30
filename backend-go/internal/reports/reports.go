@@ -100,30 +100,33 @@ type ExportResult struct {
 
 // Filters فیلترهای گزارش — همان فیلدهای ReportFilters در Next.
 type Filters struct {
-	Term          string `json:"term"`
-	DegreeID      int64  `json:"degreeId"`
-	FacultyID     int64  `json:"facultyId"`
-	DepartmentID  int64  `json:"departmentId"`
-	MajorID       int64  `json:"majorId"`
-	EntryYear     int64  `json:"entryYear"`
-	EntryYearFrom int64  `json:"entryYearFrom"`
-	EntryYearTo   int64  `json:"entryYearTo"`
-	EntryTerm     int64  `json:"entryTerm"`
-	Gender        string `json:"gender"`
-	QuotaType     string `json:"quotaType"`
-	StatusScope   string `json:"statusScope"`
-	Q             string `json:"q"`
-	NationalCode  string `json:"nationalCode"`
-	Miss          string `json:"miss"`
-	Page          int    `json:"page"`
-	OnlyDebtors   bool   `json:"onlyDebtors"`
-	DossierStatus string `json:"dossierStatus"`
-	SessionID     int64  `json:"sessionId"`
-	OrderBy       string `json:"orderBy"`
-	ShowFinance   string `json:"showFinance"`
-	CourseCode    string `json:"courseCode"`
-	ProfessorCode string `json:"professorCode"`
-	UniversityID  int64  `json:"universityId"`
+	Term          string  `json:"term"`
+	DegreeID      int64   `json:"degreeId"`
+	FacultyID     int64   `json:"facultyId"`
+	DepartmentID  int64   `json:"departmentId"`
+	MajorID       int64   `json:"majorId"`
+	EntryYear     int64   `json:"entryYear"`
+	EntryYearFrom int64   `json:"entryYearFrom"`
+	EntryYearTo   int64   `json:"entryYearTo"`
+	EntryTerm     int64   `json:"entryTerm"`
+	Gender        string  `json:"gender"`
+	QuotaType     string  `json:"quotaType"`
+	StatusScope   string  `json:"statusScope"`
+	Q             string  `json:"q"`
+	NationalCode  string  `json:"nationalCode"`
+	Miss          string  `json:"miss"`
+	Page          int     `json:"page"`
+	OnlyDebtors   bool    `json:"onlyDebtors"`
+	DossierStatus string  `json:"dossierStatus"`
+	SessionID     int64   `json:"sessionId"`
+	OrderBy       string  `json:"orderBy"`
+	ShowFinance   string  `json:"showFinance"`
+	CourseCode    string  `json:"courseCode"`
+	ProfessorCode string  `json:"professorCode"`
+	Status        string  `json:"status"`
+	OnlyStale     *bool   `json:"onlyStale"`
+	IDs           []int64 `json:"ids"`
+	UniversityID  int64   `json:"universityId"`
 }
 
 // Service سرویس گزارش‌ها.
@@ -259,6 +262,9 @@ func (s *Service) Run(ctx context.Context, user *session.User, uniCookie, kind s
 		return res, err
 	}
 	if res, err := s.runEduStaff(ctx, kind, f); res != nil || err != nil {
+		return res, err
+	}
+	if res, err := s.runEduStatusOps(ctx, kind, f); res != nil || err != nil {
 		return res, err
 	}
 	return empty, nil
