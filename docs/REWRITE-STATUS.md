@@ -1,4 +1,4 @@
-# وضعیت بازنویسی آفاق (Go + React) — فاز ۱۱
+# وضعیت بازنویسی آفاق (Go + React) — پایان فاز ۱۲ / آمادهٔ فاز ۱۳
 
 این سند «تصویر لحظه‌ای» بازنویسی کامل ERP دانشگاه آفاق است: چه ماژول‌هایی
 به بک‌ند Go و فرانت React منتقل شده‌اند، چه چیزهایی هنوز در Next.js است، و
@@ -10,7 +10,8 @@
 Caddy ─▶ Go edge (:8091)
            ├─ /api/v2/*            → API جدید (Gin + pgx + Redis + MinIO)
            ├─ /app/*               → SPA (React 19 + Vite + Tailwind v4 + TanStack Query)
-           ├─ /verify-*، /id، /exam-ticket، /open-courses → SPA (صفحات عمومی)
+           ├─ /verify-*، /id، /exam-ticket، /open-courses، /verify، /verify/:code،
+           │  /help، /manual، /alumni، /proctor، /messenger، /p/:code → SPA (عمومی)
            └─ هر چیز دیگر          → پروکسی به Next.js (نسخهٔ فعلی، زنده)
 ```
 
@@ -20,7 +21,8 @@ Caddy ─▶ Go edge (:8091)
 - **RLS:** همان الگوی `set_config('app.user_id', …)` (fail-closed در production).
 - **سوییچ هر ماژول = یک پیشوند** در `AFAGH_OWNED_PREFIXES`
   (پیش‌فرض: `/api/v2,/app`؛ صفحات عمومی: `/verify-transcript,/verify-finance,
-  /verify-enrollment,/exam-ticket,/id,/verify-degree,/verify-certificate,/open-courses`).
+  /verify-enrollment,/exam-ticket,/id,/verify-degree,/verify-certificate,/open-courses,
+  /verify,/help,/manual,/alumni,/proctor,/messenger,/p`).
 
 ## ماژول‌های منتقل‌شده (کامیت‌ها روی main)
 
@@ -59,14 +61,21 @@ Caddy ─▶ Go edge (:8091)
 | ۱۲ | سرفصل/برنامهٔ درسی: نسخه‌ها (ساخت/کپی/ویرایش R+1)، چرخهٔ حیات DRAFT→REVIEW→APPROVED→PUBLISHED→ARCHIVED با بایگانی خودکار رقیب، دروس نسخه (افزودن/حذف/ترم/فارغ‌التحصیلی/نقش از بانک)، قواعد پیش‌نیاز/هم‌نیاز درختی، کف نمره و کدهای سما، اعتبارسنج ۱۰چکی | `admin/curriculum*` | AdminCurriculumPage | برش ۲۶ |
 | ۱۲ | قالب‌های اعلان: فهرست/ذخیرهٔ قالب با متغیرها و کانال‌ها + پیام آزمایشی از مسیر واقعی (کد پرسنلی/دانشجویی/موبایل/کدملی/chatId) | `admin/templates`, `messaging.SendTestMessage` | AdminTemplatesPage | برش ۲۷ |
 | ۱۲ | مرکز گزارش‌های آموزشی (۶۳ گزارش): دانشجویان فعال/خلاصه وضعیت/دانشکده/رشته/وضعیت نمره/برتر/ناقص/دانش‌آموختگان/ورودی/عدم مراجعه/میهمان/پایش/جامع/مدارک/بار سوم + کلاس‌های خالی/برنامه هفتگی/تداخل کلاس/حدنصاب/جبرانی + فهرست درس/فاقد عکس/اطلاعات دانش‌آموختگان + امتحانات (صورت‌جلسه/صندلی/برنامه/ثبت نمره/مهلت) + اساتید (فهرست/دروس/برنامه/حضور و غیاب) + وضعیت (گزارش/تغییر رشته/تغییر وضعیت/معدل نیمسال/نیمرخ/پرتال) + پژوهش (پروپوزال/دفاع/درخواست‌های درانتظار) + شورا/گواهی‌ها + برنامه و نمره (تداخل هفتگی/امتحانی/پیش‌نیاز/وضعیت نمره/انتخاب واحد) + مشروطی (تخلف/زنجیره/سقف واحد/تکراری/موتور رسمی) + نفرات برتر سه‌ملاک + پرونده فراغت + لاگ نمرات | `reports` (edu) | AdminEduReportsPage + CSV | برش ۲۴ |
+| ۱۲ | مرکز کدها: فهرست ۶ جدول کد با جستجو، آمار/خلاصهٔ ناقص، CSV ضدتزریق، ویرایش کد با یکتایی، ساخت/ویرایش/حذف مقطع/دانشکده/رشته/ترم، زمان‌بندی ترم با انحصاری‌کردن isCurrent و پنجرهٔ امتحانات | `admin/codes_center` | AdminCodesPage | برش ۲۸ |
+| ۱۲ | مهاجرت داده: درون‌ریزی CSV/اکسل (دانشجو/نمره/کد/فرمول/مالی)، دسته‌ها و پردازش دوباره، مقایسه/اعمال نمرات، نگاشت کدها با تأیید خودکار، مقایسه/اعمال فرمول‌ها و ماندهٔ افتتاحیه، ممیزی/بازگردانی | `admin/migration_center` | AdminMigrationPage | برش ۲۸ |
+| ۱۲ | سهام: آمار و پُری ستون‌ها، خروجی CSV رسمی دانشجو/فارغ‌التحصیل/آموزشگر با کد ۱۲رقمی، تنظیمات کد مؤسسه | `admin/saham` | AdminSahamPage | برش ۲۸ |
+| ۱۲ | ثمین: صف از students، bulk_import_data با AES-GCM، trace، نمونهٔ فارغ‌التحصیل، لاگ همگام‌سازی | `admin/samin` | AdminSaminPage | برش ۲۸ |
+| ۱۲ | پیام‌رسان: توکن اتصال (کد ۸رقمی، sha256، تأیید ۵تلاشی، لغو) + poll worker (long-poll، قفل Redis، آفست at-least-once) | `messaging/link_tokens`, `messaging/poll_worker` | MessengerPage (عمومی) | برش ۲۸ |
+| ۱۲ | کرون‌های greetings/graduation-scan/messenger-link-purge/bi-refresh با راز اختصاصی fail-closed | `cron/extra`, `/cron/*` | — | برش ۲۸ |
+| ۱۲ | صفحات عمومی باقی‌مانده: verify/[code]، verify/search، verify/document، verify-degree/search، help، manual، alumni، proctor (clock-in/verify/scan)، p/[code] + سند ممهور و سرصفحهٔ QR | `httpapi/public_extra` | PublicRestPages | برش ۲۸ |
 
-وضعیت فعلی: **۲۶ بستهٔ تست Go سبز** (شامل مالی/شهریه/تعرفه/گزارش/BI/فارغ‌التحصیلی/آیین‌نامه/دروس/سنجش/کاتالوگ
-و ۱۷ تست پکیج حقوق)، **۲۸ تست Vitest سبز**، بیلد Go و TS/Vite سبز.
+وضعیت فعلی: **۲۶ بستهٔ تست Go سبز**، **۲۸ تست Vitest سبز**، بیلد Go و TS/Vite سبز.
 
 ## سطوح API
 
-- مسیرهای Go: **۴۰۹** در ۳۴ فایل `internal/httpapi/*.go` (شامل auth، scope،
-  student، enroll، professor، groupmanager، admin، payroll، workflow، public، cron، reports، bi).
+- مسیرهای Go: **۴۴۳** در ۳۹ فایل `internal/httpapi/*.go` (auth، scope،
+  student، enroll، professor، groupmanager، admin، payroll، workflow، public، cron، reports، bi،
+  codes، migration/saham/samin، messenger، cron-extra، public-extra، step-up، templates).
 - نقاط مسئله‌دار که بایت‌به‌بایت سازگار پورت شده‌اند: زنجیرهٔ هش `audit_logs`،
   اسکریپت‌های Lua.waiting-room، تراز کانونی دفتر مالی (`ledger-balance`)،
   فرمت توکن `T1.<b64>.<sig>` + چرخش کلید، canonical JSON مدرک،
@@ -74,20 +83,16 @@ Caddy ─▶ Go edge (:8091)
 
 ## چه چیزی هنوز در Next.js است (پروکسی می‌شود)
 
-تا وقتی این فهرست خالی نشده، Next.js باید زنده بماند:
+✅ فهرست خالی شد — تمام مسیرهای کاربردی Next به Go/React منتقل شده‌اند و فاز ۱۳
+(بازنشستگی Next) می‌تواند اجرا شود:
 
-- **حقوق:** شبیه‌ساز سناریو (`?tab=simulator` — دادهٔ نمایشی).
-- **ادمین:** `saham`، `samin`، `curriculum`، `templates`، `codes`، `migration`، `c/[group]`. (مرکز کامل گزارش‌های آموزشی/مالی منتقل شد.)
-  (هستهٔ مرکز گزارش‌های آموزشی و همچنین فارغ‌التحصیلی، پذیرش، کارت دانشجویی، خوابگاه،
-  تأیید/تأییدیهٔ انتخاب واحد، ثبت دستی، انتقال گروه، ادغام درس، خوشه‌های هم‌ارز،
-  موتور شهریه/تعرفه، برنامه‌ریزی دفاع، دوره‌های آزاد، پایش طرح درس،
-  بررسی آیین‌نامه، کدهای وضعیت نمره، BI و درون‌ریزی سنجش منتقل شدند.)
-- **عمومی:** `verify` (کد QR قدیمی `verify/[code]`)، `verify/search`،
-  `verify/document`، `verify-degree/search`، `help`، `manual`، `alumni`،
-  `proctor`، `messenger` (صفحهٔ اتصال پیام‌رسان)، `p/[code]`.
-- **یکپارچه‌ها:** poll worker پنج پیام‌رسان + توکن‌های اتصال (inbound جفت‌سازی)،
-  کرون‌های `greetings`، `graduation-scan`، `messenger-link-purge`، `bi-refresh`
-  (کرون `scheduled-warnings` منتقل شد).
+- **تنها استثنا (عمدی):** شبیه‌ساز سناریوی حقوق (`PayrollEngineClient` — دادهٔ نمایشی
+  صرفاً کلاینتی بدون نوشتن در دیتابیس). یک صفحهٔ سبک React معادل آن در صورت نیاز
+  اضافه می‌شود؛ چون هیچ دادهٔ واقعی نمی‌خواند، مانع بازنشستگی Next نیست.
+- صفحات عمومی قدیمی، poll worker پنج پیام‌رسان، توکن‌های اتصال و چهار کرون
+  (`greetings`، `graduation-scan`، `messenger-link-purge`، `bi-refresh`) همگی
+  منتقل شدند (برش ۲۸).
+- کاشی‌های دسته‌بندی `/admin/c/[group]` هم منتقل شد.
 
 ## راهنمای سوییچ تدریجی (بدون داون‌تایم)
 
@@ -95,7 +100,9 @@ Caddy ─▶ Go edge (:8091)
    کنید (مثال `/admin/finance` فقط وقتی تمام زیرصفحه‌های همان مسیر منتقل شده‌اند).
 2. `crontab` را برای جاب‌های منتقل‌شده به `/api/v2/cron/<job>` با هدر
    `x-cron-secret` تغییر دهید. رازها: `BYPASS_CRON_SECRET`،
-   `CHEQUE_CRON_SECRET`، `WORKFLOW_CRON_SECRET` (در جدول `system_settings` یا ENV؛
+   `CHEQUE_CRON_SECRET`، `WORKFLOW_CRON_SECRET`، `SCHED_WARN_CRON_SECRET`،
+   `GREETINGS_CRON_SECRET`، `GRADUATION_SCAN_CRON_SECRET`،
+   `MSG_LINK_CRON_SECRET`، `BI_CRON_SECRET` (در جدول `system_settings` یا ENV؛
    بدون راز، جاب fail-closed رد می‌شود).
 3. پس از خالی‌شدن فهرست بالا: حذف پروکسی Next، توقف سرویس Next و حذف
    `AFAGH_NEXT_UPSTREAM`.
