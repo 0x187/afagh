@@ -41,6 +41,8 @@ import { GmEquivalencePage } from '@/routes/groupmanager/EquivalencePage';
 import { AdminDashboardPage } from '@/routes/admin/DashboardPage';
 import { AdminStudentsPage } from '@/routes/admin/StudentsPage';
 import { AdminDepartmentsPage } from '@/routes/admin/DepartmentsPage';
+import { AdminCodesPage } from '@/routes/admin/CodesPage';
+import { AdminMigrationPage, AdminSahamPage, AdminSaminPage } from '@/routes/admin/MigrationSahamSaminPages';
 import { AdminStaffPage } from '@/routes/admin/StaffPage';
 import { AdminOfferingsPage } from '@/routes/admin/OfferingsPage';
 import { AdminEvaluationsPage } from '@/routes/admin/EvaluationsPage';
@@ -168,6 +170,10 @@ export function App() {
           <Route path="admin" element={<AdminDashboardPage />} />
           <Route path="admin/students" element={<AdminStudentsPage />} />
           <Route path="admin/departments" element={<AdminDepartmentsPage />} />
+          <Route path="admin/codes" element={<AdminCodesPage />} />
+          <Route path="admin/migration" element={<AdminMigrationPage />} />
+          <Route path="admin/saham" element={<AdminSahamPage />} />
+          <Route path="admin/samin" element={<AdminSaminPage />} />
           <Route path="admin/staff" element={<AdminStaffPage />} />
           <Route path="admin/offerings" element={<AdminOfferingsPage />} />
           <Route path="admin/evaluations" element={<AdminEvaluationsPage />} />
