@@ -270,6 +270,9 @@ func (s *Service) Run(ctx context.Context, user *session.User, uniCookie, kind s
 	if res, err := s.runEduThesis(ctx, kind, f); res != nil || err != nil {
 		return res, err
 	}
+	if res, err := s.runEduCouncil(ctx, kind, f); res != nil || err != nil {
+		return res, err
+	}
 	return empty, nil
 }
 

@@ -68,11 +68,20 @@ const CARDS: CardDef[] = [
   { kind: 'proposals', cat: 'research', icon: '📄', title: 'پروپوزال' },
   { kind: 'defenses', cat: 'research', icon: '🎤', title: 'لیست دفاعیات' },
   { kind: 'pending-requests', cat: 'research', icon: '⏳', title: 'درخواست‌های درانتظار' },
+  { kind: 'council-edu', cat: 'research', icon: '🏛', title: 'شورای آموزشی' },
+  { kind: 'letter-templates', cat: 'research', icon: '📝', title: 'قالب‌های مکاتبات' },
+  { kind: 'transcript-card', cat: 'research', icon: '📋', title: 'کارنامه دانشجویان' },
+  { kind: 'exam-entry-card', cat: 'program', icon: '🎫', title: 'کارت ورود به جلسه', needsTerm: true },
+  { kind: 'student-card', cat: 'research', icon: '🪪', title: 'کارت دانشجویی' },
+  { kind: 'study-cert', cat: 'research', icon: '📜', title: 'گواهی اشتغال به تحصیل' },
+  { kind: 'edu-confirm', cat: 'research', icon: '✅', title: 'تاییدیه تحصیلی' },
+  { kind: 'grad-cert', cat: 'research', icon: '🎓', title: 'گواهی پایان تحصیلات' },
+  { kind: 'military-defer', cat: 'research', icon: '🎖', title: 'معافیت تحصیلی' },
 ];
 
 const COURSE_LEVEL_KINDS = new Set([
   'payesh', 'tuition', 'empty-rooms', 'weekly-timetable', 'room-conflicts', 'low-enrollment', 'makeup-courses',
-  'staff-list', 'staff-courses', 'staff-timetable',
+  'staff-list', 'staff-courses', 'staff-timetable', 'letter-templates',
 ]);
 
 const faNum = (v: unknown): string =>
