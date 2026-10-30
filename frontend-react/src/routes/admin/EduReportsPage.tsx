@@ -15,7 +15,10 @@ import {
 // ═══ مرکز گزارش‌های آموزشی — پورت admin/reports ═══
 
 type ReportCat = 'students' | 'program' | 'finance' | 'research';
-type CardDef = { kind: string; icon: string; title: string; cat: ReportCat; needsTerm?: boolean; soon?: boolean };
+type CardDef = {
+  kind: string; icon: string; title: string; cat: ReportCat; needsTerm?: boolean;
+  customs?: { key: string; title: string; type?: 'text' | 'number' | 'select'; options?: { value: string; label: string }[] }[];
+};
 
 const CATEGORIES: { key: ReportCat; label: string }[] = [
   { key: 'students', label: '🧑‍🎓 دانشجویی و فهرست' },
@@ -77,6 +80,24 @@ const CARDS: CardDef[] = [
   { kind: 'edu-confirm', cat: 'research', icon: '✅', title: 'تاییدیه تحصیلی' },
   { kind: 'grad-cert', cat: 'research', icon: '🎓', title: 'گواهی پایان تحصیلات' },
   { kind: 'military-defer', cat: 'research', icon: '🎖', title: 'معافیت تحصیلی' },
+  { kind: 'student-weekly-conflicts', cat: 'program', icon: '🗓', title: 'تداخل برنامه هفتگی دانشجویان', needsTerm: true },
+  { kind: 'student-exam-conflicts', cat: 'program', icon: '📝', title: 'تداخل برنامه امتحانی', needsTerm: true },
+  { kind: 'prereq-violations', cat: 'program', icon: '⛓', title: 'عدم رعایت پیش‌نیاز/هم‌نیاز', needsTerm: true },
+  { kind: 'course-grade-status', cat: 'program', icon: '📋', title: 'وضعیت درس و نمره', needsTerm: true,
+    customs: [{ key: 'gradeStatus', title: 'وضعیت نمره' }, { key: 'samaCode', title: 'کد سما' }] },
+  { kind: 'enrollment-pick', cat: 'program', icon: '🧾', title: 'انتخاب واحد دانشجویان', needsTerm: true },
+  { kind: 'probation-violations', cat: 'program', icon: '⚠️', title: 'تخلفات مشروطی' },
+  { kind: 'probation-chains', cat: 'program', icon: '🔗', title: 'مشروطی متناوب و متوالی' },
+  { kind: 'unit-cap-violations', cat: 'program', icon: '📏', title: 'عدم رعایت سقف و کف واحد', needsTerm: true },
+  { kind: 'repeated-courses', cat: 'program', icon: '🔁', title: 'دروس چندبار اخذشده' },
+  { kind: 'top-students', cat: 'program', icon: '🏆', title: 'نفرات برتر (سه ملاک معدل)', customs: [
+      { key: 'gpaMode', title: 'ملاک', type: 'select', options: [
+        { value: 'OVERALL', label: 'معدل کل' }, { value: 'TERM', label: 'معدل نیمسال' }, { value: 'CUMULATIVE', label: 'معدل تا پایان ترم' }] },
+      { key: 'gpaTerm', title: 'ترم ملاک' }, { key: 'gpaTermFrom', title: 'از ترم (اختیاری)' },
+      { key: 'topN', title: 'تعداد نفرات (۰=همه)', type: 'number' }] },
+  { kind: 'probation', cat: 'program', icon: '⚠️', title: 'مشروطی‌های ترم (موتور رسمی)', needsTerm: true },
+  { kind: 'graduation-dossiers', cat: 'research', icon: '🎓', title: 'پرونده‌های فراغت', customs: [{ key: 'dossierStatus', title: 'وضعیت (کد یا ALL)' }] },
+  { kind: 'grade-audit-log', cat: 'program', icon: '📜', title: 'لاگ تغییرات نمرات', needsTerm: true },
 ];
 
 const COURSE_LEVEL_KINDS = new Set([
@@ -128,6 +149,7 @@ export function AdminEduReportsPage() {
   const [q, setQ] = useState('');
   const [nationalCode, setNationalCode] = useState('');
   const [miss, setMiss] = useState('national');
+  const [extra, setExtra] = useState<Record<string, string>>({});
   const [res, setRes] = useState<ReportResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -150,7 +172,8 @@ export function AdminEduReportsPage() {
     term: card?.needsTerm ? termValue : '',
     degreeId, facultyId, departmentId, majorId, entryYear,
     q: q.trim(), nationalCode: nationalCode.trim(), miss, page: 1,
-  };
+    ...extra,
+  } as ReportFilters;
 
   async function run(page = 1) {
     setLoading(true);
@@ -191,6 +214,7 @@ export function AdminEduReportsPage() {
     setKind(k);
     setRes(null);
     setErr('');
+    setExtra({});
   }
 
   if (isLoading || !opts) return <Skeleton className="h-72 w-full" />;
@@ -252,6 +276,22 @@ export function AdminEduReportsPage() {
               </>
             ) : null}
           </div>
+          {card?.customs?.length ? (
+            <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+              {card.customs.map((cu) => (
+                <label key={cu.key} className="space-y-1 text-[10px] font-bold text-muted-foreground"><span>{cu.title}</span>
+                  {cu.type === 'select' ? (
+                    <select value={extra[cu.key] ?? ''} onChange={(e) => setExtra({ ...extra, [cu.key]: e.target.value })} className="h-8 w-full rounded-lg border border-input bg-card px-1.5 text-[11px] font-bold">
+                      <option value="">{cu.key === 'gpaMode' ? 'معدل کل' : '—'}</option>
+                      {(cu.options ?? []).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                    </select>
+                  ) : (
+                    <Input type={cu.type === 'number' ? 'number' : 'text'} value={extra[cu.key] ?? ''} onChange={(e) => setExtra({ ...extra, [cu.key]: e.target.value })} className="h-8 text-[11px]" />
+                  )}
+                </label>
+              ))}
+            </div>
+          ) : null}
           <div className="flex justify-end"><Button size="sm" disabled={loading} onClick={() => void run(1)}>{loading ? 'در حال اجرا…' : 'اجرا'}</Button></div>
         </CardContent>
       </Card>

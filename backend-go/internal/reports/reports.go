@@ -21,6 +21,7 @@ import (
 	"backend-go/internal/bi"
 	"backend-go/internal/fa"
 	"backend-go/internal/finance"
+	"backend-go/internal/graduation"
 	"backend-go/internal/jalali"
 	"backend-go/internal/payroll"
 	"backend-go/internal/session"
@@ -126,15 +127,22 @@ type Filters struct {
 	Status        string  `json:"status"`
 	OnlyStale     *bool   `json:"onlyStale"`
 	IDs           []int64 `json:"ids"`
+	GradeStatus   string  `json:"gradeStatus"`
+	SamaCode      string  `json:"samaCode"`
+	GPAMode       string  `json:"gpaMode"`
+	GPATerm       string  `json:"gpaTerm"`
+	GPATermFrom   string  `json:"gpaTermFrom"`
+	TopN          int     `json:"topN"`
 	UniversityID  int64   `json:"universityId"`
 }
 
 // Service سرویس گزارش‌ها.
 type Service struct {
-	Pool    *pgxpool.Pool
-	Finance *admin.Service
-	Payroll *payroll.Engine
-	BI      *bi.Service
+	Pool       *pgxpool.Pool
+	Finance    *admin.Service
+	Payroll    *payroll.Engine
+	BI         *bi.Service
+	Graduation *graduation.Service
 }
 
 // New ساخت سرویس.
@@ -271,6 +279,15 @@ func (s *Service) Run(ctx context.Context, user *session.User, uniCookie, kind s
 		return res, err
 	}
 	if res, err := s.runEduCouncil(ctx, kind, f); res != nil || err != nil {
+		return res, err
+	}
+	if res, err := s.runEduSchedule(ctx, kind, f); res != nil || err != nil {
+		return res, err
+	}
+	if res, err := s.runEduProbation(ctx, kind, f); res != nil || err != nil {
+		return res, err
+	}
+	if res, err := s.runEduFinal(ctx, kind, f); res != nil || err != nil {
 		return res, err
 	}
 	return empty, nil

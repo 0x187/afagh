@@ -186,6 +186,7 @@ func main() {
 	biSvc := bi.New(database.Pool, settingsStore)
 	adminAPI.BI = biSvc
 	adminAPI.Reports = reports.New(database.Pool, adminSvc, payrollEngine, biSvc)
+	adminAPI.Reports.Graduation = adminAPI.Graduation
 	messagingSvc := messaging.New(database.Pool, settingsStore)
 	messaging.Default = messagingSvc
 	tuitionEngine := tuition.New(database.Pool, settingsStore)

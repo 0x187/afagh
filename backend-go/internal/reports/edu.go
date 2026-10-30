@@ -27,7 +27,13 @@ var studentStatusFa = map[string]string{
 
 func faStatus(v any) string {
 	k := ""
-	if v != nil {
+	switch x := v.(type) {
+	case nil:
+	case *string:
+		if x != nil {
+			k = *x
+		}
+	default:
 		k = fmt.Sprint(v)
 	}
 	if s, ok := studentStatusFa[k]; ok {
