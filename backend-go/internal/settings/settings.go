@@ -281,6 +281,7 @@ var PhaseOneDefs = []Def{
 	{Key: "ALUMNI_FEE_DUPLICATE", Env: "ALUMNI_FEE_DUPLICATE", Default: "0"},
 	{Key: "NOTIFY_CHANNELS", Env: "NOTIFY_CHANNELS", Default: "INAPP,SMS"},
 	{Key: "FA_YEAR", Env: "FA_YEAR", Default: ""},
+	{Key: "STUDENT_CARD_VALID_DAYS", Env: "STUDENT_CARD_VALID_DAYS", Default: "365"},
 
 	// ── قرارداد و حق‌التدریس (فاز ۴) ──
 	{Key: "HOURLY_RATE_TMN", Env: "HOURLY_RATE_TMN", Default: "850000"},
