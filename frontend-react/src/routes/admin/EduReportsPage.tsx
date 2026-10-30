@@ -50,10 +50,20 @@ const CARDS: CardDef[] = [
   { kind: 'offered-course-roster', cat: 'students', icon: '👥', title: 'دانشجویان درس ارائه‌شده', needsTerm: true },
   { kind: 'no-photo', cat: 'students', icon: '📷', title: 'دانشجویان فاقد عکس' },
   { kind: 'graduates-info', cat: 'research', icon: '🎓', title: 'اطلاعات دانش‌آموختگان' },
+  { kind: 'exam-session-sheet', cat: 'program', icon: '📄', title: 'صورت‌جلسه امتحان', needsTerm: true },
+  { kind: 'seat-numbers', cat: 'program', icon: '💺', title: 'شماره صندلی', needsTerm: true },
+  { kind: 'final-exam-schedule', cat: 'program', icon: '🗓', title: 'برنامه امتحانات پایان ترم', needsTerm: true },
+  { kind: 'grade-entry-report', cat: 'program', icon: '✍️', title: 'ثبت نمره استادان', needsTerm: true },
+  { kind: 'grade-deadline', cat: 'program', icon: '⏰', title: 'زمان‌بندی ثبت نمرات', needsTerm: true },
+  { kind: 'staff-list', cat: 'program', icon: '👨‍🏫', title: 'اساتید', needsTerm: true },
+  { kind: 'staff-courses', cat: 'program', icon: '📚', title: 'استادان مدرس دروس', needsTerm: true },
+  { kind: 'staff-timetable', cat: 'program', icon: '🗓', title: 'برنامه هفتگی اساتید', needsTerm: true },
+  { kind: 'attendance-list', cat: 'program', icon: '📝', title: 'حضور و غیاب', needsTerm: true },
 ];
 
 const COURSE_LEVEL_KINDS = new Set([
   'payesh', 'tuition', 'empty-rooms', 'weekly-timetable', 'room-conflicts', 'low-enrollment', 'makeup-courses',
+  'staff-list', 'staff-courses', 'staff-timetable',
 ]);
 
 const faNum = (v: unknown): string =>

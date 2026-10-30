@@ -118,6 +118,11 @@ type Filters struct {
 	Page          int    `json:"page"`
 	OnlyDebtors   bool   `json:"onlyDebtors"`
 	DossierStatus string `json:"dossierStatus"`
+	SessionID     int64  `json:"sessionId"`
+	OrderBy       string `json:"orderBy"`
+	ShowFinance   string `json:"showFinance"`
+	CourseCode    string `json:"courseCode"`
+	ProfessorCode string `json:"professorCode"`
 	UniversityID  int64  `json:"universityId"`
 }
 
@@ -248,6 +253,12 @@ func (s *Service) Run(ctx context.Context, user *session.User, uniCookie, kind s
 		return res, err
 	}
 	if res, err := s.runEduExtra(ctx, kind, f); res != nil || err != nil {
+		return res, err
+	}
+	if res, err := s.runEduExam(ctx, kind, f); res != nil || err != nil {
+		return res, err
+	}
+	if res, err := s.runEduStaff(ctx, kind, f); res != nil || err != nil {
 		return res, err
 	}
 	return empty, nil
