@@ -20,8 +20,12 @@ import (
 // FinanceStudentRow ردیف مالی دانشجو.
 type FinanceStudentRow struct {
 	StudentID      int64   `json:"studentId"`
+	UserID         int64   `json:"userId"`
 	StudentCode    string  `json:"studentCode"`
+	FirstName      *string `json:"firstName"`
+	LastName       *string `json:"lastName"`
 	FullName       string  `json:"fullName"`
+	NationalCode   *string `json:"nationalCode"`
 	MajorTitle     *string `json:"majorTitle"`
 	DegreeTitle    *string `json:"degreeTitle"`
 	EntryYear      *int    `json:"entryYear"`
@@ -54,11 +58,28 @@ type FinanceTotals struct {
 	DebtorCount    int     `json:"debtorCount"`
 }
 
-// ListFinanceStudents پورت listFinanceStudents (lib/finance-engine/list-students.ts):
+// FinanceListFilters فیلترهای فهرست مالی (هم‌تراز FinanceListFilters در Next).
+type FinanceListFilters struct {
+	Q             string
+	OnlyDebtors   bool
+	MajorID       *int64
+	DegreeLevelID *int64
+	EntryYear     *int
+	Limit         int
+}
+
+// ListFinanceStudents پورت listFinanceStudents بدون فیلترهای ماژول گزارش.
+func (s *Service) ListFinanceStudents(ctx context.Context, user *session.User, uniCookie, q string, onlyDebtors bool) (*FinanceStudentsResponse, error) {
+	return s.ListFinanceStudentsFiltered(ctx, user, uniCookie, FinanceListFilters{
+		Q: q, OnlyDebtors: onlyDebtors, Limit: 1000,
+	})
+}
+
+// ListFinanceStudentsFiltered پورت listFinanceStudents (lib/finance-engine/list-students.ts):
 // مانده از همان computeTermAdjustments می‌آید که کارنامه استفاده می‌کند، پس
 // عدد کارتابل و کارنامه نمی‌تواند واگرا شود. چک وصول‌نشده «پرداخت» شمرده
 // نمی‌شود و در ستون جداگانه می‌آید.
-func (s *Service) ListFinanceStudents(ctx context.Context, user *session.User, uniCookie, q string, onlyDebtors bool) (*FinanceStudentsResponse, error) {
+func (s *Service) ListFinanceStudentsFiltered(ctx context.Context, user *session.User, uniCookie string, f FinanceListFilters) (*FinanceStudentsResponse, error) {
 	resp := &FinanceStudentsResponse{Students: []FinanceStudentRow{}}
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	// ⚠ بدون دانشگاه فعال ⇒ فهرست خالی (fail-closed، مطابق DENY_UNI).
@@ -66,44 +87,72 @@ func (s *Service) ListFinanceStudents(ctx context.Context, user *session.User, u
 		return resp, nil
 	}
 
-	needle := ""
-	whereSearch := ""
 	args := []any{*uniID}
-	if q = strings.TrimSpace(q); q != "" {
-		// کدها انگلیسی‌اند؛ ارقام فارسی ورودی نرمال می‌شود + فرار wildcard.
-		needle = "%" + fa.EscapeLikeChars(fa.ToEnDigits(q)) + "%"
-		whereSearch = ` and (u."firstName" ilike $2 escape '\' or u."lastName" ilike $2 escape '\'
-		                     or u."nationalCode" ilike $2 escape '\' or st."studentCode" ilike $2 escape '\')`
-		args = append(args, needle)
+	conds := []string{`st."universityId" = $1`}
+	add := func(v any) string {
+		args = append(args, v)
+		return "$" + strconv.Itoa(len(args))
 	}
+	if q := strings.TrimSpace(f.Q); q != "" {
+		// کدها انگلیسی‌اند؛ ارقام فارسی ورودی نرمال می‌شود + فرار wildcard.
+		needle := "%" + fa.EscapeLikeChars(fa.ToEnDigits(q)) + "%"
+		p := add(needle)
+		conds = append(conds, `(u."firstName" ilike `+p+` escape '\' or u."lastName" ilike `+p+` escape '\'
+			or u."nationalCode" ilike `+p+` escape '\' or st."studentCode" ilike `+p+` escape '\')`)
+	}
+	if f.MajorID != nil {
+		conds = append(conds, `st."majorId" = `+add(*f.MajorID))
+	}
+	if f.DegreeLevelID != nil {
+		conds = append(conds, `st."degreeLevelId" = `+add(*f.DegreeLevelID))
+	}
+	if f.EntryYear != nil {
+		conds = append(conds, `st."entryYear" = `+add(*f.EntryYear))
+	}
+	limit := f.Limit
+	if limit <= 0 {
+		limit = 1000
+	}
+	if limit > 2000 {
+		limit = 2000
+	}
+	args = append(args, limit)
+	limitArg := "$" + strconv.Itoa(len(args))
 
 	// ردیف پایه دانشجویان.
 	type baseRow struct {
-		ID          int64
-		Code        string
-		FullName    string
-		MajorTitle  *string
-		DegreeTitle *string
-		EntryYear   *int
-		Status      *string
+		ID           int64
+		UserID       int64
+		Code         string
+		FirstName    *string
+		LastName     *string
+		FullName     string
+		NationalCode *string
+		MajorTitle   *string
+		DegreeTitle  *string
+		EntryYear    *int
+		Status       *string
 	}
 	base := []baseRow{}
 	brows, err := s.DB.Pool.Query(ctx, `
-		select st.id, coalesce(st."studentCode",''),
+		select st.id, st."userId", coalesce(st."studentCode",''),
+		       u."firstName", u."lastName",
 		       coalesce(u."firstName" || ' ' || u."lastName",''),
+		       u."nationalCode",
 		       m.name, d.title, st."entryYear", st.status
 		  from students st
 		  join users u on u.id = st."userId"
 		  left join majors m on m.id = st."majorId"
 		  left join degree_level_configs d on d.id = st."degreeLevelId"
-		 where st."universityId" = $1`+whereSearch+`
-		 order by st."studentCode" asc limit 1000`, args...)
+		 where `+strings.Join(conds, " and ")+`
+		 order by st."studentCode" asc limit `+limitArg, args...)
 	if err != nil {
 		return nil, err
 	}
 	for brows.Next() {
 		var b baseRow
-		if err := brows.Scan(&b.ID, &b.Code, &b.FullName, &b.MajorTitle, &b.DegreeTitle, &b.EntryYear, &b.Status); err == nil {
+		if err := brows.Scan(&b.ID, &b.UserID, &b.Code, &b.FirstName, &b.LastName, &b.FullName,
+			&b.NationalCode, &b.MajorTitle, &b.DegreeTitle, &b.EntryYear, &b.Status); err == nil {
 			base = append(base, b)
 		}
 	}
@@ -293,10 +342,12 @@ func (s *Service) ListFinanceStudents(ctx context.Context, user *session.User, u
 		}
 		discounts += ledgerCreditsByStudent[b.ID]
 		r := FinanceStudentRow{
-			StudentID: b.ID, StudentCode: b.Code, FullName: strings.TrimSpace(b.FullName),
+			StudentID: b.ID, UserID: b.UserID, StudentCode: b.Code,
+			FirstName: b.FirstName, LastName: b.LastName,
+			FullName: strings.TrimSpace(b.FullName), NationalCode: b.NationalCode,
 			MajorTitle: b.MajorTitle, DegreeTitle: b.DegreeTitle, EntryYear: b.EntryYear, Status: b.Status,
 			Charges: charges, Discounts: discounts, Sponsorships: sponsorships,
-			Payments:      paymentsByStudent[b.ID],
+			Payments:       paymentsByStudent[b.ID],
 			ChequesCleared: chequesByStudent[b.ID][0],
 			ChequesPending: chequesByStudent[b.ID][1],
 			Loans:          loansByStudent[b.ID],
@@ -313,7 +364,7 @@ func (s *Service) ListFinanceStudents(ctx context.Context, user *session.User, u
 		return resp.Students[i].StudentCode < resp.Students[j].StudentCode
 	})
 
-	if onlyDebtors {
+	if f.OnlyDebtors {
 		out := []FinanceStudentRow{}
 		for _, r := range resp.Students {
 			if r.Balance > 0 {

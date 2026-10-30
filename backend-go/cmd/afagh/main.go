@@ -24,6 +24,7 @@ import (
 	"backend-go/internal/admin"
 	"backend-go/internal/archive"
 	"backend-go/internal/authn"
+	"backend-go/internal/bi"
 	"backend-go/internal/config"
 	"backend-go/internal/cron"
 	"backend-go/internal/db"
@@ -37,6 +38,7 @@ import (
 	"backend-go/internal/opencourses"
 	"backend-go/internal/professor"
 	"backend-go/internal/publicverify"
+	"backend-go/internal/reports"
 	"backend-go/internal/tuition"
 	"backend-go/internal/workflow"
 	"backend-go/internal/ratelimit"
@@ -174,9 +176,12 @@ func main() {
 	}
 	payrollAPI := &httpapi.PayrollAPI{Engine: payrollEngine, Approvals: payrollApprovals, Store: store, Pool: database.Pool, Scope: scopeSvc, Admin: adminSvc}
 	payrollAPI.Register(ginEngine.Group(""))
+	biSvc := bi.New(database.Pool, settingsStore)
+	adminAPI.Reports = reports.New(database.Pool, adminSvc, payrollEngine, biSvc)
 	messagingSvc := messaging.New(database.Pool, settingsStore)
 	messaging.Default = messagingSvc
 	tuitionEngine := tuition.New(database.Pool, settingsStore)
+	studentSvc.Tuition = tuitionEngine
 	workflowEngine := workflow.New(database.Pool, settingsStore)
 	workflowEngine.RegisterDefaultHandlers(tuitionEngine)
 	workflowEngine.Notify = func(ctx context.Context, userID int64, eventCode, text string) {

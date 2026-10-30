@@ -16,6 +16,7 @@ import (
 
 	"backend-go/internal/archive"
 	"backend-go/internal/scope"
+	"backend-go/internal/tuition"
 	"backend-go/internal/verification"
 )
 
@@ -51,6 +52,9 @@ type Service struct {
 	Settings Settings
 	Signer   *verification.Signer
 	Archive  *archive.Store
+	// Tuition برای ریز شهریهٔ دروس در صورت‌حساب/کارنامهٔ مالی؛ اختیاری است
+	// (در نبودش ریز دروس خالی می‌ماند و بقیهٔ سند کامل است).
+	Tuition *tuition.Engine
 }
 
 func New(pool *pgxpool.Pool, scopeSvc *scope.Service, settings Settings, signer *verification.Signer) *Service {

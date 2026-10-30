@@ -14,6 +14,7 @@ import (
 
 	"backend-go/internal/admin"
 	"backend-go/internal/archive"
+	"backend-go/internal/reports"
 	"backend-go/internal/scope"
 	"backend-go/internal/session"
 	"backend-go/internal/student"
@@ -25,6 +26,7 @@ type AdminAPI struct {
 	Store          *session.Store
 	StudentFinance *student.Service
 	Archive        *archive.Store
+	Reports        *reports.Service
 }
 
 func (a *AdminAPI) Register(r gin.IRouter) {
@@ -58,6 +60,11 @@ func (a *AdminAPI) Register(r gin.IRouter) {
 	r.POST("/admin/attendance/record", a.attendanceRecord)
 	r.GET("/admin/finance", a.financeStudents)
 	r.GET("/admin/finance/student/:id", a.financeStudent)
+	r.GET("/admin/finance/reports/options", a.financeReportOptions)
+	r.POST("/admin/finance/reports/run", a.financeReportRun)
+	r.POST("/admin/finance/reports/export", a.financeReportExport)
+	r.GET("/admin/finance/reports/students", a.financeStatementStudents)
+	r.GET("/admin/finance/reports/student-statement", a.financeStudentStatement)
 	r.POST("/admin/finance/adjust", a.financeAdjust)
 	r.GET("/admin/course-finance", a.courseFinance)
 	r.POST("/admin/course-finance", a.setCourseFinance)

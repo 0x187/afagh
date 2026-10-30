@@ -49,6 +49,8 @@ import { AdminSettingsPage } from '@/routes/admin/SettingsPage';
 import { AdminExamsPage } from '@/routes/admin/ExamsPage';
 import { AdminManualAttendancePage, AdminAttendanceControlPage } from '@/routes/admin/AttendancePages';
 import { AdminFinancePage, AdminStudentFinanceRoute, AdminCourseFinancePage } from '@/routes/admin/FinancePages';
+import { AdminFinanceReportsPage } from '@/routes/admin/FinanceReportsPage';
+import { AdminStudentStatementPage } from '@/routes/admin/StudentStatementPage';
 import { AdminPayrollPage } from '@/routes/admin/PayrollPage';
 import { AdminFinanceRulesPage } from '@/routes/admin/FinanceRulesPage';
 import { AdminPosPage } from '@/routes/admin/PosPage';
@@ -137,6 +139,8 @@ export function App() {
           <Route path="admin/attendance-manual" element={<AdminManualAttendancePage />} />
           <Route path="admin/attendance-control" element={<AdminAttendanceControlPage />} />
           <Route path="admin/finance" element={<AdminFinancePage />} />
+          <Route path="admin/finance/reports" element={<AdminFinanceReportsPage />} />
+          <Route path="admin/finance/reports/student-statement" element={<AdminStudentStatementPage />} />
           <Route path="admin/finance/student/:id" element={<AdminStudentFinanceRoute />} />
           <Route path="admin/course-finance" element={<AdminCourseFinancePage />} />
           <Route path="admin/payroll" element={<AdminPayrollPage />} />

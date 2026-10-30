@@ -199,3 +199,60 @@
     margin: 10mm;
   }
 }
+
+/* ═══ چاپ کارنامهٔ مالی/سند رسمی — کپی ایزوله در ریشهٔ body ═══ */
+@media print {
+  #transcript-print-root { display: none; }
+  body.printing-transcript > *:not(#transcript-print-root) { display: none !important; }
+  body.printing-transcript #transcript-print-root {
+    display: block !important;
+    margin: 0 !important;
+    background: #fff !important;
+  }
+  body.printing-transcript #transcript-print-root .transcript-print-area {
+    margin: 0 !important;
+    border-radius: 0 !important;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .transcript-print-area .tr-print-hide { display: none !important; }
+  .transcript-print-area table.tr-doc {
+    width: 100%;
+    max-width: 100%;
+    border: 0;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  .transcript-print-area table.tr-doc > thead { display: table-header-group; }
+  .transcript-print-area table.tr-doc > tfoot { display: table-footer-group; }
+  .transcript-print-area table.tr-doc > tfoot > tr { break-inside: avoid; page-break-inside: avoid; }
+  .transcript-print-area .tr-signatures { border-top: 2px solid #334155; }
+  .transcript-print-area table.tr-doc td.tr-doc-cell { padding: 0; border: 0; vertical-align: top; min-width: 0; }
+  .transcript-print-area table.tr-doc > tbody > tr.tr-doc-row {
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+  }
+  .transcript-print-area .tr-term-table td { overflow-wrap: anywhere; }
+  .transcript-print-area .term-block { page-break-inside: avoid; break-inside: avoid; }
+  .transcript-print-area table { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+  .transcript-print-area th,
+  .transcript-print-area td { border-color: #94a3b8 !important; }
+  .transcript-print-area .tr-root { font-size: 9pt; line-height: 1.5; }
+  .transcript-print-area .tr-term-table { font-size: 8pt; }
+  .transcript-print-area .tr-term-table th,
+  .transcript-print-area .tr-term-table td { padding: 1.5pt 2pt !important; }
+  .transcript-print-area .tr-term-table thead { display: table-header-group; }
+  .transcript-print-area .tr-term-table tr { page-break-inside: avoid; break-inside: avoid; }
+  .transcript-print-area .tr-course-title { overflow-wrap: break-word; word-break: break-word; }
+  .transcript-print-area .tr-breakdown { break-inside: avoid; page-break-inside: avoid; }
+  .tr-fin-root .tr-print-hide { display: none !important; }
+  .tr-fin-root table.tr-doc > thead { display: table-header-group !important; }
+  .tr-fin-root table.tr-doc > tfoot { display: table-footer-group !important; }
+  .tr-fin-root table.tr-doc > tbody > tr.tr-doc-row {
+    break-inside: auto !important;
+    page-break-inside: auto !important;
+  }
+  @media print and (orientation: portrait) {
+    .transcript-print-area .tr-fin-row { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+  }
+}
