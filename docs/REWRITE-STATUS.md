@@ -40,14 +40,15 @@ Caddy ─▶ Go edge (:8091)
 | ۱۲ | مالی تکمیلی: ضریب نیمسال (با سقف ±۲۰٪)، نوع مبلغ موضوعی، تخصیص دانشجو | `admin/finance_extra` | تب ویرایشگر در FinanceRulesPage | 996e254 |
 | ۱۲ | کنترل زمانی ثبت مالی + فرمول ویژهٔ دانشجو (override) | `admin/finance_timecontrol`, `admin/finance_override` | AdminFinanceAdvancedPage | b7398d2 |
 | ۱۲ | صندوق رفاه: صندوق‌ها، وام‌ها و انتساب صندوق به وام | `admin/finance_welfare` | AdminWelfarePage | 096b9a8 |
+| ۱۲ | مرکز گزارش‌های مالی (۷ گزارش + CSV) و صورت‌حساب/کارنامهٔ مالی رسمی با ریز دروس تعرفهٔ سما | `reports`, `bi`, `tuition/tariff`, `student/statement` | AdminFinanceReportsPage، AdminStudentStatementPage + FinancialTranscript | 44ad9fc |
 
-وضعیت فعلی: **۲۲ بستهٔ تست Go سبز** (۱۷ تست پکیج حقوق + تست‌های مالی/شهریه/
-ورود/…)، **۲۸ تست Vitest سبز**، بیلد Go و TS/Vite سبز.
+وضعیت فعلی: **۲۴ بستهٔ تست Go سبز** (شامل تست‌های مالی/شهریه/تعرفه/گزارش/BI
+و ۱۷ تست پکیج حقوق)، **۲۸ تست Vitest سبز**، بیلد Go و TS/Vite سبز.
 
 ## سطوح API
 
-- مسیرهای Go: **۱۸۹** در ۱۴ فایل `internal/httpapi/*.go` (شامل auth، scope،
-  student، enroll، professor، groupmanager، admin، payroll، workflow، public، cron).
+- مسیرهای Go: **۲۵۵** در ۱۵ فایل `internal/httpapi/*.go` (شامل auth، scope،
+  student، enroll، professor، groupmanager، admin، payroll، workflow، public، cron، reports).
 - نقاط مسئله‌دار که بایت‌به‌بایت سازگار پورت شده‌اند: زنجیرهٔ هش `audit_logs`،
   اسکریپت‌های Lua.waiting-room، تراز کانونی دفتر مالی (`ledger-balance`)،
   فرمت توکن `T1.<b64>.<sig>` + چرخش کلید، canonical JSON مدرک،
@@ -58,10 +59,10 @@ Caddy ─▶ Go edge (:8091)
 تا وقتی این فهرست خالی نشده، Next.js باید زنده بماند:
 
 - **حقوق:** شبیه‌ساز سناریو (`?tab=simulator` — دادهٔ نمایشی).
-- **مالی:** `reports` (مرکز گزارش‌های اجرایی + صورت‌حساب دانشجو) و
-  `tuition` (کل موتور شهریه UI). (رفاه، کنترل زمانی، فرمول ویژه، ضرایب و
-  مبالغ موضوعی منتقل شدند.)
-- **ادمین:** `admissions`، `student-cards`، `saham`، `samin`، `bi`، `warnings`،
+- **مالی:** `tuition` (کل موتور شهریه UI). مرکز گزارش‌های مالی و
+  صورت‌حساب/کارنامهٔ مالی منتقل شدند.
+- **ادمین:** `reports` (مرکز گزارش‌های آموزشی)، `admissions`، `student-cards`،
+  `saham`، `samin`، `bi`، `warnings`،
   `dorm`، `discipline`/`council` (منتقل شده)، `graduation`، `defense-scheduling`،
   `enrollment-approvals`/`enrollment-confirmation`، `manual-enroll`،
   `group-transfer`، `course-merge`، `equivalence-clusters`، `curriculum`،
@@ -104,8 +105,10 @@ NEXT: AFAGH_NEXT_UPSTREAM=http://127.0.0.1:8080 (تا پایان مهاجرت)
 - `go build ./...` و `go test ./...` (۲۲ پکیج) سبز؛ `go vet` پکیج‌های جدید سبز.
 - `tsc -b` و `vite build` سبز؛ `vitest` (۲۸ تست) سبز.
 - QA مرورگر برای: کارتابل مالی/حقوق/گردش‌کار/انضباطی/شورا/بایگانی،
-  تعاریف مالی، POS، و صفحات عمومی استعلام (کارنامه، مالی، انتخاب واحد،
-  کارت آزمون، کارت دانشجویی، مدرک، گواهینامه، دوره‌های آزاد) — با دادهٔ واقعی DB.
+  تعاریف مالی، POS، مرکز گزارش‌های مالی (اجرای گزارش شهریه/کارتابل/BI)،
+  صورت‌حساب رسمی دانشجو (کارت‌ها، ریز دروس، نمودار) و صفحات عمومی استعلام
+  (کارنامه، مالی، انتخاب واحد، کارت آزمون، کارت دانشجویی، مدرک، گواهینامه،
+  دوره‌های آزاد) — با دادهٔ واقعی DB.
 
 ## انحراف‌های آگاهانه (بدون باگ)
 
