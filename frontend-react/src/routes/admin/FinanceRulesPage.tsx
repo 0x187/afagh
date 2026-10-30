@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Award, Building2, Calculator, Landmark, Pencil, Plus, Save, Settings2, Trash2 } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,9 +10,12 @@ import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
 import { faDigits, faNumber } from '@/lib/fa';
 import {
-  deleteDiscountType, deleteFormula, deleteLoanProduct, deleteSponsor,
-  getFinanceRules, saveDiscountType, saveFormula, saveLoanProduct, saveSponsor,
-  type FinanceDiscountType, type FinanceFormula, type FinanceLoanProduct, type FinanceSponsor,
+  assignSubjectFee, deleteDiscountType, deleteFinanceCoefficient, deleteFinanceSubjectFeeType,
+  deleteFormula, deleteLoanProduct, deleteSponsor, deleteSubjectFeeAssignment,
+  getFinanceCoefficients, getFinanceRules, getFinanceSubjectFeeTypes, getSubjectFeeAssignments,
+  saveDiscountType, saveFinanceCoefficient, saveFinanceSubjectFeeType, saveFormula, saveLoanProduct, saveSponsor,
+  type FinanceCoefficient, type FinanceDiscountType, type FinanceFormula, type FinanceLoanProduct,
+  type FinanceSponsor, type FinanceSubjectFeeType, type SubjectFeeAssignment,
 } from '@/lib/admin-api';
 
 // ═══ تعاریف موتور مالی — پورت admin/finance/rules ═══
@@ -68,48 +71,7 @@ export function AdminFinanceRulesPage() {
       {tab === 'sponsors' ? <SponsorsTab rows={data.sponsors} onOk={onOk} onErr={onErr} /> : null}
       {tab === 'formulas' ? <FormulasTab rows={data.formulas} degrees={data.degrees} majors={data.majors} onOk={onOk} onErr={onErr} /> : null}
       {tab === 'loans' ? <LoansTab rows={data.loanProducts} onOk={onOk} onErr={onErr} /> : null}
-      {tab === 'coefs' ? (
-        <div className="grid gap-3 lg:grid-cols-2">
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">ضرایب افزایشی نیمسال (tuition_coefficients)</CardTitle></CardHeader>
-            <CardContent className="overflow-x-auto">
-              <table className="w-full border-collapse text-right text-[11px]">
-                <thead><tr className="border-b border-border text-muted-foreground"><th className="p-1.5">ترم</th><th className="p-1.5 text-center">ضریب متغیر</th><th className="p-1.5 text-center">ضریب ثابت</th><th className="p-1.5">یادداشت</th></tr></thead>
-                <tbody>
-                  {data.coefficients.length === 0 ? <tr><td colSpan={4} className="p-4 text-center text-muted-foreground">ردیفی ثبت نشده است.</td></tr> : data.coefficients.map((c) => (
-                    <tr key={c.id} className="border-b border-border/40 last:border-0">
-                      <td className="p-1.5">{c.termTitle ?? '—'}</td>
-                      <td className="p-1.5 text-center font-mono">{faNumber(c.variableCoefficient)}</td>
-                      <td className="p-1.5 text-center font-mono">{faNumber(c.fixedCoefficient)}</td>
-                      <td className="p-1.5 text-muted-foreground">{c.note ?? '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="pb-2"><CardTitle className="text-sm">مبالغ موضوعی (subject_fee_types)</CardTitle></CardHeader>
-            <CardContent className="overflow-x-auto">
-              <table className="w-full border-collapse text-right text-[11px]">
-                <thead><tr className="border-b border-border text-muted-foreground"><th className="p-1.5">کد</th><th className="p-1.5">عنوان</th><th className="p-1.5">نوع</th><th className="p-1.5 text-left">مبلغ ثابت</th><th className="p-1.5 text-center">درصد متغیر</th><th className="p-1.5 text-center">فعال</th></tr></thead>
-                <tbody>
-                  {data.subjectFeeTypes.length === 0 ? <tr><td colSpan={6} className="p-4 text-center text-muted-foreground">ردیفی ثبت نشده است.</td></tr> : data.subjectFeeTypes.map((f) => (
-                    <tr key={f.id} className="border-b border-border/40 last:border-0">
-                      <td className="p-1.5 font-mono" dir="ltr">{f.code}</td>
-                      <td className="p-1.5">{f.title}</td>
-                      <td className="p-1.5">{f.kind}</td>
-                      <td className="p-1.5 text-left font-mono">{faNumber(f.fixedAmount)}</td>
-                      <td className="p-1.5 text-center font-mono">{faNumber(f.variablePercent)}٪</td>
-                      <td className="p-1.5 text-center">{f.isActive ? '✓' : '—'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </CardContent>
-          </Card>
-        </div>
-      ) : null}
+      {tab === 'coefs' ? <CoefsTab terms={data.terms} onOk={onOk} onErr={onErr} /> : null}
     </div>
   );
 }
@@ -387,5 +349,216 @@ function LoansTab({ rows, onOk, onErr }: TabProps<FinanceLoanProduct>) {
         </table>
       </CardContent>
     </Card>
+  );
+}
+
+// ─────────────────── تب ضرایب/مبالغ موضوعی (ویرایشگر) ───────────────────
+
+function CoefsTab({ terms, onOk, onErr }: { terms: { id: number; termCode: string; termTitle: string }[]; onOk: (m: string) => void; onErr: (e: Error) => void }) {
+  const qc = useQueryClient();
+  const coefs = useQuery({ queryKey: ['finance-coefficients'], queryFn: getFinanceCoefficients, staleTime: 20_000 });
+  const types = useQuery({ queryKey: ['finance-subject-fees'], queryFn: getFinanceSubjectFeeTypes, staleTime: 20_000 });
+  const [coefForm, setCoefForm] = useState({ termId: 0, variable: 1, fixed: 1, note: '' });
+  const [typeForm, setTypeForm] = useState({ id: 0, code: '', title: '', kind: 'ADDITIVE', fixedAmount: 0, variablePercent: 0, appliesTo: 'BOTH', isActive: true, note: '' });
+  const [assignForm, setAssignForm] = useState({ studentId: '', termId: 0, typeId: 0, amount: '', note: '' });
+  const [assignList, setAssignList] = useState<SubjectFeeAssignment[]>([]);
+  const [assignMsg, setAssignMsg] = useState<string | null>(null);
+
+  const refreshCoefs = () => void qc.invalidateQueries({ queryKey: ['finance-coefficients'] });
+  const refreshTypes = () => void qc.invalidateQueries({ queryKey: ['finance-subject-fees'] });
+
+  const saveCoefMut = useMutation({
+    mutationFn: () => saveFinanceCoefficient({
+      termId: coefForm.termId || (terms[0]?.id ?? 0),
+      variableCoefficient: coefForm.variable,
+      fixedCoefficient: coefForm.fixed,
+      note: coefForm.note || undefined,
+    }),
+    onSuccess: () => { onOk('ضریب نیمسال ذخیره شد.'); refreshCoefs(); },
+    onError: onErr,
+  });
+  const delCoefMut = useMutation({
+    mutationFn: deleteFinanceCoefficient,
+    onSuccess: () => { onOk('ضریب حذف شد.'); refreshCoefs(); },
+    onError: onErr,
+  });
+  const saveTypeMut = useMutation({
+    mutationFn: () => saveFinanceSubjectFeeType({ ...typeForm, id: typeForm.id || undefined, note: typeForm.note || undefined }),
+    onSuccess: () => { onOk('نوع مبلغ موضوعی ذخیره شد.'); setTypeForm({ id: 0, code: '', title: '', kind: 'ADDITIVE', fixedAmount: 0, variablePercent: 0, appliesTo: 'BOTH', isActive: true, note: '' }); refreshTypes(); },
+    onError: onErr,
+  });
+  const delTypeMut = useMutation({
+    mutationFn: deleteFinanceSubjectFeeType,
+    onSuccess: () => { onOk('نوع مبلغ حذف شد.'); refreshTypes(); },
+    onError: onErr,
+  });
+  const assignMut = useMutation({
+    mutationFn: () => assignSubjectFee({
+      studentId: Number(assignForm.studentId),
+      termId: assignForm.termId || (terms[0]?.id ?? 0),
+      subjectFeeTypeId: assignForm.typeId,
+      amount: Number(assignForm.amount),
+      note: assignForm.note || undefined,
+    }),
+    onSuccess: async () => {
+      setAssignMsg('تخصیص ثبت شد.');
+      setAssignForm({ ...assignForm, amount: '', note: '' });
+      await loadAssignments();
+    },
+    onError: (e: Error) => setAssignMsg(e.message),
+  });
+  const delAssignMut = useMutation({
+    mutationFn: deleteSubjectFeeAssignment,
+    onSuccess: async () => { setAssignMsg('حذف شد.'); await loadAssignments(); },
+    onError: (e: Error) => setAssignMsg(e.message),
+  });
+  const loadAssignments = async () => {
+    const sid = Number(assignForm.studentId);
+    if (sid <= 0) return;
+    try {
+      setAssignList(await getSubjectFeeAssignments(sid, assignForm.termId || undefined));
+    } catch (e) {
+      setAssignMsg((e as Error).message);
+    }
+  };
+
+  useEffect(() => {
+    if (coefForm.termId === 0 && terms.length > 0) setCoefForm((f) => ({ ...f, termId: terms[0].id }));
+    if (assignForm.termId === 0 && terms.length > 0) setAssignForm((f) => ({ ...f, termId: terms[0].id }));
+  }, [terms, coefForm.termId, assignForm.termId]);
+
+  return (
+    <div className="space-y-3">
+      <div className="grid gap-3 xl:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">ضریب افزایشی نیمسال — upsert با سقف ±۲۰٪ در هر مرحله</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            <div className="grid gap-2 sm:grid-cols-4">
+              <div className="sm:col-span-2"><Label className="text-[11px]">ترم</Label>
+                <select value={coefForm.termId} onChange={(e) => setCoefForm({ ...coefForm, termId: Number(e.target.value) })} className="mt-1 h-8 w-full rounded-lg border border-input bg-transparent px-2 text-xs">
+                  {terms.map((t) => <option key={t.id} value={t.id}>{t.termTitle}</option>)}
+                </select>
+              </div>
+              <div><Label className="text-[11px]">ضریب متغیر</Label><Input type="number" step="0.01" value={coefForm.variable} onChange={(e) => setCoefForm({ ...coefForm, variable: Number(e.target.value) })} className="mt-1 h-8 font-mono" dir="ltr" /></div>
+              <div><Label className="text-[11px]">ضریب ثابت</Label><Input type="number" step="0.01" value={coefForm.fixed} onChange={(e) => setCoefForm({ ...coefForm, fixed: Number(e.target.value) })} className="mt-1 h-8 font-mono" dir="ltr" /></div>
+              <div className="sm:col-span-3"><Label className="text-[11px]">یادداشت</Label><Input value={coefForm.note} onChange={(e) => setCoefForm({ ...coefForm, note: e.target.value })} className="mt-1 h-8" /></div>
+              <div className="flex items-end"><Button size="sm" disabled={saveCoefMut.isPending} onClick={() => saveCoefMut.mutate()}><Save className="size-4" aria-hidden /> ذخیره</Button></div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-right text-[11px]">
+                <thead><tr className="border-b border-border text-muted-foreground"><th className="p-1.5">ترم</th><th className="p-1.5 text-center">متغیر</th><th className="p-1.5 text-center">ثابت</th><th className="p-1.5">یادداشت</th><th className="p-1.5"></th></tr></thead>
+                <tbody>
+                  {(coefs.data ?? []).length === 0 ? <tr><td colSpan={5} className="p-3 text-center text-muted-foreground">ردیفی ثبت نشده است.</td></tr> : (coefs.data ?? []).map((c: FinanceCoefficient) => (
+                    <tr key={c.id} className="border-b border-border/40 last:border-0">
+                      <td className="p-1.5">{c.termTitle ?? '—'}</td>
+                      <td className="p-1.5 text-center font-mono">{faNumber(c.variableCoefficient)}</td>
+                      <td className="p-1.5 text-center font-mono">{faNumber(c.fixedCoefficient)}</td>
+                      <td className="p-1.5 text-muted-foreground">{c.note ?? '—'}</td>
+                      <td className="p-1.5"><Button size="sm" variant="ghost" className="h-6 px-1.5 text-rose-600" disabled={delCoefMut.isPending} onClick={() => delCoefMut.mutate(c.id)}><Trash2 className="size-3" aria-hidden /></Button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-sm">نوع مبلغ موضوعی (افزایشی/کاهشی)</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            <div className="grid gap-2 sm:grid-cols-3">
+              <div><Label className="text-[11px]">کد</Label><Input value={typeForm.code} onChange={(e) => setTypeForm({ ...typeForm, code: e.target.value })} className="mt-1 h-8 font-mono" dir="ltr" /></div>
+              <div className="sm:col-span-2"><Label className="text-[11px]">عنوان</Label><Input value={typeForm.title} onChange={(e) => setTypeForm({ ...typeForm, title: e.target.value })} className="mt-1 h-8" /></div>
+              <div><Label className="text-[11px]">نوع</Label>
+                <select value={typeForm.kind} onChange={(e) => setTypeForm({ ...typeForm, kind: e.target.value })} className="mt-1 h-8 w-full rounded-lg border border-input bg-transparent px-2 text-xs">
+                  <option value="ADDITIVE">افزایشی</option>
+                  <option value="DEDUCTIVE">کاهشی</option>
+                </select>
+              </div>
+              <div><Label className="text-[11px]">مبلغ ثابت</Label><Input type="number" value={typeForm.fixedAmount} onChange={(e) => setTypeForm({ ...typeForm, fixedAmount: Number(e.target.value) })} className="mt-1 h-8 font-mono" dir="ltr" /></div>
+              <div><Label className="text-[11px]">درصد متغیر</Label><Input type="number" value={typeForm.variablePercent} onChange={(e) => setTypeForm({ ...typeForm, variablePercent: Number(e.target.value) })} className="mt-1 h-8 font-mono" dir="ltr" /></div>
+              <div><Label className="text-[11px]">اعمال بر</Label>
+                <select value={typeForm.appliesTo} onChange={(e) => setTypeForm({ ...typeForm, appliesTo: e.target.value })} className="mt-1 h-8 w-full rounded-lg border border-input bg-transparent px-2 text-xs">
+                  <option value="BOTH">هر دو</option>
+                  <option value="FIXED">ثابت</option>
+                  <option value="VARIABLE">متغیر</option>
+                </select>
+              </div>
+              <div className="flex items-end gap-3">
+                <label className="flex items-center gap-1 text-[11px]"><input type="checkbox" checked={typeForm.isActive} onChange={(e) => setTypeForm({ ...typeForm, isActive: e.target.checked })} /> فعال</label>
+                <Button size="sm" disabled={saveTypeMut.isPending || !typeForm.code || !typeForm.title} onClick={() => saveTypeMut.mutate()}>
+                  {typeForm.id ? <Save className="size-4" aria-hidden /> : <Plus className="size-4" aria-hidden />} {typeForm.id ? 'ذخیره' : 'افزودن'}
+                </Button>
+                {typeForm.id ? <Button size="sm" variant="ghost" onClick={() => setTypeForm({ id: 0, code: '', title: '', kind: 'ADDITIVE', fixedAmount: 0, variablePercent: 0, appliesTo: 'BOTH', isActive: true, note: '' })}>انصراف</Button> : null}
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-right text-[11px]">
+                <thead><tr className="border-b border-border text-muted-foreground"><th className="p-1.5">کد</th><th className="p-1.5">عنوان</th><th className="p-1.5">نوع</th><th className="p-1.5 text-left">ثابت</th><th className="p-1.5 text-center">٪</th><th className="p-1.5 text-center">فعال</th><th className="p-1.5"></th></tr></thead>
+                <tbody>
+                  {(types.data ?? []).length === 0 ? <tr><td colSpan={7} className="p-3 text-center text-muted-foreground">ردیفی ثبت نشده است.</td></tr> : (types.data ?? []).map((f: FinanceSubjectFeeType) => (
+                    <tr key={f.id} className="border-b border-border/40 last:border-0">
+                      <td className="p-1.5 font-mono text-[10px]" dir="ltr">{f.code}</td>
+                      <td className="p-1.5">{f.title}</td>
+                      <td className="p-1.5">{f.kind === 'DEDUCTIVE' ? 'کاهشی' : 'افزایشی'}</td>
+                      <td className="p-1.5 text-left font-mono">{faNumber(f.fixedAmount)}</td>
+                      <td className="p-1.5 text-center font-mono">{faNumber(f.variablePercent)}</td>
+                      <td className="p-1.5 text-center">{f.isActive ? '✓' : '—'}</td>
+                      <td className="p-1.5">
+                        <div className="flex gap-1">
+                          <Button size="sm" variant="ghost" className="h-6 px-1.5" onClick={() => setTypeForm({ id: f.id, code: f.code, title: f.title, kind: f.kind, fixedAmount: f.fixedAmount, variablePercent: f.variablePercent, appliesTo: f.appliesTo ?? 'BOTH', isActive: f.isActive, note: f.note ?? '' })}><Pencil className="size-3" aria-hidden /></Button>
+                          <Button size="sm" variant="ghost" className="h-6 px-1.5 text-rose-600" disabled={delTypeMut.isPending} onClick={() => { if (confirm(`حذف «${f.title}»؟`)) delTypeMut.mutate(f.id); }}><Trash2 className="size-3" aria-hidden /></Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">تخصیص مبلغ موضوعی به دانشجو</CardTitle></CardHeader>
+        <CardContent className="space-y-2">
+          <div className="grid gap-2 sm:grid-cols-5">
+            <div><Label className="text-[11px]">شناسهٔ دانشجو</Label><Input value={assignForm.studentId} onChange={(e) => setAssignForm({ ...assignForm, studentId: e.target.value })} className="mt-1 h-8 font-mono" dir="ltr" /></div>
+            <div><Label className="text-[11px]">ترم</Label>
+              <select value={assignForm.termId} onChange={(e) => setAssignForm({ ...assignForm, termId: Number(e.target.value) })} className="mt-1 h-8 w-full rounded-lg border border-input bg-transparent px-2 text-xs">
+                {terms.map((t) => <option key={t.id} value={t.id}>{t.termTitle}</option>)}
+              </select>
+            </div>
+            <div><Label className="text-[11px]">نوع</Label>
+              <select value={assignForm.typeId} onChange={(e) => setAssignForm({ ...assignForm, typeId: Number(e.target.value) })} className="mt-1 h-8 w-full rounded-lg border border-input bg-transparent px-2 text-xs">
+                <option value="0">—</option>
+                {(types.data ?? []).map((f) => <option key={f.id} value={f.id}>{f.title}</option>)}
+              </select>
+            </div>
+            <div><Label className="text-[11px]">مبلغ (ریال)</Label><Input type="number" value={assignForm.amount} onChange={(e) => setAssignForm({ ...assignForm, amount: e.target.value })} className="mt-1 h-8 font-mono" dir="ltr" /></div>
+            <div className="flex items-end gap-1.5">
+              <Button size="sm" disabled={assignMut.isPending || !assignForm.studentId || !assignForm.typeId || !assignForm.amount} onClick={() => assignMut.mutate()}><Plus className="size-4" aria-hidden /> تخصیص</Button>
+              <Button size="sm" variant="outline" disabled={!assignForm.studentId} onClick={loadAssignments}>نمایش</Button>
+            </div>
+          </div>
+          {assignMsg ? <p className="text-[11px] text-muted-foreground">{assignMsg}</p> : null}
+          {assignList.length > 0 ? (
+            <table className="w-full border-collapse text-right text-[11px]">
+              <thead><tr className="border-b border-border text-muted-foreground"><th className="p-1.5">نوع</th><th className="p-1.5 text-left">مبلغ</th><th className="p-1.5">یادداشت</th><th className="p-1.5"></th></tr></thead>
+              <tbody>
+                {assignList.map((a) => (
+                  <tr key={a.id} className="border-b border-border/40 last:border-0">
+                    <td className="p-1.5">{a.typeTitle} <span className="text-[10px] text-muted-foreground">({a.typeKind === 'DEDUCTIVE' ? 'کاهشی' : 'افزایشی'})</span></td>
+                    <td className="p-1.5 text-left font-mono">{faNumber(a.amount)}</td>
+                    <td className="p-1.5 text-muted-foreground">{a.note ?? '—'}</td>
+                    <td className="p-1.5"><Button size="sm" variant="ghost" className="h-6 px-1.5 text-rose-600" disabled={delAssignMut.isPending} onClick={() => delAssignMut.mutate(a.id)}><Trash2 className="size-3" aria-hidden /></Button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : null}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

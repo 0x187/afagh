@@ -80,6 +80,15 @@ func (a *AdminAPI) Register(r gin.IRouter) {
 	r.GET("/admin/council/decisions", a.councilDecisions)
 	r.POST("/admin/council/decisions", a.councilDecisionSave)
 	r.POST("/admin/council/decisions/delete", a.councilDecisionDelete)
+	r.GET("/admin/finance/coefficients", a.financeCoefficients)
+	r.POST("/admin/finance/coefficients", a.financeCoefficientSave)
+	r.POST("/admin/finance/coefficients/delete", a.financeCoefficientDelete)
+	r.GET("/admin/finance/subject-fees", a.financeSubjectFees)
+	r.POST("/admin/finance/subject-fees", a.financeSubjectFeeSave)
+	r.POST("/admin/finance/subject-fees/delete", a.financeSubjectFeeDelete)
+	r.GET("/admin/finance/subject-fees/assign", a.financeSubjectFeeAssignments)
+	r.POST("/admin/finance/subject-fees/assign", a.financeSubjectFeeAssign)
+	r.POST("/admin/finance/subject-fees/assign/delete", a.financeSubjectFeeAssignDelete)
 	r.GET("/admin/archive/documents", a.archiveDocuments)
 	r.POST("/admin/archive/verify", a.archiveVerify)
 	r.POST("/admin/archive/upload", a.archiveUpload)
@@ -1274,4 +1283,158 @@ func (a *AdminAPI) archiveFile(c *gin.Context) {
 	c.Header("Content-Disposition", fmt.Sprintf("%s; filename*=UTF-8''%s", disp, url.PathEscape(doc.FileName)))
 	c.Header("Cache-Control", "private, max-age=300")
 	c.Data(http.StatusOK, mime, data)
+}
+
+// ─────────────────── ضرایب نیمسال + مبالغ موضوعی ───────────────────
+
+func (a *AdminAPI) financeCoefficients(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	rows, err := a.Svc.ListCoefficients(c.Request.Context(), user, a.uniCookie(c))
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"rows": rows}})
+}
+
+func (a *AdminAPI) financeCoefficientSave(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	var body admin.SaveCoefficientInput
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "بدنهٔ درخواست نامعتبر است."})
+		return
+	}
+	id, err := a.Svc.SaveCoefficient(c.Request.Context(), user, a.uniCookie(c), body)
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"id": id}})
+}
+
+func (a *AdminAPI) financeCoefficientDelete(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	var body struct {
+		ID int64 `json:"id"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.ID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "شناسه الزامی است"})
+		return
+	}
+	if err := a.Svc.DeleteCoefficient(c.Request.Context(), user, a.uniCookie(c), body.ID); err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *AdminAPI) financeSubjectFees(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	rows, err := a.Svc.ListSubjectFeeTypes(c.Request.Context(), user, a.uniCookie(c))
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"rows": rows}})
+}
+
+func (a *AdminAPI) financeSubjectFeeSave(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	var body admin.SubjectFeeKindInput
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "بدنهٔ درخواست نامعتبر است."})
+		return
+	}
+	id, err := a.Svc.SaveSubjectFeeType(c.Request.Context(), user, a.uniCookie(c), body)
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"id": id}})
+}
+
+func (a *AdminAPI) financeSubjectFeeDelete(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	var body struct {
+		ID int64 `json:"id"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.ID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "شناسه الزامی است"})
+		return
+	}
+	if err := a.Svc.DeleteSubjectFeeType(c.Request.Context(), user, a.uniCookie(c), body.ID); err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *AdminAPI) financeSubjectFeeAssignments(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	studentID, _ := strconv.ParseInt(c.Query("studentId"), 10, 64)
+	termID, _ := strconv.ParseInt(c.Query("termId"), 10, 64)
+	rows, err := a.Svc.ListSubjectFeeAssignments(c.Request.Context(), user, a.uniCookie(c), studentID, termID)
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"rows": rows}})
+}
+
+func (a *AdminAPI) financeSubjectFeeAssign(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	var body admin.AssignSubjectFeeInput
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "بدنهٔ درخواست نامعتبر است."})
+		return
+	}
+	id, err := a.Svc.AssignSubjectFee(c.Request.Context(), user, a.uniCookie(c), body)
+	if err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"id": id}})
+}
+
+func (a *AdminAPI) financeSubjectFeeAssignDelete(c *gin.Context) {
+	user := a.requireAdmin(c)
+	if user == nil {
+		return
+	}
+	var body struct {
+		ID int64 `json:"id"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.ID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "شناسه الزامی است"})
+		return
+	}
+	if err := a.Svc.DeleteSubjectFeeAssignment(c.Request.Context(), user, a.uniCookie(c), body.ID); err != nil {
+		a.fail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
 }

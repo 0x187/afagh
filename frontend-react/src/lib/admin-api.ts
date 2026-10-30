@@ -473,3 +473,64 @@ export async function uploadArchiveDocument(input: { file: File; studentUserId: 
 }
 
 export const archiveFileUrl = (docId: number) => `/api/v2/admin/archive/file/${docId}`;
+
+// ─────────────────── ضرایب نیمسال + مبالغ موضوعی (CRUD) ───────────────────
+
+export type FinanceCoefficient = {
+  id: number; termId: number | null; variableCoefficient: number; fixedCoefficient: number;
+  note: string | null; updatedAt: string | null; termTitle: string | null; termCode: string | null;
+};
+
+export async function getFinanceCoefficients(): Promise<FinanceCoefficient[]> {
+  const res = await apiGet<{ ok: boolean; data: { rows: FinanceCoefficient[] } }>('/admin/finance/coefficients');
+  return res.data.rows;
+}
+
+export async function saveFinanceCoefficient(input: { termId: number; variableCoefficient: number; fixedCoefficient: number; note?: string }): Promise<number> {
+  const res = await apiPost<{ ok: boolean; data: { id: number } }>('/admin/finance/coefficients', input);
+  return res.data.id;
+}
+
+export async function deleteFinanceCoefficient(id: number): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/finance/coefficients/delete', { id });
+}
+
+export type FinanceSubjectFeeType = {
+  id: number; code: string; title: string; kind: string; fixedAmount: number;
+  variablePercent: number; appliesTo: string | null; isActive: boolean; note: string | null;
+};
+
+export async function getFinanceSubjectFeeTypes(): Promise<FinanceSubjectFeeType[]> {
+  const res = await apiGet<{ ok: boolean; data: { rows: FinanceSubjectFeeType[] } }>('/admin/finance/subject-fees');
+  return res.data.rows;
+}
+
+export async function saveFinanceSubjectFeeType(input: Record<string, unknown>): Promise<number> {
+  const res = await apiPost<{ ok: boolean; data: { id: number } }>('/admin/finance/subject-fees', input);
+  return res.data.id;
+}
+
+export async function deleteFinanceSubjectFeeType(id: number): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/finance/subject-fees/delete', { id });
+}
+
+export type SubjectFeeAssignment = {
+  id: number; studentId: number; termId: number; subjectFeeTypeId: number;
+  amount: number; isActive: boolean; note: string | null;
+  typeCode: string; typeTitle: string; typeKind: string;
+};
+
+export async function getSubjectFeeAssignments(studentId: number, termId?: number): Promise<SubjectFeeAssignment[]> {
+  const q = termId ? `&termId=${termId}` : '';
+  const res = await apiGet<{ ok: boolean; data: { rows: SubjectFeeAssignment[] } }>(`/admin/finance/subject-fees/assign?studentId=${studentId}${q}`);
+  return res.data.rows;
+}
+
+export async function assignSubjectFee(input: { studentId: number; termId: number; subjectFeeTypeId: number; amount: number; note?: string }): Promise<number> {
+  const res = await apiPost<{ ok: boolean; data: { id: number } }>('/admin/finance/subject-fees/assign', input);
+  return res.data.id;
+}
+
+export async function deleteSubjectFeeAssignment(id: number): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/finance/subject-fees/assign/delete', { id });
+}
