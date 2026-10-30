@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import {
+  ArrowLeftRight,
   BadgeCheck,
   BedDouble,
   Boxes,
@@ -52,6 +53,7 @@ const MODULES = [
   { to: '/admin/course-merge', label: 'ادغام دروس', icon: Layers, tone: 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300' },
   { to: '/admin/equivalence-clusters', label: 'خوشه‌های هم‌ارز', icon: Boxes, tone: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300' },
   { to: '/admin/manual-enroll', label: 'ثبت‌نام دستی', icon: UserCheck, tone: 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' },
+  { to: '/admin/group-transfer', label: 'انتقال بین گروه‌ها', icon: ArrowLeftRight, tone: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300' },
   { to: '/admin/departments', label: 'دانشکده‌ها و گروه‌ها', icon: ListChecks, tone: 'bg-lime-100 text-lime-700 dark:bg-lime-950 dark:text-lime-300' },
   { to: '/admin/staff', label: 'کارکنان و اساتید', icon: ShieldCheck, tone: 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300' },
   { to: '/admin/settings', label: 'تنظیمات سامانه', icon: Settings, tone: 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300' },
