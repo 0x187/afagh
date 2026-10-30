@@ -30,6 +30,7 @@ import { ProfessorGradesPage } from '@/routes/professor/GradesPage';
 import { ProfessorEvaluationPage } from '@/routes/professor/EvaluationPage';
 import { ProfessorPerformancePage } from '@/routes/professor/PerformancePage';
 import { ProfessorLessonPlanPage } from '@/routes/professor/LessonPlanPage';
+import { ProfessorPayrollPage } from '@/routes/professor/PayrollPage';
 import { GmCoursesPage } from '@/routes/groupmanager/CoursesPage';
 import { GmOfferingsPage } from '@/routes/groupmanager/OfferingsPage';
 import { GmClassroomsPage } from '@/routes/groupmanager/ClassroomsPage';
@@ -55,6 +56,7 @@ import { AdminWorkflowsPage } from '@/routes/admin/WorkflowsPage';
 import { AdminArchivePage } from '@/routes/admin/ArchivePage';
 import { PayrollCoveragePage, PayrollRolesPage, TeachingRolesPage } from '@/routes/admin/PayrollExtraPages';
 import { PayrollDecreesPage } from '@/routes/admin/PayrollDecreesPage';
+import { PayrollRegsObjectionsPage } from '@/routes/admin/PayrollRegsObjectionsPage';
 import { AdminDisciplinePage } from '@/routes/admin/DisciplinePage';
 import { AdminCouncilPage } from '@/routes/admin/CouncilPage';
 import { NotFound } from '@/routes/NotFound';
@@ -109,6 +111,7 @@ export function App() {
           <Route path="professor/grades" element={<ProfessorGradesPage />} />
           <Route path="professor/evaluation" element={<ProfessorEvaluationPage />} />
           <Route path="professor/performance" element={<ProfessorPerformancePage />} />
+          <Route path="professor/payroll" element={<ProfessorPayrollPage />} />
           <Route path="professor/lesson-plan" element={<ProfessorLessonPlanPage />} />
           <Route path="professor/lesson-plan/:offeringId" element={<ProfessorLessonPlanPage />} />
           <Route path="group-manager" element={<GmCoursesPage />} />
@@ -138,6 +141,7 @@ export function App() {
           <Route path="admin/payroll/teaching-roles" element={<TeachingRolesPage />} />
           <Route path="admin/payroll/coverage" element={<PayrollCoveragePage />} />
           <Route path="admin/payroll/decrees" element={<PayrollDecreesPage />} />
+          <Route path="admin/payroll/regs-objections" element={<PayrollRegsObjectionsPage />} />
           <Route path="admin/finance/rules" element={<AdminFinanceRulesPage />} />
           <Route path="admin/finance/pos" element={<AdminPosPage />} />
           <Route path="admin/workflows" element={<AdminWorkflowsPage />} />

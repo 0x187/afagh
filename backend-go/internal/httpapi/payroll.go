@@ -116,6 +116,16 @@ func (a *PayrollAPI) Register(r gin.IRouter) {
 	r.GET("/admin/payroll/decrees/detail", a.payrollDecreeDetail)
 	r.POST("/admin/payroll/decrees/finalize", a.payrollDecreeFinalize)
 	r.POST("/admin/payroll/decrees/delete", a.payrollDecreeDelete)
+	r.GET("/admin/payroll/objections/open", a.payrollObjectionsOpen)
+	r.GET("/admin/payroll/objections/history", a.payrollObjectionsHistory)
+	r.POST("/admin/payroll/objections/review", a.payrollObjectionsReview)
+	r.GET("/admin/payroll/regulations", a.payrollRegulations)
+	r.POST("/admin/payroll/regulations", a.payrollRegulationCreate)
+	r.POST("/admin/payroll/regulations/activate", a.payrollRegulationActivate)
+	r.POST("/admin/payroll/regulations/delete", a.payrollRegulationDelete)
+	r.GET("/professor/payroll/payslip", a.professorPayslip)
+	r.GET("/professor/payroll/objections", a.professorObjections)
+	r.POST("/professor/payroll/objections", a.professorObjectionCreate)
 }
 
 // ─────────────────── مدیریت حقوق (سمت‌ها/نقش‌ها/پوشش) ───────────────────
@@ -784,4 +794,251 @@ func (a *PayrollAPI) payrollDecreeDelete(c *gin.Context) {
 		return
 	}
 	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// ─────────────────── اعتراض به فیش + آیین‌نامه‌ها ───────────────────
+
+func (a *PayrollAPI) payrollObjectionsOpen(c *gin.Context) {
+	user := a.requireRoles(c, payrollViewRoles)
+	if user == nil {
+		return
+	}
+	uniID := a.Admin.UniversityID(c.Request.Context(), user, a.uniCookie(c))
+	rows, err := a.Engine.ListOpenObjections(c.Request.Context(), uniID)
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"open": rows}})
+}
+
+func (a *PayrollAPI) payrollObjectionsHistory(c *gin.Context) {
+	user := a.requireRoles(c, payrollViewRoles)
+	if user == nil {
+		return
+	}
+	uniID := a.Admin.UniversityID(c.Request.Context(), user, a.uniCookie(c))
+	rows, err := a.Engine.ListObjectionsHistory(c.Request.Context(), uniID)
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"history": rows}})
+}
+
+func (a *PayrollAPI) payrollObjectionsReview(c *gin.Context) {
+	user := a.requireRoles(c, []string{"ADMIN", "EDU_EXPERT", "FINANCE"})
+	if user == nil {
+		return
+	}
+	var body struct {
+		ID        int64  `json:"id"`
+		Decision  string `json:"decision"`
+		ReviewNote string `json:"reviewNote"`
+		Reopen    bool   `json:"reopen"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.ID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})
+		return
+	}
+	if a.Approvals == nil {
+		a.payrollFail(c, errors.New("زنجیرهٔ تأیید در دسترس نیست."))
+		return
+	}
+	_, err := a.Engine.ReviewObjection(c.Request.Context(), a.Approvals, payroll.ReviewObjectionInput{
+		ID: body.ID, Decision: body.Decision, ReviewNote: body.ReviewNote,
+		Reopen: body.Reopen, ReviewerUserID: user.ID,
+	})
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *PayrollAPI) payrollRegulations(c *gin.Context) {
+	user := a.requireRoles(c, payrollViewRoles)
+	if user == nil {
+		return
+	}
+	uniID := a.Admin.UniversityID(c.Request.Context(), user, a.uniCookie(c))
+	rows, err := a.Engine.ListRegulations(c.Request.Context(), uniID)
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"rows": rows}})
+}
+
+func (a *PayrollAPI) payrollRegulationCreate(c *gin.Context) {
+	user := a.requireRoles(c, []string{"ADMIN"})
+	if user == nil {
+		return
+	}
+	var body struct {
+		Code        string  `json:"code"`
+		Title       string  `json:"title"`
+		Year        *int    `json:"year"`
+		Description *string `json:"description"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})
+		return
+	}
+	uniID := a.Admin.UniversityID(c.Request.Context(), user, a.uniCookie(c))
+	id, err := a.Engine.CreateRegulation(c.Request.Context(), uniID, body.Code, body.Title, body.Year, body.Description, user.ID)
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"id": id}})
+}
+
+func (a *PayrollAPI) payrollRegulationActivate(c *gin.Context) {
+	user := a.requireRoles(c, []string{"ADMIN"})
+	if user == nil {
+		return
+	}
+	var body struct {
+		ID int64 `json:"id"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.ID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})
+		return
+	}
+	uniID := a.Admin.UniversityID(c.Request.Context(), user, a.uniCookie(c))
+	if err := a.Engine.ActivateRegulation(c.Request.Context(), uniID, body.ID); err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+func (a *PayrollAPI) payrollRegulationDelete(c *gin.Context) {
+	user := a.requireRoles(c, []string{"ADMIN"})
+	if user == nil {
+		return
+	}
+	var body struct {
+		ID int64 `json:"id"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.ID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})
+		return
+	}
+	if err := a.Engine.DeleteRegulation(c.Request.Context(), body.ID); err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true})
+}
+
+// professorObjections اعتراض‌های استاد (فیش خودش).
+func (a *PayrollAPI) professorObjections(c *gin.Context) {
+	user := a.requireProfessorUser(c)
+	if user == nil {
+		return
+	}
+	st, err := a.payrollStaffOf(c.Request.Context(), user)
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	var termID *int64
+	if raw := strings.TrimSpace(c.Query("termId")); raw != "" {
+		if v, err := strconv.ParseInt(raw, 10, 64); err == nil && v > 0 {
+			termID = &v
+		}
+	}
+	rows, err := a.Engine.ListObjectionsForStaff(c.Request.Context(), st, termID)
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"objections": rows}})
+}
+
+// professorObjectionCreate ثبت اعتراض به فیش خودش.
+func (a *PayrollAPI) professorObjectionCreate(c *gin.Context) {
+	user := a.requireProfessorUser(c)
+	if user == nil {
+		return
+	}
+	st, err := a.payrollStaffOf(c.Request.Context(), user)
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	var body struct {
+		StatementID int64  `json:"statementId"`
+		Text        string `json:"text"`
+	}
+	if err := c.ShouldBindJSON(&body); err != nil || body.StatementID <= 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})
+		return
+	}
+	uniID := a.Admin.UniversityID(c.Request.Context(), user, a.uniCookie(c))
+	id, err := a.Engine.CreateObjection(c.Request.Context(), payroll.CreateObjectionInput{
+		StatementID: body.StatementID, StaffID: st, Text: body.Text,
+		CreatedBy: user.ID, UniversityID: uniID,
+	})
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"id": id}})
+}
+
+// requireProfessorUser گیت نقش استاد برای مسیرهای پورتال استاد.
+func (a *PayrollAPI) requireProfessorUser(c *gin.Context) *session.User {
+	token := session.ReadToken(parseCookies(c.Request))
+	if token == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{"ok": false, "error": "ابتدا وارد شوید."})
+		return nil
+	}
+	user, _ := a.Store.Get(c.Request.Context(), token, false)
+	if user == nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"ok": false, "error": "ابتدا وارد شوید."})
+		return nil
+	}
+	isProf := false
+	for _, r := range user.Roles {
+		if r == "PROFESSOR" || r == "ADMIN" {
+			isProf = true
+		}
+	}
+	if !isProf {
+		c.JSON(http.StatusForbidden, gin.H{"ok": false, "error": "دسترسی غیرمجاز."})
+		return nil
+	}
+	return user
+}
+
+// payrollStaffOf staff.id کاربر.
+func (a *PayrollAPI) payrollStaffOf(ctx context.Context, user *session.User) (int64, error) {
+	var id int64
+	err := a.Pool.QueryRow(ctx, `select id from staff where "userId" = $1 limit 1`, user.ID).Scan(&id)
+	if err != nil {
+		return 0, errors.New("پروندهٔ کارمندی شما یافت نشد.")
+	}
+	return id, nil
+}
+
+// professorPayslip فیش حق‌التدریس استاد (پورت getStaffPayslip پورتال استاد).
+func (a *PayrollAPI) professorPayslip(c *gin.Context) {
+	user := a.requireProfessorUser(c)
+	if user == nil {
+		return
+	}
+	st, err := a.payrollStaffOf(c.Request.Context(), user)
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	resp, err := a.Engine.GetStaffPayslip(c.Request.Context(), st, nil)
+	if err != nil {
+		a.payrollFail(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
 }

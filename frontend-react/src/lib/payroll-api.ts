@@ -275,3 +275,67 @@ export async function finalizeDecree(id: number): Promise<void> {
 export async function deleteDecreeDraft(id: number): Promise<void> {
   await apiPost<{ ok: boolean }>('/admin/payroll/decrees/delete', { id });
 }
+
+// ─────────────────── اعتراض به فیش + آیین‌نامه‌ها ───────────────────
+
+export type StaffObjection = {
+  id: number; statementId: number; termTitle: string | null; statementStatus: string | null;
+  text: string; status: string; reviewNote: string | null; reopenedStatement: number; createdAt: string | null;
+};
+
+export type OpenObjection = StaffObjection & { staffName: string; staffCode: string | null; grossAmount: number | null };
+
+export async function getOpenObjections(): Promise<OpenObjection[]> {
+  const res = await apiGet<{ ok: boolean; data: { open: OpenObjection[] } }>('/admin/payroll/objections/open');
+  return res.data.open;
+}
+
+export type ObjectionHistoryRow = StaffObjection & { staffName: string; staffCode: string | null };
+
+export async function getObjectionHistory(): Promise<ObjectionHistoryRow[]> {
+  const res = await apiGet<{ ok: boolean; data: { history: ObjectionHistoryRow[] } }>('/admin/payroll/objections/history');
+  return res.data.history;
+}
+
+export async function reviewObjection(input: { id: number; decision: 'RESOLVED' | 'REJECTED'; reviewNote: string; reopen: boolean }): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/payroll/objections/review', input);
+}
+
+export type RegulationVersion = {
+  id: number; code: string; title: string; year: number | null;
+  description: string | null; isActive: boolean; createdAt: string | null;
+};
+
+export async function getRegulations(): Promise<RegulationVersion[]> {
+  const res = await apiGet<{ ok: boolean; data: { rows: RegulationVersion[] } }>('/admin/payroll/regulations');
+  return res.data.rows;
+}
+
+export async function createRegulation(input: { code: string; title: string; year?: number | null; description?: string | null }): Promise<number> {
+  const res = await apiPost<{ ok: boolean; data: { id: number } }>('/admin/payroll/regulations', input);
+  return res.data.id;
+}
+
+export async function activateRegulation(id: number): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/payroll/regulations/activate', { id });
+}
+
+export async function deleteRegulation(id: number): Promise<void> {
+  await apiPost<{ ok: boolean }>('/admin/payroll/regulations/delete', { id });
+}
+
+// پروتال استاد
+export async function getProfessorPayslip(): Promise<PayslipData> {
+  const res = await apiGet<{ ok: boolean; data: PayslipData }>('/professor/payroll/payslip');
+  return res.data;
+}
+
+export async function getProfessorObjections(): Promise<StaffObjection[]> {
+  const res = await apiGet<{ ok: boolean; data: { objections: StaffObjection[] } }>('/professor/payroll/objections');
+  return res.data.objections;
+}
+
+export async function createProfessorObjection(statementId: number, text: string): Promise<number> {
+  const res = await apiPost<{ ok: boolean; data: { id: number } }>('/professor/payroll/objections', { statementId, text });
+  return res.data.id;
+}
