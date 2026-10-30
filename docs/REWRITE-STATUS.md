@@ -36,6 +36,8 @@ Caddy ─▶ Go edge (:8091)
 | ۸ | گردش‌کار: کارتابل + موتور پیشبرد + گذرگاه رویداد + SLA + طراح فرایند؛ کمیتهٔ انضباطی؛ شورا | `workflow`, `admin/committees`, `tuition` | WorkflowsPage، DisciplinePage، CouncilPage | acb702b, e2bbb6b |
 | ۹ | استعلام عمومی: کارنامه، مالی، انتخاب واحد، کارت آزمون، کارت دانشجویی، مدرک، گواهینامه، دوره‌های آزاد | `publicverify`, `opencourses` | صفحات ریشهٔ `/verify-*`, `/id/:token`, `/exam-ticket/:token`, `/open-courses` | bc7220a, 84b12e9, b1c1fa3 |
 | ۱۰ | کرون‌ها (پویش مهلت bypass، یادآوری چک، رویدادهای گردش‌کار)، ارسال چندکاناله (SMS + ۵ پیام‌رسان)، بایگانی MinIO | `cron`, `messaging`, `archive` | AdminArchivePage | faeae24, d104c12 |
+| ۱۲ | حقوق تکمیلی: سمت‌های موظفی و انتساب ترمی، نقش‌های تدریس، نقش دستی ارائه، پوشش فرمول، ابلاغ‌ها، آیین‌نامه‌ها، اعتراض + فیش پورتال استاد، پرداخت‌های امتحانی، دفتر پایان‌نامه | `payroll` (roles/decrees/objections/regulations/exam_payments/thesis_ledger) | PayrollRolesPage، TeachingRolesPage، PayrollCoveragePage، PayrollDecreesPage، PayrollRegsObjectionsPage، PayrollOperationsPage، ProfessorPayrollPage | 120f761..f220bee |
+| ۱۲ | مالی تکمیلی: ضریب نیمسال (با سقف ±۲۰٪)، نوع مبلغ موضوعی، تخصیص دانشجو | `admin/finance_extra` | تب ویرایشگر در FinanceRulesPage | 996e254 |
 
 وضعیت فعلی: **۲۲ بستهٔ تست Go سبز** (۱۷ تست پکیج حقوق + تست‌های مالی/شهریه/
 ورود/…)، **۲۸ تست Vitest سبز**، بیلد Go و TS/Vite سبز.
@@ -53,10 +55,9 @@ Caddy ─▶ Go edge (:8091)
 
 تا وقتی این فهرست خالی نشده، Next.js باید زنده بماند:
 
-- **حقوق:** زیرصفحه‌های ۹گانه (`coverage`, `decrees`, `objections`, `regulations`,
-  `roles`, `teaching-roles`, `thesis`, `exam-payments`) + شبیه‌ساز.
-- **مالی:** `reports`، `welfare`، `coefficients`، `subject-fees`، `time-control`،
-  `student-formula`، `rules` (تعاریف منتقل شده؛ خود صفحه جدا نیست)، `tuition` (کل موتور شهریه UI).
+- **حقوق:** شبیه‌ساز سناریو (`?tab=simulator` — دادهٔ نمایشی).
+- **مالی:** `reports`، `welfare`، `time-control`، `student-formula`،
+  `tuition` (کل موتور شهریه UI). (ضرایب/مبالغ موضوعی منتقل شدند.)
 - **ادمین:** `admissions`، `student-cards`، `saham`، `samin`، `bi`، `warnings`،
   `dorm`، `discipline`/`council` (منتقل شده)، `graduation`، `defense-scheduling`،
   `enrollment-approvals`/`enrollment-confirmation`، `manual-enroll`،
