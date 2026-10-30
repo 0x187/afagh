@@ -45,13 +45,17 @@ Caddy ─▶ Go edge (:8091)
 | ۱۲ | میز فارغ‌التحصیلی: پویش/پرونده، تأیید، ایرانداک، تسویه موازی، سجاد/کد صحت، تمبر، صدور و تحویل مدرک، دپارتمان‌های تسویه، خدمات دانش‌آموختگان | `graduation` | AdminGraduationPage | eed697e |
 | ۱۲ | کارت دانشجویی (صدور/تمدید/ابطال/چاپ QR) + مسیر امن عکس | `admin/student_cards`, `/photo/:userId` | AdminStudentCardsPage، StudentCardPrintPage | برش ۱۱ |
 | ۱۲ | پذیرش سنجش (Staging/ورود دسته‌ای/فرمول/ثبت دستی/تست ایرانداک) + کارت سکونت خوابگاه | `admin/admissions`, `irandoc`, `admin/dorm` | AdminAdmissionsPage، AdminDormPage | برش ۱۲ |
+| ۱۲ | تأیید انتخاب واحد + صدور تأییدیهٔ انتخاب واحد | `admin/enrollment_approvals`, `student.IssueEnrollConfirmFor` | AdminEnrollmentApprovalsPage، AdminEnrollmentConfirmationPage | برش ۱۳ |
+| ۱۲ | ادغام دروس + خوشه‌های هم‌ارز | `admin/course_merge`, `admin/equivalence_clusters` | AdminCourseMergePage، AdminEquivalenceClustersPage | برش ۱۴ |
+| ۱۲ | ثبت‌نام دستی کارشناس (کاتالوگ/تک/دسته‌جمعی/فعال‌سازی ترم/تاریخچه) | `admin/manual_enroll` | AdminManualEnrollPage | برش ۱۵ |
+| ۱۲ | انتقال دانشجو بین گروه‌های یک درس | `admin/group_transfer` | AdminGroupTransferPage | برش ۱۶ |
 
 وضعیت فعلی: **۲۵ بستهٔ تست Go سبز** (شامل مالی/شهریه/تعرفه/گزارش/BI/فارغ‌التحصیلی
 و ۱۷ تست پکیج حقوق)، **۲۸ تست Vitest سبز**، بیلد Go و TS/Vite سبز.
 
 ## سطوح API
 
-- مسیرهای Go: **۲۹۷** در ۲۰ فایل `internal/httpapi/*.go` (شامل auth، scope،
+- مسیرهای Go: **۳۱۲** در ۲۳ فایل `internal/httpapi/*.go` (شامل auth، scope،
   student، enroll، professor، groupmanager، admin، payroll، workflow، public، cron، reports).
 - نقاط مسئله‌دار که بایت‌به‌بایت سازگار پورت شده‌اند: زنجیرهٔ هش `audit_logs`،
   اسکریپت‌های Lua.waiting-room، تراز کانونی دفتر مالی (`ledger-balance`)،
@@ -66,12 +70,11 @@ Caddy ─▶ Go edge (:8091)
 - **مالی:** `tuition` (کل موتور شهریه UI). مرکز گزارش‌های مالی و
   صورت‌حساب/کارنامهٔ مالی منتقل شدند.
 - **ادمین:** `reports` (مرکز گزارش‌های آموزشی)، `saham`، `samin`، `bi`،
-  `discipline`/`council`/`warnings`/`graduation`/`admissions`/`student-cards`/`dorm`
-  (منتقل شده)، `defense-scheduling`،
-  `enrollment-approvals`/`enrollment-confirmation`، `manual-enroll`،
-  `group-transfer`، `course-merge`، `equivalence-clusters`، `curriculum`،
-  `regulation-check`، `grade-status-codes`، `lesson-plans`، `templates`، `codes`،
-  `migration`، `sanjesh-import`، `short-courses`، `c/[group]`.
+  `defense-scheduling`، `curriculum`، `regulation-check`، `grade-status-codes`،
+  `lesson-plans`، `templates`، `codes`، `migration`، `sanjesh-import`،
+  `short-courses`، `c/[group]`. (فارغ‌التحصیلی، پذیرش، کارت دانشجویی، خوابگاه،
+  تأیید/تأییدیهٔ انتخاب واحد، ثبت دستی، انتقال گروه، ادغام درس و خوشه‌های هم‌ارز
+  منتقل شدند.)
 - **عمومی:** `verify` (کد QR قدیمی `verify/[code]`)، `verify/search`،
   `verify/document`، `verify-degree/search`، `help`، `manual`، `alumni`،
   `proctor`، `messenger` (صفحهٔ اتصال پیام‌رسان)، `p/[code]`.
