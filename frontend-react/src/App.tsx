@@ -93,6 +93,8 @@ import { NotFound } from '@/routes/NotFound';
 import { ExamTicketPage, VerifyEnrollmentPage, VerifyFinancePage, VerifyTranscriptPage } from '@/routes/public/PublicVerifyPages';
 import { StudentIdCardPage, VerifyCertificatePage, VerifyDegreePage } from '@/routes/public/PublicExtraPages';
 import { OpenCoursesPage } from '@/routes/public/OpenCoursesPage';
+import { MessengerPage } from '@/routes/public/MessengerPage';
+import { VerifyCodePage, VerifySearchPage, VerifyDocumentPage, VerifyDegreeSearchPage, HelpPage, ManualPage, AlumniPage, ProctorPage, PublicProfilePage } from '@/routes/public/PublicRestPages';
 
 export function App() {
   return (
@@ -112,6 +114,17 @@ export function App() {
         <Route path="verify-certificate" element={<VerifyCertificatePage />} />
         <Route path="verify-certificate/:code" element={<VerifyCertificatePage />} />
         <Route path="open-courses" element={<OpenCoursesPage />} />
+        <Route path="messenger" element={<MessengerPage />} />
+        <Route path="verify" element={<VerifySearchPage />} />
+        <Route path="verify/search" element={<VerifySearchPage />} />
+        <Route path="verify/:code" element={<VerifyCodePage />} />
+        <Route path="verify/document/:hash" element={<VerifyDocumentPage />} />
+        <Route path="verify-degree/search" element={<VerifyDegreeSearchPage />} />
+        <Route path="help" element={<HelpPage />} />
+        <Route path="manual" element={<ManualPage />} />
+        <Route path="alumni" element={<AlumniPage />} />
+        <Route path="proctor" element={<ProctorPage />} />
+        <Route path="p/:code" element={<PublicProfilePage />} />
         <Route path="change-password" element={<ChangePassword />} />
 
         {/* شل محافظت‌شده — گارد نشست داخل AppShell است */}

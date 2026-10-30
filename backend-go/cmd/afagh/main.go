@@ -189,6 +189,8 @@ func main() {
 	adminAPI.Reports.Graduation = adminAPI.Graduation
 	messagingSvc := messaging.New(database.Pool, settingsStore)
 	messaging.Default = messagingSvc
+	messaging.SetRateLimiter(limiter)
+	go messagingSvc.StartAllPolling(rdb)
 	adminAPI.Messaging = messagingSvc
 	adminAPI.Pool = database.Pool
 	tuitionEngine := tuition.New(database.Pool, settingsStore)
@@ -204,11 +206,19 @@ func main() {
 	cronEngine := cron.New(database.Pool, settingsStore, workflowEngine)
 	cronAPI := &httpapi.CronAPI{Engine: cronEngine, Limiter: limiter}
 	cronAPI.Register(ginEngine.Group(""))
+	cron.SetGraduationService(adminAPI.Graduation)
+	cronExtraAPI := &httpapi.CronExtraAPI{Engine: cronEngine, Limiter: limiter}
+	cronExtraAPI.Register(ginEngine.Group(""))
+	messengerAPI := &httpapi.MessengerAPI{Store: store, Svc: messagingSvc, Limiter: limiter}
+	messengerAPI.Register(ginEngine.Group(""))
 	publicAPI := &httpapi.PublicAPI{Pool: database.Pool, Settings: settingsStore,
 		Verify:  &publicverify.Service{Student: studentSvc, Signer: signer, Pool: database.Pool},
 		Open:    &opencourses.Service{Pool: database.Pool},
 		Limiter: limiter}
 	publicAPI.Register(ginEngine.Group(""))
+	publicExtraAPI := &httpapi.PublicExtraAPI{Pool: database.Pool, Store: store,
+		Settings: settingsStore, Limiter: limiter, Signer: signer}
+	publicExtraAPI.Register(ginEngine.Group(""))
 
 	// ── SPA: پروکسی (dev/Vite) یا فایل‌های dist (production) ──
 	var spaHandler http.Handler
