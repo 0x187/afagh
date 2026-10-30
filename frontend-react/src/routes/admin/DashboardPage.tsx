@@ -36,6 +36,7 @@ const MODULES = [
   { to: '/admin/payroll', label: 'حقوق و دستمزد', icon: Landmark, tone: 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300' },
   { to: '/admin/workflows', label: 'گردش‌کار', icon: ClipboardList, tone: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300' },
   { to: '/admin/warnings', label: 'هشدارهای زمان‌بندی‌شده', icon: BellRing, tone: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300' },
+  { to: '/admin/graduation', label: 'فارغ‌التحصیلی و مدارک', icon: GraduationCap, tone: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300' },
   { to: '/admin/departments', label: 'دانشکده‌ها و گروه‌ها', icon: ListChecks, tone: 'bg-lime-100 text-lime-700 dark:bg-lime-950 dark:text-lime-300' },
   { to: '/admin/staff', label: 'کارکنان و اساتید', icon: ShieldCheck, tone: 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300' },
   { to: '/admin/settings', label: 'تنظیمات سامانه', icon: Settings, tone: 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300' },

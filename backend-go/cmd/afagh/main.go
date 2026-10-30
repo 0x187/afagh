@@ -8,13 +8,13 @@ package main
 
 import (
 	"context"
-	"strconv"
 	"errors"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -30,24 +30,25 @@ import (
 	"backend-go/internal/db"
 	"backend-go/internal/edge"
 	"backend-go/internal/enroll"
+	"backend-go/internal/graduation"
 	"backend-go/internal/groupmanager"
 	"backend-go/internal/httpapi"
 	"backend-go/internal/logger"
 	"backend-go/internal/messaging"
-	"backend-go/internal/payroll"
 	"backend-go/internal/opencourses"
+	"backend-go/internal/payroll"
 	"backend-go/internal/professor"
 	"backend-go/internal/publicverify"
-	"backend-go/internal/reports"
-	"backend-go/internal/tuition"
-	"backend-go/internal/workflow"
 	"backend-go/internal/ratelimit"
+	"backend-go/internal/reports"
 	"backend-go/internal/scope"
 	"backend-go/internal/session"
 	"backend-go/internal/sessionlock"
 	"backend-go/internal/settings"
 	"backend-go/internal/student"
+	"backend-go/internal/tuition"
 	"backend-go/internal/verification"
+	"backend-go/internal/workflow"
 )
 
 func main() {
@@ -142,6 +143,7 @@ func main() {
 	adminSvc.SetStore(&settingsStoreAdapter{store: settingsStore})
 	adminAPI := &httpapi.AdminAPI{Svc: adminSvc, Store: store, StudentFinance: studentSvc, Archive: arStore}
 	adminAPI.Register(ginEngine.Group(""))
+	adminAPI.Graduation = graduation.New(database.Pool, settingsStore, studentSvc)
 	payrollEngine := payroll.New(database.Pool, settingsStore)
 	payrollApprovals := payroll.NewApprovals(payrollEngine)
 	payrollApprovals.StaffByUser = func(ctx context.Context, userID int64) (*payroll.StaffRef, error) {

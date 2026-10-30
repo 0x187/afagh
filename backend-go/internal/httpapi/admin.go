@@ -14,6 +14,7 @@ import (
 
 	"backend-go/internal/admin"
 	"backend-go/internal/archive"
+	"backend-go/internal/graduation"
 	"backend-go/internal/reports"
 	"backend-go/internal/scope"
 	"backend-go/internal/session"
@@ -27,6 +28,7 @@ type AdminAPI struct {
 	StudentFinance *student.Service
 	Archive        *archive.Store
 	Reports        *reports.Service
+	Graduation     *graduation.Service
 }
 
 func (a *AdminAPI) Register(r gin.IRouter) {
@@ -70,6 +72,26 @@ func (a *AdminAPI) Register(r gin.IRouter) {
 	r.POST("/admin/warnings", a.warningsCreate)
 	r.POST("/admin/warnings/update", a.warningsUpdate)
 	r.POST("/admin/warnings/delete", a.warningsDelete)
+	r.GET("/admin/graduation", a.graduationSeed)
+	r.POST("/admin/graduation/scan", a.graduationScan)
+	r.POST("/admin/graduation/list", a.graduationList)
+	r.POST("/admin/graduation/dossier", a.graduationDossier)
+	r.POST("/admin/graduation/head-approve", a.graduationHeadApprove)
+	r.POST("/admin/graduation/hold", a.graduationHold)
+	r.POST("/admin/graduation/resume", a.graduationResume)
+	r.POST("/admin/graduation/irandoc", a.graduationIrandoc)
+	r.POST("/admin/graduation/start-clearance", a.graduationStartClearance)
+	r.POST("/admin/graduation/auto-clearance", a.graduationAutoClearance)
+	r.POST("/admin/graduation/set-clearance", a.graduationSetClearance)
+	r.POST("/admin/graduation/advance", a.graduationAdvance)
+	r.POST("/admin/graduation/ministry-code", a.graduationMinistryCode)
+	r.POST("/admin/graduation/waive-sajjad", a.graduationWaiveSajjad)
+	r.POST("/admin/graduation/issue", a.graduationIssue)
+	r.POST("/admin/graduation/deliver", a.graduationDeliver)
+	r.POST("/admin/graduation/department/save", a.graduationDepartmentSave)
+	r.POST("/admin/graduation/department/delete", a.graduationDepartmentDelete)
+	r.POST("/admin/graduation/alumni/requests", a.graduationAlumniRequests)
+	r.POST("/admin/graduation/alumni/resolve", a.graduationAlumniResolve)
 	r.POST("/admin/finance/adjust", a.financeAdjust)
 	r.GET("/admin/course-finance", a.courseFinance)
 	r.POST("/admin/course-finance", a.setCourseFinance)

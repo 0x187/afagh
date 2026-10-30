@@ -319,6 +319,31 @@ func (s *Service) auditStudent(ctx context.Context, studentID int64) (*AuditResu
 	}, nil
 }
 
+// AuditStudentForAdmin تطبیق کارنامه با سرفصل — برای میز فارغ‌التحصیلی ادمین.
+// (همان auditStudent داخلی تا منطق تطبیق دو نسخه نشود.)
+func (s *Service) AuditStudentForAdmin(ctx context.Context, studentID int64) (*AuditResult, error) {
+	return s.auditStudent(ctx, studentID)
+}
+
+// AdvanceDossierByID بازمحاسبهٔ وضعیت پرونده با همان موتور داخلی.
+func (s *Service) AdvanceDossierByID(ctx context.Context, auditID int64) error {
+	return s.advanceDossier(ctx, auditID, 0)
+}
+
+// StartClearanceForAudit ساخت چک‌لیست و بررسی خودکار دفتر مالی.
+func (s *Service) StartClearanceForAudit(ctx context.Context, auditID int64) error {
+	var studentID int64
+	if err := s.Pool.QueryRow(ctx, `select "studentId" from graduation_audits where id = $1`, auditID).Scan(&studentID); err != nil {
+		return errors.New("پرونده یافت نشد.")
+	}
+	return s.startClearance(ctx, auditID, studentID)
+}
+
+// LedgerBalanceOfStudent ماندهٔ کانونی دانشجو (مثبت = بدهی، منفی → صفر).
+func (s *Service) LedgerBalanceOfStudent(ctx context.Context, studentID int64) float64 {
+	return s.ledgerBalanceStudent(ctx, studentID)
+}
+
 // GetTracker پورت getStudentTracker.
 func (s *Service) GetTracker(ctx context.Context, studentID int64) (*Tracker, error) {
 	var auditID int64
