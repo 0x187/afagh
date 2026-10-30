@@ -80,6 +80,8 @@ import { AdminTuitionRulesPage } from '@/routes/admin/TuitionRulesPage';
 import { AdminTuitionTariffPage } from '@/routes/admin/TuitionTariffPage';
 import { AdminDefenseSchedulingPage } from '@/routes/admin/DefenseSchedulingPage';
 import { AdminShortCoursesPage } from '@/routes/admin/ShortCoursesPage';
+import { AdminLessonPlansPage } from '@/routes/admin/LessonPlansPage';
+import { AdminRegulationCheckPage } from '@/routes/admin/RegulationCheckPage';
 import { NotFound } from '@/routes/NotFound';
 import { ExamTicketPage, VerifyEnrollmentPage, VerifyFinancePage, VerifyTranscriptPage } from '@/routes/public/PublicVerifyPages';
 import { StudentIdCardPage, VerifyCertificatePage, VerifyDegreePage } from '@/routes/public/PublicExtraPages';
@@ -190,6 +192,8 @@ export function App() {
           <Route path="admin/tuition/tariff" element={<AdminTuitionTariffPage />} />
           <Route path="admin/defense-scheduling" element={<AdminDefenseSchedulingPage />} />
           <Route path="admin/short-courses" element={<AdminShortCoursesPage />} />
+          <Route path="admin/lesson-plans" element={<AdminLessonPlansPage />} />
+          <Route path="admin/regulation-check" element={<AdminRegulationCheckPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

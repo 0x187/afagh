@@ -19,6 +19,7 @@ import (
 	"backend-go/internal/scope"
 	"backend-go/internal/session"
 	"backend-go/internal/student"
+	"backend-go/internal/verification"
 )
 
 // AdminAPI هندلرهای ادمین.
@@ -29,6 +30,7 @@ type AdminAPI struct {
 	Archive        *archive.Store
 	Reports        *reports.Service
 	Graduation     *graduation.Service
+	Signer         *verification.Signer
 }
 
 func (a *AdminAPI) Register(r gin.IRouter) {
@@ -163,6 +165,11 @@ func (a *AdminAPI) Register(r gin.IRouter) {
 	r.POST("/admin/short-courses/discounts", a.shortCourseDiscountCreate)
 	r.POST("/admin/short-courses/discounts/toggle", a.shortCourseDiscountToggle)
 	r.POST("/admin/short-courses/payment", a.shortCoursePayment)
+	r.GET("/admin/lesson-plans", a.lessonPlansAdmin)
+	r.POST("/admin/lesson-plans/settings", a.lessonPlansSettings)
+	r.POST("/admin/regulation-check/scan", a.regulationScan)
+	r.POST("/admin/regulation-check/apply", a.regulationApply)
+	r.POST("/admin/regulation-check/status-scan", a.regulationStatusScan)
 	r.POST("/admin/finance/adjust", a.financeAdjust)
 	r.GET("/admin/course-finance", a.courseFinance)
 	r.POST("/admin/course-finance", a.setCourseFinance)

@@ -140,11 +140,19 @@ func (a *SessionLockAPI) unlock(c *gin.Context) {
 
 // stepUpGateForRequest نسخهٔ آگاه به IP همان درخواست.
 func (a *SessionLockAPI) stepUpGateForRequest(c *gin.Context, userID int64) (bool, string) {
-	ctx := c.Request.Context()
+	return stepUpGate(c.Request.Context(), a.Limiter, userID, a.clientIP(c))
+}
+
+// stepUpGate گیت مشترک تأیید رمز (۵ خطا/۱۵دقیقه کاربر + ۲۰/۱۵دقیقه IP) با
+// تأخیر تصاعدی — همان قرارداد SessionLockAPI.unlock و step-up حساس.
+func stepUpGate(ctx context.Context, limiter StepUpLimiter, userID int64, ip string) (bool, string) {
+	if limiter == nil {
+		return true, ""
+	}
 	userKey := fmt.Sprintf("stepup:pw:%d", userID)
-	ipKey := fmt.Sprintf("stepup:ip:%.64s", a.clientIP(c))
-	uOK, uRetry, _ := a.Limiter.Peek(ctx, userKey, 5, 15*60)
-	iOK, iRetry, _ := a.Limiter.Peek(ctx, ipKey, 20, 15*60)
+	ipKey := fmt.Sprintf("stepup:ip:%.64s", ip)
+	uOK, uRetry, _ := limiter.Peek(ctx, userKey, 5, 15*60)
+	iOK, iRetry, _ := limiter.Peek(ctx, ipKey, 20, 15*60)
 	if !uOK || !iOK {
 		retry := 0
 		if !uOK {
@@ -153,7 +161,7 @@ func (a *SessionLockAPI) stepUpGateForRequest(c *gin.Context, userID int64) (boo
 		if !iOK && iRetry > retry {
 			retry = iRetry
 		}
-		if n, err := a.Limiter.Count(ctx, userKey); err == nil && n > 0 {
+		if n, err := limiter.Count(ctx, userKey); err == nil && n > 0 {
 			// تأخیر تصاعدی پیش از پاسخ — همان progressiveDelay(count) در TS
 			progressiveSleep(ctx, n)
 		}

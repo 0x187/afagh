@@ -119,6 +119,11 @@ func main() {
 		Store: store, Locks: locks, Limiter: limiter, Verifier: authSvc,
 	}
 	lockAPI.Register(ginEngine.Group(""))
+	stepUpAPI := &httpapi.StepUpAPI{
+		Store: store, Signer: signer, Verifier: authSvc, Limiter: limiter,
+		Secure: cfg.IsProduction(),
+	}
+	stepUpAPI.Register(ginEngine.Group(""))
 	scopeAPI := &httpapi.ScopeAPI{Store: store, Svc: scopeSvc, Production: cfg.IsProduction()}
 	scopeAPI.Register(ginEngine.Group(""))
 	studentSvc := student.New(database.Pool, scopeSvc, settingsStore, signer)
@@ -141,7 +146,7 @@ func main() {
 	gmAPI.Register(ginEngine.Group(""))
 	adminSvc := admin.New(database, scopeSvc)
 	adminSvc.SetStore(&settingsStoreAdapter{store: settingsStore})
-	adminAPI := &httpapi.AdminAPI{Svc: adminSvc, Store: store, StudentFinance: studentSvc, Archive: arStore}
+	adminAPI := &httpapi.AdminAPI{Svc: adminSvc, Store: store, StudentFinance: studentSvc, Archive: arStore, Signer: signer}
 	adminAPI.Register(ginEngine.Group(""))
 	adminAPI.Graduation = graduation.New(database.Pool, settingsStore, studentSvc)
 	payrollEngine := payroll.New(database.Pool, settingsStore)

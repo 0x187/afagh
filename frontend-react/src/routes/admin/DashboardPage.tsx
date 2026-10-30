@@ -60,6 +60,8 @@ const MODULES = [
   { to: '/admin/tuition', label: 'موتور شهریه', icon: Calculator, tone: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300' },
   { to: '/admin/defense-scheduling', label: 'برنامه‌ریزی دفاع', icon: Gavel, tone: 'bg-fuchsia-100 text-fuchsia-700 dark:bg-fuchsia-950 dark:text-fuchsia-300' },
   { to: '/admin/short-courses', label: 'دوره‌های آزاد', icon: BookOpen, tone: 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-300' },
+  { to: '/admin/lesson-plans', label: 'پایش طرح درس', icon: BookOpenCheck, tone: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300' },
+  { to: '/admin/regulation-check', label: 'بررسی آیین‌نامه', icon: ShieldCheck, tone: 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' },
   { to: '/admin/departments', label: 'دانشکده‌ها و گروه‌ها', icon: ListChecks, tone: 'bg-lime-100 text-lime-700 dark:bg-lime-950 dark:text-lime-300' },
   { to: '/admin/staff', label: 'کارکنان و اساتید', icon: ShieldCheck, tone: 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300' },
   { to: '/admin/settings', label: 'تنظیمات سامانه', icon: Settings, tone: 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300' },
