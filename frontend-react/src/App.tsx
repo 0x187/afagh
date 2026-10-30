@@ -85,6 +85,7 @@ import { AdminRegulationCheckPage } from '@/routes/admin/RegulationCheckPage';
 import { AdminGradeCodesPage } from '@/routes/admin/GradeCodesPage';
 import { AdminBiPage } from '@/routes/admin/BiPage';
 import { AdminSanjeshImportPage } from '@/routes/admin/SanjeshImportPage';
+import { AdminEduReportsPage } from '@/routes/admin/EduReportsPage';
 import { NotFound } from '@/routes/NotFound';
 import { ExamTicketPage, VerifyEnrollmentPage, VerifyFinancePage, VerifyTranscriptPage } from '@/routes/public/PublicVerifyPages';
 import { StudentIdCardPage, VerifyCertificatePage, VerifyDegreePage } from '@/routes/public/PublicExtraPages';
@@ -200,6 +201,7 @@ export function App() {
           <Route path="admin/grade-status-codes" element={<AdminGradeCodesPage />} />
           <Route path="admin/bi" element={<AdminBiPage />} />
           <Route path="admin/sanjesh-import" element={<AdminSanjeshImportPage />} />
+          <Route path="admin/reports" element={<AdminEduReportsPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

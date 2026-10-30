@@ -65,6 +65,23 @@ export async function exportFinanceReport(kind: string, filters: ReportFilters):
   return res.data;
 }
 
+// ─────────────────── مرکز گزارش‌های آموزشی ───────────────────
+
+export async function getEduReportOptions(): Promise<ReportOptions> {
+  const res = await apiGet<{ ok: boolean; data: ReportOptions }>('/admin/reports/options');
+  return res.data;
+}
+
+export async function runEduReport(kind: string, filters: ReportFilters): Promise<ReportResult> {
+  const res = await apiPost<{ ok: boolean; data: ReportResult }>('/admin/reports/run', { kind, filters });
+  return res.data;
+}
+
+export async function exportEduReport(kind: string, filters: ReportFilters): Promise<{ header: string[]; lines: string[][] }> {
+  const res = await apiPost<{ ok: boolean; data: { header: string[]; lines: string[][] } }>('/admin/reports/export', { kind, filters });
+  return res.data;
+}
+
 // ─────────────────── صورت‌حساب دانشجو ───────────────────
 
 export type PickerStudent = {

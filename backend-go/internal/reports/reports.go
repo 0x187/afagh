@@ -244,6 +244,9 @@ func (s *Service) Run(ctx context.Context, user *session.User, uniCookie, kind s
 	case "bi-facilities":
 		return s.runBIFacilities(ctx, f)
 	}
+	if res, err := s.runEduCore(ctx, kind, f); res != nil || err != nil {
+		return res, err
+	}
 	return empty, nil
 }
 
