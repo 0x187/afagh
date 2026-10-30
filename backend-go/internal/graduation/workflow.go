@@ -19,6 +19,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
+	"backend-go/internal/irandoc"
 	"backend-go/internal/money"
 )
 
@@ -134,7 +135,10 @@ func (s *Service) RunIrandoc(ctx context.Context, auditID int64, trackingCode, t
 	if nationalCode != nil {
 		nc = *nationalCode
 	}
-	res := s.irandocCheck(ctx, nc, tracking, title, threshold)
+	check := irandoc.Check(ctx, s.Settings, irandoc.Params{
+		NationalCode: nc, TrackingCode: tracking, ThesisTitle: title, Threshold: threshold,
+	})
+	res := &IrandocOutcome{Passed: check.Decision == "AUTO_APPROVE", Similarity: check.SimilarityPercentage, Message: check.Message}
 	passed := res.Passed
 	status := "REJECTED"
 	if passed {
@@ -161,65 +165,6 @@ func (s *Service) RunIrandoc(ctx context.Context, auditID int64, trackingCode, t
 		_ = s.Students.AdvanceDossierByID(ctx, auditID)
 	}
 	return res, nil
-}
-
-func (s *Service) irandocCheck(ctx context.Context, nationalCode, tracking, title string, threshold float64) *IrandocOutcome {
-	base := ""
-	if s.Settings != nil {
-		v, _ := s.Settings.Get(ctx, "IRANDOC_BASE_URL")
-		base = strings.TrimRight(strings.TrimSpace(v), "/")
-	}
-	if base == "" {
-		return &IrandocOutcome{Passed: false, Similarity: 0,
-			Message: "سرویس همانندجویی ایرانداک پیکربندی نشده است (IRANDOC_BASE_URL)."}
-	}
-	body, _ := json.Marshal(map[string]any{
-		"national_id": nationalCode, "tracking_code": tracking,
-		"thesis_title": title, "doc_hash": nil, "max_allowed_threshold": threshold,
-	})
-	raw, err := safeJSONPost(ctx, base+"/similarity-check", body, nil)
-	if err != nil {
-		return &IrandocOutcome{Passed: false, Similarity: 0,
-			Message: "اتصال به سرویس همانندجویی ناموفق بود؛ بررسی دستی توسط کارشناس لازم است."}
-	}
-	var data map[string]any
-	if err := json.Unmarshal(raw, &data); err != nil {
-		return &IrandocOutcome{Passed: false, Similarity: 0, Message: "پاسخ سرویس نامعتبر است؛ بررسی دستی لازم است."}
-	}
-	sim := numberFromAny(firstNonNil(data["similarity"], data["similarity_percent"], data["similarityPercentage"]))
-	if sim < 0 {
-		return &IrandocOutcome{Passed: false, Similarity: 0, Message: "پاسخ سرویس فاقد درصد مشابهت است؛ بررسی دستی لازم است."}
-	}
-	passed := sim <= threshold
-	msg := fmt.Sprintf("همانندجویی انجام شد: مشابهت %s٪ در محدودهٔ مجاز (زیر %s٪).", trimFloat(sim), trimFloat(threshold))
-	if !passed {
-		msg = fmt.Sprintf("درصد مشابهت (%s٪) از سقف مجاز (%s٪) بیشتر است — نیاز به اصلاح متن.", trimFloat(sim), trimFloat(threshold))
-	}
-	return &IrandocOutcome{Passed: passed, Similarity: sim, Message: msg}
-}
-
-func firstNonNil(vals ...any) any {
-	for _, v := range vals {
-		if v != nil {
-			return v
-		}
-	}
-	return nil
-}
-
-func numberFromAny(v any) float64 {
-	switch x := v.(type) {
-	case float64:
-		return x
-	case json.Number:
-		f, _ := x.Float64()
-		return f
-	case string:
-		var f float64
-		fmt.Sscanf(x, "%f", &f)
-		return f
-	}
-	return -1
 }
 
 // safeJSONPost POST با گارد مقصد عمومی (بدون localhost/آی‌پی خصوصی).

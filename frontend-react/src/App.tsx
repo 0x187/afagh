@@ -68,6 +68,8 @@ import { AdminWarningsPage } from '@/routes/admin/WarningsPage';
 import { AdminGraduationPage } from '@/routes/admin/GraduationPage';
 import { AdminStudentCardsPage } from '@/routes/admin/StudentCardsPage';
 import { StudentCardPrintPage } from '@/routes/admin/StudentCardPrintPage';
+import { AdminDormPage } from '@/routes/admin/DormPage';
+import { AdminAdmissionsPage } from '@/routes/admin/AdmissionsPage';
 import { NotFound } from '@/routes/NotFound';
 import { ExamTicketPage, VerifyEnrollmentPage, VerifyFinancePage, VerifyTranscriptPage } from '@/routes/public/PublicVerifyPages';
 import { StudentIdCardPage, VerifyCertificatePage, VerifyDegreePage } from '@/routes/public/PublicExtraPages';
@@ -166,6 +168,8 @@ export function App() {
           <Route path="admin/graduation" element={<AdminGraduationPage />} />
           <Route path="admin/student-cards" element={<AdminStudentCardsPage />} />
           <Route path="admin/student-cards/card/:studentId" element={<StudentCardPrintPage />} />
+          <Route path="admin/dorm" element={<AdminDormPage />} />
+          <Route path="admin/admissions" element={<AdminAdmissionsPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

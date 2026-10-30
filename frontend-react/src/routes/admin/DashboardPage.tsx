@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import {
+  BedDouble,
   BellRing,
   BookOpenCheck,
   CalendarRange,
@@ -11,6 +12,7 @@ import {
   ListChecks,
   Settings,
   ShieldCheck,
+  UserPlus,
   Users,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -39,6 +41,8 @@ const MODULES = [
   { to: '/admin/warnings', label: 'هشدارهای زمان‌بندی‌شده', icon: BellRing, tone: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300' },
   { to: '/admin/graduation', label: 'فارغ‌التحصیلی و مدارک', icon: GraduationCap, tone: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300' },
   { to: '/admin/student-cards', label: 'کارت دانشجویی', icon: IdCard, tone: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300' },
+  { to: '/admin/dorm', label: 'سکونت خوابگاه', icon: BedDouble, tone: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300' },
+  { to: '/admin/admissions', label: 'پذیرش دانشجو', icon: UserPlus, tone: 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-300' },
   { to: '/admin/departments', label: 'دانشکده‌ها و گروه‌ها', icon: ListChecks, tone: 'bg-lime-100 text-lime-700 dark:bg-lime-950 dark:text-lime-300' },
   { to: '/admin/staff', label: 'کارکنان و اساتید', icon: ShieldCheck, tone: 'bg-slate-200 text-slate-700 dark:bg-slate-800 dark:text-slate-300' },
   { to: '/admin/settings', label: 'تنظیمات سامانه', icon: Settings, tone: 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300' },
