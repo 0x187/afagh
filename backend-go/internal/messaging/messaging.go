@@ -1,8 +1,8 @@
 // ═══ ارسال اعلان چندکاناله — پورت lib/messaging.ts ═══
 //
-//  پیام درون‌سامانه‌ای را هر ماژول خودش درج می‌کند؛ این سرویس کانال‌های
-//  بیرونی (پیامک/پیام‌رسان) را می‌فرستد و هر تلاش را در notification_deliveries
-//  ثبت می‌کند. هیچ نشانی/کلیدی سخت‌کد نیست — همه از تنظیمات خوانده می‌شود.
+//	پیام درون‌سامانه‌ای را هر ماژول خودش درج می‌کند؛ این سرویس کانال‌های
+//	بیرونی (پیامک/پیام‌رسان) را می‌فرستد و هر تلاش را در notification_deliveries
+//	ثبت می‌کند. هیچ نشانی/کلیدی سخت‌کد نیست — همه از تنظیمات خوانده می‌شود.
 package messaging
 
 import (
@@ -35,12 +35,12 @@ func New(pool *pgxpool.Pool, settingsStore *settings.Store) *Service {
 
 // DeliveryResult نتیجهٔ یک کانال.
 type DeliveryResult struct {
-	Channel    string  `json:"channel"`
-	Target     *string `json:"target"`
-	Status     string  `json:"status"` // SENT | FAILED | SKIPPED
-	Error      *string `json:"error,omitempty"`
+	Channel     string  `json:"channel"`
+	Target      *string `json:"target"`
+	Status      string  `json:"status"` // SENT | FAILED | SKIPPED
+	Error       *string `json:"error,omitempty"`
 	ProviderRef *string `json:"providerRef,omitempty"`
-	DurationMs int     `json:"durationMs,omitempty"`
+	DurationMs  int     `json:"durationMs,omitempty"`
 }
 
 var channelLabels = map[string]string{
@@ -271,6 +271,12 @@ func (s *Service) SendMessenger(ctx context.Context, channel, chatID, text strin
 // NotifyExternal ارسال بیرونی یک رویداد (پیامک/پیام‌رسان) + ثبت تحویل‌ها.
 // پیام درون‌سامانه را فراخوان درج کرده است؛ این‌جا فقط کانال‌های بیرونی.
 func (s *Service) NotifyExternal(ctx context.Context, userID int64, eventCode, text string) {
+	s.NotifyExternalWithChannels(ctx, userID, eventCode, text, nil)
+}
+
+// NotifyExternalWithChannels همان NotifyExternal با محدودسازی اختیاری کانال‌ها
+// (SCHED_WARN_CHANNELS). لیست خالی/nil یعنی «همهٔ کانال‌های فعال».
+func (s *Service) NotifyExternalWithChannels(ctx context.Context, userID int64, eventCode, text string, channels []string) {
 	if s == nil || userID <= 0 {
 		return
 	}
@@ -292,8 +298,25 @@ func (s *Service) NotifyExternal(ctx context.Context, userID int64, eventCode, t
 		select id from notifications where "userId" = $1 and "eventCode" = $2 order by id desc limit 1`, userID, eventCode).Scan(&id); err == nil {
 		notificationID = &id
 	}
+	active := s.activeChannels(ctx)
+	if len(channels) > 0 {
+		allowed := map[string]bool{}
+		for _, c := range channels {
+			c = strings.ToUpper(strings.TrimSpace(c))
+			if validChannels[c] {
+				allowed[c] = true
+			}
+		}
+		filtered := []string{}
+		for _, c := range active {
+			if allowed[c] {
+				filtered = append(filtered, c)
+			}
+		}
+		active = filtered
+	}
 	results := []DeliveryResult{}
-	for _, ch := range s.activeChannels(ctx) {
+	for _, ch := range active {
 		if ch == "INAPP" {
 			continue
 		}
@@ -373,4 +396,12 @@ func NotifyExternalDefault(ctx context.Context, userID int64, eventCode, text st
 		return
 	}
 	Default.NotifyExternal(ctx, userID, eventCode, text)
+}
+
+// NotifyExternalDefaultChannels ارسال با محدودسازی کانال‌ها.
+func NotifyExternalDefaultChannels(ctx context.Context, userID int64, eventCode, text string, channels []string) {
+	if Default == nil || userID <= 0 {
+		return
+	}
+	Default.NotifyExternalWithChannels(ctx, userID, eventCode, text, channels)
 }

@@ -62,6 +62,9 @@ func (e *Engine) Jobs() []Job {
 		{Name: "workflow-events", SecretKey: "WORKFLOW_CRON_SECRET", RateKey: "cron:workflow-events",
 			Description: "اجرای دوبارهٔ رویدادهای ناموفق گردش کار",
 			Run:         e.runWorkflowEvents},
+		{Name: "scheduled-warnings", SecretKey: "SCHED_WARN_CRON_SECRET", RateKey: "cron:sched-warnings",
+			Description: "ارسال هشدارهای زمان‌بندی‌شدهٔ سررسیدشده روی کانال‌های فعال",
+			Run:         e.runScheduledWarnings},
 	}
 }
 

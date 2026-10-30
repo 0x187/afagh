@@ -64,6 +64,7 @@ import { AdminFinanceAdvancedPage } from '@/routes/admin/FinanceAdvancedPage';
 import { AdminWelfarePage } from '@/routes/admin/FinanceWelfarePage';
 import { AdminDisciplinePage } from '@/routes/admin/DisciplinePage';
 import { AdminCouncilPage } from '@/routes/admin/CouncilPage';
+import { AdminWarningsPage } from '@/routes/admin/WarningsPage';
 import { NotFound } from '@/routes/NotFound';
 import { ExamTicketPage, VerifyEnrollmentPage, VerifyFinancePage, VerifyTranscriptPage } from '@/routes/public/PublicVerifyPages';
 import { StudentIdCardPage, VerifyCertificatePage, VerifyDegreePage } from '@/routes/public/PublicExtraPages';
@@ -158,6 +159,7 @@ export function App() {
           <Route path="admin/archive" element={<AdminArchivePage />} />
           <Route path="admin/discipline" element={<AdminDisciplinePage />} />
           <Route path="admin/council" element={<AdminCouncilPage />} />
+          <Route path="admin/warnings" element={<AdminWarningsPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
