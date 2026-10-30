@@ -41,13 +41,15 @@ Caddy ─▶ Go edge (:8091)
 | ۱۲ | کنترل زمانی ثبت مالی + فرمول ویژهٔ دانشجو (override) | `admin/finance_timecontrol`, `admin/finance_override` | AdminFinanceAdvancedPage | b7398d2 |
 | ۱۲ | صندوق رفاه: صندوق‌ها، وام‌ها و انتساب صندوق به وام | `admin/finance_welfare` | AdminWelfarePage | 096b9a8 |
 | ۱۲ | مرکز گزارش‌های مالی (۷ گزارش + CSV) و صورت‌حساب/کارنامهٔ مالی رسمی با ریز دروس تعرفهٔ سما | `reports`, `bi`, `tuition/tariff`, `student/statement` | AdminFinanceReportsPage، AdminStudentStatementPage + FinancialTranscript | 44ad9fc |
+| ۱۲ | هشدارهای زمان‌بندی‌شده + کرون ارسال چندکاناله (`scheduled-warnings`, `SCHED_WARN_CHANNELS`) | `admin/warnings`, `cron/warnings` | AdminWarningsPage | 4da2e12 |
+| ۱۲ | میز فارغ‌التحصیلی: پویش/پرونده، تأیید، ایرانداک، تسویه موازی، سجاد/کد صحت، تمبر، صدور و تحویل مدرک، دپارتمان‌های تسویه، خدمات دانش‌آموختگان | `graduation` | AdminGraduationPage | eed697e |
 
-وضعیت فعلی: **۲۴ بستهٔ تست Go سبز** (شامل تست‌های مالی/شهریه/تعرفه/گزارش/BI
+وضعیت فعلی: **۲۵ بستهٔ تست Go سبز** (شامل مالی/شهریه/تعرفه/گزارش/BI/فارغ‌التحصیلی
 و ۱۷ تست پکیج حقوق)، **۲۸ تست Vitest سبز**، بیلد Go و TS/Vite سبز.
 
 ## سطوح API
 
-- مسیرهای Go: **۲۵۵** در ۱۵ فایل `internal/httpapi/*.go` (شامل auth، scope،
+- مسیرهای Go: **۲۸۰** در ۱۷ فایل `internal/httpapi/*.go` (شامل auth، scope،
   student، enroll، professor، groupmanager، admin، payroll، workflow، public، cron، reports).
 - نقاط مسئله‌دار که بایت‌به‌بایت سازگار پورت شده‌اند: زنجیرهٔ هش `audit_logs`،
   اسکریپت‌های Lua.waiting-room، تراز کانونی دفتر مالی (`ledger-balance`)،
@@ -62,8 +64,8 @@ Caddy ─▶ Go edge (:8091)
 - **مالی:** `tuition` (کل موتور شهریه UI). مرکز گزارش‌های مالی و
   صورت‌حساب/کارنامهٔ مالی منتقل شدند.
 - **ادمین:** `reports` (مرکز گزارش‌های آموزشی)، `admissions`، `student-cards`،
-  `saham`، `samin`، `bi`، `warnings`،
-  `dorm`، `discipline`/`council` (منتقل شده)، `graduation`، `defense-scheduling`،
+  `saham`، `samin`، `bi`،
+  `dorm`، `discipline`/`council`/`warnings`/`graduation` (منتقل شده)، `defense-scheduling`،
   `enrollment-approvals`/`enrollment-confirmation`، `manual-enroll`،
   `group-transfer`، `course-merge`، `equivalence-clusters`، `curriculum`،
   `regulation-check`، `grade-status-codes`، `lesson-plans`، `templates`، `codes`،
@@ -72,8 +74,8 @@ Caddy ─▶ Go edge (:8091)
   `verify/document`، `verify-degree/search`، `help`، `manual`، `alumni`،
   `proctor`، `messenger` (صفحهٔ اتصال پیام‌رسان)، `p/[code]`.
 - **یکپارچه‌ها:** poll worker پنج پیام‌رسان + توکن‌های اتصال (inbound جفت‌سازی)،
-  کرون‌های `greetings`، `scheduled-warnings`، `graduation-scan`،
-  `messenger-link-purge`، `bi-refresh`.
+  کرون‌های `greetings`، `graduation-scan`، `messenger-link-purge`، `bi-refresh`
+  (کرون `scheduled-warnings` منتقل شد).
 
 ## راهنمای سوییچ تدریجی (بدون داون‌تایم)
 
@@ -106,7 +108,9 @@ NEXT: AFAGH_NEXT_UPSTREAM=http://127.0.0.1:8080 (تا پایان مهاجرت)
 - `tsc -b` و `vite build` سبز؛ `vitest` (۲۸ تست) سبز.
 - QA مرورگر برای: کارتابل مالی/حقوق/گردش‌کار/انضباطی/شورا/بایگانی،
   تعاریف مالی، POS، مرکز گزارش‌های مالی (اجرای گزارش شهریه/کارتابل/BI)،
-  صورت‌حساب رسمی دانشجو (کارت‌ها، ریز دروس، نمودار) و صفحات عمومی استعلام
+  صورت‌حساب رسمی دانشجو (کارت‌ها، ریز دروس، نمودار)، هشدارهای زمان‌بندی‌شده
+  (ثبت→ارسال فوری→کرون→ارسال‌شده) و میز فارغ‌التحصیلی (خط لوله، پرونده،
+  دپارتمان‌ها، دانش‌آموختگان؛ صدور/استعلام آزمایشی سند) و صفحات عمومی استعلام
   (کارنامه، مالی، انتخاب واحد، کارت آزمون، کارت دانشجویی، مدرک، گواهینامه،
   دوره‌های آزاد) — با دادهٔ واقعی DB.
 
