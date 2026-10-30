@@ -78,6 +78,7 @@ import { AdminManualEnrollPage } from '@/routes/admin/ManualEnrollPage';
 import { AdminGroupTransferPage } from '@/routes/admin/GroupTransferPage';
 import { AdminTuitionRulesPage } from '@/routes/admin/TuitionRulesPage';
 import { AdminTuitionTariffPage } from '@/routes/admin/TuitionTariffPage';
+import { AdminDefenseSchedulingPage } from '@/routes/admin/DefenseSchedulingPage';
 import { NotFound } from '@/routes/NotFound';
 import { ExamTicketPage, VerifyEnrollmentPage, VerifyFinancePage, VerifyTranscriptPage } from '@/routes/public/PublicVerifyPages';
 import { StudentIdCardPage, VerifyCertificatePage, VerifyDegreePage } from '@/routes/public/PublicExtraPages';
@@ -186,6 +187,7 @@ export function App() {
           <Route path="admin/group-transfer" element={<AdminGroupTransferPage />} />
           <Route path="admin/tuition" element={<AdminTuitionRulesPage />} />
           <Route path="admin/tuition/tariff" element={<AdminTuitionTariffPage />} />
+          <Route path="admin/defense-scheduling" element={<AdminDefenseSchedulingPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>
