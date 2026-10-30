@@ -70,6 +70,8 @@ import { AdminStudentCardsPage } from '@/routes/admin/StudentCardsPage';
 import { StudentCardPrintPage } from '@/routes/admin/StudentCardPrintPage';
 import { AdminDormPage } from '@/routes/admin/DormPage';
 import { AdminAdmissionsPage } from '@/routes/admin/AdmissionsPage';
+import { AdminEnrollmentApprovalsPage } from '@/routes/admin/EnrollmentApprovalsPage';
+import { AdminEnrollmentConfirmationPage } from '@/routes/admin/EnrollmentConfirmationPage';
 import { NotFound } from '@/routes/NotFound';
 import { ExamTicketPage, VerifyEnrollmentPage, VerifyFinancePage, VerifyTranscriptPage } from '@/routes/public/PublicVerifyPages';
 import { StudentIdCardPage, VerifyCertificatePage, VerifyDegreePage } from '@/routes/public/PublicExtraPages';
@@ -170,6 +172,8 @@ export function App() {
           <Route path="admin/student-cards/card/:studentId" element={<StudentCardPrintPage />} />
           <Route path="admin/dorm" element={<AdminDormPage />} />
           <Route path="admin/admissions" element={<AdminAdmissionsPage />} />
+          <Route path="admin/enrollment-approvals" element={<AdminEnrollmentApprovalsPage />} />
+          <Route path="admin/enrollment-confirmation" element={<AdminEnrollmentConfirmationPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

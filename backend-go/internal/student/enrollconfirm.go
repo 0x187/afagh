@@ -3,6 +3,7 @@ package student
 
 import (
 	"context"
+	"errors"
 	"strings"
 
 	"backend-go/internal/qr"
@@ -165,4 +166,39 @@ func (s *Service) GetEnrollConfirm(ctx context.Context, userID int64, termCookie
 	}
 	resp.Data = data
 	return resp, nil
+}
+
+// IssueEnrollConfirmFor صدور توکن تأییدیهٔ انتخاب واحد توسط کارشناس ادمین.
+// خروجی: توکن، زمان انقضای ISO.
+func (s *Service) IssueEnrollConfirmFor(ctx context.Context, studentID, termID int64) (string, string, error) {
+	var userID int64
+	var studentCode string
+	var universityID *int64
+	if err := s.Pool.QueryRow(ctx, `
+		select "userId", "studentCode", "universityId" from students where id = $1`, studentID).
+		Scan(&userID, &studentCode, &universityID); err != nil {
+		return "", "", errNoStudent
+	}
+	ttlMin := 20160.0
+	if s.Settings != nil {
+		ttlMin = s.Settings.GetNumber(ctx, "ENROLL_CONFIRM_TTL_MINUTES", 20160)
+	}
+	if !(ttlMin > 0) {
+		return "", "", errors.New("مدت اعتبار تأییدیهٔ انتخاب واحد نامعتبر است.")
+	}
+	if ttlMin > 525600 {
+		ttlMin = 525600
+	}
+	uni := int64(0)
+	if universityID != nil {
+		uni = *universityID
+	}
+	token, err := s.Signer.Sign(ctx, map[string]any{
+		"uid": userID, "term": termID, "sid": studentID, "sc": studentCode,
+		"uni": uni, "kind": "ENROLL_CONFIRM",
+	}, int(ttlMin)*60)
+	if err != nil {
+		return "", "", err
+	}
+	return token, expiresAtISO(int(ttlMin) * 60), nil
 }
