@@ -11,11 +11,13 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"backend-go/internal/admin"
 	"backend-go/internal/archive"
 	"backend-go/internal/bi"
 	"backend-go/internal/graduation"
+	"backend-go/internal/messaging"
 	"backend-go/internal/reports"
 	"backend-go/internal/scope"
 	"backend-go/internal/session"
@@ -33,6 +35,8 @@ type AdminAPI struct {
 	Graduation     *graduation.Service
 	Signer         *verification.Signer
 	BI             *bi.Service
+	Messaging      *messaging.Service
+	Pool           *pgxpool.Pool
 }
 
 func (a *AdminAPI) Register(r gin.IRouter) {
@@ -188,6 +192,9 @@ func (a *AdminAPI) Register(r gin.IRouter) {
 	r.PATCH("/admin/curriculum/grade-codes", a.curriculumGradeCodes)
 	r.GET("/admin/grade-thresholds", a.gradeThresholdsGet)
 	r.POST("/admin/grade-thresholds", a.gradeThresholdsSave)
+	r.GET("/admin/templates", a.templatesList)
+	r.POST("/admin/templates", a.templatesSave)
+	r.POST("/admin/templates/test", a.templatesTest)
 	r.GET("/admin/curriculum/overview", a.curriculumOverview)
 	r.GET("/admin/curriculum/versions/:id", a.curriculumDetail)
 	r.POST("/admin/curriculum/validate", a.curriculumValidate)

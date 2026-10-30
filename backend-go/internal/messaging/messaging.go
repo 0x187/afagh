@@ -405,3 +405,41 @@ func NotifyExternalDefaultChannels(ctx context.Context, userID int64, eventCode,
 	}
 	Default.NotifyExternalWithChannels(ctx, userID, eventCode, text, channels)
 }
+
+// SendTestMessage پیام آزمایشی به یک حساب در یک کانال (پورت sendTestMessage).
+// متن ثابت است؛ مسیر ارسال و ثبت تحویل دقیقاً همان اعلان‌های کارتابل است.
+func (s *Service) SendTestMessage(ctx context.Context, userID int64, channel string) DeliveryResult {
+	const text = "پیام آزمایشی سامانهٔ جامع آموزشی — تنظیمات ارسال شما درست کار می‌کند."
+	if channel == "INAPP" {
+		_, err := s.Pool.Exec(ctx, `insert into notifications ("userId","eventCode",payload) values ($1,'TEST_NOTIFY',$2)`,
+			userID, `{"text":`+jsonQuote(text)+`}`)
+		if err != nil {
+			return DeliveryResult{Channel: channel, Status: "FAILED", Error: ptr(err.Error())}
+		}
+		return DeliveryResult{Channel: channel, Status: "SENT"}
+	}
+	target := s.addressFor(ctx, userID, channel)
+	var r DeliveryResult
+	if target == nil || strings.TrimSpace(*target) == "" {
+		r = DeliveryResult{Channel: channel, Status: "SKIPPED", Error: ptr("نشانی کاربر در این کانال ثبت نشده است.")}
+	} else if channel == "SMS" {
+		r = s.SendSMS(ctx, *target, text)
+	} else {
+		r = s.SendMessenger(ctx, channel, *target, text)
+	}
+	_, _ = s.Pool.Exec(ctx, `
+		insert into notification_deliveries ("userId","eventCode",channel,target,status,error,body,"durationMs")
+		values ($1,'TEST_NOTIFY',$2,$3,$4,$5,$6,$7)`,
+		userID, r.Channel, r.Target, r.Status, r.Error, text, r.DurationMs)
+	return r
+}
+
+// SendMessengerDirect ارسال مستقیم به یک chatId (بدون حساب کاربری).
+func (s *Service) SendMessengerDirect(ctx context.Context, channel, chatID string) DeliveryResult {
+	return s.SendMessenger(ctx, channel, chatID, "پیام آزمایشی سامانهٔ جامع آموزشی — تنظیمات ارسال شما درست کار می‌کند.")
+}
+
+func jsonQuote(s string) string {
+	raw, _ := json.Marshal(s)
+	return string(raw)
+}

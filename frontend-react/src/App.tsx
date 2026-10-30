@@ -88,6 +88,7 @@ import { AdminSanjeshImportPage } from '@/routes/admin/SanjeshImportPage';
 import { AdminEduReportsPage } from '@/routes/admin/EduReportsPage';
 import { AdminCategoryPage } from '@/routes/admin/CategoryPage';
 import { AdminCurriculumPage } from '@/routes/admin/CurriculumPage';
+import { AdminTemplatesPage } from '@/routes/admin/TemplatesPage';
 import { NotFound } from '@/routes/NotFound';
 import { ExamTicketPage, VerifyEnrollmentPage, VerifyFinancePage, VerifyTranscriptPage } from '@/routes/public/PublicVerifyPages';
 import { StudentIdCardPage, VerifyCertificatePage, VerifyDegreePage } from '@/routes/public/PublicExtraPages';
@@ -206,6 +207,7 @@ export function App() {
           <Route path="admin/reports" element={<AdminEduReportsPage />} />
           <Route path="admin/c/:group" element={<AdminCategoryPage />} />
           <Route path="admin/curriculum" element={<AdminCurriculumPage />} />
+          <Route path="admin/templates" element={<AdminTemplatesPage />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

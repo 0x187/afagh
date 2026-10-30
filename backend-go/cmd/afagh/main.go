@@ -189,6 +189,8 @@ func main() {
 	adminAPI.Reports.Graduation = adminAPI.Graduation
 	messagingSvc := messaging.New(database.Pool, settingsStore)
 	messaging.Default = messagingSvc
+	adminAPI.Messaging = messagingSvc
+	adminAPI.Pool = database.Pool
 	tuitionEngine := tuition.New(database.Pool, settingsStore)
 	studentSvc.Tuition = tuitionEngine
 	workflowEngine := workflow.New(database.Pool, settingsStore)
