@@ -65,6 +65,9 @@ const CARDS: CardDef[] = [
   { kind: 'gpa-refresh-preview', cat: 'program', icon: '🧮', title: 'به‌روزرسانی معدل نیمسال', needsTerm: true },
   { kind: 'profile-refresh', cat: 'program', icon: '👤', title: 'به‌روزرسانی نیمرخ تحصیلی' },
   { kind: 'portal-export', cat: 'research', icon: '📡', title: 'ارسال به پرتال دانش‌آموختگان' },
+  { kind: 'proposals', cat: 'research', icon: '📄', title: 'پروپوزال' },
+  { kind: 'defenses', cat: 'research', icon: '🎤', title: 'لیست دفاعیات' },
+  { kind: 'pending-requests', cat: 'research', icon: '⏳', title: 'درخواست‌های درانتظار' },
 ];
 
 const COURSE_LEVEL_KINDS = new Set([
