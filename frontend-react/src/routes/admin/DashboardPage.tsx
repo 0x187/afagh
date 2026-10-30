@@ -40,7 +40,7 @@ const STATUS_FA: Record<string, string> = {
   SUBMITTED: 'ثبت‌شده', IN_REVIEW: 'در بررسی', APPROVED: 'تأییدشده', REJECTED: 'ردشده', RETURNED: 'بازگشتی',
 };
 
-const MODULES = [
+export const MODULES = [
   { to: '/admin/students', label: 'مدیریت دانشجویان', icon: Users, tone: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300' },
   { to: '/admin/offerings', label: 'ارائه‌ها و کلاس‌ها', icon: CalendarRange, tone: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300' },
   { to: '/admin/weekly-board', label: 'تختهٔ هفتگی', icon: CalendarRange, tone: 'bg-sky-100 text-sky-700 dark:bg-sky-950 dark:text-sky-300' },
