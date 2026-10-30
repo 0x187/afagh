@@ -38,6 +38,8 @@ Caddy ─▶ Go edge (:8091)
 | ۱۰ | کرون‌ها (پویش مهلت bypass، یادآوری چک، رویدادهای گردش‌کار)، ارسال چندکاناله (SMS + ۵ پیام‌رسان)، بایگانی MinIO | `cron`, `messaging`, `archive` | AdminArchivePage | faeae24, d104c12 |
 | ۱۲ | حقوق تکمیلی: سمت‌های موظفی و انتساب ترمی، نقش‌های تدریس، نقش دستی ارائه، پوشش فرمول، ابلاغ‌ها، آیین‌نامه‌ها، اعتراض + فیش پورتال استاد، پرداخت‌های امتحانی، دفتر پایان‌نامه | `payroll` (roles/decrees/objections/regulations/exam_payments/thesis_ledger) | PayrollRolesPage، TeachingRolesPage، PayrollCoveragePage، PayrollDecreesPage، PayrollRegsObjectionsPage، PayrollOperationsPage، ProfessorPayrollPage | 120f761..f220bee |
 | ۱۲ | مالی تکمیلی: ضریب نیمسال (با سقف ±۲۰٪)، نوع مبلغ موضوعی، تخصیص دانشجو | `admin/finance_extra` | تب ویرایشگر در FinanceRulesPage | 996e254 |
+| ۱۲ | کنترل زمانی ثبت مالی + فرمول ویژهٔ دانشجو (override) | `admin/finance_timecontrol`, `admin/finance_override` | AdminFinanceAdvancedPage | b7398d2 |
+| ۱۲ | صندوق رفاه: صندوق‌ها، وام‌ها و انتساب صندوق به وام | `admin/finance_welfare` | AdminWelfarePage | 096b9a8 |
 
 وضعیت فعلی: **۲۲ بستهٔ تست Go سبز** (۱۷ تست پکیج حقوق + تست‌های مالی/شهریه/
 ورود/…)، **۲۸ تست Vitest سبز**، بیلد Go و TS/Vite سبز.
@@ -56,8 +58,9 @@ Caddy ─▶ Go edge (:8091)
 تا وقتی این فهرست خالی نشده، Next.js باید زنده بماند:
 
 - **حقوق:** شبیه‌ساز سناریو (`?tab=simulator` — دادهٔ نمایشی).
-- **مالی:** `reports`، `welfare`، `time-control`، `student-formula`،
-  `tuition` (کل موتور شهریه UI). (ضرایب/مبالغ موضوعی منتقل شدند.)
+- **مالی:** `reports` (مرکز گزارش‌های اجرایی + صورت‌حساب دانشجو) و
+  `tuition` (کل موتور شهریه UI). (رفاه، کنترل زمانی، فرمول ویژه، ضرایب و
+  مبالغ موضوعی منتقل شدند.)
 - **ادمین:** `admissions`، `student-cards`، `saham`، `samin`، `bi`، `warnings`،
   `dorm`، `discipline`/`council` (منتقل شده)، `graduation`، `defense-scheduling`،
   `enrollment-approvals`/`enrollment-confirmation`، `manual-enroll`،
