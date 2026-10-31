@@ -155,6 +155,7 @@ func main() {
 	(&httpapi.EduExpertAPI{Svc: adminSvc, Store: store}).Register(ginEngine.Group(""))
 	(&httpapi.SchedulingSuiteAPI{Admin: adminAPI}).Register(ginEngine.Group(""))
 	(&httpapi.LastPagesAPI{Admin: adminAPI}).Register(ginEngine.Group(""))
+	(&httpapi.ExamHandoverPublicAPI{Admin: adminAPI}).Register(ginEngine.Group(""))
 	adminAPI.Graduation = graduation.New(database.Pool, settingsStore, studentSvc)
 	payrollEngine := payroll.New(database.Pool, settingsStore)
 	payrollApprovals := payroll.NewApprovals(payrollEngine)

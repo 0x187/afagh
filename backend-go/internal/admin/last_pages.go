@@ -3117,3 +3117,120 @@ func (s *Service) lpCountOfferingsInTerm(ctx context.Context, ids []int64, termI
 type pgxQuerier interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
+
+// VerifyExamHandover عمومی: توکن را می‌سنجد و شرح تحویل را از DB می‌خواند.
+func (s *Service) VerifyExamHandover(ctx context.Context, rawToken string, signer *verification.Signer) (map[string]any, error) {
+	if signer == nil {
+		return nil, errors.New("امضای توکن پیکربندی نشده است.")
+	}
+	payload, ok, err := signer.Verify(ctx, rawToken)
+	if err != nil || !ok {
+		reason := "BAD_TOKEN"
+		msg := "کد تحویل نامعتبر یا دستکاری‌شده است."
+		if err == verification.ErrExpired {
+			reason = "EXPIRED"
+			msg = "این کد تحویل منقضی شده است؛ فرستنده باید کد تازه بسازد."
+		}
+		return map[string]any{"ok": false, "reason": reason, "message": msg}, nil
+	}
+	if fmt.Sprint(payload["kind"]) != "EXAM_HANDOVER" {
+		return map[string]any{"ok": false, "reason": "BAD_TOKEN", "message": "نوع کد با تحویل اوراق همخوانی ندارد."}, nil
+	}
+	step := fmt.Sprint(payload["step"])
+	sid := toInt64(payload["sid"])
+	hid := toInt64(payload["hid"])
+	oid := toInt64(payload["oid"])
+
+	stepLabel := map[string]string{
+		"VAULT": "دریافت اوراق سالن توسط مخزن", "FINALIZE": "نهاییسازی تحویل اوراق به مخزن",
+		"INSTRUCTOR": "تحویل اوراق درس به استاد", "ARCHIVE": "بازگشت اوراق به بایگانی",
+	}[step]
+	title := "تحویل اوراق امتحان"
+	details := []map[string]string{}
+	if step == "INSTRUCTOR" || step == "ARCHIVE" {
+		if oid <= 0 {
+			return map[string]any{"ok": false, "reason": "NOT_FOUND", "message": "ارائهٔ درس در کد تحویل مشخص نیست."}, nil
+		}
+		var cTitle, cCode, profName string
+		err := s.DB.Pool.QueryRow(ctx, `
+			select c.title, c.code, coalesce(u."firstName" || ' ' || u."lastName",'—')
+			  from course_offerings o join courses c on c.id = o."courseId"
+			  left join staff st on st.id = o."professorId"
+			  left join users u on u.id = st."userId"
+			 where o.id = $1`, oid).Scan(&cTitle, &cCode, &profName)
+		if err != nil {
+			return map[string]any{"ok": false, "reason": "NOT_FOUND", "message": "ارائهٔ درس یافت نشد."}, nil
+		}
+		title = "تحویل اوراق درس " + cTitle
+		details = append(details, map[string]string{"label": "درس", "value": cCode + " — " + cTitle}, map[string]string{"label": "استاد", "value": profName})
+	} else if sid > 0 {
+		var examDate, startTime string
+		var courseCount int
+		err := s.DB.Pool.QueryRow(ctx, `
+			select es."examDate", es."startTime", (select count(*)::int from exam_course_packets ep where ep."examId" = es.id)
+			  from exam_sessions es where es.id = $1`, sid).Scan(&examDate, &startTime, &courseCount)
+		if err == nil {
+			details = append(details, map[string]string{"label": "تاریخ امتحان", "value": examDate},
+				map[string]string{"label": "ساعت", "value": startTime}, map[string]string{"label": "تعداد درس", "value": fmt.Sprint(courseCount)})
+		}
+	}
+	details = append(details, map[string]string{"label": "نوع تحویل", "value": stepLabel})
+	return map[string]any{"ok": true, "step": step, "title": title, "details": details, "sessionId": sid, "hallId": hid, "offeringId": oid}, nil
+}
+
+// ConfirmExamHandover تأیید تحویل با هویتِ کاربر از نشست.
+func (s *Service) ConfirmExamHandover(ctx context.Context, user *session.User, rawToken string, signer *verification.Signer) (map[string]any, error) {
+	res, err := s.VerifyExamHandover(ctx, rawToken, signer)
+	if err != nil {
+		return nil, err
+	}
+	if ok, _ := res["ok"].(bool); !ok {
+		return res, nil
+	}
+	step := fmt.Sprint(res["step"])
+	sid := toInt64(res["sessionId"])
+	oid := toInt64(res["offeringId"])
+	var staffID int64
+	if err := s.DB.Pool.QueryRow(ctx, `select id from staff where "userId" = $1 limit 1`, user.ID).Scan(&staffID); err != nil {
+		return nil, errors.New("پروندهٔ پرسنلی یافت نشد.")
+	}
+	switch step {
+	case "VAULT":
+		_, err = s.DB.Pool.Exec(ctx, `update exam_sessions set "vaultReceivedAt" = now() where id = $1 and "vaultReceivedAt" is null`, sid)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"message": "دریافت اوراق سالن توسط مخزن ثبت شد."}, nil
+	case "FINALIZE":
+		_, err = s.DB.Pool.Exec(ctx, `update exam_sessions set "handoverFinalizedAt" = now() where id = $1 and "handoverFinalizedAt" is null`, sid)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"message": "نهاییسازی تحویل اوراق به مخزن ثبت شد."}, nil
+	case "INSTRUCTOR":
+		_, err = s.DB.Pool.Exec(ctx, `update course_offerings set "papersDeliveredAt" = now() where id = $1 and "papersDeliveredAt" is null`, oid)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"message": "تحویل اوراق درس به استاد ثبت شد."}, nil
+	case "ARCHIVE":
+		_, err = s.DB.Pool.Exec(ctx, `update course_offerings set "papersArchivedAt" = now() where id = $1 and "papersArchivedAt" is null`, oid)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"message": "بازگشت اوراق به بایگانی ثبت شد."}, nil
+	}
+	return nil, errors.New("نوع تحویل نامعتبر است.")
+}
+
+func toInt64(v any) int64 {
+	switch x := v.(type) {
+	case float64:
+		return int64(x)
+	case int64:
+		return x
+	case int:
+		return int64(x)
+	}
+	return 0
+}

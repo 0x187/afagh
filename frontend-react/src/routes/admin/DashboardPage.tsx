@@ -71,6 +71,7 @@ export const MODULES = [
   { to: '/admin/evaluations', label: 'ارزشیابی اساتید', icon: GraduationCap, tone: 'bg-rose-100 text-rose-700 dark:bg-rose-950 dark:text-rose-300' },
   { to: '/admin/finance', label: 'امور مالی', icon: CreditCard, tone: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300' },
   { to: '/admin/payroll', label: 'حقوق و دستمزد', icon: Landmark, tone: 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300' },
+  { to: '/admin/payroll/simulator', label: 'شبیه‌ساز حقوق', icon: Calculator, tone: 'bg-purple-100 text-purple-700 dark:bg-purple-950 dark:text-purple-300' },
   { to: '/admin/workflows', label: 'گردش‌کار', icon: ClipboardList, tone: 'bg-cyan-100 text-cyan-700 dark:bg-cyan-950 dark:text-cyan-300' },
   { to: '/admin/warnings', label: 'هشدارهای زمان‌بندی‌شده', icon: BellRing, tone: 'bg-orange-100 text-orange-700 dark:bg-orange-950 dark:text-orange-300' },
   { to: '/admin/graduation', label: 'فارغ‌التحصیلی و مدارک', icon: GraduationCap, tone: 'bg-teal-100 text-teal-700 dark:bg-teal-950 dark:text-teal-300' },
