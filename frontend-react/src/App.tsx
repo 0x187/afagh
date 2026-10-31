@@ -45,6 +45,7 @@ import { AdminCodesPage } from '@/routes/admin/CodesPage';
 import { AdminMigrationPage, AdminSahamPage, AdminSaminPage } from '@/routes/admin/MigrationSahamSaminPages';
 import { AdminCodeHubPage, AdminStudentFinancePage, AdminLoginShowcasePage } from '@/routes/admin/SmallAdminPages';
 import { AdminRegulationsPage, AdminEduExpertAssignPage, AdminSchedulingPage } from '@/routes/admin/SchedulingSuitePages';
+import { AdminBroadcastPage, AdminBypassPage, AdminClassSessionsPage, AdminExamHandoverPage, AdminOfferingEditorPage, AdminScheduleConflictsPage } from '@/routes/admin/LastAdminPages';
 import { AdminStaffPage } from '@/routes/admin/StaffPage';
 import { AdminOfferingsPage } from '@/routes/admin/OfferingsPage';
 import { AdminEvaluationsPage } from '@/routes/admin/EvaluationsPage';
@@ -182,6 +183,12 @@ export function App() {
           <Route path="admin/regulations" element={<AdminRegulationsPage />} />
           <Route path="admin/edu-expert-assign" element={<AdminEduExpertAssignPage />} />
           <Route path="admin/scheduling" element={<AdminSchedulingPage />} />
+          <Route path="admin/broadcast" element={<AdminBroadcastPage />} />
+          <Route path="admin/bypass" element={<AdminBypassPage />} />
+          <Route path="admin/class-sessions" element={<AdminClassSessionsPage />} />
+          <Route path="admin/exams/handover" element={<AdminExamHandoverPage />} />
+          <Route path="admin/offering-editor" element={<AdminOfferingEditorPage />} />
+          <Route path="admin/schedule-conflicts" element={<AdminScheduleConflictsPage />} />
           <Route path="admin/staff" element={<AdminStaffPage />} />
           <Route path="admin/offerings" element={<AdminOfferingsPage />} />
           <Route path="admin/evaluations" element={<AdminEvaluationsPage />} />
