@@ -44,6 +44,7 @@ import { AdminDepartmentsPage } from '@/routes/admin/DepartmentsPage';
 import { AdminCodesPage } from '@/routes/admin/CodesPage';
 import { AdminMigrationPage, AdminSahamPage, AdminSaminPage } from '@/routes/admin/MigrationSahamSaminPages';
 import { AdminCodeHubPage, AdminStudentFinancePage, AdminLoginShowcasePage } from '@/routes/admin/SmallAdminPages';
+import { AdminRegulationsPage, AdminEduExpertAssignPage, AdminSchedulingPage } from '@/routes/admin/SchedulingSuitePages';
 import { AdminStaffPage } from '@/routes/admin/StaffPage';
 import { AdminOfferingsPage } from '@/routes/admin/OfferingsPage';
 import { AdminEvaluationsPage } from '@/routes/admin/EvaluationsPage';
@@ -178,6 +179,9 @@ export function App() {
           <Route path="admin/code-hub" element={<AdminCodeHubPage />} />
           <Route path="admin/student-finance" element={<AdminStudentFinancePage />} />
           <Route path="admin/login-showcase" element={<AdminLoginShowcasePage />} />
+          <Route path="admin/regulations" element={<AdminRegulationsPage />} />
+          <Route path="admin/edu-expert-assign" element={<AdminEduExpertAssignPage />} />
+          <Route path="admin/scheduling" element={<AdminSchedulingPage />} />
           <Route path="admin/staff" element={<AdminStaffPage />} />
           <Route path="admin/offerings" element={<AdminOfferingsPage />} />
           <Route path="admin/evaluations" element={<AdminEvaluationsPage />} />
