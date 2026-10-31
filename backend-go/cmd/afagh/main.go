@@ -150,6 +150,7 @@ func main() {
 	adminAPI.Register(ginEngine.Group(""))
 	(&httpapi.CodesAPI{Svc: adminSvc, Store: store}).Register(ginEngine.Group(""))
 	(&httpapi.MigrationAdminAPI{Admin: adminAPI}).Register(ginEngine.Group(""))
+	(&httpapi.SmallAdminAPI{Admin: adminAPI}).Register(ginEngine.Group(""))
 	adminAPI.Graduation = graduation.New(database.Pool, settingsStore, studentSvc)
 	payrollEngine := payroll.New(database.Pool, settingsStore)
 	payrollApprovals := payroll.NewApprovals(payrollEngine)

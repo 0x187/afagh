@@ -43,6 +43,7 @@ import { AdminStudentsPage } from '@/routes/admin/StudentsPage';
 import { AdminDepartmentsPage } from '@/routes/admin/DepartmentsPage';
 import { AdminCodesPage } from '@/routes/admin/CodesPage';
 import { AdminMigrationPage, AdminSahamPage, AdminSaminPage } from '@/routes/admin/MigrationSahamSaminPages';
+import { AdminCodeHubPage, AdminStudentFinancePage, AdminLoginShowcasePage } from '@/routes/admin/SmallAdminPages';
 import { AdminStaffPage } from '@/routes/admin/StaffPage';
 import { AdminOfferingsPage } from '@/routes/admin/OfferingsPage';
 import { AdminEvaluationsPage } from '@/routes/admin/EvaluationsPage';
@@ -174,6 +175,9 @@ export function App() {
           <Route path="admin/migration" element={<AdminMigrationPage />} />
           <Route path="admin/saham" element={<AdminSahamPage />} />
           <Route path="admin/samin" element={<AdminSaminPage />} />
+          <Route path="admin/code-hub" element={<AdminCodeHubPage />} />
+          <Route path="admin/student-finance" element={<AdminStudentFinancePage />} />
+          <Route path="admin/login-showcase" element={<AdminLoginShowcasePage />} />
           <Route path="admin/staff" element={<AdminStaffPage />} />
           <Route path="admin/offerings" element={<AdminOfferingsPage />} />
           <Route path="admin/evaluations" element={<AdminEvaluationsPage />} />
@@ -194,8 +198,14 @@ export function App() {
           <Route path="admin/payroll/decrees" element={<PayrollDecreesPage />} />
           <Route path="admin/payroll/regs-objections" element={<PayrollRegsObjectionsPage />} />
           <Route path="admin/payroll/operations" element={<PayrollOperationsPage />} />
+          <Route path="admin/payroll/exam-payments" element={<PayrollOperationsPage />} />
+          <Route path="admin/payroll/objections" element={<PayrollRegsObjectionsPage />} />
+          <Route path="admin/payroll/regulations" element={<PayrollRegsObjectionsPage />} />
+          <Route path="admin/payroll/thesis" element={<PayrollOperationsPage />} />
           <Route path="admin/finance/rules" element={<AdminFinanceRulesPage />} />
           <Route path="admin/finance/advanced" element={<AdminFinanceAdvancedPage />} />
+          <Route path="admin/finance/student-formula" element={<AdminFinanceAdvancedPage />} />
+          <Route path="admin/finance/time-control" element={<AdminFinanceAdvancedPage />} />
           <Route path="admin/finance/welfare" element={<AdminWelfarePage />} />
           <Route path="admin/finance/pos" element={<AdminPosPage />} />
           <Route path="admin/workflows" element={<AdminWorkflowsPage />} />
