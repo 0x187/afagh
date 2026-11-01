@@ -2,22 +2,22 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ApiError, apiPost } from '@/lib/api';
 
-// ═══ قفل خودکار بیکاری — پورت وفادار SessionLock.tsx سامانهٔ فعلی ═══
+// ═══ Automatic idle lock — faithful port of the current system's SessionLock.tsx ═══
 //
-// منبع حقیقت سمت سرور است: کلاینت فقط «ضربان فعالیت» می‌فرستد و در پایان تایمر
-// بیکاری از سرور می‌پرسد. تصمیم نهایی با `/api/v2/session/ping` است که «زمان
-// آخرین فعالیت» را نگه می‌دارد؛ بنابراین:
-//  • رفرش/تب جدید پس از قفل هم قفل نشان می‌دهد (سرور پرچم قفل را ثبت می‌کند)،
-//  • کاربرِ در حال کار با ضربان‌های دوره‌ای هرگز بی‌دلیل بیرون نمی‌افتد،
-//  • مدت بی‌تعاملی برای هر نقش می‌تواند متفاوت باشد (SESSION_LOCK_MINUTES_ROLES
-//    — سمت سرور حل می‌شود و در پاسخِ ping برمی‌گردد).
+// The source of truth is server-side: the client only sends an "activity heartbeat" and at the end of the idle
+// timer it asks the server. The final decision belongs to `/api/v2/session/ping`, which keeps the "time
+// of last activity"; therefore:
+//  • A refresh/new tab after locking also shows locked (the server records the lock flag),
+//  • A working user is never logged out without reason thanks to periodic heartbeats,
+//  • The idle duration can differ per role (SESSION_LOCK_MINUTES_ROLES
+//    — resolved server-side and returned in the ping response).
 //
-// ثابت‌های زمانی عیناً از afagh-next/src/components/SessionLock.tsx پورت شده‌اند.
+// Timing constants are ported verbatim from afagh-next/src/components/SessionLock.tsx.
 
-/** فاصلهٔ ضربان فعالیت — حداکثر یک بار در دقیقه تا سرور نشست را گرم نگه دارد. */
+/** Activity heartbeat interval — at most once per minute so the server keeps the session warm. */
 export const IDLE_HEARTBEAT_MS = 60_000;
 
-/** رویدادهای «فعالیت کاربر» — عین لیست اصلی. */
+/** "User activity" events — same list as the original. */
 export const IDLE_ACTIVITY_EVENTS = [
   'mousemove',
   'mousedown',
@@ -28,50 +28,50 @@ export const IDLE_ACTIVITY_EVENTS = [
   'wheel',
 ] as const;
 
-/** پیش‌فرض تا اولین پاسخِ سرور (همان پیش‌فرض SESSION_LOCK_MINUTES سمت سرور). */
+/** Default until the first server response (same as the server-side SESSION_LOCK_MINUTES default). */
 export const DEFAULT_IDLE_TIMEOUT_MIN = 15;
 
-/** تأخیر تایمر بیکاری — عین فرمول اصلی: `Math.max(1, timeoutMin) * 60 * 1000`. */
+/** Idle timer delay — exact formula of the original: `Math.max(1, timeoutMin) * 60 * 1000`. */
 export function armDelayMs(timeoutMin: number): number {
   return Math.max(1, timeoutMin) * 60 * 1000;
 }
 
-// ── ماشین حالت خالص (تست‌پذیر بدون DOM) ──────────────────────────────────────
+// ── Pure state machine (testable without DOM) ──────────────────────────────────────
 
-/** نتیجهٔ تفسیرشدهٔ یک درخواست ping؛ `null` یعنی خطای شبکه/نشست (نامشخص). */
+/** Interpreted result of a ping request; `null` means network/session error (unknown). */
 export type PingResult = { locked: boolean; timeoutMin: number | null } | null;
 
 /**
- * ضربان فعالیت ({active:true}) چه تصمیمی می‌گیرد؟
- *  • سرور گفت قفل است (پرچم صریح — مثلاً قفل در تب دیگر) → قفل کن؛
- *  • پاسخ سالمِ «قفل نیست» یا نامشخص → بمان (heartbeat نتیجه‌اش نادیده گرفته
- *    می‌شد؛ این‌جا فقط قفلِ صریحِ سرور fail-closed منتقل می‌شود).
+ * What decision does the activity heartbeat ({active:true}) make?
+ *  • Server said locked (explicit flag — e.g. locked in another tab) → lock;
+ *  • Healthy "not locked" response or unknown → stay (the heartbeat's result would be ignored;
+ *    here only the server's explicit fail-closed lock is propagated).
  */
 export function decideOnHeartbeat(ping: PingResult): 'stay' | 'lock' {
   return ping?.locked === true ? 'lock' : 'stay';
 }
 
 /**
- * پایان تایمر بیکاری ({active:false}) چه تصمیمی می‌گیرد؟ — عین منطق اصلی:
- *  • سرور گفت «قفل نیست» (شاید تب دیگری فعال بوده) → تایمر از نو مسلح شود؛
- *  • قفل یا پاسخِ نامشخص (خطای شبکه/نشست) → قفل کن (fail-closed).
- * ثبتِ خودِ قفل در سرور با همان ping انجام می‌شود (نگاه به route اصلی:
- * «خودِ سرور قفل را ثبت می‌کند، نه فقط گزارش») — پس اکشن دوم لازم نیست.
+ * What decision does the idle timer end ({active:false}) make? — exact logic of the original:
+ *  • Server said "not locked" (another tab may have been active) → re-arm the timer;
+ *  • Locked or unknown response (network/session error) → lock (fail-closed).
+ * Recording the lock itself on the server happens via the same ping (see the original route:
+ * "the server itself records the lock, not just reporting it") — so a second action is unnecessary.
  */
 export function decideOnIdlePing(ping: PingResult): 'rearm' | 'lock' {
   if (ping && ping.locked === false) return 'rearm';
   return 'lock';
 }
 
-/** پیام‌ها — عین رشته‌های SessionLock.tsx و گیت step-up سرور. */
+/** Messages — same strings as SessionLock.tsx and the server's step-up gate. */
 export const EMPTY_PASSWORD_MESSAGE = 'رمز عبور را وارد کنید.';
 export const WRONG_PASSWORD_MESSAGE = 'رمز نادرست است.';
 export const UNLOCK_NETWORK_ERROR_MESSAGE = 'خطا در ارتباط با سرور.';
 
 /**
- * سقف خطای رمز — همان گیت سمت سرور (۵ خطا / ۱۵ دقیقه به‌ازای کاربر + IP).
- * شمارندهٔ سمت کلاینت آینهٔ UX همان گیت است: در خطای پنجم، همان پیامِ قفلِ
- * گیت نمایش داده می‌شود که تلاش بعدی از سرور خواهد گرفت.
+ * Password error cap — same gate as the server (5 errors / 15 minutes per user + IP).
+ * The client-side counter mirrors the gate's UX: on the fifth error, the same gate lock
+ * message is shown that the next attempt will get from the server.
  */
 export const UNLOCK_FAIL_LIMIT = 5;
 export const UNLOCK_LOCKOUT_MINUTES = 15;
@@ -80,31 +80,31 @@ export function unlockFailLimitMessage(): string {
   return `تلاش‌های تأیید رمز بیش از حد مجاز شد. ${UNLOCK_LOCKOUT_MINUTES} دقیقهٔ دیگر دوباره تلاش کنید.`;
 }
 
-/** وضعیت فرم بازگشایی قفل — بخش خالصی که تست می‌شود. */
+/** Unlock form state — the pure part under test. */
 export type UnlockUiState = { fails: number; error: string };
 
 export function initialUnlockUiState(): UnlockUiState {
   return { fails: 0, error: '' };
 }
 
-/** شکست بازگشایی: پیام سرور عیناً نمایش داده می‌شود؛ در خطای پنجم پیام گیت. */
+/** Unlock failure: the server message is shown verbatim; on the fifth error, the gate message. */
 export function onUnlockFailure(prev: UnlockUiState, serverError: string): UnlockUiState {
   const fails = prev.fails + 1;
   const error = fails >= UNLOCK_FAIL_LIMIT ? unlockFailLimitMessage() : serverError || WRONG_PASSWORD_MESSAGE;
   return { fails, error };
 }
 
-/** موفقیت بازگشایی: شمارنده و خطا صفر می‌شود. */
+/** Unlock success: counter and error are reset to zero. */
 export function onUnlockSuccess(_prev: UnlockUiState): UnlockUiState {
   return { fails: 0, error: '' };
 }
 
-/** خطای «رمز خالی» — بدون مصرفِ شمارندهٔ گیت (درخواستی زده نمی‌شود). */
+/** "Empty password" error — without consuming the gate counter (no request is fired). */
 export function onEmptyPassword(prev: UnlockUiState): UnlockUiState {
   return { ...prev, error: EMPTY_PASSWORD_MESSAGE };
 }
 
-// ── هوک ──────────────────────────────────────────────────────────────────────
+// ── Hook ──────────────────────────────────────────────────────────────────────
 
 async function ping(active: boolean): Promise<PingResult> {
   try {
@@ -118,21 +118,21 @@ async function ping(active: boolean): Promise<PingResult> {
 
 export type IdleLock = {
   locked: boolean;
-  /** در جریان بودن بازگشایی با رمز. */
+  /** Whether the password unlock is in progress. */
   pending: boolean;
-  /** آخرین خطای فرم بازگشایی (عین پیام سرور). */
+  /** Last unlock form error (verbatim server message). */
   error: string;
-  /** تلاش بازگشایی؛ `true` یعنی قفل باز شد. */
+  /** Unlock attempt; `true` means the lock was released. */
   unlock: (password: string) => Promise<boolean>;
 };
 
 /**
- * پورت use-state های SessionLock.tsx برای SPA:
- *  • هر فعالیت → ضربان {active:true} (حداکثر هر دقیقه) + مسلح‌کردن تایمر بیکاری؛
- *  • پایان تایمر → ping {active:false} → طبق `decideOnIdlePing`؛
- *  • هر پاسخِ سرور که `locked:true` دارد قفل را نشان می‌دهد (پرچم صریح سرور —
- *    جانشین `initialLocked` نسخهٔ SSR: رفرش/تب جدید هم قفل می‌ماند).
- * کاربرِ نامعلوم (null) = قفل غیرفعال؛ `timeoutMin <= 0` هم غیرفعال (عین اصلی).
+ * Port of the use-states of SessionLock.tsx for the SPA:
+ *  • Any activity → heartbeat {active:true} (at most once per minute) + arming the idle timer;
+ *  • Timer end → ping {active:false} → per `decideOnIdlePing`;
+ *  • Any server response with `locked:true` shows the lock (explicit server flag —
+ *    replacing the SSR version's `initialLocked`: a refresh/new tab stays locked too).
+ * Unknown user (null) = lock disabled; `timeoutMin <= 0` also disabled (same as the original).
  */
 export function useIdleLock(user: { id: number } | null | undefined): IdleLock {
   const loggedIn = !!user;
@@ -170,7 +170,7 @@ export function useIdleLock(user: { id: number } | null | undefined): IdleLock {
     [lock],
   );
 
-  /** ضربان «فعالیت» — حداکثر یک بار در دقیقه تا سرور نشست را گرم نگه دارد. */
+  /** "Activity" heartbeat — at most once per minute so the server keeps the session warm. */
   const beat = useCallback(() => {
     if (disabled) return;
     const now = Date.now();
@@ -184,7 +184,7 @@ export function useIdleLock(user: { id: number } | null | undefined): IdleLock {
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
       void ping(false).then((r) => {
-        // تصمیم نهایی با سرور است؛ اگر هنوز بیکار نمی‌داند، دوباره مسلح کن
+        // The final decision is the server's; if it does not yet know about the idle, re-arm
         if (decideOnIdlePing(r) === 'rearm') {
           applyServerState(r);
           arm();
@@ -197,7 +197,7 @@ export function useIdleLock(user: { id: number } | null | undefined): IdleLock {
 
   useEffect(() => {
     const onAct = () => {
-      if (lockedRef.current) return; // پشت قفل، فعالیت نباید ساعت بیکاری را نو کند
+      if (lockedRef.current) return; // Behind the lock, activity must not renew the idle clock
       beat();
       arm();
     };
@@ -209,9 +209,9 @@ export function useIdleLock(user: { id: number } | null | undefined): IdleLock {
     };
   }, [arm, beat]);
 
-  // همگام‌سازی اولیه با سرور — جانشین `initialLocked` نسخهٔ SSR: اگر پرچم قفل
-  // سمت سرور روشن است (تب دیگر/رفرش پس از قفل)، همان لحظهٔ mount نشان داده شود
-  // نه بعد از اولین رویداد فعالیت یا پایان تایمر.
+  // Initial sync with the server — replaces the SSR version's `initialLocked`: if the lock flag
+  // is set server-side (another tab/refresh after lock), it must be shown at mount time
+  // not after the first activity event or timer end.
   useEffect(() => {
     if (!loggedIn) return;
     let cancelled = false;
@@ -224,7 +224,7 @@ export function useIdleLock(user: { id: number } | null | undefined): IdleLock {
     return () => {
       cancelled = true;
     };
-    // فقط یک‌بار پس از ورود
+    // Only once after login
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loggedIn]);
 
@@ -251,7 +251,7 @@ export function useIdleLock(user: { id: number } | null | undefined): IdleLock {
         setUi((prev) => onUnlockSuccess(prev));
         setLocked(false);
         lockedRef.current = false;
-        lastPing.current = 0; // بازگشایی = فعالیت؛ ساعت بیکاری از نو شمرده شود
+        lastPing.current = 0; // Unlock = activity; the idle clock should start counting anew
         arm();
         return true;
       } finally {

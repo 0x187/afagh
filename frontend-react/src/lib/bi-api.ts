@@ -1,4 +1,4 @@
-// ═══ کلاینت هوش تجاری ارزشیابی (BI) ═══
+// ═══ Evaluation business intelligence (BI) client ═══
 import { apiGet, apiPost } from './api';
 
 export type TrendPoint = { period: string; term: string; termId: number | null; score: number | null };

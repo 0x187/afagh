@@ -1,4 +1,4 @@
-// ═══ کلاینت ثبت‌نام دستی کارشناس ═══
+// ═══ Expert manual registration client ═══
 import { apiGet, apiPost } from './api';
 
 export type ManualStudentHit = { studentId: number; studentCode: string; name: string; entryYear: number | null };

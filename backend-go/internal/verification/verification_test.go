@@ -61,7 +61,7 @@ func TestVerifyRejectsTamperedAndExpired(t *testing.T) {
 	}
 }
 
-// چرخش نرم کلید: توکنِ امضاشده با کلید قبلی باید معتبر بماند.
+// Soft key rotation: a token signed with the previous key must stay valid.
 func TestPreviousSecretRotation(t *testing.T) {
 	oldSettings := fakeSettings{"TICKET_TOKEN_SECRET": "old-secret-1234567890abcdefgh"}
 	oldSigner := New(oldSettings)

@@ -1,4 +1,4 @@
-// ═══ کلاینت دادهٔ پرتال دانشجو (فاز ۳) ═══
+// ═══ Student portal data client (phase 3) ═══
 import { apiGet, apiPost } from './api';
 
 export type StudentGridClass = {
@@ -63,7 +63,7 @@ export async function getStudentMe(): Promise<StudentMe> {
   return res.student;
 }
 
-// ───────────────────────── داشبورد ─────────────────────────
+// ───────────────────────── Dashboard ─────────────────────────
 
 export type StudentDashboardVirtualClass = {
   id: number;
@@ -103,7 +103,7 @@ export async function getStudentDashboard(termId?: number | null): Promise<Stude
   return res.data;
 }
 
-// ───────────────────────── کارنامه ─────────────────────────
+// ───────────────────────── Transcript ─────────────────────────
 
 export type TranscriptRow = {
   enrollmentId: number;
@@ -181,7 +181,7 @@ export async function getStudentTranscript(params?: { record?: number | null; te
   return res.data;
 }
 
-// ───────────────────────── کارت آزمون ─────────────────────────
+// ───────────────────────── Exam card ─────────────────────────
 
 export type StudentExamCardData = {
   card: {
@@ -222,7 +222,7 @@ export async function getStudentExamCard(termId?: number | null): Promise<Studen
   return res.data;
 }
 
-// ───────────────────────── تأییدیهٔ انتخاب واحد ─────────────────────────
+// ───────────────────────── Course registration confirmation ─────────────────────────
 
 export type EnrollConfirmData = {
   termTitle: string;
@@ -257,7 +257,7 @@ export async function getEnrollConfirm(): Promise<EnrollConfirmData> {
   return res.data;
 }
 
-// ───────────────────────── کلاس مجازی / مدارک / طرح درس ─────────────────────────
+// ───────────────────────── Virtual class / documents / course plan ─────────────────────────
 
 export type VirtualClassSession = {
   courseId: number;
@@ -318,7 +318,7 @@ export async function getLessonPlan(offeringId: number): Promise<LessonPlanData>
   return res.data;
 }
 
-// ───────────────────────── میز خدمات / گردش‌کار ─────────────────────────
+// ───────────────────────── Service desk / workflow ─────────────────────────
 
 export type RequestFormField = {
   key: string;
@@ -420,7 +420,7 @@ export async function uploadRequestAttachment(file: File): Promise<{ key: string
   try {
     payload = await res.json();
   } catch {
-    /* غیر JSON */
+    /* non-JSON */
   }
   if (!res.ok) {
     const msg =

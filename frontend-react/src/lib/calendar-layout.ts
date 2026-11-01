@@ -1,5 +1,5 @@
-// ═══ چیدمان تقویم هفتگی — پورت professor-calendar-layout.ts ═══
-// منطق خالص چیدمان (بدون React): بازهٔ ساعت، فیلتر هفته، ادغام و جای‌گذاری.
+// ═══ Weekly calendar layout — port of professor-calendar-layout.ts ═══
+// Pure layout logic (no React): hour range, week filter, merging and placement.
 export const CALENDAR_START_MINUTES = 7 * 60;
 export const CALENDAR_END_MINUTES = 20 * 60;
 export const CALENDAR_DAY_COUNT = 7;
@@ -102,7 +102,7 @@ export function collapseCalendarEntries<T extends CollapseRow>(rows: T[]): T[] {
       continue;
     }
     const codes = [...new Set(g.members.map((m) => String(m.code ?? '').trim()).filter(Boolean))];
-    // هر سانس متمایز (روز+ساعت) یک بلوک؛ زوج/فرد هم‌سانس ادغام می‌شوند → BOTH
+    // Each distinct session (day+time) is one block; even/odd same-session ones are merged → BOTH
     const bySlot = new Map<string, T[]>();
     for (const m of g.members) {
       const sk = `${m.dayOfWeek}|${m.startTime}|${m.endTime}`;

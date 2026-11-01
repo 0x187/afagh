@@ -1,4 +1,4 @@
-// ═══ کلاینت پورتال استاد (فاز ۴) ═══
+// ═══ Professor portal client (phase 4) ═══
 import { apiGet, apiPost } from './api';
 
 export type ProfessorInfo = {
@@ -224,7 +224,7 @@ export async function saveAvailability(termId: number, cells: AvailabilityCell[]
   await apiPost('/professor/availability', { termId, cells, notes });
 }
 
-// ───────────────────────── حضور و غیاب ─────────────────────────
+// ───────────────────────── Attendance ─────────────────────────
 
 export type AttendanceStudent = { id: number; studentCode: string; fullName: string };
 export type AttendanceStatus = 'PRESENT' | 'LATE' | 'ABSENT' | 'EXCUSED';
@@ -318,7 +318,7 @@ export async function scheduleMakeup(input: {
   return res.sessionId;
 }
 
-// ───────────────────────── دفترچهٔ نمرات ─────────────────────────
+// ───────────────────────── Grade booklet ─────────────────────────
 
 export type GradeStudent = {
   studentId: number;
@@ -402,7 +402,7 @@ export async function getUnfinalizeRequests(): Promise<{ id: number; offeringId:
   return res.requests;
 }
 
-// ───────────────────────── ارزشیابی و عملکرد ─────────────────────────
+// ───────────────────────── Evaluation and performance ─────────────────────────
 
 export type EvaluationData = {
   name: string;
@@ -446,7 +446,7 @@ export async function getPerformance(): Promise<PerformanceData> {
   return res.data;
 }
 
-// ───────────────────────── طرح درس ─────────────────────────
+// ───────────────────────── Course plan ─────────────────────────
 
 export type ProfPlanSession = { id: number; sessionNo: number; sessionKind: string; topic: string; details: string | null; weightId: number | null };
 

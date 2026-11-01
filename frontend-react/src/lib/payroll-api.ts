@@ -1,4 +1,4 @@
-// ═══ کلاینت موتور حق‌التدریس (فاز ۷ — حقوق) ═══
+// ═══ Teaching fee engine client (phase 7 — payroll) ═══
 import { apiGet, apiPost } from './api';
 
 export type PayrollRow = {
@@ -134,7 +134,7 @@ export async function getPayrollConfig(): Promise<PayrollConfig> {
   return res.data;
 }
 
-// ─────────────────── مدیریت حقوق: سمتها/نقشها/پوشش ───────────────────
+// ─────────────────── Payroll management: positions/roles/coverage ───────────────────
 
 export type DutyRole = {
   id: number; code: string; title: string; dutyUnits: number | null;
@@ -235,7 +235,7 @@ export async function getRuleCoverage(termId?: number): Promise<CoverageRow[]> {
   return res.data.rows;
 }
 
-// ─────────────────── ابلاغ‌های آموزشی ───────────────────
+// ─────────────────── Educational notifications ───────────────────
 
 export type DecreeListItem = {
   id: number; staffId: number; staffName: string; staffCode: string | null;
@@ -276,7 +276,7 @@ export async function deleteDecreeDraft(id: number): Promise<void> {
   await apiPost<{ ok: boolean }>('/admin/payroll/decrees/delete', { id });
 }
 
-// ─────────────────── اعتراض به فیش + آیین‌نامه‌ها ───────────────────
+// ─────────────────── Pay slip objections + regulations ───────────────────
 
 export type StaffObjection = {
   id: number; statementId: number; termTitle: string | null; statementStatus: string | null;
@@ -324,7 +324,7 @@ export async function deleteRegulation(id: number): Promise<void> {
   await apiPost<{ ok: boolean }>('/admin/payroll/regulations/delete', { id });
 }
 
-// پروتال استاد
+// Professor portal
 export async function getProfessorPayslip(): Promise<PayslipData> {
   const res = await apiGet<{ ok: boolean; data: PayslipData }>('/professor/payroll/payslip');
   return res.data;
@@ -340,7 +340,7 @@ export async function createProfessorObjection(statementId: number, text: string
   return res.data.id;
 }
 
-// ─────────────────── پرداخت‌های امتحانی ───────────────────
+// ─────────────────── Exam payments ───────────────────
 
 export type ExamPaymentRow = {
   id: number; staffId: number; termId: number; source: string; sessionCount: number;
@@ -366,7 +366,7 @@ export async function deleteExamPayment(id: number): Promise<void> {
   await apiPost<{ ok: boolean }>('/admin/payroll/exam-payments/delete', { id });
 }
 
-// ─────────────────── دفتر پایان‌نامه ───────────────────
+// ─────────────────── Thesis office ───────────────────
 
 export type SupervisionItem = {
   id: number; staffId: number; staffName: string; studentId: number | null; studentName: string;

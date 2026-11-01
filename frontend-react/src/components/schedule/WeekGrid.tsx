@@ -8,8 +8,8 @@ import {
 } from '@/lib/calendar-layout';
 import { cn } from '@/lib/utils';
 
-// ═══ گرید تقویم هفتگی — مشترک بین پورتال دانشجو و استاد ═══
-// چیدمان خالص در calendar-layout.ts؛ این کامپوننت فقط رندر می‌کند.
+// ═══ Weekly calendar grid — shared between the student and professor portals ═══
+// Pure layout is in calendar-layout.ts; this component only renders.
 
 const DAY_NAMES = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
 
@@ -48,7 +48,7 @@ export function WeekGrid({ entries }: { entries: WeekGridEntry[] }) {
   return (
     <div className="overflow-x-auto rounded-xl border border-border bg-card">
       <div className="min-w-[760px]">
-        {/* سربرگ روزها */}
+        {/* Day headers */}
         <div className="grid grid-cols-[3.5rem_repeat(7,1fr)] border-b border-border bg-muted/50">
           <div />
           {Array.from({ length: CALENDAR_DAY_COUNT }, (_, d) => (
@@ -57,9 +57,9 @@ export function WeekGrid({ entries }: { entries: WeekGridEntry[] }) {
             </div>
           ))}
         </div>
-        {/* بدنه */}
+        {/* Body */}
         <div className="grid grid-cols-[3.5rem_repeat(7,1fr)]">
-          {/* ستون ساعت */}
+          {/* Hour column */}
           <div className="relative border-l border-border">
             {hours.slice(0, -1).map((h) => (
               <div key={h} className="h-10 border-b border-border/60 pr-1 text-left text-[10px] text-muted-foreground">
@@ -71,7 +71,7 @@ export function WeekGrid({ entries }: { entries: WeekGridEntry[] }) {
             const list = placements.get(d) ?? [];
             return (
               <div key={d} className="relative border-l border-border/60" style={{ height: `${(hours.length - 1) * 40}px` }}>
-                {/* خطوط ساعت */}
+                {/* Hour lines */}
                 {hours.slice(0, -1).map((h, i) => (
                   <div key={h} className="absolute right-0 left-0 border-b border-border/40" style={{ top: `${(i + 1) * 40}px` }} />
                 ))}

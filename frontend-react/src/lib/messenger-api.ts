@@ -1,14 +1,14 @@
-// ═══ کلاینت اتصال پیام‌رسان — پورت messenger-link-actions.ts ═══
+// ═══ Messenger linking client — port of messenger-link-actions.ts ═══
 //
-//	۱) mintLinkToken: کاربر واردشده → کد انسانی + دیپ‌لینک (۱۰ دقیقه اعتبار)
-//	۲) confirmLink: پس از ارسال /start در بات → تأیید نهایی + verifiedAt
-//	۳) checkPairing: بررسی سبک وضعیت جفت‌سازی (برای تأیید خودکار سمت کلاینت)
-//	۴) listMyChannels / revokeChannel: وضعیت کانال‌ها و لغو اتصال
+//	1) mintLinkToken: logged-in user → human-readable code + deep link (valid for 10 minutes)
+//	2) confirmLink: after /start is sent in the bot → final confirmation + verifiedAt
+//	3) checkPairing: lightweight pairing status check (for client-side auto-confirmation)
+//	4) listMyChannels / revokeChannel: channel status and link revocation
 import { apiGet, apiPost } from './api';
 
 export type MessengerChannelKey = 'SOROUSH' | 'BALE' | 'EITAA' | 'TELEGRAM' | 'IGAP';
 
-/** همان فهرست MessengerConnectClient در Next */
+/** Same list as MessengerConnectClient in Next */
 export const MESSENGER_CHANNELS: ReadonlyArray<{
   key: MessengerChannelKey;
   label: string;
@@ -46,28 +46,28 @@ export type UserChannel = {
   label: string | null;
 };
 
-/** صدور کد اتصال برای یک کانال (نیازمند ورود) */
+/** Issue a link code for a channel (requires login) */
 export async function mintLinkToken(channel: MessengerChannelKey | string): Promise<MintLinkResult> {
   return apiPost<MintLinkResult>('/messenger/link/token', { channel });
 }
 
-/** بررسی اینکه آیا بات /start را دریافت کرده (بدون تأیید نهایی) */
+/** Check whether the bot has received /start (without final confirmation) */
 export async function checkPairing(code: string): Promise<PairingStatusResult> {
   return apiGet<PairingStatusResult>(`/messenger/link/status?code=${encodeURIComponent(code)}`);
 }
 
-/** تأیید نهایی اتصال پس از ارسال /start در بات (نیازمند ورود) */
+/** Final link confirmation after /start is sent in the bot (requires login) */
 export async function confirmLink(code: string): Promise<{ ok: boolean; channel?: string; error?: string }> {
   return apiPost<{ ok: boolean; channel?: string; error?: string }>('/messenger/link/confirm', { code });
 }
 
-/** کانال‌های ثبت‌شدهٔ کاربر (وضعیت اتصال هر پیام‌رسان) */
+/** The user's registered channels (link status of each messenger) */
 export async function listMyChannels(): Promise<UserChannel[]> {
   const res = await apiGet<{ ok: boolean; data: UserChannel[] }>('/messenger/channels');
   return res.data ?? [];
 }
 
-/** لغو اتصال یک پیام‌رسان (حذف نشانی کانال) */
+/** Revoke a messenger link (remove the channel address) */
 export async function revokeChannel(channel: MessengerChannelKey | string): Promise<void> {
   await apiPost('/messenger/channels/revoke', { channel });
 }

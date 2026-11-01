@@ -18,7 +18,7 @@ const queryClient = new QueryClient({
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      {/* basename پویا: پوستهٔ پنل زیر /app و صفحات عمومی در ریشه — هر دو یک SPA */}
+      {/* Dynamic basename: panel shell under /app and public pages at the root — both a single SPA */}
       <BrowserRouter basename={window.location.pathname === '/app' || window.location.pathname.startsWith('/app/') ? '/app' : '/'}>
         <App />
       </BrowserRouter>

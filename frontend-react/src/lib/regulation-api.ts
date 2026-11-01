@@ -1,4 +1,4 @@
-// ═══ کلاینت پایش طرح درس و بررسی آیین‌نامه ═══
+// ═══ Course plan monitoring and regulations review client ═══
 import { apiGet, apiPost } from './api';
 
 export type LessonPlanRow = {
@@ -50,7 +50,7 @@ export async function scanGraduatedWithoutGrades(limit = 200): Promise<{ rows: S
   return res.data;
 }
 
-/** درخواست توکن تأیید دومرحله‌ای برای یک دامنه (مثلاً grades:edit). */
+/** Request a two-step confirmation token for a scope (e.g. grades:edit). */
 export async function requestStepUp(scope: string, password: string): Promise<void> {
   await apiPost('/step-up/request', { scope, password });
 }

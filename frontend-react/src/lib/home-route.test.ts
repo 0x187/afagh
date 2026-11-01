@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { homeFor } from './home-route';
 
-// پارتی با home-route.ts — همهٔ شاخه‌ها.
+// Buddies with home-route.ts — all branches.
 describe('homeFor', () => {
   it('بدون نقش → ورود با پیام norole', () => {
     expect(homeFor([])).toBe('/login?e=norole');

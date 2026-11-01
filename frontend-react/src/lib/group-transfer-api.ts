@@ -1,4 +1,4 @@
-// ═══ کلاینت انتقال دانشجو بین گروه‌های یک درس ═══
+// ═══ Client for transferring a student between groups of a course ═══
 import { apiGet, apiPost } from './api';
 
 export type TransferOffering = {

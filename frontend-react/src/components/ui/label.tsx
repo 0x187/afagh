@@ -3,7 +3,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
-// ═══ Label — پایهٔ دیزاین‌سیستم (سبک shadcn/ui، توکن‌های آفاق) ═══
+// ═══ Label — design-system base (shadcn/ui style, Afagh tokens) ═══
 
 function Label({ className, ...props }: React.ComponentProps<typeof LabelPrimitive.Root>) {
   return (

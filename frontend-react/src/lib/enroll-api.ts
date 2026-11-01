@@ -1,4 +1,4 @@
-// ═══ کلاینت انتخاب واحد (فاز ۳) ═══
+// ═══ Course registration client (phase 3) ═══
 import { apiGet, apiPost } from './api';
 
 export type EnrollClassSlot = {

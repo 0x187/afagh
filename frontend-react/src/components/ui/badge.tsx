@@ -3,7 +3,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 
 import { cn } from '@/lib/utils';
 
-// ═══ Badge — پایهٔ دیزاین‌سیستم (سبک shadcn/ui، توکن‌های آفاق) ═══
+// ═══ Badge — design-system base (shadcn/ui style, Afagh tokens) ═══
 
 const badgeVariants = cva(
   'inline-flex items-center justify-center rounded-md border px-2 py-0.5 text-xs font-medium w-fit whitespace-nowrap shrink-0 gap-1 [&>svg]:size-3 transition-colors',

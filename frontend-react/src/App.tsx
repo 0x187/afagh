@@ -107,9 +107,9 @@ export function App() {
     <>
       <PwaRegister />
       <Routes>
-        {/* مسیرهای عمومی (بدون شل/سربرگ) */}
+        {/* Public routes (no shell/header) */}
         <Route path="login" element={<LoginPage />} />
-        {/* صفحات استعلام عمومی (ریشه، بدون شل/نشست) */}
+        {/* Public inquiry pages (root, no shell/session) */}
         <Route path="verify-transcript/:token" element={<VerifyTranscriptPage />} />
         <Route path="verify-finance/:token" element={<VerifyFinancePage />} />
         <Route path="verify-enrollment/:token" element={<VerifyEnrollmentPage />} />
@@ -134,7 +134,7 @@ export function App() {
         <Route path="exam-handover/:token" element={<ExamHandoverPage />} />
         <Route path="change-password" element={<ChangePassword />} />
 
-        {/* شل محافظت‌شده — گارد نشست داخل AppShell است */}
+        {/* Protected shell — the session guard is inside AppShell */}
         <Route element={<AppShell />}>
           <Route index element={<Home />} />
           <Route path="student" element={<StudentDashboardPage />} />

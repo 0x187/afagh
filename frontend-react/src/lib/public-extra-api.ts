@@ -1,8 +1,8 @@
-// ═══ کلاینت اندپوینت‌های تکمیلی صفحات عمومی/سشن (بکند Go — public_extra.go) ═══
-// پوشش: استعلام سند ممهور، پورتال دانش‌آموختگان، پنل مراقب امتحان، ثبت حضور QR سردر.
+// ═══ Client for supplementary endpoints of public/session pages (Go backend — public_extra.go) ═══
+// Coverage: stamped document inquiry, alumni portal, exam proctor panel, entrance QR attendance registration.
 import { apiGet, apiPost } from './api';
 
-// ─────────────────── استعلام سند ممهور (بدون نشست) ───────────────────
+// ─────────────────── Stamped document inquiry (no session) ───────────────────
 
 export type PublicDocumentResult = {
   found: boolean;
@@ -24,7 +24,7 @@ export async function verifyPublicDocument(hash: string): Promise<PublicDocument
   return res.data;
 }
 
-// ─────────────────── صفحهٔ عمومی سرصفحهٔ QR اتاق ───────────────────
+// ─────────────────── Public page for the room QR header ───────────────────
 
 export type PublicRoomResult = {
   found: boolean;
@@ -38,7 +38,7 @@ export async function getPublicRoom(code: string): Promise<PublicRoomResult> {
   return res.data;
 }
 
-// ─────────────────── پورتال دانش‌آموختگان ───────────────────
+// ─────────────────── Alumni portal ───────────────────
 
 export type AlumniService = {
   code: string;
@@ -120,7 +120,7 @@ export async function payAlumniRequest(requestId: number): Promise<{ already?: b
   return res.data;
 }
 
-// ─────────────────── پنل مراقب امتحان ───────────────────
+// ─────────────────── Exam proctor panel ───────────────────
 
 export type ProctorRosterItem = {
   studentId: number;
@@ -186,7 +186,7 @@ export async function proctorScanTicket(input: {
   return res.data;
 }
 
-// ─────────────────── ثبت حضور با QR سردر کلاس (p/room-N) ───────────────────
+// ─────────────────── Attendance registration via classroom entrance QR (p/room-N) ───────────────────
 
 export type RoomCheckinState = {
   badroom?: boolean;

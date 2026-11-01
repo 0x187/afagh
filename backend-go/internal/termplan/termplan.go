@@ -1,12 +1,12 @@
-// ═══ تعداد ترم چارت بر اساس مقطع + ترم تابستان — پورت term-plan.ts ═══
+// ═══ Chart term count by degree level + summer term — port of term-plan.ts ═══
 package termplan
 
 import "strings"
 
-// SummerSemester شمارهٔ ثابت ترم تابستان.
+// SummerSemester is the fixed summer term number.
 const SummerSemester = 9
 
-// MaxStandardSemester حداکثر ترم عادی.
+// MaxStandardSemester is the maximum regular term.
 const MaxStandardSemester = 8
 
 var degreeNormalizer = strings.NewReplacer(
@@ -17,7 +17,7 @@ var degreeNormalizer = strings.NewReplacer(
 	"‍", "",
 )
 
-// NormalizeDegreeText پورت normalizeDegreeText: حروف عربی هم‌شکل + حذف فاصله/نیم‌فاصله + بزرگ.
+// NormalizeDegreeText is a port of normalizeDegreeText: identical-shape Arabic letters + strip spaces/ZWNJ + uppercase.
 func NormalizeDegreeText(t string) string {
 	t = degreeNormalizer.Replace(t)
 	t = strings.Map(func(r rune) rune {
@@ -29,8 +29,8 @@ func NormalizeDegreeText(t string) string {
 	return strings.ToUpper(t)
 }
 
-// TermCountForDegree پورت termCountForDegree: مقدار معتبر صریح مقدم است؛
-// وگرنه کاردانی/ناپیوسته/ارشد/دکترا → ۴، پیوسته/ناشناخته → ۸.
+// TermCountForDegree is a port of termCountForDegree: an explicit valid value takes precedence;
+// otherwise associate/discontinuous-bachelor/master/doctorate → 4, continuous/unknown → 8.
 func TermCountForDegree(termCount *int, code, title string) int {
 	if termCount != nil && *termCount >= 1 && *termCount <= 12 {
 		return *termCount
@@ -51,12 +51,12 @@ func TermCountForDegree(termCount *int, code, title string) int {
 	return 8
 }
 
-// IsSummerSemester آیا شمارهٔ ترم، تابستان است؟
+// IsSummerSemester reports whether a term number is a summer term.
 func IsSummerSemester(sem *int) bool {
 	return sem != nil && *sem == SummerSemester
 }
 
-// PlanSemesters فهرست ترم‌های عادی چارت [1..N] با کف ۱ و سقف ۱۲.
+// PlanSemesters is the list of the chart's regular terms [1..N], floored at 1 and capped at 12.
 func PlanSemesters(count int) []int {
 	n := count
 	if n < 1 {

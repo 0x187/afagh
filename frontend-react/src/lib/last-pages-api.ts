@@ -1,13 +1,13 @@
-// ═══ کلاینت شش صفحهٔ باقی‌ماندهٔ ادمین — پیام همگانی، bypass، جلسات کلاس،
-// زنجیرهٔ تحویل امتحان، ویرایشگر ارائه، رفع تداخل برنامه ═══
+// ═══ Client for the six remaining admin pages — broadcast message, bypass, class sessions,
+// exam delivery chain, offering editor, schedule conflict resolution ═══
 import { apiGet, apiPost } from './api';
 
-// ── انواع مشترک ──
+// ── Shared types ──
 
 export type LPIdName = { id: number; name: string };
 export type LPTerm = { id: number; title: string; isCurrent: number };
 
-// ── ۱) پیام همگانی (broadcast) ──
+// ── 1) Broadcast message ──
 
 export type LPDepartment = LPIdName & { facultyId: number };
 export type LPMajor = LPIdName & { departmentId: number | null };
@@ -54,7 +54,7 @@ export const getBroadcastHistory = () =>
   apiGet<{ ok: boolean; data: { records: BroadcastRecord[] } }>('/admin/broadcast/history?limit=20')
     .then((r) => r.data.records);
 
-// ── ۲) تأیید bypass مدیر گروه ──
+// ── 2) Group manager bypass approval ──
 
 export type BypassRequestRow = {
   id: number; studentId: number; offeringId: number; kind: string; status: string;
@@ -83,7 +83,7 @@ export const bypassSaveSettings = (input: {
   termId: number; bypassManagerHours: number; bypassExpertHours: number; bypassReminderHours: number;
 }) => apiPost('/admin/bypass/settings', input);
 
-// ── ۳) مدیریت جلسات کلاس ──
+// ── 3) Class session management ──
 
 export type ClassSessionOffering = {
   id: number; code: string; title: string; groupNumber: number;
@@ -111,7 +111,7 @@ export const toggleClassSessionFlag = (sessionId: number, flag: 'isHoliday' | 'i
   apiPost<{ ok: boolean; data: { value: number } }>('/admin/class-sessions/toggle-flag', { sessionId, flag })
     .then((r) => r.data);
 
-// ── ۴) زنجیرهٔ تحویل اوراق امتحان ──
+// ── 4) Exam paper delivery chain ──
 
 export type ExamHandoverSession = {
   sessionId: number; examDate: string; time: string; hallId: number | null; hallName: string;
@@ -141,7 +141,7 @@ export const finalizeExamHandover = (sessionId: number) =>
   apiPost<{ ok: boolean; data: { packets: number; fullyCollected: number; discrepancies: number } }>(
     '/admin/exams/handover/finalize', { sessionId }).then((r) => r.data);
 
-// ── ۵) ویرایشگر ارائه ──
+// ── 5) Offering editor ──
 
 export type OfferingEditorClassRow = {
   id: number; day: number | null; start: string | null; end: string | null; roomId: number | null;
@@ -172,7 +172,7 @@ export const addOfferingExpert = (offeringId: number, userId: number) =>
 export const removeOfferingExpert = (offeringId: number, userId: number) =>
   apiPost('/admin/offering-editor/expert/remove', { offeringId, userId });
 
-// ── ۶) رفع تداخل برنامهٔ هفتگی ──
+// ── 6) Weekly schedule conflict resolution ──
 
 export type ConflictSlot = {
   scheduleId: number; offeringId: number; dayOfWeek: number | null;

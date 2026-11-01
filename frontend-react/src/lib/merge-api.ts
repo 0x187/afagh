@@ -1,4 +1,4 @@
-// ═══ کلاینت ادغام دروس و خوشه‌های هم‌ارز ═══
+// ═══ Client for merging courses and equivalent clusters ═══
 import { apiGet, apiPost } from './api';
 
 export type MergeMember = {
@@ -29,7 +29,7 @@ export async function updateCourseMerge(offeringIds: number[], mode: 'merge' | '
   await apiPost('/admin/offering-merge/update', { offeringIds, mode });
 }
 
-// ─────────────────── خوشه‌های هم‌ارز ───────────────────
+// ─────────────────── Equivalent clusters ───────────────────
 
 export type EquivCluster = {
   id: number;

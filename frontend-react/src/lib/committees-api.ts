@@ -1,4 +1,4 @@
-// ═══ کلاینت کمیتهٔ انضباطی و شورای آموزشی (فاز ۸) ═══
+// ═══ Disciplinary committee and educational council client (phase 8) ═══
 import { apiGet, apiPost } from './api';
 
 export const DISCIPLINE_STATUSES = ['در حال بررسی', 'در کمیته', 'تصمیم‌گیری‌شده', 'تجدیدنظر'];
@@ -47,7 +47,7 @@ export async function deleteDiscipline(id: number): Promise<void> {
   await apiPost<{ ok: boolean }>('/admin/discipline/delete', { id });
 }
 
-// ─────────────────── شورا ───────────────────
+// ─────────────────── Council ───────────────────
 
 export const COUNCIL_DECISION_TYPES = ['مصوبه', 'توصیه', 'درخواست تجدیدنظر'];
 export const COUNCIL_IMPLEMENTATION_STATUSES = ['در انتظار اجرا', 'در حال اجرا', 'اجراشده'];

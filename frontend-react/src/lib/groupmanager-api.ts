@@ -1,4 +1,4 @@
-// ═══ کلاینت پنل مدیر گروه (فاز ۵) ═══
+// ═══ Group manager panel client (phase 5) ═══
 import { apiGet, apiPost } from './api';
 
 export type GmDept = { id: number; name: string; kind: string; via: string };

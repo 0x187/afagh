@@ -1,4 +1,4 @@
-// ═══ کلاینت کارت سکونت خوابگاه ═══
+// ═══ Dormitory residence card client ═══
 import { apiGet, apiPost } from './api';
 
 export type DormRow = {

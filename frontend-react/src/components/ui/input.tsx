@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
-// ═══ Input — پایهٔ دیزاین‌سیستم (سبک shadcn/ui، توکن‌های آفاق) ═══
+// ═══ Input — design-system base (shadcn/ui style, Afagh tokens) ═══
 
 function Input({ className, type, ...props }: React.ComponentProps<'input'>) {
   return (

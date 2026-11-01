@@ -1,10 +1,10 @@
-// ═══ موتور شهریهٔ آفاق — پورت lib/tuition-engine.ts (لایهٔ DB) ═══
+// ═══ Afagh tuition engine — port of lib/tuition-engine.ts (DB layer) ═══
 //
-// نرخ‌ها از جدول یکپارچهٔ tuition_rules خوانده می‌شوند و انتخاب قاعده با
-// resolver یکتا (Resolve) انجام می‌شود: مقطع > رشته > نوع ترم > نوع درس > ورودی.
-//   • شهریهٔ ثابت: یک‌بار به ازای نوع ترم (termLevelOnly)
-//   • شهریهٔ متغیر: به ازای هر واحد با سطل‌بندی نظری/عملی/عمومی
-//   • ضریب افزایشی نیمسال (tuition_coefficients) + مبالغ موضوعی (subject_fee_types)
+// Rates are read from the unified tuition_rules table and rule selection is done with
+// a single resolver (Resolve): degree level > major > term type > course type > entry cohort.
+//   • Fixed tuition: charged once per term type (termLevelOnly)
+//   • Variable tuition: per unit with theory/practical/general bucketing
+//   • Semester escalation coefficient (tuition_coefficients) + subject-specific amounts (subject_fee_types)
 package tuition
 
 import (
@@ -18,23 +18,23 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Settings حداقل وابستگی تنظیمات.
+// Settings is the minimal settings dependency.
 type Settings interface {
 	Get(ctx context.Context, key string) (string, error)
 }
 
-// Engine موتور شهریه.
+// Engine is the tuition engine.
 type Engine struct {
 	Pool     *pgxpool.Pool
 	Settings Settings
 }
 
-// New ساخت موتور.
+// New constructs the engine.
 func New(pool *pgxpool.Pool, settings Settings) *Engine {
 	return &Engine{Pool: pool, Settings: settings}
 }
 
-// TuitionLine ردیف شهریهٔ متغیر یک درس.
+// TuitionLine is a variable-tuition row for one course.
 type TuitionLine struct {
 	CourseCode   string  `json:"courseCode"`
 	CourseTitle  string  `json:"courseTitle"`
@@ -44,7 +44,7 @@ type TuitionLine struct {
 	Amount       float64 `json:"amount"`
 }
 
-// SubjectFeeLine ردیف مبلغ موضوعی.
+// SubjectFeeLine is a subject-specific amount row.
 type SubjectFeeLine struct {
 	Code   string  `json:"code"`
 	Title  string  `json:"title"`
@@ -52,7 +52,7 @@ type SubjectFeeLine struct {
 	Amount float64 `json:"amount"`
 }
 
-// TermTuition شهریهٔ یک ترم.
+// TermTuition is the tuition of one term.
 type TermTuition struct {
 	StudentID                 int64            `json:"studentId"`
 	TermID                    int64            `json:"termId"`
@@ -72,7 +72,7 @@ type TermTuition struct {
 	OverrideReason            *string          `json:"overrideReason"`
 }
 
-// loadActiveFeeRules همهٔ قواعد فعال شهریه (یک کوئری).
+// loadActiveFeeRules returns all active tuition rules (one query).
 func (e *Engine) loadActiveFeeRules(ctx context.Context) ([]RuleLike, error) {
 	rows, err := e.Pool.Query(ctx, `
 		select id, "degreeLevelId", "majorId", "facultyId", "termType", "offeringType", "clinicalPhase",
@@ -112,7 +112,7 @@ type tuitionOverride struct {
 	Reason        *string
 }
 
-// findActiveTuitionOverride فرمول ویژهٔ فعال (اولویت: ترم جاری > همهٔ ترم‌ها).
+// findActiveTuitionOverride is the active special formula (priority: current term > all terms).
 func (e *Engine) findActiveTuitionOverride(ctx context.Context, studentID, termID int64) (*tuitionOverride, error) {
 	rows, err := e.Pool.Query(ctx, `
 		select id, "termId", "fixedAmount"::float8, "perUnitAmount"::float8, reason
@@ -217,7 +217,7 @@ func mulberryRound(v float64) float64 {
 	return sign * float64(int64(v+0.5))
 }
 
-// ComputeTermTuition محاسبهٔ شهریهٔ یک ترم برای یک دانشجو.
+// ComputeTermTuition computes one term's tuition for one student.
 func (e *Engine) ComputeTermTuition(ctx context.Context, studentID, termID int64, includeFixed bool) (*TermTuition, error) {
 	var degreeLevelID, majorID, universityID *int64
 	var entryYear *int
@@ -247,7 +247,7 @@ func (e *Engine) ComputeTermTuition(ctx context.Context, studentID, termID int64
 		overrideRate = override.PerUnitAmount
 	}
 
-	// شهریهٔ ثابت — یک‌بار به ازای نوع ترم؛ فقط قواعد سطح ترم.
+	// Fixed tuition — charged once per term type; only term-level rules.
 	fixedRule := Resolve(rules, Context{
 		DegreeLevelID: degreeLevelID, MajorID: majorID, TermType: &termTypeStr,
 		EntryYear: entryYear, TermLevelOnly: true, UniversityID: universityID,
@@ -264,7 +264,7 @@ func (e *Engine) ComputeTermTuition(ctx context.Context, studentID, termID int64
 		fixedRuleID = &id
 	}
 
-	// دروس ثبت‌شدهٔ دانشجو در این ترم (بدون درسِ منتقل‌شده — شهریه‌اش جای دیگر).
+	// The student's registered courses in this term (excluding the transferred course — its tuition is handled elsewhere).
 	rows, err := e.Pool.Query(ctx, `
 		select c.code, c.title, c.units::float8, c."theoreticalUnits"::float8, c."practicalUnits"::float8,
 		       c."courseType", coalesce(o."offeringType",'NORMAL')
@@ -339,8 +339,8 @@ func (e *Engine) ComputeTermTuition(ctx context.Context, studentID, termID int64
 	return out, nil
 }
 
-// ChargeTermTuition شارژ شهریهٔ محاسبه‌شده در دفتر مالی (idempotent با
-// referenceId=termId و نوع TUITION_CHARGE؛ قفل سطری + بک‌استاپ یکتای جزئی).
+// ChargeTermTuition charges the computed tuition into the financial ledger (idempotent via
+// referenceId=termId and type TUITION_CHARGE; row lock + unique partial backstop).
 func (e *Engine) ChargeTermTuition(ctx context.Context, studentID, termID int64, includeFixed bool) (float64, float64, error) {
 	t, err := e.ComputeTermTuition(ctx, studentID, termID, includeFixed)
 	if err != nil {
@@ -402,7 +402,7 @@ func (e *Engine) ChargeTermTuition(ctx context.Context, studentID, termID int64,
 			insert into student_ledger ("studentId","termId","transactionType",amount,description,"referenceId","universityId")
 			values ($1,$2,'TUITION_CHARGE',$3,$4,$2,$5)`,
 			studentID, termID, fmtNum(amount), desc, *uniID); err != nil {
-			// رقابت همزمان نادر (بک‌استاپ یکتا): ردیف برنده را به‌روز کن.
+			// Concurrent races are rare (unique backstop): update the winning row.
 			if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "23505") {
 				var winner int64
 				if err2 := tx.QueryRow(ctx, `
@@ -427,7 +427,7 @@ func (e *Engine) ChargeTermTuition(ctx context.Context, studentID, termID int64,
 	return amount, t.TotalTuition, nil
 }
 
-// ComputeCourseTuitionForTerms ریز شهریهٔ متغیر دروس برای چند ترم (کارنامهٔ ریز مالی).
+// ComputeCourseTuitionForTerms gives the detailed variable tuition of courses for multiple terms (detailed financial transcript).
 func (e *Engine) ComputeCourseTuitionForTerms(ctx context.Context, studentID int64, termIDs []int64) map[int64][]TuitionLine {
 	out := map[int64][]TuitionLine{}
 	for _, tid := range termIDs {
@@ -441,7 +441,7 @@ func (e *Engine) ComputeCourseTuitionForTerms(ctx context.Context, studentID int
 	return out
 }
 
-// GetEquivFixedMode سیاست شهریهٔ ثابت معادل‌سازی (تنظیم EQUIV_FIXED_TUITION_MODE).
+// GetEquivFixedMode is the equivalency fixed-tuition policy (EQUIV_FIXED_TUITION_MODE setting).
 func (e *Engine) GetEquivFixedMode(ctx context.Context) EquivFixedMode {
 	raw := ""
 	if e.Settings != nil {
@@ -450,7 +450,7 @@ func (e *Engine) GetEquivFixedMode(ctx context.Context) EquivFixedMode {
 	return NormalizeEquivFixedMode(raw)
 }
 
-// EquivTermsFor ردیف ترم معادل‌سازی (اپن جابه‌جایی برای پکیج گردش‌کار).
+// EquivTermsFor is the equivalency term row (open shift for the workflow package).
 type EquivTerm struct {
 	ID    int64
 	Title string
@@ -458,7 +458,7 @@ type EquivTerm struct {
 
 func fmtNum(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64) }
 
-// EnsureEquivalenceTerm ترم معادل‌سازی «00EQn» متعلق به همان دانشگاه — idempotent.
+// EnsureEquivalenceTerm ensures the "00EQn" equivalency term owned by the same university — idempotent.
 func (e *Engine) EnsureEquivalenceTerm(ctx context.Context, universityID int64, termCode, title string) (*EquivTerm, error) {
 	tx, err := e.Pool.Begin(ctx)
 	if err != nil {
@@ -490,8 +490,8 @@ func (e *Engine) EnsureEquivalenceTerm(ctx context.Context, universityID int64, 
 	return &t, nil
 }
 
-// ApplyEquivalenceRegistration ثبت درس معادل‌سازی‌شده در آفرینگ TRANSFER
-// (بخش ثبتِ applyEquivalenceBatch — بدون شارژ؛ شارژ با ChargeTermTuition).
+// ApplyEquivalenceRegistration registers the equivalized course in the TRANSFER offering
+// (the registration part of applyEquivalenceBatch — no charging; charging is done by ChargeTermTuition).
 func (e *Engine) ApplyEquivalenceRegistration(ctx context.Context, tx pgx.Tx, studentID, termID, courseID int64, grade float64, workflowRequestID *int64) (bool, error) {
 	var offeringID int64
 	err := tx.QueryRow(ctx, `
@@ -531,7 +531,7 @@ func (e *Engine) ApplyEquivalenceRegistration(ctx context.Context, tx pgx.Tx, st
 	return ierr == nil, ierr
 }
 
-// ─────────────────── سطل‌بندی واحد (پورت bucketCourseUnits) ───────────────────
+// ─────────────────── Unit bucketing (port of bucketCourseUnits) ───────────────────
 
 type unitBuckets struct {
 	Theory    float64

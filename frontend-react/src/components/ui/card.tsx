@@ -2,7 +2,7 @@ import * as React from 'react';
 
 import { cn } from '@/lib/utils';
 
-// ═══ Card — پایهٔ دیزاین‌سیستم (سبک shadcn/ui، توکن‌های آفاق) ═══
+// ═══ Card — design-system base (shadcn/ui style, Afagh tokens) ═══
 
 function Card({ className, ...props }: React.ComponentProps<'div'>) {
   return (

@@ -1,9 +1,9 @@
 /**
- * منطق مشترک چاپ اسناد رسمی — پورت components/print-transcript.ts.
+ * Shared logic for printing official documents — port of components/print-transcript.ts.
  *
- * یک کپی از سند (`.transcript-print-area`) در ریشهٔ body گذاشته و همهٔ اپ را
- * هنگام چاپ پنهان می‌کند تا صفحه‌های خالی و بریدگی جدول رخ ندهد؛ اندازهٔ کاغذ
- * هم فقط برای همین چاپ تزریق و پس از آن برداشته می‌شود.
+ * A copy of the document (`.transcript-print-area`) is placed at the root of body and the whole app is
+ * hidden while printing so blank pages and clipped tables do not occur; the paper size
+ * is also injected just for this print and removed afterwards.
  */
 export function doPrintTranscript(orientation: 'landscape' | 'portrait' = 'landscape'): void {
   if (typeof document === 'undefined') return;
@@ -30,6 +30,6 @@ export function doPrintTranscript(orientation: 'landscape' | 'portrait' = 'lands
   };
   window.addEventListener('afterprint', done);
   window.print();
-  // fallback اگر afterprint نیامد (بستن دستی دیالوگ)
+  // Fallback if afterprint does not fire (manual dialog close)
   setTimeout(done, 3000);
 }

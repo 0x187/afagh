@@ -1,4 +1,4 @@
-// ═══ کلاینت API احراز هویت (قرارداد فاز ۱) ═══
+// ═══ Auth API client (phase 1 contract) ═══
 import { ApiError, apiGet, apiPost } from './api';
 
 export type LoginCandidate = {
@@ -16,12 +16,12 @@ export type LoginResponse =
 
 export type SimpleAuthResponse = { ok: boolean; error?: string; mustChange?: boolean };
 
-/** ورود — ارقام توسط فیلد ورودی و بکند نرمال می‌شوند. */
+/** Login — digits are normalized by the input field and the backend. */
 export function login(identifier: string, password: string): Promise<LoginResponse> {
   return apiPost<LoginResponse>('/auth/login', { identifier, password });
 }
 
-/** انتخاب حساب وقتی یک شناسه چند حساب هم‌رمز دارد. */
+/** Account selection when one identity has multiple accounts sharing a password. */
 export function chooseAccount(token: string, userId: number): Promise<SimpleAuthResponse> {
   return apiPost<SimpleAuthResponse>('/auth/choose-account', { token, userId });
 }
@@ -51,7 +51,7 @@ export function switchAccount(kind: 'staff' | 'student', code: string, password:
 
 export { ApiError };
 
-// ── ویترین عمومی صفحهٔ ورود (بدون نشست) ──
+// ── Login page public showcase (no session) ──
 export type ShowcaseUniversity = { id: number; code: string; title: string; logoUrl: string | null };
 export type ShowcaseNotice = { id: number; title: string; body: string; kind: string };
 export type ShowcaseSlide = { id: number; title: string; subtitle: string; imageUrl: string; linkUrl: string };

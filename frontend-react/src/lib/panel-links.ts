@@ -1,4 +1,4 @@
-// ═══ فهرست «کارتابل‌های من» — پورت panel-links.ts ═══
+// ═══ "My cartables" list — port of panel-links.ts ═══
 export type PanelKey = 'student' | 'professor' | 'group-manager' | 'admin' | 'proctor';
 
 export interface PanelLink {
@@ -6,7 +6,7 @@ export interface PanelLink {
   href: string;
   label: string;
   icon: string;
-  /** مسیر در SPA جدید (فاز ۱ فقط خانه)؛ نبود = ناوبری کامل به مسیر سیستم فعلی */
+  /** Path in the new SPA (phase 1: home only); absent = full navigation to the current system's path */
   spaHref?: string;
 }
 
@@ -46,7 +46,7 @@ const PANEL_ROLE_SETS: Record<PanelKey, readonly string[]> = {
   proctor: ['PROCTOR', 'VAULT_MANAGER', 'ADMIN', 'EDU_EXPERT', 'PROFESSOR'],
 };
 
-/** «دسترسی با نقش: …» — خالی اگر ناشناخته */
+/** "Access by role: …" — empty if unknown */
 export function panelRoleHint(key: PanelKey, roles: readonly string[]): string {
   const wanted = PANEL_ROLE_SETS[key];
   const names = roles.filter((r) => wanted.includes(r)).map((r) => ROLE_LABELS[r]).filter(Boolean);
@@ -54,7 +54,7 @@ export function panelRoleHint(key: PanelKey, roles: readonly string[]): string {
   return uniq.length ? `دسترسی با نقش: ${uniq.join('، ')}` : '';
 }
 
-/** پنل‌های مجاز — به همان ترتیب اولویت homeFor. */
+/** Allowed panels — in the same priority order as homeFor. */
 export function availablePanels(roles: readonly string[], permissionCount = 0): PanelLink[] {
   const has = (r: string) => roles.includes(r);
   const out: PanelLink[] = [];

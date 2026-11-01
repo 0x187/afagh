@@ -55,7 +55,7 @@ describe('calendar-layout', () => {
     ]);
     expect(solo).toHaveLength(2);
 
-    // زوج/فرد هم‌سانس → BOTH
+    // Even/odd same-session → BOTH
     const both = collapseCalendarEntries([
       { ...base, id: 1, code: 'A', sharedScheduleGroupKey: 'G1', weekType: 'EVEN' as const },
       { ...base, id: 2, code: 'A2', sharedScheduleGroupKey: 'G1', weekType: 'ODD' as const },
@@ -70,14 +70,14 @@ describe('calendar-layout', () => {
       { id: 2, dayOfWeek: 0, startTime: '09:00', endTime: '11:00', weekType: 'ALL' },
       { id: 3, dayOfWeek: 0, startTime: '12:00', endTime: '13:00', weekType: 'ALL' },
     ]);
-    // ۷:۰۰ تا ۲۰:۰۰ = ۷۸۰ دقیقه؛ شروع ۸:۰۰ → (60/780)*100 = 7.69
+    // 7:00 to 20:00 = 780 minutes; start 8:00 → (60/780)*100 = 7.69
     expect(placements.find((p) => p.entry.id === 1)?.topPercent).toBeCloseTo(7.69, 1);
     const one = placements.find((p) => p.entry.id === 1)!;
     const two = placements.find((p) => p.entry.id === 2)!;
-    expect(one.widthPercent).toBe(50); // دو ستون در خوشهٔ متداخل
+    expect(one.widthPercent).toBe(50); // Two columns in an overlapping cluster
     expect(two.column).toBe(1);
     const three = placements.find((p) => p.entry.id === 3)!;
-    expect(three.widthPercent).toBe(100); // تک‌ستون
+    expect(three.widthPercent).toBe(100); // Single column
     expect(three.heightPercent).toBeCloseTo(7.69, 1);
   });
 });

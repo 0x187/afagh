@@ -415,7 +415,7 @@ func (s *Service) GetTranscript(ctx context.Context, userID int64, userName stri
 		return nil, err
 	}
 
-	// ردیف‌های واجد معدل: همان قاعدهٔ loadOfficialGpaRows.
+	// Eligible GPA rows: same rule as loadOfficialGpaRows.
 	for _, item := range allRows {
 		if item.row.GradeStatus == nil {
 			continue
@@ -449,7 +449,7 @@ func (s *Service) GetTranscript(ctx context.Context, userID int64, userName stri
 		DedupeRepeated: reg.DedupeRepeated,
 	})
 
-	// فیلتر ترم انتخابی.
+	// Filter for the selected term.
 	scoped := allRows
 	if termID != nil {
 		var filtered = allRows[:0:0]
@@ -461,7 +461,7 @@ func (s *Service) GetTranscript(ctx context.Context, userID int64, userName stri
 		scoped = filtered
 	}
 
-	// گروه‌بندی دروس بر اساس ترم + محاسبات هر ترم.
+	// Group courses by term + per-term calculations.
 	type termAgg struct {
 		block TermBlock
 	}
@@ -489,7 +489,7 @@ func (s *Service) GetTranscript(ctx context.Context, userID int64, userName stri
 		agg.block.Rows = append(agg.block.Rows, r)
 	}
 
-	// محاسبهٔ آمار هر ترم طبق منطق صفحهٔ کارنامه.
+	// Compute per-term statistics following the transcript page logic.
 	for _, id := range order {
 		b := &byTerm[id].block
 		weighted := 0.0
@@ -518,7 +518,7 @@ func (s *Service) GetTranscript(ctx context.Context, userID int64, userName stri
 		}
 	}
 
-	// مرتب‌سازی/گروه‌بندی سال‌ها با پورت scheduling-core.
+	// Year sorting/grouping, ported from scheduling-core.
 	terms := make([]scheduling.TermWithCode, 0, len(order))
 	for _, id := range order {
 		terms = append(terms, scheduling.TermWithCode{TermCode: byTerm[id].block.TermCode, Rows: byTerm[id].block})
@@ -550,7 +550,7 @@ func (s *Service) GetTranscript(ctx context.Context, userID int64, userName stri
 		resp.AcademicYears = append(resp.AcademicYears, block)
 	}
 
-	// خلاصهٔ کل دوره.
+	// Whole program summary.
 	totals := TranscriptTotals{
 		PassedUnits:   int(official.PassedUnits + 0.5),
 		GradedUnits:   int(official.TotalUnits + 0.5),
@@ -579,7 +579,7 @@ func (s *Service) GetTranscript(ctx context.Context, userID int64, userName stri
 	}
 	resp.Totals = totals
 
-	// بلوک QR اصالت — نبود کلید نباید کارنامه را بشکند.
+	// Authenticity QR block — a missing key must not break the transcript.
 	if s.Signer != nil && publicBaseURL != "" {
 		if token, expiresAt, err := s.issueTranscriptToken(ctx, userID, me); err == nil {
 			url := strings.TrimRight(publicBaseURL, "/") + "/verify-transcript/" + token
@@ -639,7 +639,7 @@ func maskNationalCode(code *string) string {
 	return c[:3] + "*****" + c[len(c)-2:]
 }
 
-// studyTypeFa پورت courseTypeFa برای نوع دوره.
+// studyTypeFa is a port of courseTypeFa for the program type.
 func studyTypeFa(v string) string {
 	if v == "" {
 		return "—"
@@ -657,7 +657,7 @@ func studyTypeFa(v string) string {
 	return v
 }
 
-// issueTranscriptToken پورت issueTranscriptToken با سقف ۱ سال.
+// issueTranscriptToken is a port of issueTranscriptToken with a 1-year cap.
 func (s *Service) issueTranscriptToken(ctx context.Context, userID int64, me *Record) (string, string, error) {
 	ttlMin := 10080.0
 	if s.Settings != nil {

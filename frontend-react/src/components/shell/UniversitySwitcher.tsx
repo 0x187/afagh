@@ -2,8 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 
 import { getScope, setUniversity } from '@/lib/scope-api';
 
-// ═══ سوییچر «دانشگاه فعال» — پورت UniversitySwitcher سربرگ ═══
-// فقط وقتی کاربر بیش از یک دانشگاه مجاز دارد نمایش داده می‌شود (عین اصلی).
+// ═══ "Active university" switcher — port of the header UniversitySwitcher ═══
+// Shown only when the user has more than one allowed university (same as the original).
 export function UniversitySwitcher() {
   const { data, isLoading } = useQuery({
     queryKey: ['scope'],

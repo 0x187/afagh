@@ -1,4 +1,4 @@
-// ═══ وب‌هوک گردش کار با گارد SSRF ═══
+// ═══ Workflow webhook with SSRF guard ═══
 package workflow
 
 import (
@@ -11,7 +11,7 @@ import (
 	"time"
 )
 
-// postWebhookSafe ارسال POST به وب‌هوک — فقط https به مقصد عمومی؛ خطا بی‌صدا.
+// postWebhookSafe POSTs to the webhook — https only, to public destinations; errors are silent.
 func postWebhookSafe(rawURL string, body []byte) {
 	u, err := url.Parse(rawURL)
 	if err != nil || (u.Scheme != "https" && u.Scheme != "http") {
@@ -21,7 +21,7 @@ func postWebhookSafe(rawURL string, body []byte) {
 	if host == "" {
 		return
 	}
-	// مقصدهای داخلی/خصوصی مسدود (fail-closed).
+	// Internal/private destinations are blocked (fail-closed).
 	if ip := net.ParseIP(host); ip != nil {
 		if ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast() || ip.IsUnspecified() {
 			return

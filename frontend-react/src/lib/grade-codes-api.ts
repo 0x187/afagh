@@ -1,4 +1,4 @@
-// ═══ کلاینت دروس، چارت و کدهای وضعیت نمره ═══
+// ═══ Courses, curriculum chart, and grade status codes client ═══
 import { apiGet, apiPatch, apiPost } from './api';
 
 export type GradeStatusCodeItem = {

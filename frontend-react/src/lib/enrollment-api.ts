@@ -1,4 +1,4 @@
-// ═══ کلاینت تأیید انتخاب واحد و صدور تأییدیه ═══
+// ═══ Course registration confirmation and certificate issuance client ═══
 import { apiGet, apiPost } from './api';
 
 export type EnrollApprovalRow = {

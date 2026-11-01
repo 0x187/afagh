@@ -10,7 +10,7 @@ func TestTariffCourseAmount(t *testing.T) {
 	if got := TariffCourseAmount(1.5, 0.5, rate); got != 2750 {
 		t.Fatalf("amount = %v, want 2750", got)
 	}
-	// رفتار سند رسمی: درس بی‌نرخ صفر است، نه نرخ پیش‌فرض.
+	// Official document behavior: an un-rated course is zero, not the default rate.
 	if got := TariffAmountOrZero(2, 1, nil); got != 0 {
 		t.Fatalf("nil rate amount = %v, want 0", got)
 	}

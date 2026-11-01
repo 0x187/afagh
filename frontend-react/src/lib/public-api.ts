@@ -1,4 +1,4 @@
-// ═══ کلاینت استعلام عمومی (بدون نشست) ═══
+// ═══ Public inquiry client (no session) ═══
 import { apiGet } from './api';
 
 export type PublicVerifyResult = {

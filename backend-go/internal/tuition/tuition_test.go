@@ -25,7 +25,7 @@ func TestTermTypeOf(t *testing.T) {
 		in   TermInput
 		want TermType
 	}{
-		{TermInput{TermCode: sp("00EQ1"), TermType: sp("NORMAL")}, Equivalence}, // پیشوند مقدم است
+		{TermInput{TermCode: sp("00EQ1"), TermType: sp("NORMAL")}, Equivalence}, // the prefix takes precedence
 		{TermInput{TermType: sp("SUMMER")}, Summer},
 		{TermInput{TermType: sp("EQUIVALENCE")}, Equivalence},
 		{TermInput{IsSummer: ip(1)}, Summer},
@@ -79,7 +79,7 @@ func TestMatches(t *testing.T) {
 }
 
 func TestResolveSpecificity(t *testing.T) {
-	// قاعدهٔ دارای مقطع+رشته بر قاعدهٔ فقط-مقطع مقدم است
+	// a rule with degree level+major takes precedence over a degree-level-only rule
 	rows := []RuleLike{
 		rule(func(r *RuleLike) { r.ID = 1; r.DegreeLevelID = i64(1); r.FixedAmount = 1000 }),
 		rule(func(r *RuleLike) { r.ID = 2; r.DegreeLevelID = i64(1); r.MajorID = i64(5); r.FixedAmount = 2000 }),
@@ -89,7 +89,7 @@ func TestResolveSpecificity(t *testing.T) {
 		t.Fatalf("قاعدهٔ خاص‌تر باید برنده شود: %+v", best)
 	}
 
-	// priority کوچک‌تر برنده است
+	// smaller priority wins
 	prio := Resolve([]RuleLike{
 		rule(func(r *RuleLike) { r.ID = 1; r.DegreeLevelID = i64(1); r.Priority = ip(50) }),
 		rule(func(r *RuleLike) { r.ID = 2; r.DegreeLevelID = i64(1); r.Priority = ip(10) }),
@@ -98,7 +98,7 @@ func TestResolveSpecificity(t *testing.T) {
 		t.Fatalf("priority کوچک‌تر باید برنده شود: %+v", prio)
 	}
 
-	// تازگی entryYearFrom در تساوی
+	// newer entryYearFrom on ties
 	newer := Resolve([]RuleLike{
 		rule(func(r *RuleLike) { r.ID = 1; r.DegreeLevelID = i64(1); r.EntryYearFrom = ip(1400) }),
 		rule(func(r *RuleLike) { r.ID = 2; r.DegreeLevelID = i64(1); r.EntryYearFrom = ip(1402) }),
@@ -107,7 +107,7 @@ func TestResolveSpecificity(t *testing.T) {
 		t.Fatalf("ورودی جدیدتر باید برنده شود: %+v", newer)
 	}
 
-	// بدون تطبیق → nil
+	// no match → nil
 	if Resolve([]RuleLike{rule(func(r *RuleLike) { r.DegreeLevelID = i64(9) })}, Context{DegreeLevelID: i64(1)}) != nil {
 		t.Fatal("بدون قاعدهٔ منطبق باید nil بدهد")
 	}
@@ -131,9 +131,9 @@ func TestMapLegacyFeeRules(t *testing.T) {
 	d1 := int64(1)
 	drafts := MapLegacyFeeRules([]LegacyFeeRuleLike{
 		{DegreeLevelID: &d1, TermType: Normal, TermCode: sp("14021"), FixedTuition: 1000, PerUnitTuition: 100, TermSortKey: 1},
-		{DegreeLevelID: &d1, TermType: Normal, TermCode: sp("14031"), FixedTuition: 1200, PerUnitTuition: 120, TermSortKey: 3}, // جدیدترین برنده
+		{DegreeLevelID: &d1, TermType: Normal, TermCode: sp("14031"), FixedTuition: 1200, PerUnitTuition: 120, TermSortKey: 3}, // newest wins
 		{DegreeLevelID: &d1, TermType: Normal, TermCode: sp("14011"), FixedTuition: 900, PerUnitTuition: 90, TermSortKey: 2},
-		{DegreeLevelID: &d1, TermType: Summer, TermCode: sp("14023"), FixedTuition: 0, PerUnitTuition: 0, TermSortKey: 4}, // بی‌اثر
+		{DegreeLevelID: &d1, TermType: Summer, TermCode: sp("14023"), FixedTuition: 0, PerUnitTuition: 0, TermSortKey: 4}, // no-op
 	})
 	if len(drafts) != 1 {
 		t.Fatalf("پیش‌نویس‌ها: %+v", drafts)

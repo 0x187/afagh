@@ -1,4 +1,4 @@
-// ═══ کلاینت دوره‌های آزاد (مدیریت) ═══
+// ═══ Open courses client (management) ═══
 import { apiGet, apiPost } from './api';
 
 export type ShortTermLearner = {

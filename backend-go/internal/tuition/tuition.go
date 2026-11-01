@@ -1,8 +1,8 @@
-// ═══ resolver یکتای قواعد شهریه — پورت tuition-resolver.ts ═══
+// ═══ Single tuition-rules resolver — port of tuition-resolver.ts ═══
 //
-// سلسله‌مراتب اختصاصیت: مقطع > رشته > دانشکده > نوع ترم > نوع درس >
-// فاز بالینی > بازهٔ ورودی > نیمسال ورود > نیمسال جاری.
-// گره‌شکن: priority کوچک‌تر، سپس تازه‌تر entryYearFrom، سپس id کوچک‌تر.
+// Specificity hierarchy: degree level > major > faculty > term type > course type >
+// clinical phase > entry range > entry semester > current semester.
+// Tie-break: smaller priority, then newer entryYearFrom, then smaller id.
 package tuition
 
 import (
@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-// ToNum پورت toNum.
+// ToNum is a port of toNum.
 func ToNum(v any) float64 {
 	switch x := v.(type) {
 	case float64:
@@ -34,7 +34,7 @@ func ToNum(v any) float64 {
 	return 0
 }
 
-// RuleLike حداقل شکل ردیف قاعدهٔ شهریه.
+// RuleLike is the minimal shape of a tuition-rule row.
 type RuleLike struct {
 	ID               int64
 	DegreeLevelID    *int64
@@ -58,7 +58,7 @@ type RuleLike struct {
 	UniversityID     *int64
 }
 
-// Context بافت دانشجو/ترم برای تطبیق.
+// Context is the student/term context for matching.
 type Context struct {
 	DegreeLevelID *int64
 	MajorID       *int64
@@ -80,7 +80,7 @@ func eqPtr[T comparable](a *T, b *T) bool {
 	return *a == *b
 }
 
-// Matches پورت tuitionRuleMatches — فیلد تهی = بدون محدودیت.
+// Matches is a port of tuitionRuleMatches — empty field = no constraint.
 func Matches(r RuleLike, ctx Context) bool {
 	if r.IsActive != nil && *r.IsActive != 1 {
 		return false
@@ -156,7 +156,7 @@ func boolToInt(b bool) int {
 	return 0
 }
 
-// Compare پورت compareTuitionRules: منفی = a جلوتر (برنده‌تر).
+// Compare is a port of compareTuitionRules: negative = a is ahead (wins).
 func Compare(a, b RuleLike) int {
 	dims := []int{
 		boolToInt(a.DegreeLevelID != nil) - boolToInt(b.DegreeLevelID != nil),
@@ -196,7 +196,7 @@ func Compare(a, b RuleLike) int {
 	return int(a.ID - b.ID)
 }
 
-// Resolve پورت resolveTuitionRule — قاعدهٔ برنده یا nil.
+// Resolve is a port of resolveTuitionRule — the winning rule or nil.
 func Resolve(rows []RuleLike, ctx Context) *RuleLike {
 	var best *RuleLike
 	for i := range rows {
@@ -212,7 +212,7 @@ func Resolve(rows []RuleLike, ctx Context) *RuleLike {
 	return best
 }
 
-// Rates نرخ‌های هر واحد از یک قاعده.
+// Rates is the per-unit rates from one rule.
 type Rates struct {
 	Fixed           float64
 	Theory          float64
@@ -222,7 +222,7 @@ type Rates struct {
 	PercentUnderMin *float64
 }
 
-// RatesOf پورت ratesOf.
+// RatesOf is a port of ratesOf.
 func RatesOf(r RuleLike) Rates {
 	out := Rates{
 		Fixed: ToNum(r.FixedAmount), Theory: ToNum(r.PerUnitTheory),
@@ -239,9 +239,9 @@ func RatesOf(r RuleLike) Rates {
 	return out
 }
 
-// ─────────────────────────── rules: نوع ترم و انتخاب قاعده ───────────────────────────
+// ─────────────────────────── rules: term type and rule selection ───────────────────────────
 
-// TermType تنوع نوع ترم.
+// TermType enumerates the term types.
 type TermType string
 
 const (
@@ -250,14 +250,14 @@ const (
 	Equivalence TermType = "EQUIVALENCE"
 )
 
-// TermInput ورودی termTypeOf.
+// TermInput is the termTypeOf input.
 type TermInput struct {
 	TermType *string
 	TermCode *string
 	IsSummer *int
 }
 
-// TermTypeOf پورت termTypeOf: اول پیشوند 00EQ، بعد ستون termType، بعد isSummer.
+// TermTypeOf is a port of termTypeOf: first the 00EQ prefix, then the termType column, then isSummer.
 func TermTypeOf(t TermInput) TermType {
 	if t.TermCode != nil {
 		code := ""
@@ -280,7 +280,7 @@ func TermTypeOf(t TermInput) TermType {
 	return Normal
 }
 
-// FeeRuleLike شکل قدیمی ردیف (fixedTuition/perUnitTuition).
+// FeeRuleLike is the legacy row shape (fixedTuition/perUnitTuition).
 type FeeRuleLike struct {
 	ID                int64
 	DegreeLevelID     *int64
@@ -293,7 +293,7 @@ type FeeRuleLike struct {
 	Priority          *int
 }
 
-// FeeRuleParams پارامترهای انتخاب.
+// FeeRuleParams are the selection parameters.
 type FeeRuleParams struct {
 	DegreeLevelID *int64
 	TermType      *string
@@ -304,7 +304,7 @@ type FeeRuleParams struct {
 	UniversityID  *int64
 }
 
-// ResolvedRule قاعدهٔ انتخاب‌شده.
+// ResolvedRule is the selected rule.
 type ResolvedRule struct {
 	ID             int64
 	FixedTuition   float64
@@ -314,7 +314,7 @@ type ResolvedRule struct {
 	OfferingType   *string
 }
 
-// PickFeeRule پورت pickFeeRule — نگاشت به resolver یکپارچه.
+// PickFeeRule is a port of pickFeeRule — mapped to the unified resolver.
 func PickFeeRule(rows []FeeRuleLike, params FeeRuleParams) *ResolvedRule {
 	canonical := make([]RuleLike, 0, len(rows))
 	for _, r := range rows {
@@ -342,9 +342,9 @@ func PickFeeRule(rows []FeeRuleLike, params FeeRuleParams) *ResolvedRule {
 	}
 }
 
-// ─────────────────────────── پل قواعد قدیمی ───────────────────────────
+// ─────────────────────────── Legacy rules bridge ───────────────────────────
 
-// LegacyFeeRuleLike یک سطر قاعدهٔ مالی قدیمی.
+// LegacyFeeRuleLike is one legacy financial rule row.
 type LegacyFeeRuleLike struct {
 	DegreeLevelID  *int64
 	TermType       TermType
@@ -354,7 +354,7 @@ type LegacyFeeRuleLike struct {
 	TermSortKey    int64
 }
 
-// FeeRuleDraft پیش‌نویس قاعدهٔ جدید.
+// FeeRuleDraft is a new rule draft.
 type FeeRuleDraft struct {
 	DegreeLevelID     *int64
 	TermType          TermType
@@ -365,8 +365,8 @@ type FeeRuleDraft struct {
 	Note              string
 }
 
-// MapLegacyFeeRules پورت mapLegacyFeeRules: گروه‌بندی (مقطع، نوع ترم)،
-// تازه‌ترین ترم برنده، حذف قواعد بی‌اثر، مرتب‌سازی پایانی.
+// MapLegacyFeeRules is a port of mapLegacyFeeRules: grouping by (degree level, term type),
+// newest term wins, no-op rules removed, final sorting.
 func MapLegacyFeeRules(rows []LegacyFeeRuleLike) []FeeRuleDraft {
 	type key struct {
 		degree int64
@@ -424,9 +424,9 @@ func MapLegacyFeeRules(rows []LegacyFeeRuleLike) []FeeRuleDraft {
 	return drafts
 }
 
-// ─────────────────────────── سیاست شهریهٔ ثابت معادل‌سازی ───────────────────────────
+// ─────────────────────────── Equivalency fixed-tuition policy ───────────────────────────
 
-// EquivFixedMode حالت شهریهٔ ثابت معادل‌سازی.
+// EquivFixedMode is the equivalency fixed-tuition mode.
 type EquivFixedMode string
 
 const (
@@ -435,8 +435,8 @@ const (
 	EquivNone    EquivFixedMode = "NONE"
 )
 
-// NormalizeEquivFixedMode هر مقدار ناشناخته → ONCE.
-// (همان String(value).trim().toUpperCase() در TS)
+// NormalizeEquivFixedMode maps any unknown value → ONCE.
+// (same as String(value).trim().toUpperCase() in TS)
 func NormalizeEquivFixedMode(value any) EquivFixedMode {
 	s, _ := value.(string)
 	switch strings.ToUpper(strings.TrimSpace(s)) {
@@ -448,7 +448,7 @@ func NormalizeEquivFixedMode(value any) EquivFixedMode {
 	return EquivOnce
 }
 
-// ShouldChargeFixed آیا شهریهٔ ثابت این نیمسال شارژ شود؟
+// ShouldChargeFixed reports whether this semester's fixed tuition should be charged.
 func ShouldChargeFixed(mode EquivFixedMode, isFirstTerm bool) bool {
 	switch mode {
 	case EquivNone:

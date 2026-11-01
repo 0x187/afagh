@@ -1,4 +1,4 @@
-// ═══ کلاینت میز فارغ‌التحصیلی و صدور مدارک ═══
+// ═══ Graduation desk and certificate issuance client ═══
 import { apiGet, apiPost } from './api';
 
 export type GradStep = { code: string; title: string; actor: string };

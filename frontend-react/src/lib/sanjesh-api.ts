@@ -1,4 +1,4 @@
-// ═══ کلاینت درون‌ریزی فایل سنجش ═══
+// ═══ Assessment file import client ═══
 import { ApiError } from './api';
 
 export type SanjeshRow = Record<string, string>;
@@ -13,7 +13,7 @@ async function postForm<T>(path: string, form: FormData): Promise<T> {
     throw new ApiError('ارتباط با سرور برقرار نشد.', 0);
   }
   let payload: unknown = null;
-  try { payload = await res.json(); } catch { /* غیر JSON */ }
+  try { payload = await res.json(); } catch { /* non-JSON */ }
   if (!res.ok) {
     const msg = payload && typeof payload === 'object' && 'error' in payload && typeof (payload as { error: unknown }).error === 'string'
       ? (payload as { error: string }).error : `خطای سرور (${res.status})`;

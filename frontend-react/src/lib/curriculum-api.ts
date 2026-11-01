@@ -1,4 +1,4 @@
-// ═══ کلاینت سرفصل/برنامهٔ درسی ═══
+// ═══ Syllabus/curriculum client ═══
 import { apiGet, apiPost } from './api';
 
 export type CurriculumVersion = {

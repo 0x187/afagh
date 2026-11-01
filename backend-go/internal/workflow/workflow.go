@@ -1,8 +1,8 @@
-// ═══ موتور گردش کار و کارتابل ادمین — پورت workflow-engine/analytics ═══
+// ═══ Workflow engine and admin inbox — port of workflow-engine/analytics ═══
 //
-//  ماشین وضعیت پرونده: SUBMITTED/IN_REVIEW/RETURNED → APPROVED/REJECTED
-//  اقدام‌ها: APPROVE (مرحله بعد یا نهایی) / REJECT / RETURN_FOR_REVISION / ESCALATE
-//  همهٔ جابه‌جایی‌ها داخل یک تراکنش با قفل سطری و حسابرسی.
+//  Case state machine: SUBMITTED/IN_REVIEW/RETURNED → APPROVED/REJECTED
+//  Actions: APPROVE (next step or final) / REJECT / RETURN_FOR_REVISION / ESCALATE
+//  All transitions happen inside one transaction with row locks and auditing.
 package workflow
 
 import (
@@ -22,21 +22,21 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Settings حداقل وابستگی تنظیمات.
+// Settings is the minimal settings dependency.
 type Settings interface {
 	Get(ctx context.Context, key string) (string, error)
 }
 
-// Engine موتور گردش کار.
+// Engine is the workflow engine.
 type Engine struct {
 	Pool     *pgxpool.Pool
 	Settings Settings
 	Handlers []Handler
-	// Notify اطلاع‌رسانی به دانشجو (درج در notifications).
+	// Notify notifies the student (inserts into notifications).
 	Notify func(ctx context.Context, userID int64, eventCode, text string)
 }
 
-// New ساخت موتور.
+// New constructs the engine.
 func New(pool *pgxpool.Pool, settings Settings) *Engine {
 	return &Engine{Pool: pool, Settings: settings, Handlers: []Handler{}}
 }
@@ -44,9 +44,9 @@ func New(pool *pgxpool.Pool, settings Settings) *Engine {
 var terminalStatuses = map[string]bool{"APPROVED": true, "REJECTED": true, "CANCELLED": true}
 var openStatuses = map[string]bool{"SUBMITTED": true, "IN_REVIEW": true, "RETURNED": true}
 
-// ─────────────────── کارتابل ───────────────────
+// ─────────────────── Inbox ───────────────────
 
-// ProcessStep گام فرایند.
+// ProcessStep is a process step.
 type ProcessStep struct {
 	ID                    int64  `json:"id"`
 	StepOrder             int    `json:"stepOrder"`
@@ -58,7 +58,7 @@ type ProcessStep struct {
 	TimeoutEscalateToRole string `json:"timeoutEscalateToRole,omitempty"`
 }
 
-// ProcessDefinition فرایند.
+// ProcessDefinition is a process.
 type ProcessDefinition struct {
 	ID          int64         `json:"id"`
 	Code        string        `json:"code"`
@@ -70,7 +70,7 @@ type ProcessDefinition struct {
 	Steps       []ProcessStep `json:"steps"`
 }
 
-// InboxCheckpoint چک‌پوینت موازی.
+// InboxCheckpoint is a parallel checkpoint.
 type InboxCheckpoint struct {
 	ID              int64   `json:"id"`
 	DepartmentCode  string  `json:"departmentCode"`
@@ -79,7 +79,7 @@ type InboxCheckpoint struct {
 	Notes           *string `json:"notes"`
 }
 
-// InboxItem ردیف کارتابل.
+// InboxItem is an inbox row.
 type InboxItem struct {
 	ID               int64             `json:"id"`
 	TrackingCode     string            `json:"trackingCode"`
@@ -99,7 +99,7 @@ type InboxItem struct {
 	Checkpoints      []InboxCheckpoint `json:"checkpoints"`
 }
 
-// HeatmapItem نقشهٔ حرارتی مرحله.
+// HeatmapItem is a step's heatmap entry.
 type HeatmapItem struct {
 	ProcessID        int64   `json:"processId"`
 	ProcessCode      string  `json:"processCode"`
@@ -114,7 +114,7 @@ type HeatmapItem struct {
 	StatusLevel      string  `json:"statusLevel"`
 }
 
-// DepartmentQueueItem صف یک نقش.
+// DepartmentQueueItem is a role's queue.
 type DepartmentQueueItem struct {
 	RoleCode           string  `json:"roleCode"`
 	RoleTitleFa        string  `json:"roleTitleFa"`
@@ -123,7 +123,7 @@ type DepartmentQueueItem struct {
 	AvgWaitHours       float64 `json:"avgWaitHours"`
 }
 
-// StaffKpiItem KPI نقش.
+// StaffKpiItem is a role's KPI.
 type StaffKpiItem struct {
 	ActorRole            string  `json:"actorRole"`
 	FullName             string  `json:"fullName"`
@@ -135,7 +135,7 @@ type StaffKpiItem struct {
 	ProductivityScore    int     `json:"productivityScore"`
 }
 
-// Analytics تحلیل کارتابل.
+// Analytics is the inbox analytics.
 type Analytics struct {
 	Summary struct {
 		TotalRequests      int     `json:"totalRequests"`
@@ -159,18 +159,18 @@ var roleTitles = map[string]string{
 	"SYSTEM_BOT": "ربات هوشمند سیستمی", "PROFESSOR": "استاد درس",
 }
 
-// WorkflowsData پاسخ صفحهٔ گردش کار.
+// WorkflowsData is the workflow page response.
 type WorkflowsData struct {
 	Processes []ProcessDefinition `json:"processes"`
 	Inbox     []InboxItem         `json:"inbox"`
 	Analytics Analytics           `json:"analytics"`
 }
 
-// LoadAdminWorkflows پورت page admin/workflows.
+// LoadAdminWorkflows is a port of the admin/workflows page.
 func (e *Engine) LoadAdminWorkflows(ctx context.Context, universityID *int64) (*WorkflowsData, error) {
 	out := &WorkflowsData{Processes: []ProcessDefinition{}, Inbox: []InboxItem{}}
 
-	// فرایندها
+	// Processes
 	args := []any{}
 	scope := ""
 	if universityID != nil {
@@ -231,7 +231,7 @@ func (e *Engine) LoadAdminWorkflows(ctx context.Context, universityID *int64) (*
 	}
 	stepRows.Close()
 
-	// کارتابل — ۵۰ درخواست اخیر
+	// Inbox — 50 recent requests
 	reqScope := ""
 	reqArgs := []any{}
 	if universityID != nil {
@@ -357,7 +357,7 @@ func (e *Engine) LoadAdminWorkflows(ctx context.Context, universityID *int64) (*
 				item.SLAHours = s.SLAHours
 			}
 		}
-		// بازترین لاگ این پرونده (مبنای محاسبهٔ زمان توقف)
+		// Latest log of this case (basis for computing wait time)
 		var last *logRow
 		for i := range logs {
 			l := &logs[i]
@@ -392,7 +392,7 @@ func (e *Engine) LoadAdminWorkflows(ctx context.Context, universityID *int64) (*
 	return out, nil
 }
 
-// computeAnalytics پورت getWorkflowAnalytics (KPI پرسنل از لاگ‌های واقعی).
+// computeAnalytics is a port of getWorkflowAnalytics (staff KPIs from real logs).
 func (e *Engine) computeAnalytics(ctx context.Context, universityID *int64) Analytics {
 	var a Analytics
 	a.Heatmap = []HeatmapItem{}
@@ -422,7 +422,7 @@ func (e *Engine) computeAnalytics(ctx context.Context, universityID *int64) Anal
 		a.Summary.AvgSatisfaction = float64(int(*avgCsat*10)) / 10
 	}
 
-	// نقشهٔ حرارتی
+	// Heatmap
 	type stepDef struct {
 		ProcessID   int64
 		ProcessCode string
@@ -507,7 +507,7 @@ func (e *Engine) computeAnalytics(ctx context.Context, universityID *int64) Anal
 		})
 	}
 
-	// صف بخش‌ها
+	// Department queues
 	type roleAgg struct {
 		pending   int
 		durations []float64
@@ -561,7 +561,7 @@ func (e *Engine) computeAnalytics(ctx context.Context, universityID *int64) Anal
 		})
 	}
 
-	// KPI پرسنل — از لاگ‌های واقعی (به تفکیک نقش)
+	// Staff KPIs — from real logs (per role)
 	for _, role := range roles {
 		if role == "SYSTEM_BOT" || role == "SYSTEM_SLA_ENGINE" {
 			continue
@@ -606,9 +606,9 @@ func (e *Engine) computeAnalytics(ctx context.Context, universityID *int64) Anal
 	return a
 }
 
-// ─────────────────── پیشبرد مرحله ───────────────────
+// ─────────────────── Step advancement ───────────────────
 
-// AdvanceResult نتیجهٔ اقدام.
+// AdvanceResult is the result of an action.
 type AdvanceResult struct {
 	Status             string  `json:"status"` // MOVED_TO_NEXT_STEP | APPROVED_FINAL | REJECTED | RETURNED | ESCALATED | ALREADY_FINAL
 	NextStepTitle      string  `json:"nextStepTitle,omitempty"`
@@ -616,20 +616,20 @@ type AdvanceResult struct {
 	TargetRole         string  `json:"targetRole,omitempty"`
 }
 
-// ActionResult پاسخ اقدام.
+// ActionResult is the action response.
 type ActionResult struct {
 	Result *AdvanceResult `json:"result"`
 	Events *DispatchStats `json:"events,omitempty"`
 }
 
-// DispatchStats آمار پردازش رویدادها.
+// DispatchStats is the event-processing stats.
 type DispatchStats struct {
 	Processed int `json:"processed"`
 	Failed    int `json:"failed"`
 	Skipped   int `json:"skipped"`
 }
 
-// Actor کاربر اقدام‌کننده.
+// Actor is the acting user.
 type Actor struct {
 	StaffID *int64
 	Role    string
@@ -646,7 +646,7 @@ type dispatchIntent struct {
 	notifyText        string
 }
 
-// AdvanceWorkflowStep پورت advanceWorkflowStep — همه در یک تراکنش با قفل سطری.
+// AdvanceWorkflowStep is a port of advanceWorkflowStep — all inside one transaction with a row lock.
 func (e *Engine) AdvanceWorkflowStep(ctx context.Context, requestID int64, actor Actor, action, note string) (*ActionResult, error) {
 	now := time.Now()
 	tx, err := e.Pool.Begin(ctx)
@@ -655,7 +655,7 @@ func (e *Engine) AdvanceWorkflowStep(ctx context.Context, requestID int64, actor
 	}
 	defer tx.Rollback(ctx)
 
-	// قفل سطری: دو اقدام همزمان روی یک پرونده پشت سر هم صف می‌شوند.
+	// Row lock: two simultaneous actions on one case are queued back to back.
 	var status string
 	var processID int64
 	var studentID int64
@@ -710,7 +710,7 @@ func (e *Engine) AdvanceWorkflowStep(ctx context.Context, requestID int64, actor
 	}
 	srows.Close()
 
-	// بازترین لاگ پرونده.
+	// Latest case log.
 	var lastLogID int64
 	var lastAssigned *time.Time
 	var lastAction *string
@@ -729,7 +729,7 @@ func (e *Engine) AdvanceWorkflowStep(ctx context.Context, requestID int64, actor
 			durationMin = 0
 		}
 	}
-	// بستن لاگ مرحلهٔ جاری.
+	// Close the current step's log.
 	if hasLastLog {
 		slaBreached := stepSLA != nil && durationMin > *stepSLA*60
 		slaStatus := "ON_TIME"
@@ -785,7 +785,7 @@ func (e *Engine) AdvanceWorkflowStep(ctx context.Context, requestID int64, actor
 		if stepTimeoutRole != nil && *stepTimeoutRole != "" {
 			nextRole = *stepTimeoutRole
 		}
-		// idempotent: اگر همین مرحله پیش‌تر ارجاع شده، دوباره ثبت نمی‌شود.
+		// idempotent: if the step was already referenced, it is not recorded again.
 		if hasLastLog && lastAction != nil && *lastAction == "ESCALATE" {
 			if lastActorRole != nil && *lastActorRole != "" {
 				nextRole = *lastActorRole
@@ -832,7 +832,7 @@ func (e *Engine) AdvanceWorkflowStep(ctx context.Context, requestID int64, actor
 			e.fireEvent(ctx, tx, requestID, processCode, "WORKFLOW_STEP_MOVED", formData)
 			result = AdvanceResult{Status: "MOVED_TO_NEXT_STEP", NextStepTitle: next.Title}
 		} else {
-			// آخرین مرحله → تأیید نهایی و اختتام پرونده
+			// Last step → final approval and case closure
 			h := sha256.Sum256([]byte(trackingCode + ":" + strconv.FormatInt(studentID, 10) + ":" + now.UTC().Format(time.RFC3339Nano) + ":AFAGH_FINAL"))
 			digitalHash := hex.EncodeToString(h[:])
 			cert := "DOC-" + trackingCode
@@ -876,16 +876,16 @@ func fallback(v, def string) string {
 	return v
 }
 
-// ─────────────────── تسویهٔ موازی ───────────────────
+// ─────────────────── Parallel settlement ───────────────────
 
-// ClearCheckpointResult نتیجهٔ پاک‌کردن چک‌پوینت.
+// ClearCheckpointResult is the result of clearing a checkpoint.
 type ClearCheckpointResult struct {
 	OK         bool           `json:"ok"`
 	AllCleared bool           `json:"allCleared"`
 	Advanced   *AdvanceResult `json:"advanced,omitempty"`
 }
 
-// ClearParallelCheckpoint پورت clearParallelCheckpoint — اتمی.
+// ClearParallelCheckpoint is a port of clearParallelCheckpoint — atomic.
 func (e *Engine) ClearParallelCheckpoint(ctx context.Context, checkpointID int64, clearedByStaffID *int64, notes string) (*ClearCheckpointResult, error) {
 	now := time.Now()
 	tx, err := e.Pool.Begin(ctx)
@@ -934,8 +934,8 @@ func (e *Engine) ClearParallelCheckpoint(ctx context.Context, checkpointID int64
 	return out, nil
 }
 
-// advanceWithinTx نسخهٔ درون‌تراکنشی پیشبرد (برای تسویهٔ موازی) — منطق اصلی
-// با قفل سطری از پیش گرفته‌شده تکرار می‌شود تا تراکنش تودرتو نسازیم.
+// advanceWithinTx is the in-transaction version of advancement (for parallel settlement) — the main logic
+// is repeated with the row lock already taken, to avoid nested transactions.
 func (e *Engine) advanceWithinTx(ctx context.Context, tx pgx.Tx, requestID int64, actor Actor, action, note string, now time.Time) (*AdvanceResult, error) {
 	var status string
 	var processID int64
@@ -978,7 +978,7 @@ func (e *Engine) advanceWithinTx(ctx context.Context, tx pgx.Tx, requestID int64
 		}
 		return &AdvanceResult{Status: "MOVED_TO_NEXT_STEP", NextStepTitle: *nextTitle}, nil
 	}
-	// آخرین مرحله
+	// Last step
 	h := sha256.Sum256([]byte(trackingCode + ":" + strconv.FormatInt(studentID, 10) + ":" + now.UTC().Format(time.RFC3339Nano) + ":AFAGH_FINAL"))
 	cert := "DOC-" + trackingCode
 	if certificateNumber != nil && *certificateNumber != "" {
@@ -998,7 +998,7 @@ func (e *Engine) advanceWithinTx(ctx context.Context, tx pgx.Tx, requestID int64
 
 // ─────────────────── SLA ───────────────────
 
-// SLAItem نتیجهٔ اقدام خودکار مهلت.
+// SLAItem is the result of the automatic deadline action.
 type SLAItem struct {
 	RequestID    int64  `json:"requestId"`
 	TrackingCode string `json:"trackingCode"`
@@ -1006,7 +1006,7 @@ type SLAItem struct {
 	ActionTaken  string `json:"actionTaken"`
 }
 
-// CheckAndTriggerSLATimeouts پورت checkAndTriggerSlaTimeouts — قفل مشورتی.
+// CheckAndTriggerSLATimeouts is a port of checkAndTriggerSlaTimeouts — advisory lock.
 func (e *Engine) CheckAndTriggerSLATimeouts(ctx context.Context) ([]SLAItem, error) {
 	var got bool
 	_ = e.Pool.QueryRow(ctx, `select pg_try_advisory_lock(hashtext('afagh:workflow:sla'))`).Scan(&got)
@@ -1083,9 +1083,9 @@ func (e *Engine) CheckAndTriggerSLATimeouts(ctx context.Context) ([]SLAItem, err
 	return results, nil
 }
 
-// ─────────────────── ذخیرهٔ فرایند ───────────────────
+// ─────────────────── Process save ───────────────────
 
-// SaveProcessInput ورودی ذخیرهٔ فرایند.
+// SaveProcessInput is the save-process input.
 type SaveProcessInput struct {
 	ID          int64         `json:"id"`
 	Code        string        `json:"code"`
@@ -1097,7 +1097,7 @@ type SaveProcessInput struct {
 	Steps       []ProcessStep `json:"steps"`
 }
 
-// SaveProcessDefinition پورت adminSaveProcessDefinitionAction.
+// SaveProcessDefinition is a port of adminSaveProcessDefinitionAction.
 func (e *Engine) SaveProcessDefinition(ctx context.Context, universityID *int64, in SaveProcessInput) (int64, error) {
 	if universityID == nil {
 		return 0, errors.New("دانشگاه فعال نامشخص است.")
@@ -1134,7 +1134,7 @@ func (e *Engine) SaveProcessDefinition(ctx context.Context, universityID *int64,
 			return 0, err
 		}
 	}
-	// به‌روزرسانی گام‌ها — حذف و درج دسته‌جمعی در همان تراکنش.
+	// Update steps — bulk delete and insert in the same transaction.
 	if _, err := tx.Exec(ctx, `delete from process_steps where "processId" = $1`, processID); err != nil {
 		return 0, err
 	}
@@ -1173,7 +1173,7 @@ func fmtNum(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64) }
 
 func maxInt(a, b int) int { if a > b { return a }; return b }
 
-// ─────────────────── ابزار ───────────────────
+// ─────────────────── Utilities ───────────────────
 
 func truncRunes(v string, n int) string {
 	if utf8.RuneCountInString(v) <= n {
@@ -1183,7 +1183,7 @@ func truncRunes(v string, n int) string {
 	return string(r[:n])
 }
 
-// AssertRequestUniversity درخواست باید متعلق به دانشگاه داده‌شده باشد (fail-closed).
+// AssertRequestUniversity asserts the request belongs to the given university (fail-closed).
 func (e *Engine) AssertRequestUniversity(ctx context.Context, requestID, universityID int64) error {
 	var reqUni, stuUni *int64
 	if err := e.Pool.QueryRow(ctx, `
@@ -1202,7 +1202,7 @@ func (e *Engine) AssertRequestUniversity(ctx context.Context, requestID, univers
 	return nil
 }
 
-// CheckpointRequestID شناسهٔ درخواست یک چک‌پوینت.
+// CheckpointRequestID is a checkpoint's request ID.
 func (e *Engine) CheckpointRequestID(ctx context.Context, checkpointID int64) (int64, error) {
 	var reqID int64
 	if err := e.Pool.QueryRow(ctx, `select "requestId" from request_parallel_checkpoints where id = $1`, checkpointID).Scan(&reqID); err != nil {

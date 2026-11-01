@@ -1,7 +1,7 @@
-// ═══ کلاینت مهاجرت داده/سهام/ثمین ═══
+// ═══ Data/shares/Samin migration client ═══
 import { apiGet, apiPost } from './api';
 
-// ── مهاجرت ──
+// ── Migration ──
 export type MigSource = { code: string; title: string; kind: string; note?: string };
 export type MigBatch = Record<string, unknown>;
 export type MigReport = {
@@ -60,7 +60,7 @@ export async function importMigrationFile(kind: string, sourceCode: string, file
   return payload.data as MigReport;
 }
 
-// ── سهام ──
+// ── Shares ──
 export type SahamStats = {
   universityId: number; code: string; title: string; isDissolved: boolean;
   students: number; graduates: number; instructors: number; sahamCodeCount: number;
@@ -87,7 +87,7 @@ export type SahamExportResult = { csv: string; fileName: string; count: number; 
 export const exportSaham = (input: Record<string, unknown>) =>
   apiPost<{ ok: boolean; data: SahamExportResult }>('/admin/saham/export', input).then((r) => r.data);
 
-// ── ثمین ──
+// ── Samin ──
 export type SaminOverview = {
   university: { id: number; code: string; title: string };
   universities: { id: number; code: string; title: string }[];

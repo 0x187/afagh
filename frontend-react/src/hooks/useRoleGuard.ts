@@ -2,15 +2,15 @@ import { useSession } from '@/lib/session';
 import { homeFor } from '@/lib/home-route';
 import type { SessionUser } from '@/lib/api';
 
-// ═══ گارد نقش — پورت قاعدهٔ requireRole (ADMIN همه‌جا مجاز؛ mustChange → تغییر رمز) ═══
+// ═══ Role guard — port of the requireRole rule (ADMIN allowed everywhere; mustChange → password change) ═══
 export type RoleGuard = {
   user: SessionUser | null;
   loading: boolean;
-  /** کاربر باید رمز را عوض کند — مسیر مجاز فقط /change-password است. */
+  /** The user must change the password — the only allowed route is /change-password. */
   mustChange: boolean;
-  /** دسترسی به ناحیهٔ خواسته‌شده (ADMIN ضمنی همه‌جا مجاز است). */
+  /** Access to the requested area (ADMIN is implicitly allowed everywhere). */
   allowed: boolean;
-  /** مسیر پیشنهادی پس از ورود/رد دسترسی. */
+  /** Suggested route after login/access denial. */
   homePath: string;
 };
 

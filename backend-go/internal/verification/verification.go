@@ -1,9 +1,9 @@
-// ═══ امضای توکن — پورت وفادار از src/lib/verification.ts (بخش signToken) ═══
+// ═══ Token signing — faithful port from src/lib/verification.ts (signToken part) ═══
 //
-// قالب: `T1.<base64url(JSON payload + jti + exp)>.<base64url(HMAC-SHA256(secret, body))>`
-// jti تصادفی تا دو صدور پشت‌سرهم توکن یکسان نسازند.
-// کلید از تنظیم TICKET_TOKEN_SECRET؛ چرخش نرم با PREVIOUS_TICKET_TOKEN_SECRET
-// (بررسی هر دو، مقایسهٔ زمان‌ثابت) — همان رفتار TS.
+// Format: `T1.<base64url(JSON payload + jti + exp)>.<base64url(HMAC-SHA256(secret, body))>`
+// Random jti so two consecutive issuances do not produce identical tokens.
+// The key comes from the TICKET_TOKEN_SECRET setting; soft rotation with PREVIOUS_TICKET_TOKEN_SECRET
+// (both are checked, constant-time comparison) — same behavior as TS.
 package verification
 
 import (
@@ -21,12 +21,12 @@ import (
 	"time"
 )
 
-// SettingsStore حداقل وابستگی لازم — پورت getSetting.
+// SettingsStore is the minimal required dependency — a port of getSetting.
 type SettingsStore interface {
 	Get(ctx context.Context, key string) (string, error)
 }
 
-// Signer توکن‌ساز HMAC.
+// Signer is the HMAC token signer.
 type Signer struct {
 	Settings SettingsStore
 }
@@ -47,7 +47,7 @@ func (s *Signer) tokenSecret(ctx context.Context) (string, error) {
 	return secret, nil
 }
 
-// Sign پورت signToken: TTL دقیقاً ttlSec؛ exp = now + ttl.
+// Sign is a port of signToken: TTL is exactly ttlSec; exp = now + ttl.
 func (s *Signer) Sign(ctx context.Context, payload map[string]any, ttlSec int) (string, error) {
 	secret, err := s.tokenSecret(ctx)
 	if err != nil {
@@ -76,15 +76,15 @@ func (s *Signer) Sign(ctx context.Context, payload map[string]any, ttlSec int) (
 	return "T1." + encoded + "." + sig, nil
 }
 
-// ErrMalformed / ErrBadSignature / ErrExpired — معادل reasonهای TS.
+// ErrMalformed / ErrBadSignature / ErrExpired — equivalents of the TS reason values.
 var (
 	ErrMalformed    = errors.New("MALFORMED")
 	ErrBadSignature = errors.New("BAD_SIGNATURE")
 	ErrExpired      = errors.New("EXPIRED")
 )
 
-// Verify پورت verifyTokenSignature: امضا (جاری + قبلی) و انقضا را بدون هیچ
-// حدس و تفسیر دلخواه بررسی می‌کند.
+// Verify is a port of verifyTokenSignature: checks the signature (current + previous) and expiry without any
+// guessing or arbitrary interpretation.
 func (s *Signer) Verify(ctx context.Context, token string) (map[string]any, bool, error) {
 	parts := strings.Split(strings.TrimSpace(token), ".")
 	if len(parts) != 3 || parts[0] != "T1" {
@@ -123,7 +123,7 @@ func (s *Signer) Verify(ctx context.Context, token string) (map[string]any, bool
 }
 
 func isFinite(f float64) bool {
-	return !(f != f) // NaN check (Inf از JSON نمی‌آید اما برای پارتی)
+	return !(f != f) // NaN check (Inf doesn't come from JSON but for parity)
 }
 
 func hmacEqual(body, sig, secret string) bool {
@@ -133,5 +133,5 @@ func hmacEqual(body, sig, secret string) bool {
 	return subtle.ConstantTimeCompare([]byte(sig), []byte(expected)) == 1
 }
 
-// Ensure interface compliance در زمان کامپایل برای استفادهٔ قرارداد.
+// Ensure interface compliance at compile time for contract use.
 var _ = fmt.Sprintf

@@ -1,15 +1,15 @@
-// ═══ «بعد از ورود، کدام کارتابل؟» — پورت خط‌به‌خط home-route.ts ═══
+// ═══ "After login, which cartable?" — line-by-line port of home-route.ts ═══
 //
-// قاعدهٔ اولویت (به‌درخواست آموزش):
-//   ۱) کارشناس/مدیریت — کاربر چندنقشی باید کارتابل کارشناسی را ببیند
-//   ۲) استاد و مدیر گروه و مراقب
-//   ۳) دانشجو
+// Priority rule (per the Education office's request):
+//   1) Expert/management — a multi-role user must see the expert cartable
+//   2) Professor, group manager, and proctor
+//   3) Student
 export function homeFor(roles: string[]): string {
-  // نقشی ندارد → برگرد به ورود با پیام روشن (جلوگیری از حلقهٔ بی‌پایان ورود)
+  // No role → back to login with a clear message (prevents an endless login loop)
   if (roles.length === 0) return '/login?e=norole';
   const has = (r: string) => roles.includes(r);
 
-  // ── ۱) کارتابل کارشناسی و مدیریت ──
+  // ── 1) Expert and management cartable ──
   if (has('ADMIN') || has('EDU_EXPERT') || has('VICE_EDU')) return '/admin';
   if (has('FINANCE_EXPERT') || has('FINANCE')) return '/admin/payroll';
   if (has('VAULT_MANAGER')) return '/admin/exams';
@@ -17,21 +17,21 @@ export function homeFor(roles: string[]): string {
   if (has('ARCHIVE_EXPERT')) return '/admin/archive';
   if (has('GRADUATION_EXPERT')) return '/admin/defense-scheduling';
 
-  // ── ۲) استاد، مدیر گروه، مراقب ──
+  // ── 2) Professor, group manager, proctor ──
   if (has('PROFESSOR')) return '/professor';
   if (has('ATTENDANCE_CONTROLLER')) return '/admin/attendance-control';
   if (has('DEP_HEAD')) return '/group-manager';
   if (has('PROCTOR')) return '/proctor';
 
-  // ── ۳) دانشجو ──
+  // ── 3) Student ──
   if (has('STUDENT')) return '/student';
 
   return '/admin';
 }
 
 /**
- * نقش‌ها به مسیرهای SPA (زیر /app) در فازهای بعد نگاشت می‌شوند؛ تا آن زمان
- * مسیر برگشتی homeFor مسیر سیستم فعلی است و با ناوبری کامل باز می‌شود.
+ * Roles are mapped to SPA routes (under /app) in later phases; until then
+ * homeFor's fallback path is the current system's path and opens with full navigation.
  */
 export function isSpaPath(homePath: string): boolean {
   return homePath.startsWith('/app') || homePath === '/' || homePath.startsWith('/login') || homePath.startsWith('/change-password');

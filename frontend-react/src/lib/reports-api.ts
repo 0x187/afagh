@@ -1,4 +1,4 @@
-// ═══ کلاینت مرکز گزارش‌های مالی + صورت‌حساب دانشجو ═══
+// ═══ Financial reports center + student account statement client ═══
 import { apiGet, apiPost } from './api';
 
 export type ReportColumn = {
@@ -65,7 +65,7 @@ export async function exportFinanceReport(kind: string, filters: ReportFilters):
   return res.data;
 }
 
-// ─────────────────── مرکز گزارش‌های آموزشی ───────────────────
+// ─────────────────── Educational reports center ───────────────────
 
 export async function getEduReportOptions(): Promise<ReportOptions> {
   const res = await apiGet<{ ok: boolean; data: ReportOptions }>('/admin/reports/options');
@@ -82,7 +82,7 @@ export async function exportEduReport(kind: string, filters: ReportFilters): Pro
   return res.data;
 }
 
-// ─────────────────── صورت‌حساب دانشجو ───────────────────
+// ─────────────────── Student account statement ───────────────────
 
 export type PickerStudent = {
   studentId: number;

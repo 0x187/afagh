@@ -2,14 +2,14 @@ import type { ReactNode } from 'react';
 
 import { faDigits } from '@/lib/fa';
 
-// ═══ کارنامهٔ مالی رسمی — پورت components/FinancialTranscript.tsx ═══
+// ═══ Official financial transcript — port of components/FinancialTranscript.tsx ═══
 //
-// سند یکپارچهٔ ترم‌به‌ترم؛ فقط دادهٔ آمادهٔ موتور کانونی مالی را می‌گیرد.
-// قرارداد علامت: مثبت = بدهی دانشجو.
+// Unified term-by-term document; it only takes prepared data from the canonical financial engine.
+// Sign convention: positive = student owes.
 
 const fa = (n: number | null | undefined) => Number(n || 0).toLocaleString('fa-IR');
 
-/** تاریخ شمسی خوانا؛ تهی → خط تیره */
+/** Readable Jalali date; empty → dash */
 function jdate(d: string | Date | null | undefined): string {
   if (!d) return '—';
   const date = d instanceof Date ? d : new Date(d);
@@ -104,7 +104,7 @@ const STATUS_FA: Record<string, string> = {
   SUSPENDED: 'معلق',
 };
 
-/** عنوان کامل ترم از کد ۵ رقمی؛ در نبود کد معتبر، عنوان ذخیره‌شده. */
+/** Full term title from the 5-digit code; if there is no valid code, the stored title. */
 function TermTitle({ t }: { t: TranscriptTermView }) {
   const code = String(t.termCode ?? '').trim();
   if (!/^\d{5}$/.test(code)) return <>{t.termTitle}</>;
@@ -152,7 +152,7 @@ export function FinancialTranscript({
   const paidTotal = totals.payments + totals.chequesCleared + totals.loans;
   const grand = balanceBadge(totals.balance);
 
-  // دو ترم در هر ردیف — همان تعداد ستون چاپ عمودی A4
+  // Two terms per row — same column count as A4 portrait print
   const chunks: TranscriptTermView[][] = [];
   for (let i = 0; i < terms.length; i += 2) chunks.push(terms.slice(i, i + 2));
 
@@ -190,7 +190,7 @@ export function FinancialTranscript({
           <tr className="tr-doc-row">
             <td className="tr-doc-cell">
               <div className="space-y-3 p-4">
-                {/* ── جدول مشخصات ── */}
+                {/* ── Details table ── */}
                 <table className="tr-fin-info rt w-full border-collapse border border-slate-700 text-[11px]">
                   <tbody>
                     <tr>
@@ -226,7 +226,7 @@ export function FinancialTranscript({
 
                 {leadBlock}
 
-                {/* ── جمع کل دوره ── */}
+                {/* ── Whole program total ── */}
                 <div className="tr-breakdown break-inside-avoid rounded-lg border border-slate-700">
                   <h3 className="border-b border-slate-700 bg-indigo-900 px-3 py-1.5 text-[12px] font-black text-white">
                     {scopeLabel || 'جمع کل دوره'}
@@ -267,7 +267,7 @@ export function FinancialTranscript({
                   </table>
                 </div>
 
-                {/* ── بلوک‌های ترم ── */}
+                {/* ── Term blocks ── */}
                 <div>
                   <h3 className="mb-2 border-b-2 border-slate-800 pb-1 text-[12px] font-black text-slate-900">ریز ترم‌به‌ترم</h3>
                   {terms.length === 0 ? (

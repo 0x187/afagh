@@ -1,8 +1,8 @@
-// ═══ لایهٔ تماس با API v2 (بکند Go) ═══
+// ═══ API v2 call layer (Go backend) ═══
 //
-// همه‌چیز same-origin است (SPA پشت همان لبهٔ Go سرو می‌شود)؛ کوکی سشن
-// خودکار همراه می‌رود و CSRF هم سمت سرور با Origin چک می‌شود.
-// پاکت پاسخ: {ok, error?, ...} — خطاها همیشه پیام فارسی آمادهٔ نمایش دارند.
+// Everything is same-origin (the SPA is served behind the same Go edge); the session cookie
+// travels automatically and CSRF is checked server-side via Origin too.
+// Response envelope: {ok, error?, ...} — errors always carry a ready-to-display Persian message.
 
 export class ApiError extends Error {
   constructor(message: string, public status: number) {
@@ -26,7 +26,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   try {
     payload = await res.json();
   } catch {
-    /* پاسخ غیر JSON — پایین خطای عمومی می‌دهیم */
+    /* Non-JSON response — the generic error is given below */
   }
   if (!res.ok) {
     const msg =
@@ -54,7 +54,7 @@ export function apiDelete<T>(path: string): Promise<T> {
   return request<T>(path, { method: 'DELETE' });
 }
 
-// ── انواع مشترک ──
+// ── Shared types ──
 
 export type SessionUser = {
   id: number;

@@ -2,9 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 
 import { getScope, setTerm } from '@/lib/scope-api';
 
-// ═══ سوییچر «نیمسال فعال» — پورت TermSwitcher.tsx ═══
-// <details>/<summary> بومی برای مقاومت در برابر نبود hydration؛ انتخاب با POST
-// سپس رفرش کامل صفحه (عین رفتار اصلی: کوکی باید در رندر بعدی اعمال شود).
+// ═══ "Active semester" switcher — port of TermSwitcher.tsx ═══
+// Native <details>/<summary> to resist missing hydration; selection via POST
+// then a full page refresh (same as the original behavior: the cookie must take effect on the next render).
 export function TermSwitcher() {
   const { data, isLoading } = useQuery({
     queryKey: ['scope'],
@@ -20,7 +20,7 @@ export function TermSwitcher() {
     try {
       await setTerm(termId);
     } catch {
-      /* خطا → کوکی تغییر نکرده؛ رفرش هم بی‌فایده است */
+      /* Error → cookie unchanged; a refresh is pointless too */}
       return;
     }
     window.location.reload();

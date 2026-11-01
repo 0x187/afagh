@@ -6,11 +6,11 @@ import { useSession } from '@/lib/session';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-// ═══ قفل بیکاری — پورت وفادار SessionLock.tsx روی دیزاین‌سیستم آفاق ═══
+// ═══ Idle lock — faithful port of SessionLock.tsx on the Afagh design system ═══
 //
-// رفرش/تب جدید هم قفل را نشان می‌دهد: پرچم قفل سمت سرور ثبت می‌شود و اولین
-// ضربانِ همین صفحه آن را برمی‌گرداند (جانشین `initialLocked` نسخهٔ SSR).
-// بعد از بازگشایی موفق، کوئری نشست باطل می‌شود تا سربرگ وضعیت تازه بگیرد.
+// Refresh/new tab also shows the lock: the lock flag is stored server-side and the first
+// heartbeat of this same page returns it (replaces the SSR version's `initialLocked`).
+// After a successful unlock, the session query is invalidated so the header gets fresh state.
 
 export function SessionLockOverlay() {
   const { data } = useSession();
@@ -19,7 +19,7 @@ export function SessionLockOverlay() {
   const queryClient = useQueryClient();
   const [pw, setPw] = useState('');
 
-  // عین اصلی: هنگام قفل‌شدن فرم خالی می‌شود (نه فقط بعد از بازگشایی)
+  // Same as the original: the form is cleared when locked (not only after unlocking)
   useEffect(() => {
     if (locked) setPw('');
   }, [locked]);

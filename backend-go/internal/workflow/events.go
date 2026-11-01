@@ -1,7 +1,7 @@
-// ═══ گذرگاه رویداد گردش کار — پورت workflow-events.ts + workflow-handlers.ts ═══
+// ═══ Workflow event bus — port of workflow-events.ts + workflow-handlers.ts ═══
 //
-// موتور BPM فقط وضعیت را جابه‌جا می‌کند و رویداد را *داخل* تراکنش ثبت می‌کند؛
-// اثر تجاری هر فرایند در «هندلر» ماژول صاحب اثر اجرا می‌شود (پس از commit).
+// The BPM engine only moves the state and records the event *inside* the transaction;
+// the business effect of each process runs in the owner module's "handler" (after commit).
 package workflow
 
 import (
@@ -15,7 +15,7 @@ import (
 	"backend-go/internal/tuition"
 )
 
-// Handler هندلر رویداد.
+// Handler is an event handler.
 type Handler struct {
 	Name        string
 	ProcessCode string
@@ -23,7 +23,7 @@ type Handler struct {
 	Run         func(ctx context.Context, ev Event) error
 }
 
-// Event رویداد.
+// Event is an event.
 type Event struct {
 	ID                int64
 	RequestID         int64
@@ -81,7 +81,7 @@ func formDataRaw(raw *string) map[string]any {
 	return out
 }
 
-// fireEvent ثبت PENDING برای هر هندلر منطبق — داخل تراکنش گردش کار.
+// fireEvent records PENDING for every matching handler — inside the workflow transaction.
 func (e *Engine) fireEvent(ctx context.Context, tx pgx.Tx, requestID int64, processCode, eventCode string, formData *string) {
 	if processCode == "" {
 		return
@@ -108,7 +108,7 @@ type dispatchMeta struct {
 	certificateNumber *string
 }
 
-// DispatchAfterCommit پردازش رویدادهای PENDING یک درخواست — پس از commit.
+// DispatchAfterCommit processes a request's PENDING events — after commit.
 func (e *Engine) DispatchAfterCommit(ctx context.Context, requestID int64, intent *dispatchIntent) DispatchStats {
 	stats := DispatchStats{}
 	var trackingCode string
@@ -175,7 +175,7 @@ func (e *Engine) DispatchAfterCommit(ctx context.Context, requestID int64, inten
 		stats.Processed++
 	}
 
-	// وب‌هوک اختیاری — بدون اثر بر گردش کار.
+	// Optional webhook — no effect on the workflow.
 	e.postWebhook(ctx, requestID, trackingCode, studentID, intent, certificateNumber)
 	return stats
 }
@@ -210,7 +210,7 @@ func (e *Engine) postWebhook(ctx context.Context, requestID int64, trackingCode 
 	postWebhookSafe(url, body)
 }
 
-// EventRow رویداد برای نمایش کارتابل.
+// EventRow is an event for inbox display.
 type EventRow struct {
 	ID          int64   `json:"id"`
 	EventCode   string  `json:"eventCode"`
@@ -222,7 +222,7 @@ type EventRow struct {
 	ProcessedAt *string `json:"processedAt"`
 }
 
-// EventsForRequest رویدادهای یک پرونده.
+// EventsForRequest is a case's events.
 func (e *Engine) EventsForRequest(ctx context.Context, requestID int64) ([]EventRow, error) {
 	rows, err := e.Pool.Query(ctx, `
 		select id, coalesce("eventCode",''), coalesce(handler,''), coalesce(status,'PENDING'),
@@ -242,14 +242,14 @@ func (e *Engine) EventsForRequest(ctx context.Context, requestID int64) ([]Event
 	return out, nil
 }
 
-// RetryResult نتیجهٔ اجرای دوبارهٔ رویدادها.
+// RetryResult is the result of re-running events.
 type RetryResult struct {
 	Retried int `json:"retried"`
 	OK      int `json:"ok"`
 	Failed  int `json:"failed"`
 }
 
-// RetryPendingWorkflowEvents اجرای دوبارهٔ رویدادهای FAILED/SKIPPED (حداکثر limit).
+// RetryPendingWorkflowEvents re-runs FAILED/SKIPPED events (up to limit).
 func (e *Engine) RetryPendingWorkflowEvents(ctx context.Context, limit int) (*RetryResult, error) {
 	if limit <= 0 || limit > 500 {
 		limit = 50
@@ -291,12 +291,12 @@ func (e *Engine) RetryPendingWorkflowEvents(ctx context.Context, limit int) (*Re
 	return res, nil
 }
 
-// ─────────────────── هندلرهای استاندارد (پورت workflow-handlers.ts) ───────────────────
+// ─────────────────── Standard handlers (port of workflow-handlers.ts) ───────────────────
 
-// RegisterDefaultHandlers ثبت هندلرهای استاندارد؛ tuitionEng برای مسیر
-// COURSE_TRANSFER (ثبت معادل‌سازی + شارژ شهریه).
+// RegisterDefaultHandlers registers the standard handlers; tuitionEng for the
+// COURSE_TRANSFER path (equivalency registration + tuition charge).
 func (e *Engine) RegisterDefaultHandlers(tuitionEng *tuition.Engine) {
-	// تغییر رشته — به‌روزرسانی رشتهٔ دانشجو پس از تأیید نهایی.
+	// Major change — updates the student's major after final approval.
 	e.Handlers = append(e.Handlers, Handler{
 		Name: "MAJOR_CHANGE_APPLY", ProcessCode: "MAJOR_CHANGE",
 		Events: []string{"WORKFLOW_FINAL_APPROVED"},
@@ -315,7 +315,7 @@ func (e *Engine) RegisterDefaultHandlers(tuitionEng *tuition.Engine) {
 		},
 	})
 
-	// تطبیق واحد — ثبت درس در کارنامه توسط موتور آموزش.
+	// Unit matching — records the course in the transcript via the education engine.
 	e.Handlers = append(e.Handlers, Handler{
 		Name: "COURSE_TRANSFER_ENROLL", ProcessCode: "COURSE_TRANSFER",
 		Events: []string{"WORKFLOW_FINAL_APPROVED"},
@@ -335,7 +335,7 @@ func (e *Engine) RegisterDefaultHandlers(tuitionEng *tuition.Engine) {
 		},
 	})
 
-	// لاگ تأیید نهایی پروپوزال (اثر تجاری ندارد).
+	// Logs the proposal's final approval (no business effect).
 	e.Handlers = append(e.Handlers, Handler{
 		Name: "PROPOSAL_TRACKING_LOG", ProcessCode: "PROPOSAL_TRACKING",
 		Events: []string{"WORKFLOW_FINAL_APPROVED"},
@@ -381,7 +381,7 @@ func toFloat(v any) (float64, bool) {
 	return 0, false
 }
 
-// applySingleTransfer پورت applyCourseTransfer (مسیر تک‌درس).
+// applySingleTransfer is a port of applyCourseTransfer (single-course path).
 func (e *Engine) applySingleTransfer(ctx context.Context, tuitionEng *tuition.Engine, ev Event, uniID int64) error {
 	code := strings.TrimSpace(fmt.Sprint(ev.FormData["targetCourseCode"]))
 	if code == "" {
@@ -406,7 +406,7 @@ func (e *Engine) applySingleTransfer(ctx context.Context, tuitionEng *tuition.En
 	if _, ok := ev.FormData["sourceGrade"]; ok && grade < equivMinGrade {
 		return fmt.Errorf("بر اساس آیین‌نامه، فقط نمرات %v و بالاتر قابل معادل‌سازی است (نمرهٔ واردشده: %v).", equivMinGrade, grade)
 	}
-	// ثبت در آفرینگ TRANSFER
+	// Register in the TRANSFER offering
 	var offeringID int64
 	err = e.Pool.QueryRow(ctx, `
 		select id from course_offerings where "courseId" = $1 and "termId" = $2 and "offeringType" = 'TRANSFER' limit 1`,
@@ -450,7 +450,7 @@ func (e *Engine) applySingleTransfer(ctx context.Context, tuitionEng *tuition.En
 	return nil
 }
 
-// applyEquivalenceBatch پورت applyEquivalenceBatch — هر ۲۰ واحد یک ترم معادل‌سازی.
+// applyEquivalenceBatch is a port of applyEquivalenceBatch — one equivalency term per 20 units.
 func (e *Engine) applyEquivalenceBatch(ctx context.Context, tuitionEng *tuition.Engine, ev Event, uniID int64, items []any) error {
 	const equivMinGrade = 12.0
 	const equivTermUnits = 20.0
@@ -491,7 +491,7 @@ func (e *Engine) applyEquivalenceBatch(ctx context.Context, tuitionEng *tuition.
 	if len(readyList) == 0 {
 		return fmt.Errorf("هیچ درس واجد شرایطی برای معادل‌سازی یافت نشد.")
 	}
-	// دسته‌بندی هر ۲۰ واحد در یک ترم معادل‌سازی.
+	// Batches every 20 units into one equivalency term.
 	chunks := [][]ready{}
 	cur := []ready{}
 	curUnits := 0.0
@@ -530,7 +530,7 @@ func (e *Engine) applyEquivalenceBatch(ctx context.Context, tuitionEng *tuition.
 		if err := tx.Commit(ctx); err != nil {
 			return err
 		}
-		// شارژ شهریهٔ معادل‌سازی — نبود قاعده نباید معادل‌سازی را بشکند.
+		// Charges the equivalency tuition — a missing rule must not break equivalency.
 		mode := tuitionEng.GetEquivFixedMode(ctx)
 		includeFixed := tuition.ShouldChargeFixed(mode, i == 0)
 		_, _, _ = tuitionEng.ChargeTermTuition(ctx, ev.StudentID, term.ID, includeFixed)

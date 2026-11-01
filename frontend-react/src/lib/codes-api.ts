@@ -1,7 +1,7 @@
-// ═══ کلاینت مرکز کدها — پورت afagh-next/src/app/admin/codes (tables.ts + actions.ts) ═══
+// ═══ Codes center client — port of afagh-next/src/app/admin/codes (tables.ts + actions.ts) ═══
 import { apiGet, apiPost } from './api';
 
-// ── پورت tables.ts ──
+// ── Port of tables.ts ──
 
 export type CodeTable = 'faculty' | 'department' | 'major' | 'degree' | 'course' | 'term';
 
@@ -9,14 +9,14 @@ export type CodeRow = {
   id: number;
   code: string | null;
   title: string;
-  /** زمینهٔ والد: دانشکدهٔ گروه، گروه و مقطعِ رشته… تا کاربر بداند کدام رکورد است */
+  /** Parent context: group's faculty, group, and major's level… so the user knows which record it is */
   context: string | null;
-  /** آیا این کد در همین جدول تکراری است؟ */
+  /** Is this code a duplicate within the same table? */
   duplicate: boolean;
-  /** فقط ترم: تاریخ شروع/پایان به قالب 'YYYY-MM-DDTHH:mm' یا null */
+  /** Term only: start/end dates in 'YYYY-MM-DDTHH:mm' format or null */
   startDate?: string | null;
   endDate?: string | null;
-  /** کد استاندارد/کد وزارت — برای اتصال به ثمین (ستون‌های مرجع) */
+  /** Standard code/ministry code — for linking to Samin (reference columns) */
   standardCode?: string | null;
   ministryCode?: string | null;
 };
@@ -38,18 +38,18 @@ export const CODE_TABLES: { id: CodeTable; title: string; hint: string; editable
   { id: 'major', title: 'رشته‌ها و گرایش‌ها', hint: 'کد رشته — مقطع و گروه و دانشکده را مشخص می‌کند', editable: true, creatable: true },
   { id: 'degree', title: 'مقاطع تحصیلی', hint: 'کد مقطع — در فایل‌های دانشجو و درس به کار می‌رود', editable: true, creatable: true },
   { id: 'course', title: 'دروس', hint: 'کد درس — کلید یکتای کاتالوگ', editable: true, creatable: false },
-  // ترم: کدش ثابت است (در انتخاب واحد، نمره، شهریه و کارنامه ریشه دوانده)، ولی
-  // زمان‌بندی ترم (شروع/پایان، انتخاب واحد، حذف و اضافه، امتحانات) ویرایش‌پذیر است.
+  // Term: its code is fixed (rooted in course registration, grades, tuition, and transcripts), but
+  // the term schedule (start/end, course registration, add/drop, exams) is editable.
   { id: 'term', title: 'ترم‌ها', hint: 'کد ترم — مثلاً ۴۰۳۱ · کد ثابت، زمان‌بندی ترم ویرایش‌پذیر است', editable: false, creatable: true },
 ];
 
-/** برای جدول‌هایی که ساختِ رکورد از این صفحه ممکن نیست، کاربر را کجا بفرستیم */
+/** Where to send the user for tables whose records cannot be created from this page */
 export const CREATE_ELSEWHERE: Partial<Record<CodeTable, { href: string; label: string }>> = {
   department: { href: '/admin/departments', label: 'ساخت گروه آموزشی در صفحهٔ «گروه‌های آموزشی»' },
   course: { href: '/group-manager/courses', label: 'ساخت درس در کارتابل مدیر گروه ← دروس' },
 };
 
-/** برچسب دکمهٔ افزودن — از عنوان جمعِ جدول ساخته نمی‌شود تا فارسی درست بماند */
+/** Add button label — not derived from the table's plural title so the Persian stays correct */
 export const ADD_LABEL: Partial<Record<CodeTable, string>> = {
   faculty: 'افزودن دانشکده',
   major: 'افزودن رشته',
@@ -66,30 +66,30 @@ export type NewField = {
   required?: boolean;
   hint?: string;
   def?: string;
-  /** گزینه‌های select از سرور می‌آید (مقاطع، گروه‌ها یا دانشکده‌ها) */
+  /** Select options come from the server (levels, groups, or faculties) */
   optionsFrom?: 'degree' | 'department' | 'faculty';
-  /** گزینه‌های ثابت — وقتی به دیتابیس وابسته نیستند */
+  /** Fixed options — for when they do not depend on the database */
   choices?: { value: string; label: string }[];
 };
 
-/** گزینه‌های والد برای فرم ساخت — از سرور پر می‌شود */
+/** Parent options for the create form — populated from the server */
 export type FormOptions = {
   degree: { value: string; label: string }[];
   department: { value: string; label: string }[];
   faculty: { value: string; label: string }[];
 };
 
-/** کد استاندارد مشترک همهٔ جدول‌های مرجع — برای اتصال به ثمین. */
+/** Standard code shared by all reference tables — for linking to Samin. */
 const SAMIN_CODE_FIELDS: NewField[] = [
   { name: 'standardCode', label: 'کد استاندارد', kind: 'code', hint: 'کد استاندارد وزارت علوم — اختیاری و در هر زمان قابل تغییر' },
 ];
 
-/** فقط کد استاندارد (بدون کد وزارتی) — برای ترم که کد داخلی ندارد */
+/** Standard code only (no ministry code) — for term, which has no internal code */
 const TERM_STANDARD_CODE_FIELD: NewField[] = [
   { name: 'standardCode', label: 'کد استاندارد وزارت', kind: 'code', hint: 'کد استاندارد وزارت علوم برای این ترم — خودکار از کد ترم ساخته می‌شود، در صورت نیاز تغییرش دهید' },
 ];
 
-/** تعریف فرم «افزودن» برای هر جدول — پورت NEW_FIELDS */
+/** "Add" form definition for each table — port of NEW_FIELDS */
 export const NEW_FIELDS: Partial<Record<CodeTable, NewField[]>> = {
   degree: [
     { name: 'title', label: 'عنوان مقطع', kind: 'text', required: true, hint: 'مثلاً: کارشناسی ارشد ناپیوسته' },
@@ -133,8 +133,8 @@ export const NEW_FIELDS: Partial<Record<CodeTable, NewField[]>> = {
     { name: 'departmentId', label: 'گروه آموزشی', kind: 'select', optionsFrom: 'department', hint: 'دانشکده خودکار از روی گروه پر می‌شود' },
     { name: 'minUnits', label: 'حداقل واحد', kind: 'number' },
   ],
-  // گروه و درس از این صفحه ساخته نمی‌شوند (CREATE_ELSEWHERE) — تعریف فیلدها
-  // فقط برای یکپارچگی با بقیهٔ جدول‌ها و استفادهٔ احتمالی آینده است.
+  // Groups and courses are not created from this page (CREATE_ELSEWHERE) — the field definitions
+  // exist only for consistency with the other tables and possible future use.
   department: [...SAMIN_CODE_FIELDS],
   course: [...SAMIN_CODE_FIELDS],
 };
@@ -144,9 +144,9 @@ const YES_NO = [
   { value: '1', label: 'بله' },
 ];
 
-/** فرم «ویرایش» برای جدول‌هایی که فیلدهایشان با فرم ساخت فرق دارد (مثل ترم) — پورت EDIT_FIELDS */
+/** "Edit" form for tables whose fields differ from the create form (e.g. term) — port of EDIT_FIELDS */
 export const EDIT_FIELDS: Partial<Record<CodeTable, NewField[]>> = {
-  // ویرایش عمومی رشته/گروه/درس/دانشکده — همان فیلدهای فرم ساخت + کد استاندارد
+  // Generic editing of major/group/course/faculty — same fields as the create form + standard code
   faculty: [
     { name: 'name', label: 'نام دانشکده', kind: 'text', required: true },
     ...SAMIN_CODE_FIELDS,
@@ -178,7 +178,7 @@ export const EDIT_FIELDS: Partial<Record<CodeTable, NewField[]>> = {
         { value: 'SPECIAL', label: 'ویژه' },
       ],
     },
-    // کد استاندارد وزارت برای ترم باقی می‌ماند (خودکار پر می‌شود، در صورت نیاز قابل تغییر)
+    // The ministry standard code remains for term (auto-filled, changeable if needed)
     ...TERM_STANDARD_CODE_FIELD,
     { name: 'academicYear', label: 'سال تحصیلی', kind: 'number', hint: 'مثلاً 1403 — مبنای گزارش‌ها و تقویم تحصیلی' },
     { name: 'startDate', label: 'شروع ترم', kind: 'date' },
@@ -197,17 +197,17 @@ export const EDIT_FIELDS: Partial<Record<CodeTable, NewField[]>> = {
   ],
 };
 
-// ── فراخوانی‌های API — پورت actions.ts ──
+// ── API calls — port of actions.ts ──
 
 export type MissingSummary = { table: string; missing: number };
 
-/** آمار سلامت کدها — کارت‌های بالای صفحه */
+/** Code health stats — cards at the top of the page */
 export async function getCodeStats(): Promise<CodeStat[]> {
   const res = await apiGet<{ ok: boolean; data: { stats: CodeStat[] } }>('/admin/codes/stats');
   return res.data.stats;
 }
 
-/** فهرست کدهای یک جدول (با جست‌وجو) */
+/** List of codes of a table (with search) */
 export async function getCodeRows(table: CodeTable, q = ''): Promise<CodeRow[]> {
   const sp = new URLSearchParams({ table });
   if (q) sp.set('q', q);
@@ -215,13 +215,13 @@ export async function getCodeRows(table: CodeTable, q = ''): Promise<CodeRow[]> 
   return res.data.rows;
 }
 
-/** خلاصهٔ جدول‌های دارای رکورد بی‌کد */
+/** Summary of tables with records lacking a code */
 export async function getMissingCodeSummary(): Promise<MissingSummary[]> {
   const res = await apiGet<{ ok: boolean; data: { missing: MissingSummary[] } }>('/admin/codes/missing-summary');
   return res.data.missing;
 }
 
-/** گزینه‌های والد فرم ساخت */
+/** Parent options for the create form */
 export async function getCodeFormOptions(): Promise<FormOptions> {
   const res = await apiGet<{ ok: boolean; data: FormOptions }>('/admin/codes/form-options');
   return {
@@ -231,19 +231,19 @@ export async function getCodeFormOptions(): Promise<FormOptions> {
   };
 }
 
-/** متن CSV یک جدول — دانلود از متن در صفحه انجام می‌شود */
+/** CSV text of a table — the download happens in-page from the text */
 export async function exportCodesCsv(table: CodeTable): Promise<string> {
   const res = await apiGet<{ ok: boolean; data: { csv: string } }>(`/admin/codes/export?table=${table}`);
   return res.data.csv;
 }
 
-/** شمار رکوردهای جدول بدون بارگذاری کامل */
+/** Count of a table's records without a full load */
 export async function countCodeRows(table: CodeTable): Promise<number> {
   const res = await apiGet<{ ok: boolean; data: { count: number } }>(`/admin/codes/count?table=${table}`);
   return res.data.count;
 }
 
-/** ویرایش کد یک رکورد — کدهای ثمینی اختیاری‌اند (نفرستدن = دست‌نخورده) */
+/** Edit a record's code — Samin codes are optional (not sending = untouched) */
 export async function setCode(
   table: CodeTable, id: number, code: string,
   extra?: { standardCode?: string; ministryCode?: string },
@@ -257,23 +257,23 @@ export async function setCode(
   });
 }
 
-/** ساخت رکورد مرجع تازه (مقطع/دانشکده/رشته/ترم) */
+/** Create a new reference record (level/faculty/major/term) */
 export async function createCodeRow(table: CodeTable, values: Record<string, string>): Promise<{ id: number }> {
   const res = await apiPost<{ ok: boolean; data: { id: number } }>('/admin/codes/create', { table, values });
   return res.data;
 }
 
-/** ویرایش عمومی سطر (دانشکده/گروه/رشته/درس) */
+/** Generic row editing (faculty/group/major/course) */
 export async function updateCodeRow(table: CodeTable, id: number, values: Record<string, string>): Promise<void> {
   await apiPost('/admin/codes/row/update', { table, id, values });
 }
 
-/** حذف رکورد مرجع — فقط وقتی هیچ‌جا استفاده نشده باشد */
+/** Delete a reference record — only when it is unused anywhere */
 export async function deleteCodeRow(table: CodeTable, id: number): Promise<void> {
   await apiPost('/admin/codes/delete', { table, id });
 }
 
-/** خواندن یک سطر برای فرم ویرایش عمومی (دانشکده/گروه/رشته/درس) */
+/** Read a row for the generic edit form (faculty/group/major/course) */
 export async function getCodeRow(table: CodeTable, id: number): Promise<Record<string, string> | null> {
   const res = await apiGet<{ ok: boolean; data: { row: Record<string, string> | null } }>(
     `/admin/codes/row?table=${table}&id=${id}`,
@@ -281,7 +281,7 @@ export async function getCodeRow(table: CodeTable, id: number): Promise<Record<s
   return res.data.row;
 }
 
-/** خواندن یک مقطع برای فرم ویرایش — همان فیلدهای فرم ساخت، همه رشته */
+/** Read a level for the edit form — same fields as the create form, all string */
 export async function getDegreeRow(id: number): Promise<Record<string, string> | null> {
   const res = await apiGet<{ ok: boolean; data: { degree: Record<string, unknown> | null } }>(`/admin/codes/degree?id=${id}`);
   const d = res.data.degree;
@@ -300,18 +300,18 @@ export async function getDegreeRow(id: number): Promise<Record<string, string> |
   };
 }
 
-/** ویرایش مقطع — همهٔ فیلدهای فرم ساخت */
+/** Edit a level — all fields of the create form */
 export async function updateDegreeRow(id: number, values: Record<string, string>): Promise<void> {
   await apiPost('/admin/codes/degree/update', { id, values });
 }
 
-/** خواندن یک ترم برای فرم ویرایش زمان‌بندی */
+/** Read a term for the schedule edit form */
 export async function getTermRow(id: number): Promise<Record<string, string> | null> {
   const res = await apiGet<{ ok: boolean; data: { term: Record<string, string> | null } }>(`/admin/codes/term?id=${id}`);
   return res.data.term;
 }
 
-/** ویرایش زمان‌بندی ترم (شروع/پایان، انتخاب واحد، حذف و اضافه، امتحانات، اعتراضات) */
+/** Edit term schedule (start/end, course registration, add/drop, exams, objections) */
 export async function updateTermRow(id: number, values: Record<string, string>): Promise<void> {
   await apiPost('/admin/codes/term/update', { id, values });
 }

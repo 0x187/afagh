@@ -16,7 +16,7 @@ import {
   type PingResult,
 } from './idle-lock';
 
-// ═══ تست ماشین حالت قفل بیکاری — پورت قواعد SessionLock.tsx ═══
+// ═══ Idle lock state machine tests — port of SessionLock.tsx rules ═══
 
 describe('ثابت‌های زمانی (پورت عین SessionLock.tsx)', () => {
   it('ضربان ۶۰ ثانیه است', () => {
@@ -37,7 +37,7 @@ describe('ثابت‌های زمانی (پورت عین SessionLock.tsx)', () =>
 
   it('تأخیر تایمر = Math.max(1, timeoutMin) × ۶۰ ثانیه', () => {
     expect(armDelayMs(15)).toBe(15 * 60 * 1000);
-    expect(armDelayMs(0)).toBe(60 * 1000); // سقف کف ۱ دقیقه
+    expect(armDelayMs(0)).toBe(60 * 1000); // Floor and cap: 1 minute
     expect(armDelayMs(-3)).toBe(60 * 1000);
   });
 

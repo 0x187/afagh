@@ -1,4 +1,4 @@
-// ═══ تعرفهٔ تفصیلی سما — پورت tuition-tariff-core + computeTariffCourseLinesForTerms ═══
+// ═══ Sama detailed tariff — port of tuition-tariff-core + computeTariffCourseLinesForTerms ═══
 package tuition
 
 import (
@@ -8,13 +8,13 @@ import (
 	"strings"
 )
 
-// TariffRate نرخ نظری/عملی یک «نوع درس مالی».
+// TariffRate is the theory/practical rate of a "financial course type".
 type TariffRate struct {
 	TH float64 `json:"th"`
 	OP float64 `json:"op"`
 }
 
-// TariffLine ریز شهریهٔ یک درس بر پایهٔ تعرفهٔ سال.
+// TariffLine is a course's detailed tuition based on the yearly tariff.
 type TariffLine struct {
 	CourseCode     string  `json:"courseCode"`
 	CourseTitle    string  `json:"courseTitle"`
@@ -26,10 +26,10 @@ type TariffLine struct {
 	Amount         float64 `json:"amount"`
 }
 
-// jsRound معادل Math.round در جاوااسکریپت (نیم به سمت +∞).
+// jsRound is equivalent to JavaScript's Math.round (half rounds toward +∞).
 func jsRound(v float64) float64 { return math.Floor(v + 0.5) }
 
-// TariffCourseAmount مبلغ یک درس: نظری×Th + عملی×OP.
+// TariffCourseAmount is a course's amount: theory×Th + practical×OP.
 func TariffCourseAmount(theoryUnits, practicalUnits float64, rate *TariffRate) float64 {
 	if rate == nil {
 		return 0
@@ -37,7 +37,7 @@ func TariffCourseAmount(theoryUnits, practicalUnits float64, rate *TariffRate) f
 	return jsRound(theoryUnits*rate.TH + practicalUnits*rate.OP)
 }
 
-// TariffAmountOrZero رفتار سند رسمی: درسِ بی‌نرخ صفر است (نه نرخ پیش‌فرض).
+// TariffAmountOrZero follows the official document's behavior: an un-rated course is zero (not the default rate).
 func TariffAmountOrZero(theoryUnits, practicalUnits float64, rate *TariffRate) float64 {
 	if rate == nil {
 		return 0
@@ -45,7 +45,7 @@ func TariffAmountOrZero(theoryUnits, practicalUnits float64, rate *TariffRate) f
 	return TariffCourseAmount(theoryUnits, practicalUnits, rate)
 }
 
-// PickTariffRate انتخاب نرخ دقیق؛ نبودش یعنی صفر (همان رفتار سما).
+// PickTariffRate picks the exact rate; its absence means zero (same behavior as Sama).
 func PickTariffRate(rates map[int]TariffRate, maliType *int) *TariffRate {
 	if len(rates) == 0 || maliType == nil {
 		return nil
@@ -74,9 +74,9 @@ func termYearOf(termYear *int, termCode string) int {
 	return 0
 }
 
-// ComputeTariffCourseLinesForTerms ریز شهریهٔ متغیر دروس بر پایهٔ تعرفهٔ تفصیلی.
-// هر ترمی که تعرفهٔ سالش موجود نباشد در نتیجه نمی‌آید (کلید غایب) تا فراخوان
-// به موتور یکپارچه برگردد — دقیقاً مثل buildTranscriptCourses.
+// ComputeTariffCourseLinesForTerms gives the detailed variable tuition of courses based on the detailed tariff.
+// A term whose year's tariff is missing is absent from the result (missing key) so the caller
+// falls back to the unified engine — exactly like buildTranscriptCourses.
 func (e *Engine) ComputeTariffCourseLinesForTerms(ctx context.Context, studentID int64, termIDs []int64) map[int64][]TariffLine {
 	out := map[int64][]TariffLine{}
 	ids := uniquePositive(termIDs)
@@ -117,7 +117,7 @@ func (e *Engine) ComputeTariffCourseLinesForTerms(ctx context.Context, studentID
 		return out
 	}
 
-	// نرخ‌ها: کلید تطبیق «سالِ تعرفه» است (نرخ سما سالانه است، نه هر نیمسال).
+	// Rates: the matching key is the "tariff year" (the Sama rate is annual, not per semester).
 	byYear := map[int]map[int]TariffRate{}
 	rrows, err := e.Pool.Query(ctx, `
 		select "termYear", "termCode", "maliType", "thPrice"::float8, "opPrice"::float8
@@ -151,7 +151,7 @@ func (e *Engine) ComputeTariffCourseLinesForTerms(ctx context.Context, studentID
 		return out
 	}
 
-	// نیمسال‌هایی که تعرفهٔ سالشان موجود است «پوشش‌داده‌شده»اند، حتی بی‌درس.
+	// Semesters whose year's tariff exists are "covered", even with no courses.
 	for termID, code := range codeByID {
 		year, _ := strconv.Atoi(code[:minInt(4, len(code))])
 		if _, ok := byYear[year]; ok {

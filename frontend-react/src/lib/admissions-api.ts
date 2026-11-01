@@ -1,4 +1,4 @@
-// ═══ کلاینت پذیرش (سنجش/فرمول/ثبت دستی/ایرانداک) ═══
+// ═══ Admission client (assessment/formula/manual entry/IranDoc) ═══
 import { apiGet, apiPost } from './api';
 
 export type StagingItem = {

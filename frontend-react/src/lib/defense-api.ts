@@ -1,4 +1,4 @@
-// ═══ کلاینت میز دفاع پایان‌نامه ═══
+// ═══ Thesis defense desk client ═══
 import { apiGet, apiPost } from './api';
 
 export type DefenseJury = { chair: string | null; supervisor: string | null; internal: string | null; external: string | null };

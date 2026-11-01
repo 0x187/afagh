@@ -1,4 +1,4 @@
-// ═══ کلاینت پنل ادمین (فاز ۶) ═══
+// ═══ Admin panel client (phase 6) ═══
 import { apiGet, apiPost } from './api';
 import type { FinanceData } from './student-api';
 
@@ -389,7 +389,7 @@ export async function setCourseFinanceType(courseId: number, maliType: number): 
   await apiPost('/admin/course-finance', { courseId, maliType });
 }
 
-// ─────────────────── تعاریف موتور مالی (rules) ───────────────────
+// ─────────────────── Financial engine definitions (rules) ───────────────────
 
 export type FinanceDiscountType = {
   id: number; code: string; title: string; kind: string;
@@ -496,7 +496,7 @@ export async function voidPosTransaction(terminalCode: string, stan: string, rea
   await apiPost<{ ok: boolean }>('/admin/pos/void', { terminalCode, stan, reason });
 }
 
-// ─────────────────── بایگانی مدارک ───────────────────
+// ─────────────────── Document archive ───────────────────
 
 export type ArchiveDoc = {
   id: number; fileName: string; mimeType: string | null; status: string; reason: string | null;
@@ -533,7 +533,7 @@ export async function uploadArchiveDocument(input: { file: File; studentUserId: 
 
 export const archiveFileUrl = (docId: number) => `/api/v2/admin/archive/file/${docId}`;
 
-// ─────────────────── ضرایب نیمسال + مبالغ موضوعی (CRUD) ───────────────────
+// ─────────────────── Semester coefficients + itemized amounts (CRUD) ───────────────────
 
 export type FinanceCoefficient = {
   id: number; termId: number | null; variableCoefficient: number; fixedCoefficient: number;
@@ -594,7 +594,7 @@ export async function deleteSubjectFeeAssignment(id: number): Promise<void> {
   await apiPost<{ ok: boolean }>('/admin/finance/subject-fees/assign/delete', { id });
 }
 
-// ─────────────────── کنترل زمانی + فرمول ویژهٔ دانشجو ───────────────────
+// ─────────────────── Time controls + student-specific formula ───────────────────
 
 export type LockState = {
   configured: boolean; locked: boolean; entryAllowed: boolean; reason: string;
@@ -641,7 +641,7 @@ export async function deleteTuitionOverride(id: number): Promise<void> {
   await apiPost<{ ok: boolean }>('/admin/finance/student-formula/delete', { id });
 }
 
-// ─────────────────── صندوق رفاه ───────────────────
+// ─────────────────── Welfare Fund ───────────────────
 
 export type WelfareFund = {
   id: number; code: string; title: string; description: string | null;

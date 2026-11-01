@@ -5,11 +5,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { getSiblingAccounts, switchAccount } from '@/lib/auth-api';
 import { availablePanels, panelRoleHint, type PanelKey } from '@/lib/panel-links';
 
-// ═══ سوییچر «کارتابل‌ها و حساب‌ها» — پورت PanelSwitcher.tsx ═══
+// ═══ "Inboxes and accounts" switcher — port of PanelSwitcher.tsx ═══
 //
-// ۱) کاربر چندنقشی بین کارتابل‌های مجاز جابه‌جا می‌شود (مسیرهای فعلی سیستم
-//    تا پورت هر ماژول — ناوبری کامل).
-// ۲) حساب‌های هم‌شخص با همان کدملی با رمزِ همان حساب باز می‌شوند.
+// 1) A multi-role user navigates between allowed inboxes (the system's current routes
+//    until each module is ported — full navigation).
+// 2) Same-person accounts with the same national ID are opened with that account's own password.
 export function PanelSwitcher({ roles, current }: { roles: string[]; current?: PanelKey }) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);

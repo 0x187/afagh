@@ -3,9 +3,9 @@ import { Moon, Sun } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/lib/theme';
 
-// ═══ ThemeToggle — پورت وفادار از src/components/ThemeToggle.tsx ═══
-// همان کلید localStorage «theme» و همان رفتار prefers-color-scheme؛
-// فقط آیکون‌ها از lucide آمده‌اند (به‌جای SVG دستی).
+// ═══ ThemeToggle — faithful port from src/components/ThemeToggle.tsx ═══
+// Same "theme" localStorage key and same prefers-color-scheme behavior;
+// only the icons come from lucide (instead of hand-drawn SVG).
 export function ThemeToggle() {
   const { dark, mounted, toggle } = useTheme();
   if (!mounted) return null;
