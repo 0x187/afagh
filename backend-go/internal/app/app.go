@@ -60,7 +60,6 @@ type App struct {
 	Server *http.Server
 
 	gin        *gin.Engine
-	spa        http.Handler
 	store      *session.Store
 	settings   *settings.Store
 	limiter    *ratelimit.Limiter

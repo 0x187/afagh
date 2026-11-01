@@ -1,0 +1,20 @@
+# نمونهٔ فایل مسیرها برای parity-check
+# قالب: NEWPATH [| OLDPATH] [| excl.key1,excl.key2]
+# مسیر جدید به NEW_BASE (پیشفرض :8091/api/v2) و قدیمی به OLD_BASE (پیشفرض :8080) اضافه میشود.
+# فقط در پنجرهٔ strangler (هر دو سرویس روشن) قابل اجراست؛ کوکی نشست مشترک:
+#   COOKIE='token=…' node tools/parity-check.mjs tools/parity-routes.sample.txt
+
+# عمومی (بدون نشست)
+/health|/api/health
+/open-courses||data.generatedAt
+
+# دانشجو — وقتی کوکی دانشجو میدهید کوکی را عوض کنید
+/student/dashboard||data.notifications,data.generatedAt
+/student/schedule||data.weekRows
+/student/finance||data.qr
+/student/requests||data.rows
+
+# ادمین
+/admin/dashboard||data.liveGrades
+/admin/students||data.rows
+/admin/departments||data.rows

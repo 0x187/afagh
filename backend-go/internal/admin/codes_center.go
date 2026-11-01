@@ -44,14 +44,6 @@ var codeTableDefs = []codeTableDef{
 	{ID: "term", Title: "ترم‌ها", Hint: "کد ترم — مثلاً ۴۰۳۱ · کد ثابت، زمان‌بندی ترم ویرایش‌پذیر است", Editable: false, Creatable: true},
 }
 
-func validCodeTable(t string) bool {
-	switch t {
-	case "faculty", "department", "major", "degree", "course", "term":
-		return true
-	}
-	return false
-}
-
 // ── Response types ──
 
 // CodeRow is a code display row (CodeRow port).

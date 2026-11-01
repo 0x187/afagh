@@ -127,10 +127,6 @@ func TestValidateFormula(t *testing.T) {
 
 // ═══ matchRule / diagnose — unified algorithm ═══
 
-func rule(t *string, rank *string) PayRule {
-	return PayRule{OfferingType: t, AcademicRank: rank}
-}
-
 func strPtr(s string) *string { return &s }
 
 func TestMatchRuleMostSpecificWins(t *testing.T) {

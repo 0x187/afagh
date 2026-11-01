@@ -48,13 +48,10 @@ func IsAPIPath(owned []string, p string) bool {
 
 // Root builds the full root handler (routing + security headers + CSRF + logging).
 func Root(owned []string, api http.Handler, spa http.Handler, spaDist string, nextUpstream *url.URL, extraOrigins []string) http.Handler {
-	next := httputil.NewSingleHostReverseProxy(nextUpstream)
-	// The main Host is preserved so Next sees relative paths/cookies correctly
-	origDirector := next.Director
-	next.Director = func(req *http.Request) {
-		origDirector(req)
-		req.Host = nextUpstream.Host
-	}
+	next := &httputil.ReverseProxy{Rewrite: func(req *httputil.ProxyRequest) {
+		req.SetURL(nextUpstream)
+		req.Out.Host = nextUpstream.Host
+	}}
 
 	// For each SPA prefix, the appropriate handler is built (proxy or static).
 	spaByPrefix := map[string]http.Handler{}

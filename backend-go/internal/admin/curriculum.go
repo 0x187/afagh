@@ -700,9 +700,7 @@ func ValidateCurriculumCore(in curriculumCheckInput) []CurriculumCheckResult {
 
 func jalaliNum(v float64) string {
 	s := strconv.FormatFloat(v, 'f', -1, 64)
-	if strings.HasSuffix(s, ".0") {
-		s = strings.TrimSuffix(s, ".0")
-	}
+	s = strings.TrimSuffix(s, ".0")
 	return s
 }
 

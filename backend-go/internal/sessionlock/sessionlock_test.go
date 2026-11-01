@@ -29,11 +29,10 @@ func (f fakeSettings) GetNumber(_ context.Context, key string, fallback float64)
 }
 
 func TestRoleMinutesParsing(t *testing.T) {
-	s := New(nil, fakeSettings{})
 	ctx := context.Background()
 
 	// valid JSON: an existing role wins, 0 means disabled
-	s = New(nil, fakeSettings{
+	s := New(nil, fakeSettings{
 		"SESSION_LOCK_MINUTES":       "15",
 		"SESSION_LOCK_MINUTES_ROLES": `{"ADMIN":30,"STUDENT":0}`,
 	})

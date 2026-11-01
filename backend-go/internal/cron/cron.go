@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"math"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/jackc/pgx/v5"
@@ -30,7 +29,6 @@ type Engine struct {
 	Pool     *pgxpool.Pool
 	Settings *settings.Store
 	Workflow *workflow.Engine
-	mu       sync.Mutex
 }
 
 // New constructs the engine.

@@ -42,7 +42,6 @@ func New(pool *pgxpool.Pool, settings Settings) *Engine {
 }
 
 var terminalStatuses = map[string]bool{"APPROVED": true, "REJECTED": true, "CANCELLED": true}
-var openStatuses = map[string]bool{"SUBMITTED": true, "IN_REVIEW": true, "RETURNED": true}
 
 // ─────────────────── Inbox ───────────────────
 

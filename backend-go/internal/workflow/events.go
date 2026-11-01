@@ -99,15 +99,6 @@ func (e *Engine) fireEvent(ctx context.Context, tx pgx.Tx, requestID int64, proc
 	}
 }
 
-type dispatchMeta struct {
-	processCode       string
-	eventCode         string
-	stepTitle         *string
-	actorRole         string
-	note              string
-	certificateNumber *string
-}
-
 // DispatchAfterCommit processes a request's PENDING events — after commit.
 func (e *Engine) DispatchAfterCommit(ctx context.Context, requestID int64, intent *dispatchIntent) DispatchStats {
 	stats := DispatchStats{}

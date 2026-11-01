@@ -28,10 +28,9 @@ type memCount struct {
 type Limiter struct {
 	rdb *redis.Client
 
-	mu           sync.Mutex
-	mem          map[string]*memCount
-	downUntil    time.Time
-	onRedisReady bool
+	mu        sync.Mutex
+	mem       map[string]*memCount
+	downUntil time.Time
 }
 
 // New is the constructor — rdb may be nil (in-memory-only mode for tests/development).

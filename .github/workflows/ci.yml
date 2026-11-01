@@ -106,4 +106,26 @@ jobs:
       - run: npm ci
       - run: npx tsc --noEmit
       - run: npm test -- --run
+      - run: npm run lint
       - run: npm run build
+
+  backend-go-staticcheck:
+    name: بک‌ند Go — staticcheck (صفر یافته)
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: backend-go } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version-file: backend-go/go.mod }
+      - run: go run honnef.co/go/tools/cmd/staticcheck@latest ./...
+
+  backend-go-gosec:
+    name: بک‌ند Go — gosec (گزارشی، مسدودکننده نیست)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    defaults: { run: { working-directory: backend-go } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version-file: backend-go/go.mod }
+      - run: go run github.com/securego/gosec/v2/cmd/gosec@latest -quiet -severity medium -confidence medium ./...

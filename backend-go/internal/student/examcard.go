@@ -261,7 +261,6 @@ func (s *Service) evaluationWindow(ctx context.Context, universityID, termID *in
 	if universityID != nil {
 		q += fmt.Sprintf(` and ("universityId" = $%d or "universityId" is null)`, idx)
 		args = append(args, *universityID)
-		idx++
 	}
 	q += ` order by id desc limit 5`
 	rows, err := s.Pool.Query(ctx, q, args...)

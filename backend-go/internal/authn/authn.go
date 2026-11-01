@@ -160,19 +160,6 @@ func NewService(pool *pgxpool.Pool, cfg Config, rate RateLimiter, signer TokenSi
 
 // allowRate checks the rate limit. Error policy (structural difference from TS): the TS implementation never
 // returns an error (it has an in-memory fallback); if it still errors despite the fallback,
-// we do not block login (fail-open) and only log — locking the whole system
-// because of a broken limiter is more dangerous than a temporary limit breach. (Noted in the port report.)
-func (s *Service) allowRate(ctx context.Context, key string, limit, windowSec int) bool {
-	if s.Rate == nil {
-		return true
-	}
-	allowed, _, err := s.Rate.Allow(ctx, key, limit, windowSec)
-	if err != nil {
-		loggerFor().Error("rate_limit_error", map[string]any{"key": key, "error": err.Error()})
-		return true
-	}
-	return allowed
-}
 
 // countRate returns the key's current count (for exponential backoff) — error ⇒ 0 (same as .catch(() => 0)).
 func (s *Service) countRate(ctx context.Context, key string) int {

@@ -91,14 +91,11 @@ func (s *Service) GetEvaluation(ctx context.Context, userID int64, cookie *int64
 	var periodTitle string
 	q := `select id, title from evaluation_periods where "isActive" = 1`
 	args := []any{}
-	idx := 1
 	q += ` and ("termId" = $1 or "termId" is null)`
 	args = append(args, *term.ID)
-	idx++
 	if st.UniversityID != nil {
 		q += ` and ("universityId" = $2 or "universityId" is null)`
 		args = append(args, *st.UniversityID)
-		idx++
 	}
 	q += ` order by id desc limit 1`
 	if err := s.DB.Pool.QueryRow(ctx, q, args...).Scan(&periodID, &periodTitle); err != nil {

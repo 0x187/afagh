@@ -11,7 +11,6 @@ package enroll
 
 import (
 	"strings"
-	"time"
 )
 
 // MaxUnits default cap when the regulations engine is unavailable.
@@ -81,5 +80,3 @@ func TermTypeOf(termCode string, termType *string, isSummer bool) string {
 	}
 	return "NORMAL"
 }
-
-func nowUnixMilli() int64 { return time.Now().UnixMilli() }

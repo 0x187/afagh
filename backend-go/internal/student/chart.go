@@ -59,11 +59,6 @@ type ChartResponse struct {
 	HighlightAnchor   *string            `json:"highlightAnchor"`
 }
 
-var chartRoleFa = map[string]string{
-	"CORE": "اصلی", "MAJOR": "تخصصی", "ELECTIVE": "اختیاری", "GENERAL": "عمومی",
-	"THESIS": "پایان‌نامه", "INTERNSHIP": "کارآموزی", "WORKSHOP": "کارگاهی",
-}
-
 var semesterTitle = map[int]string{
 	1: "نیمسال اول (ترم ۱)", 2: "نیمسال دوم (ترم ۲)", 3: "نیمسال سوم (ترم ۳)",
 	4: "نیمسال چهارم (ترم ۴)", 5: "نیمسال پنجم (ترم ۵)", 6: "نیمسال ششم (ترم ۶)",

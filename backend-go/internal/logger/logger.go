@@ -11,7 +11,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -53,7 +52,6 @@ func (l Level) String() string {
 type Fields map[string]any
 
 type Logger struct {
-	mu      sync.Mutex
 	base    Fields
 	min     Level
 	pretty  bool

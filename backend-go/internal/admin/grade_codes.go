@@ -130,13 +130,6 @@ func escapeLike(s string) string {
 	s = strings.ReplaceAll(s, `%`, `\%`)
 	return strings.ReplaceAll(s, `_`, `\_`)
 }
-
-func (s *Service) uniScopeCond(uniID *int64, alias string) (string, []any) {
-	if uniID == nil {
-		return "", nil
-	}
-	return fmt.Sprintf(`(%s."universityId" = $1 or %s."universityId" is null)`, alias, alias), []any{*uniID}
-}
 func numJSON(v any) (float64, bool) {
 	switch t := v.(type) {
 	case json.Number:
@@ -179,17 +172,6 @@ func boolJSON(v any) (bool, bool) {
 func strJSON(v any) (string, bool) {
 	sv, ok := v.(string)
 	return sv, ok
-}
-
-func decodeJSONObject(c interface{ ShouldBindJSON(any) error }) (map[string]any, error) {
-	var raw map[string]any
-	if err := c.ShouldBindJSON(&raw); err != nil {
-		return nil, errors.New("بدنهٔ درخواست نامعتبر است.")
-	}
-	if raw == nil {
-		raw = map[string]any{}
-	}
-	return raw, nil
 }
 
 func rejectUnknown(raw map[string]any, allowed []string) error {

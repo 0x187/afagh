@@ -33,13 +33,6 @@ type Health struct {
 	Version     string
 }
 
-func healthStatus(c *gin.Context) string {
-	if c == nil {
-		return "skipped"
-	}
-	return c.GetString("status")
-}
-
 // HealthGET JSON response with a uniform shape: {ok, checks:{db,redis,minio}, version}.
 func (h *Health) HealthGET(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")

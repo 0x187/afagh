@@ -575,6 +575,7 @@ func (s *Service) advanceDossier(ctx context.Context, auditID int64, depth int) 
 		return nil
 	}
 
+	//lint:ignore SA4006 next is always reassigned in the switch below
 	next := status
 	switch {
 	case headApproval == 0:

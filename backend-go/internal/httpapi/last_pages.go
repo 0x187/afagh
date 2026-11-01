@@ -29,10 +29,6 @@ func (a *LastPagesAPI) require(c *gin.Context, roles []string) *session.User {
 	return a.Admin.requireRoles(c, roles)
 }
 
-func (a *LastPagesAPI) uniID(c *gin.Context, user *session.User) *int64 {
-	return a.Admin.Svc.UniversityID(c.Request.Context(), user, a.Admin.uniCookie(c))
-}
-
 // Register routes for all six modules.
 func (a *LastPagesAPI) Register(r gin.IRouter) {
 	// ── Broadcast message ──

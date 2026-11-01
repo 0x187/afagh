@@ -280,8 +280,7 @@ func (s *Service) UpdateShortTermRegistration(ctx context.Context, user *session
 	if regUni != nil && *regUni != *uniID {
 		return false, 0, 0, errors.New("ثبت‌نام متعلق به دانشگاه دیگری است.")
 	}
-	var passing float64 = 12
-	var maxAbs int = 3
+	passing, maxAbs := 12.0, 3
 	_ = s.DB.Pool.QueryRow(ctx, `
 		select coalesce("passingGrade",12)::float8, coalesce("maxAbsences",3) from short_term_courses where id = $1`, courseID).
 		Scan(&passing, &maxAbs)

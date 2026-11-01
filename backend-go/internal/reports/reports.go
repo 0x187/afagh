@@ -512,14 +512,6 @@ func clampPage(page, totalPages int) int {
 	return page
 }
 
-func inListNoArgs(values []string) string {
-	parts := make([]string, len(values))
-	for i, v := range values {
-		parts[i] = "'" + strings.ReplaceAll(v, "'", "''") + "'"
-	}
-	return strings.Join(parts, ", ")
-}
-
 func numOf(v any) float64 {
 	switch x := v.(type) {
 	case float64:

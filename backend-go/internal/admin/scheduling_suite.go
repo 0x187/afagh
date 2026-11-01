@@ -50,15 +50,6 @@ func schedAuditTx(ctx context.Context, tx pgx.Tx, userID *int64, action, entityT
 		values ($1,$2,$3,$4,$5,$6,$7)`, userID, action, entityType, entityID, raw, prev, hash)
 }
 
-// schedAudit writes an audit row outside the transaction.
-func schedAudit(ctx context.Context, s *Service, userID *int64, action, entityType string, entityID int64, details any) {
-	raw, hash := schedAuditValues(action, entityID, details)
-	var prev string
-	_ = s.DB.Pool.QueryRow(ctx, `select coalesce(hash,'') from audit_logs order by id desc limit 1`).Scan(&prev)
-	_, _ = s.DB.Pool.Exec(ctx, `insert into audit_logs ("actorUserId", action, "entityType", "entityId", details, "prevHash", hash)
-		values ($1,$2,$3,$4,$5,$6,$7)`, userID, action, entityType, entityID, raw, prev, hash)
-}
-
 // schedAdvisoryLock transaction-scoped advisory lock (same hashtextextended pattern as the Next engine).
 func schedAdvisoryLock(ctx context.Context, tx pgx.Tx, ns string, a, b int64) error {
 	_, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended($1, 0))`,

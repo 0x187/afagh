@@ -133,24 +133,6 @@ func (a *AdminAPI) curriculumBank(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": res})
 }
 
-func (a *AdminAPI) curriculumBankCreate(c *gin.Context) {
-	user := a.requireRoles(c, gradeCodesViewRoles)
-	if user == nil {
-		return
-	}
-	var raw map[string]any
-	if err := c.ShouldBindJSON(&raw); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "بدنهٔ درخواست نامعتبر است."})
-		return
-	}
-	id, err := a.Svc.CreateBankCourse(c.Request.Context(), user, a.uniCookie(c), raw)
-	if err != nil {
-		a.fail(c, err)
-		return
-	}
-	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"id": id}})
-}
-
 func (a *AdminAPI) curriculumBankUpdate(c *gin.Context) {
 	user := a.requireRoles(c, gradeCodesViewRoles)
 	if user == nil {

@@ -2,10 +2,9 @@ package gpa
 
 import "testing"
 
-func f(v float64) *float64 { return &v }
-func i(v int) *int         { return &v }
-func i64(v int64) *int64   { return &v }
-func s(v string) *string   { return &v }
+func i(v int) *int       { return &v }
+func i64(v int64) *int64 { return &v }
+func s(v string) *string { return &v }
 
 func TestParseGradeUnits(t *testing.T) {
 	if ParseGrade(nil) != nil || ParseGrade("") != nil || ParseGrade("  ") != nil || ParseGrade("abc") != nil {

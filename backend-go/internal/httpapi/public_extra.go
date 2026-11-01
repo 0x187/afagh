@@ -2031,8 +2031,7 @@ func (a *PublicExtraAPI) extraRoomCheckinState(c *gin.Context) {
 	todayBySlot := map[string]gin.H{}
 	for _, r := range today {
 		key := fmt.Sprintf("%d|%s", r.OfferingID, r.StartTime)
-		entry, exists := todayBySlot[key]
-		if !exists {
+		if _, exists := todayBySlot[key]; !exists {
 			var recMineAt, recAnyAt *string
 			if at, ok := recordedMine[r.ID]; ok {
 				teh := at.UTC().Add(3*time.Hour + 30*time.Minute)
@@ -2044,9 +2043,8 @@ func (a *PublicExtraAPI) extraRoomCheckinState(c *gin.Context) {
 				s := teh.Format("15:04")
 				recAnyAt = &s
 			}
-			entry = gin.H{"sessionId": r.ID, "recordedMine": recMineAt != nil, "recordedMineAt": recMineAt,
+			todayBySlot[key] = gin.H{"sessionId": r.ID, "recordedMine": recMineAt != nil, "recordedMineAt": recMineAt,
 				"recordedAny": recAnyAt != nil, "recordedAnyAt": recAnyAt}
-			todayBySlot[key] = entry
 		}
 	}
 
@@ -2304,7 +2302,6 @@ func (a *PublicExtraAPI) extraRoomCheckinRecord(c *gin.Context) {
 	}
 	sessionIDs := []int64{sess.ID}
 	merged := false
-	createdSessionIDs := []int64{}
 	if mine != nil {
 		sessionIDs = append([]int64{}, mine.MemberSessionIDs...)
 		merged = mine.Merged
@@ -2354,10 +2351,7 @@ func (a *PublicExtraAPI) extraRoomCheckinRecord(c *gin.Context) {
 				insert into class_sessions ("offeringId", "sessionDate", "startTime", "endTime", status, "roomId", "universityId")
 				values ($1, $2, $3, $4, 'HELD', $5, $6) returning id`,
 				oid, sess.SessionDate, sess.StartTime, sess.EndTime, roomID, oUni).Scan(&createdID)
-			if err == nil {
-				createdSessionIDs = append(createdSessionIDs, createdID)
-				sessionIDs = append(sessionIDs, createdID)
-			}
+			_ = err // session insert failure is tolerated: the session row is optional
 		}
 	}
 

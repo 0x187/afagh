@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"strings"
-	"time"
 
 	"backend-go/internal/archive"
 	"backend-go/internal/db"
@@ -316,7 +315,5 @@ func itoa64(v int64) string {
 	}
 	return string(buf[i:])
 }
-
-func nowISO() string { return time.Now().UTC().Format(time.RFC3339) }
 
 var errNoStaff = errors.New("پروندهٔ هیئت علمی یافت نشد.")

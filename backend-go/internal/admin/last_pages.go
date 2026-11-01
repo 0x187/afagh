@@ -514,15 +514,12 @@ func (s *Service) lpAudienceUserIDs(ctx context.Context, uniID *int64, a Broadca
 			case a.MajorID != nil && *a.MajorID > 0:
 				conds = append(conds, fmt.Sprintf(`st."majorId" = $%d`, idx))
 				args = append(args, *a.MajorID)
-				idx++
 			case a.DepartmentID != nil && *a.DepartmentID > 0:
 				conds = append(conds, fmt.Sprintf(`st."majorId" in (select id from majors where "departmentId" = $%d limit 5000)`, idx))
 				args = append(args, *a.DepartmentID)
-				idx++
 			case a.FacultyID != nil && *a.FacultyID > 0:
 				conds = append(conds, fmt.Sprintf(`st."majorId" in (select id from majors where "facultyId" = $%d limit 5000)`, idx))
 				args = append(args, *a.FacultyID)
-				idx++
 			}
 			rows, err := s.DB.Pool.Query(ctx, `
 				select u.id from students st join users u on u.id = st."userId"
@@ -595,11 +592,9 @@ func (s *Service) lpAudienceUserIDs(ctx context.Context, uniID *int64, a Broadca
 			if a.DepartmentID != nil && *a.DepartmentID > 0 {
 				conds = append(conds, fmt.Sprintf(`st."departmentId" = $%d`, idx))
 				args = append(args, *a.DepartmentID)
-				idx++
 			} else if a.FacultyID != nil && *a.FacultyID > 0 {
 				conds = append(conds, fmt.Sprintf(`st."facultyId" = $%d`, idx))
 				args = append(args, *a.FacultyID)
-				idx++
 			}
 			rows, err := s.DB.Pool.Query(ctx, `
 				select u.id from staff st join users u on u.id = st."userId"
@@ -870,10 +865,7 @@ func (s *Service) ListBroadcastHistory(ctx context.Context, user *session.User, 
 			}
 		}
 		total := len(totals[code])
-		channels := []BroadcastChannelStat{}
-		for _, st := range lpStatsList(statsBy[code]) {
-			channels = append(channels, st)
-		}
+		channels := append([]BroadcastChannelStat{}, lpStatsList(statsBy[code])...)
 		out = append(out, BroadcastHistoryRecord{
 			EventCode: code,
 			Sender:    sender,
@@ -1152,24 +1144,6 @@ func (s *Service) lpBypassExpertsForMajor(ctx context.Context, majorID *int64) [
 		var uid int64
 		if rows.Scan(&uid) == nil && !seen[uid] {
 			seen[uid] = true
-			out = append(out, uid)
-		}
-	}
-	return out
-}
-
-func (s *Service) lpBypassVices(ctx context.Context) []int64 {
-	out := []int64{}
-	rows, err := s.DB.Pool.Query(ctx, `
-		select distinct ur."userId" from user_roles ur
-		  join roles r on r.id = ur."roleId" where r.code = 'VICE_EDU'`)
-	if err != nil {
-		return out
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var uid int64
-		if rows.Scan(&uid) == nil {
 			out = append(out, uid)
 		}
 	}
@@ -1501,7 +1475,6 @@ func (s *Service) ClassSessionsBoard(ctx context.Context, user *session.User, un
 		if qq := strings.TrimSpace(q); qq != "" {
 			conds = append(conds, fmt.Sprintf(`(c.code ilike $%d or c.title ilike $%d or st."staffCode" ilike $%d or u."lastName" ilike $%d)`, idx, idx, idx, idx))
 			args = append(args, "%"+qq+"%")
-			idx++
 		}
 		rows, err := s.DB.Pool.Query(ctx, `
 			select o.id, c.code, c.title, coalesce(o."groupNumber",1),
@@ -2007,11 +1980,9 @@ func (s *Service) ListOfferingsForEditor(ctx context.Context, user *session.User
 		case len(depts) > 0:
 			conds = append(conds, fmt.Sprintf(`c."departmentId" = any($%d::int[])`, idx))
 			args = append(args, depts)
-			idx++
 		case len(facs) > 0:
 			conds = append(conds, fmt.Sprintf(`c."departmentId" in (select id from departments where "facultyId" = any($%d::int[]))`, idx))
 			args = append(args, facs)
-			idx++
 		}
 	}
 	rows, err := s.DB.Pool.Query(ctx, `

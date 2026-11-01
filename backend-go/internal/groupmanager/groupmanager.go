@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -446,7 +445,5 @@ func nilIfEmpty(v string) *string {
 	}
 	return &v
 }
-
-func itoa(v int64) string { return strconv.FormatInt(v, 10) }
 
 func nowISO() string { return time.Now().UTC().Format(time.RFC3339) }

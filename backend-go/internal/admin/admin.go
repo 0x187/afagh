@@ -223,7 +223,6 @@ func (s *Service) ListStudents(ctx context.Context, user *session.User, uniCooki
 		like := "%" + q + "%"
 		conds = append(conds, `(st."studentCode" ilike $`+itoa(int64(idx))+` or u."nationalCode" ilike $`+itoa(int64(idx))+` or (u."firstName" || ' ' || u."lastName") ilike $`+itoa(int64(idx))+`)`)
 		args = append(args, like)
-		idx++
 	}
 	where := "1=1"
 	if len(conds) > 0 {
