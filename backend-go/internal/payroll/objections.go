@@ -1,4 +1,4 @@
-// ═══ اعتراض به فیش حقالتدریس — پورت lib/payroll-objections.ts ═══
+// ═══ Teaching-fee payslip objections — port of lib/payroll-objections.ts ═══
 package payroll
 
 import (
@@ -9,14 +9,14 @@ import (
 	"time"
 )
 
-// ObjectionStatuses وضعیت‌های اعتراض.
+// ObjectionStatuses objection statuses.
 const (
 	ObjectionOpen    = "OPEN"
 	ObjectionResolved = "RESOLVED"
 	ObjectionRejected = "REJECTED"
 )
 
-// CreateObjectionInput ورودی ثبت اعتراض استاد.
+// CreateObjectionInput input for filing a professor objection.
 type CreateObjectionInput struct {
 	StatementID  int64
 	StaffID      int64
@@ -25,7 +25,7 @@ type CreateObjectionInput struct {
 	UniversityID *int64
 }
 
-// CreateObjection ثبت اعتراض استاد به فیش — فقط فیش خودش، بدون تکرار باز.
+// CreateObjection records a professor's objection to a payslip — own payslip only, no open duplicate.
 func (e *Engine) CreateObjection(ctx context.Context, in CreateObjectionInput) (int64, error) {
 	text := strings.TrimSpace(in.Text)
 	if len([]rune(text)) < 5 {
@@ -67,7 +67,7 @@ func (e *Engine) CreateObjection(ctx context.Context, in CreateObjectionInput) (
 	return id, nil
 }
 
-// StaffObjection اعتراض از دید استاد.
+// StaffObjection objection from the professor's view.
 type StaffObjection struct {
 	ID                 int64   `json:"id"`
 	StatementID        int64   `json:"statementId"`
@@ -80,7 +80,7 @@ type StaffObjection struct {
 	CreatedAt          *string `json:"createdAt"`
 }
 
-// ListObjectionsForStaff اعتراض‌های یک استاد.
+// ListObjectionsForStaff a professor's objections.
 func (e *Engine) ListObjectionsForStaff(ctx context.Context, staffID int64, termID *int64) ([]StaffObjection, error) {
 	args := []any{staffID}
 	where := ` where o."staffId" = $1`
@@ -114,7 +114,7 @@ func (e *Engine) ListObjectionsForStaff(ctx context.Context, staffID int64, term
 	return out, nil
 }
 
-// OpenObjection اعتراض باز از دید کارشناس.
+// OpenObjection open objection from the expert's view.
 type OpenObjection struct {
 	StaffObjection
 	StaffName  string  `json:"staffName"`
@@ -122,7 +122,7 @@ type OpenObjection struct {
 	GrossAmount *float64 `json:"grossAmount"`
 }
 
-// ListOpenObjections کارتابل اعتراض‌های باز برای کارشناس.
+// ListOpenObjections open-objection worklist for the expert.
 func (e *Engine) ListOpenObjections(ctx context.Context, universityID *int64) ([]OpenObjection, error) {
 	args := []any{}
 	where := ` where o.status = 'OPEN'`
@@ -163,7 +163,7 @@ func (e *Engine) ListOpenObjections(ctx context.Context, universityID *int64) ([
 	return out, nil
 }
 
-// ReviewObjectionInput ورودی رسیدگی.
+// ReviewObjectionInput review input.
 type ReviewObjectionInput struct {
 	ID             int64
 	Decision       string // RESOLVED | REJECTED
@@ -172,8 +172,8 @@ type ReviewObjectionInput struct {
 	ReviewerUserID int64
 }
 
-// ReviewObjection پورت reviewObjection: رسیدگی/رد + بازگشایی اختیاری فیش.
-// بازگشایی = returnStatement زنجیرهٔ تأیید (فقط فیش تأییدشده معنا دارد).
+// ReviewObjection port of reviewObjection: approve/reject + optional reopening of the payslip.
+// Reopening = returnStatement approval chain (only meaningful for an approved payslip).
 func (e *Engine) ReviewObjection(ctx context.Context, a *Approvals, in ReviewObjectionInput) (int64, error) {
 	note := strings.TrimSpace(in.ReviewNote)
 	if len([]rune(note)) < 3 {
@@ -232,14 +232,14 @@ func mapEvent(decision string) string {
 	return "PAYROLL_OBJECTION_REJECTED"
 }
 
-// ObjectionHistoryRow تاریخچهٔ اعتراض‌ها (کارتابل کارشناس).
+// ObjectionHistoryRow objection history (expert worklist).
 type ObjectionHistoryRow struct {
 	StaffObjection
 	StaffName string   `json:"staffName"`
 	StaffCode *string  `json:"staffCode"`
 }
 
-// ListObjectionsHistory همهٔ اعتراض‌ها (آخرین ۱۰۰).
+// ListObjectionsHistory all objections (latest 100).
 func (e *Engine) ListObjectionsHistory(ctx context.Context, universityID *int64) ([]ObjectionHistoryRow, error) {
 	args := []any{}
 	where := ""

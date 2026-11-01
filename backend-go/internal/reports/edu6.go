@@ -1,4 +1,4 @@
-// ═══ گزارش‌های پایان‌نامه/دفاع — پورت r-thesis ═══
+// ═══ Thesis/defense reports — port of r-thesis ═══
 package reports
 
 import (

@@ -55,7 +55,7 @@ func mathMax0(v float64) float64 {
 	return v
 }
 
-// DiscountAmount amount of one discount before the «بیش از کل شهریه نشود» cap.
+// DiscountAmount amount of one discount before the "must not exceed total tuition" cap.
 func DiscountAmount(d DiscountLike, fixedTuition, variableTuition float64) float64 {
 	if d.Kind == "PERCENT" {
 		base := DiscountBase(d.AppliesTo, fixedTuition, variableTuition)

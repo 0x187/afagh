@@ -6,7 +6,7 @@
 //   - exam proctor panel (proctor) — PROCTOR/ADMIN/EDU_EXPERT session
 //   - professor check-in via classroom door QR scan (p/[code]) + controller worklist
 //
-// All responses are {"ok":true,"data":...} or {"ok":false,"error":"فارسی"}.
+// All responses are {"ok":true,"data":...} or {"ok":false,"error":"Persian"}.
 // Public verification pages are sessionless and kept fail-closed with rate limiting.
 package httpapi
 
@@ -152,7 +152,7 @@ func extraClientIP(c *gin.Context) string {
 	return fwd
 }
 
-// tehranNowExtra — «اکنون» in Tehran time (fixed +3:30; Iran has had no daylight saving since 1401).
+// tehranNowExtra — "now" in Tehran time (fixed +3:30; Iran has had no daylight saving since 1401).
 // Output: Jalali date 'YYYY/MM/DD' (same class_sessions.sessionDate format) and minute of day.
 func tehranNowExtra(now time.Time) (string, int) {
 	tehran := now.UTC().Add(3*time.Hour + 30*time.Minute)
@@ -197,7 +197,7 @@ func min2(a, b int) int {
 	return b
 }
 
-// extraCheckinState — port of checkinState; a valid session without a time is «بسته» (fail-closed).
+// extraCheckinState — port of checkinState; a valid session without a time is "closed" (fail-closed).
 func extraCheckinState(startTime, endTime string, nowMinutes int) string {
 	start := extraHMToMinutes(startTime)
 	end := extraHMToMinutes(endTime)
@@ -1303,7 +1303,7 @@ type extraMergedGroup struct {
 	Members          []extraRoomSessionRow
 }
 
-// extraGroupMerged — port of groupSessionsIntoMerged: session rows → «کلاس فیزیکی».
+// extraGroupMerged — port of groupSessionsIntoMerged: session rows → "physical class".
 func extraGroupMerged(rows []extraRoomSessionRow) []extraMergedGroup {
 	groups := []extraMergedGroup{}
 	byKey := map[string]*extraMergedGroup{}
@@ -1722,7 +1722,7 @@ func (a *PublicExtraAPI) extraCanControlRoom(ctx context.Context, user *session.
 			return true, "university"
 		}
 	}
-	// 4) the user's own university if «محدود به اتاق» is off
+	// 4) the user's own university if "limited to room" is off
 	_, _, _, roomScoped := a.extraRecorderPolicy(ctx)
 	if !roomScoped && user.UniversityID != nil && (room.UniversityID == nil || *room.UniversityID == *user.UniversityID) {
 		return true, "university"
@@ -1871,7 +1871,7 @@ func (a *PublicExtraAPI) extraRoomCheckinState(c *gin.Context) {
 	// Today's merged grouping of the room
 	groups := extraGroupMerged(today)
 
-	// «تمرکز» session: my first unchecked OPEN ← OPEN ← BEFORE ← last
+	// "focus" session: my first unchecked OPEN ← OPEN ← BEFORE ← last
 	type focusRow struct {
 		row     extraRoomSessionRow
 		state   string

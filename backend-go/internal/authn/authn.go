@@ -85,7 +85,7 @@ type LoginRateLimitError struct {
 
 func (e *LoginRateLimitError) Error() string { return "LOGIN_RATE_LIMITED" }
 
-// LoginCandidate is the display summary for the «انتخاب حساب» page — same LoginCandidate.
+// LoginCandidate is the display summary for the "account selection" page — same LoginCandidate.
 type LoginCandidate struct {
 	ID              int64    `json:"id"`
 	Name            string   `json:"name"`

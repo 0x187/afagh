@@ -1,4 +1,4 @@
-// ═══ گزارش‌های آموزشی مرکز گزارش‌ها — پورت هستهٔ admin/reports/actions.ts ═══
+// ═══ Educational reports of the report center — port of the admin/reports/actions.ts core ═══
 package reports
 
 import (
@@ -64,7 +64,7 @@ func mapStatusRows(rows []map[string]any, key string) {
 	}
 }
 
-// runEduCore اجرای گزارش‌های هستهٔ آموزشی.
+// runEduCore runs the core educational reports.
 func (s *Service) runEduCore(ctx context.Context, kind string, f Filters) (*Result, error) {
 	switch kind {
 	case "active-term":
@@ -512,7 +512,7 @@ func (s *Service) runDocs(ctx context.Context, f Filters) (*Result, error) {
 		Summary: fmt.Sprintf("%s پرونده فعال — %s بدون مدرک", jalali.GroupThousands(float64(len(out))), jalali.GroupThousands(float64(noDoc)))}, nil
 }
 
-// pagedQueryHaving صفحه‌بندی با HAVING.
+// pagedQueryHaving is pagination with HAVING.
 func (s *Service) pagedQueryHaving(ctx context.Context, selectCols, from, where, groupBy, having, orderBy string, args []any, page int) ([]map[string]any, int, int, error) {
 	grp := ""
 	if groupBy != "" {

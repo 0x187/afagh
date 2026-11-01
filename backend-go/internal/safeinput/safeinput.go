@@ -1,4 +1,4 @@
-// ═══ اعتبارسنجی آپلود و فرم درخواست — پورت safe-input.ts ═══
+// ═══ Upload and request form validation — port of safe-input.ts ═══
 package safeinput
 
 import (
@@ -8,10 +8,10 @@ import (
 	"strings"
 )
 
-// MaxUploadBytes سقف آپلود ۱۰ مگابایت.
+// MaxUploadBytes is the 10 MB upload cap.
 const MaxUploadBytes = 10 * 1024 * 1024
 
-// SafeMIME whitelist نوع فایل مجاز.
+// SafeMIME is the allowed file-type whitelist.
 var SafeMIME = map[string]bool{
 	"image/jpeg": true, "image/png": true, "image/webp": true,
 	"image/gif": true, "image/bmp": true, "application/pdf": true,
@@ -27,7 +27,7 @@ var extMIME = map[string][]string{
 	"pdf":  {"application/pdf"},
 }
 
-// MagicMatches اعتبارسنجی magic-bytes بر اساس MIME ادعاشده.
+// MagicMatches validates magic bytes against the claimed MIME type.
 func MagicMatches(mime string, b []byte) bool {
 	if len(b) < 4 {
 		return false
@@ -51,7 +51,7 @@ func MagicMatches(mime string, b []byte) bool {
 	return false
 }
 
-// UploadResult نتیجهٔ checkUpload.
+// UploadResult is the checkUpload result.
 type UploadResult struct {
 	OK     bool
 	Mime   string
@@ -62,7 +62,7 @@ type UploadResult struct {
 
 var nonAlnum = regexp.MustCompile(`[^a-z0-9]`)
 
-// CheckUpload پورت checkUpload: whitelist + magic-bytes + تطابق پسوند.
+// CheckUpload ports checkUpload: whitelist + magic bytes + extension match.
 func CheckUpload(fileName, claimedType string, buf []byte) UploadResult {
 	mime := strings.ToLower(claimedType)
 	if mime == "" {
@@ -95,13 +95,13 @@ func CheckUpload(fileName, claimedType string, buf []byte) UploadResult {
 	return UploadResult{OK: true, Mime: mime, Ext: ext}
 }
 
-// MaxFormKeys / MaxFormString سقف‌های فرم درخواست.
+// MaxFormKeys / MaxFormString are the request form caps.
 const (
 	MaxFormKeys   = 50
 	MaxFormString = 2000
 )
 
-// FormAttachment پیوست فرم (کلید شیء + متادیتا).
+// FormAttachment is a form attachment (object key + metadata).
 type FormAttachment struct {
 	Key      string `json:"key"`
 	Name     string `json:"name"`
@@ -109,15 +109,15 @@ type FormAttachment struct {
 	MimeType string `json:"mimeType"`
 }
 
-// SanitizeResult نتیجهٔ پاک‌سازی فرم.
+// SanitizeResult is the form sanitization result.
 type SanitizeResult struct {
 	OK    bool
 	Data  map[string]any
 	Error string
 }
 
-// SanitizeRequestFormData پورت sanitizeRequestFormData: فقط مقادیر ساده یا
-// پیوست با کلیدِ داخل پوشهٔ همان دانشجو.
+// SanitizeRequestFormData ports sanitizeRequestFormData: only plain values or
+// an attachment whose key is inside that same student's folder.
 func SanitizeRequestFormData(input json.RawMessage, studentID int64) SanitizeResult {
 	bad := SanitizeResult{OK: false, Error: "داده‌های فرم نامعتبر است."}
 
@@ -150,7 +150,7 @@ func SanitizeRequestFormData(input json.RawMessage, studentID int64) SanitizeRes
 		case bool:
 			data[k] = val
 		case float64:
-			// JSON همهٔ اعداد را float64 می‌دهد؛ معادل Number.isFinite
+			// JSON gives all numbers as float64; equivalent to Number.isFinite
 			data[k] = val
 		case string:
 			if len(val) > MaxFormString {

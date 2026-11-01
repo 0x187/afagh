@@ -1,4 +1,4 @@
-// ═══ گزارش‌های برنامهٔ آموزشی/انتخاب واحد — پورت r-edu-schedule ═══
+// ═══ Educational program/course registration reports — port of r-edu-schedule ═══
 package reports
 
 import (
@@ -181,7 +181,7 @@ func (s *Service) runEduSchedule(ctx context.Context, kind string, f Filters) (*
 	return nil, nil
 }
 
-// ── پیش‌نیاز/هم‌نیاز ──
+// ── Prerequisite/corequisite ──
 
 type LogicCond struct {
 	Course      string      `json:"course"`
@@ -256,7 +256,7 @@ func (s *Service) prereqViolations(ctx context.Context, f Filters, term string) 
 	if term == "" {
 		return emptyResult(cols, "ترمی یافت نشد"), nil
 	}
-	// ترتیب زمانی ترم‌ها
+	// Chronological order of terms
 	trows, err := s.Pool.Query(ctx, `select "termCode" as code, "sortOrder" as so from academic_terms`)
 	if err != nil {
 		return nil, err
@@ -296,7 +296,7 @@ func (s *Service) prereqViolations(ctx context.Context, f Filters, term string) 
 		targetOrder = math.MaxInt32
 	}
 
-	// قواعد
+	// Rules
 	rrows, err := s.Pool.Query(ctx, `select c.code, r."ruleType", r."logicTree"
 		from course_rules r join courses c on c.id = r."courseId"
 		where r."ruleType" in ('PREREQ','COREQ')`)
@@ -330,7 +330,7 @@ func (s *Service) prereqViolations(ctx context.Context, f Filters, term string) 
 		return emptyResult(cols, msg), nil
 	}
 
-	// اخذهای ترم هدف برای دروس دارای قاعده
+	// Target-term enrollments for courses with a rule
 	args := []any{term}
 	codes := make([]string, 0, len(ruleByCourse))
 	for code := range ruleByCourse {
@@ -375,7 +375,7 @@ func (s *Service) prereqViolations(ctx context.Context, f Filters, term string) 
 		return emptyResult(cols, fmt.Sprintf("در ترم %s اخذی برای دروس دارای قاعده یافت نشد", term)), nil
 	}
 
-	// سابقهٔ قبولی‌ها
+	// History of passes
 	sids := map[int64]bool{}
 	for _, r := range target {
 		sids[r.SID] = true

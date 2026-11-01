@@ -147,7 +147,7 @@ func FaDigits(s string) string {
 	return b.String()
 }
 
-// GroupThousands: Persian thousands separator "٬" on the rounded number.
+// GroupThousands: applies the Persian thousands separator to the rounded number.
 func GroupThousands(n float64) string {
 	neg := n < 0
 	if neg {
@@ -168,7 +168,7 @@ func GroupThousands(n float64) string {
 	return s
 }
 
-// FmtRial ports fmtRial: "۱٬۲۳۴ ریال" — display only, not for calculation.
+// FmtRial ports fmtRial: "1,234 rial" — display only, not for calculation.
 func FmtRial(value float64) string {
 	return GroupThousands(value) + " ریال"
 }

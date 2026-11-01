@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// ═══ money — هم‌ارز رفتار lib/money.ts ═══
+// ═══ money — behavior parity with lib/money.ts ═══
 
 func TestUnitsToInt(t *testing.T) {
 	cases := []struct {
@@ -13,9 +13,9 @@ func TestUnitsToInt(t *testing.T) {
 		want int
 	}{
 		{0, 0}, {1, 100}, {1.5, 150}, {2.1, 210},
-		{1.005, 101}, // نیمه‌به‌بالا روی رشتهٔ دقیق، نه ۱۰۰.۴۹۹۹→۱۰۰
+		{1.005, 101}, // half-up on the exact string, not 100.4999→100
 		{3.45, 345}, {0.005, 1},
-		{-2, 0}, // منفی/نامعتبر ← صفر
+		{-2, 0}, // negative/invalid ← 0
 	}
 	for _, c := range cases {
 		if got := UnitsToInt(c.in); got != c.want {
@@ -34,7 +34,7 @@ func TestIntToUnits(t *testing.T) {
 }
 
 func TestToRial(t *testing.T) {
-	// گرد به مضرب ۱۰ ریال
+	// round to a multiple of 10 rials
 	if got := ToRial(1234567); got != 1234570 {
 		t.Errorf("ToRial(1234567) = %v, want 1234570", got)
 	}
@@ -58,7 +58,7 @@ func TestPercentAndRatio(t *testing.T) {
 	}
 }
 
-// ═══ formula — پارسر امن (بدون eval) ═══
+// ═══ formula — safe parser (no eval) ═══
 
 func TestEvalFormulaBasic(t *testing.T) {
 	cases := []struct {
@@ -84,7 +84,7 @@ func TestEvalFormulaBasic(t *testing.T) {
 }
 
 func TestEvalFormulaAliases(t *testing.T) {
-	// حروف قدیمی سما: N=TH, A=PH, U=UN, C=ST, R=RT, K=CF, F=BS, H=HR
+	// legacy Sama letters: N=TH, A=PH, U=UN, C=ST, R=RT, K=CF, F=BS, H=HR
 	got, err := EvalFormula("N*R", FormulaVars{"TH": 3, "RT": 5000})
 	if err != nil {
 		t.Fatalf("alias error: %v", err)
@@ -95,7 +95,7 @@ func TestEvalFormulaAliases(t *testing.T) {
 }
 
 func TestEvalFormulaRejects(t *testing.T) {
-	// تزریق/متغیر ناشناخته/تقسیم بر صفر — همه fail-closed
+	// injection/unknown variable/division by zero — all fail-closed
 	if _, err := EvalFormula("RT; DROP TABLE x", FormulaVars{"RT": 1}); err == nil {
 		t.Error("نویسهٔ نامعتبر باید رد شود")
 	}
@@ -125,7 +125,7 @@ func TestValidateFormula(t *testing.T) {
 	}
 }
 
-// ═══ matchRule / diagnose — الگوریتم یکپارچه ═══
+// ═══ matchRule / diagnose — unified algorithm ═══
 
 func rule(t *string, rank *string) PayRule {
 	return PayRule{OfferingType: t, AcademicRank: rank}
@@ -134,7 +134,7 @@ func rule(t *string, rank *string) PayRule {
 func strPtr(s string) *string { return &s }
 
 func TestMatchRuleMostSpecificWins(t *testing.T) {
-	// ترتیب ورودی = خروجی loadPayRules (خاص‌ترین اول، برچسب امتیاز بیشتر).
+	// input order = loadPayRules output (most specific first, higher-score label).
 	rules := []PayRule{
 		{ID: 2, OfferingType: strPtr("THESIS"), Expression: strPtr("ST*RT")},
 		{ID: 1, OfferingType: nil, Expression: strPtr("RT*UN")},
@@ -166,12 +166,12 @@ func TestDiagnoseRuleMissFirstBlockingDim(t *testing.T) {
 	rules := []PayRule{
 		{OfferingType: strPtr("THEORY"), ProfessorRole: strPtr("MAIN_LECTURER")},
 	}
-	// نقش ناسازگار — باید در dim دوم (professorRole) متوقف شود
+	// incompatible role — must stop at the second dim (professorRole)
 	dim, _ := DiagnoseRuleMiss(rules, RuleMatch{OfferingType: "THEORY", Role: "SUPERVISOR", HasClass: true, Enrolled: 10, Nth: 1})
 	if dim != "professorRole" {
 		t.Errorf("dim = %s, want professorRole", dim)
 	}
-	// بدون قانون
+	// no rule
 	dim, _ = DiagnoseRuleMiss(nil, RuleMatch{OfferingType: "THEORY", Role: "MAIN_LECTURER", HasClass: true, Enrolled: 10, Nth: 1})
 	if dim != "none" {
 		t.Errorf("dim = %s, want none", dim)
@@ -185,17 +185,17 @@ func TestCrowdedMultTiers(t *testing.T) {
 		CrowdedStep:      25,
 		CrowdedStepUp:    0.05,
 	}
-	// زیر آستانه: بدون برچسب
+	// below threshold: no label
 	mult, label := crowdedMult(30, data)
 	if mult != 1.15 || label != "" {
 		t.Errorf("زیر آستانه: mult=%v label=%q", mult, label)
 	}
-	// یک پله
+	// one step
 	mult, label = crowdedMult(50, data)
 	if mult != 1.15 || label == "" {
 		t.Errorf("یک پله (up>0 ولی steps=1): mult=%v label=%q", mult, label)
 	}
-	// دو پله: n=65 → steps=⌊25/25⌋+1=2 → 1.15+0.05=1.20
+	// two steps: n=65 → steps=⌊25/25⌋+1=2 → 1.15+0.05=1.20
 	mult, label = crowdedMult(65, data)
 	if mult != 1.2 {
 		t.Errorf("دو پله: mult=%v, want 1.2 (label=%q)", mult, label)
@@ -212,7 +212,7 @@ func TestGroupThousands(t *testing.T) {
 }
 
 func TestMulberryRoundZeroAndSign(t *testing.T) {
-	// ⚠ رگرسیون: 0/0=NaN در پیاده‌سازی Trunc — صفر باید صفر بماند.
+	// ⚠ regression: 0/0=NaN in the Trunc implementation — zero must stay zero.
 	if got := MulberryRound(0); got != 0 || got != got {
 		t.Errorf("MulberryRound(0) = %v", got)
 	}

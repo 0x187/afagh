@@ -1,4 +1,4 @@
-// ═══ گزارش‌های کلاس/فضا و فهرست‌های تکمیلی — پورت r-class و r-edu-roster ═══
+// ═══ Class/space reports and supplementary lists — port of r-class and r-edu-roster ═══
 package reports
 
 import (

@@ -7,7 +7,7 @@
 // degree_level_configs. Regulations with universityId=null are global and
 // those with universityId=<active university> are university-specific; both appear in the list.
 //
-// «فعال‌سازی»: in the Next reference there is no separate operation named activation;
+// "Activation": in the Next reference there is no separate operation named activation;
 // the active version of each item is determined by its validity year range (effectiveFromYear/effectiveToYear)
 // — the same behavior is preserved here.
 package admin

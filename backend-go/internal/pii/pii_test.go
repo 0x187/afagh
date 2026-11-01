@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-// بردارهای پارتی تولیدشده با Node (همان الگوریتم pii.ts، کلید ثابت hex64):
+// party test vectors generated with Node (same algorithm as pii.ts, fixed hex64 key):
 //
 //	docker run --rm node:22-bookworm-slim node -e "..."
 const (
@@ -28,13 +28,13 @@ func TestNodeParity(t *testing.T) {
 		t.Fatalf("شاخص کور با Node هم‌خوان نیست: %s, %v", blind, err)
 	}
 
-	// ارقام فارسی + خط تیره باید همان شاخص را بدهند (نرمال‌سازی)
+	// Persian digits + hyphens must yield the same index (normalization)
 	blindFa, err := BlindIndex("۰۰۱۲۳۴-۵۶۷۸", "users.nationalCode")
 	if err != nil || blindFa != nodeBlind {
 		t.Fatalf("شاخص کور با ورودی فارسی: %s, %v", blindFa, err)
 	}
 
-	// context بخشی از دامنه است
+	// context is part of the domain
 	other, _ := BlindIndex("0012345678", "admissions_staging.nationalCode")
 	if other == nodeBlind {
 		t.Fatal("شاخص کور بدون تفکیک context ساخته شد")
@@ -56,7 +56,7 @@ func TestEncryptDecryptRoundTrip(t *testing.T) {
 	if err != nil || dec != "0012345678" {
 		t.Fatalf("رفت‌وبرگشت: %q, %v", dec, err)
 	}
-	// دو رمزگذاری از یک مقدار باید متفاوت باشند (IV تصادفی)
+	// two encryptions of one value must differ (random IV)
 	enc2, _ := EncryptPii("0012345678")
 	if enc == enc2 {
 		t.Fatal("IV باید تصادفی باشد")
@@ -83,7 +83,7 @@ func TestCiphertextValidation(t *testing.T) {
 	if _, err := DecryptPii("0012345678"); err == nil || !strings.Contains(err.Error(), "پاکت ناشناخته") {
 		t.Fatalf("متن ساده باید خطای پاکت بدهد: %v", err)
 	}
-	// دستکاری داده
+	// data tampering
 	tampered := "v1:000102030405060708090a0b:9d39f4182527d7f5b372c7d0b9306efc:26288404737df881fe03"
 	if _, err := DecryptPii(tampered); err == nil || !strings.Contains(err.Error(), "رمزگشایی PII ناموفق") {
 		t.Fatalf("دادهٔ دستکاری‌شده باید خطا بدهد: %v", err)

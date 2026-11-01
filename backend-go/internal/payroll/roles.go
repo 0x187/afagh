@@ -1,9 +1,9 @@
-// ═══ موظفی مؤثر نقش‌محور — پورت lib/payroll-roles.ts (بخش بارگذاری ترم) ═══
+// ═══ Role-based effective duty — port of lib/payroll-roles.ts (term load section) ═══
 //
-// قاعدهٔ مالک مالی: موظفی از «نقش» استاد می‌آید نه مرتبهٔ علمی.
-//   teaching = نقش‌های منتسب با isTeaching=1؛
-//   base = dutyUnits اولین نقش تدریسی (کمینه sortOrder)؛
-//   effective = max(0, base − Σ reductionUnits همهٔ نقش‌های منتسب).
+// finance-owner rule: duty comes from the professor's "role", not academic rank.
+//   teaching = assigned roles with isTeaching=1;
+//   base = dutyUnits of the first teaching role (minimum sortOrder);
+//   effective = max(0, base − Σ reductionUnits of all assigned roles).
 package payroll
 
 import (
@@ -12,8 +12,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// LoadTermEffectiveDuties بارگذاری دسته‌جمعی موظفی مؤثر همهٔ اساتید یک ترم
-// (یک کوئری؛ خروجی: staffId → موظفی مؤثر؛ غایب در نقشه = بدون نقش تدریسی).
+// LoadTermEffectiveDuties bulk-loads effective duties for all professors of a term
+// (one query; output: staffId → effective duty; absent from the map = no teaching role).
 func LoadTermEffectiveDuties(ctx context.Context, pool *pgxpool.Pool, termID int64) map[int64]float64 {
 	out := map[int64]float64{}
 	rows, err := pool.Query(ctx, `

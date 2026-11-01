@@ -1,4 +1,4 @@
-// ═══ طرح درس استاد — پورت professor/lesson-plan ═══
+// ═══ Professor lesson plan — port of professor/lesson-plan ═══
 package professor
 
 import (
@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// PlanSession جلسهٔ طرح درس.
+// PlanSession is a lesson plan session.
 type PlanSession struct {
 	ID          int64   `json:"id"`
 	SessionNo   int     `json:"sessionNo"`
@@ -18,14 +18,14 @@ type PlanSession struct {
 	WeightID    *int64  `json:"weightId"`
 }
 
-// PlanWeight وزن ارزشیابی.
+// PlanWeight is an assessment weight.
 type PlanWeight struct {
 	ID      int64   `json:"id"`
 	Title   string  `json:"title"`
 	Percent float64 `json:"percent"`
 }
 
-// PlanData طرح درس.
+// PlanData is the lesson plan.
 type PlanData struct {
 	ID            int64   `json:"id"`
 	CourseMode    string  `json:"courseMode"`
@@ -36,7 +36,7 @@ type PlanData struct {
 	SubmittedAt   *string `json:"submittedAt"`
 }
 
-// ProfessorPlanResponse پاسخ ویرایشگر.
+// ProfessorPlanResponse is the editor response.
 type ProfessorPlanResponse struct {
 	OfferingID        int64         `json:"offeringId"`
 	CourseTitle       string        `json:"courseTitle"`
@@ -49,7 +49,7 @@ type ProfessorPlanResponse struct {
 	Weights           []PlanWeight  `json:"weights"`
 }
 
-// GetProfessorPlan پورت getMyPlan.
+// GetProfessorPlan ports getMyPlan.
 func (s *Service) GetProfessorPlan(ctx context.Context, userID, offeringID int64) (*ProfessorPlanResponse, error) {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil {
@@ -155,7 +155,7 @@ func defaultCourseMode(nature *string, theory, practical *float64) string {
 	return "THEORY"
 }
 
-// SavePlanInput ورودی ذخیره.
+// SavePlanInput is the save input.
 type SavePlanInput struct {
 	CourseMode    string             `json:"courseMode"`
 	TotalSessions int                `json:"totalSessions"`
@@ -166,7 +166,7 @@ type SavePlanInput struct {
 	Weights       []PlanWeightInput  `json:"weights"`
 }
 
-// PlanSessionInput جلسهٔ ورودی.
+// PlanSessionInput is an input session.
 type PlanSessionInput struct {
 	SessionNo   int    `json:"sessionNo"`
 	SessionKind string `json:"sessionKind"`
@@ -175,13 +175,13 @@ type PlanSessionInput struct {
 	WeightID    *int64 `json:"weightId"`
 }
 
-// PlanWeightInput وزن ورودی.
+// PlanWeightInput is an input weight.
 type PlanWeightInput struct {
 	Title   string  `json:"title"`
 	Percent float64 `json:"percent"`
 }
 
-// SaveProfessorPlan پورت saveLessonPlan.
+// SaveProfessorPlan ports saveLessonPlan.
 func (s *Service) SaveProfessorPlan(ctx context.Context, userID, offeringID int64, input SavePlanInput) error {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil || st == nil {
@@ -259,7 +259,7 @@ func (s *Service) SaveProfessorPlan(ctx context.Context, userID, offeringID int6
 	if _, err := tx.Exec(ctx, `delete from lesson_plan_weights where "planId" = $1`, planID); err != nil {
 		return err
 	}
-	// وزن‌ها اول تا شناسه داشته باشیم.
+	// Weights first so we have IDs.
 	weightIDs := make([]int64, len(input.Weights))
 	for i, w := range input.Weights {
 		title := strings.TrimSpace(w.Title)
@@ -284,7 +284,7 @@ func (s *Service) SaveProfessorPlan(ctx context.Context, userID, offeringID int6
 		}
 		var weightID *int64
 		if ss.WeightID != nil {
-			// فقط وزن‌های همین طرح.
+			// Only the weights of this plan.
 			for _, id := range weightIDs {
 				if id == *ss.WeightID {
 					v := id

@@ -141,7 +141,7 @@ func (a *CronExtraAPI) run(c *gin.Context, name string) {
 	if err != nil {
 		a.Engine.Audit(ctx, job.Audit, map[string]any{"durationMs": durationMs, "error": err.Error()})
 		if name == "bi-refresh" {
-			// RebuildBI logical error (such as «ترم جاری مشخص نیست») → 400 with the same message.
+			// RebuildBI logical error (such as "current term is not set") → 400 with the same message.
 			c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
 			return
 		}

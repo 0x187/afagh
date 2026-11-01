@@ -1,4 +1,4 @@
-// ═══ نفرات برتر/مشروطی رسمی/پرونده فراغت/لاگ نمرات — پورت r-edu-roster و r-collect-external ═══
+// ═══ Top students/official probation/withdrawal file/score log — port of r-edu-roster and r-collect-external ═══
 package reports
 
 import (

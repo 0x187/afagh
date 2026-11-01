@@ -1,4 +1,4 @@
-// ═══ برنامه، قرارداد، اسناد، پیام کلاسی و ساعات حضور استاد ═══
+// ═══ Professor schedule, contract, documents, class message and availability ═══
 package professor
 
 import (
@@ -20,14 +20,14 @@ import (
 	"backend-go/internal/messaging"
 )
 
-// ScheduleResponse پاسخ برنامه استاد.
+// ScheduleResponse is the professor schedule response.
 type ScheduleResponse struct {
 	Professor ProfessorInfo `json:"professor"`
 	Term      TermInfo      `json:"term"`
 	Rows      []ScheduleRow `json:"rows"`
 }
 
-// GetSchedule پورت professor/schedule.
+// GetSchedule ports professor/schedule.
 func (s *Service) GetSchedule(ctx context.Context, userID int64, cookie *int64) (*ScheduleResponse, error) {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil {
@@ -48,9 +48,9 @@ func (s *Service) GetSchedule(ctx context.Context, userID int64, cookie *int64) 
 	return resp, nil
 }
 
-// ───────────────────────── قرارداد ─────────────────────────
+// ───────────────────────── Contract ─────────────────────────
 
-// ContractLine خط قرارداد.
+// ContractLine is a contract line.
 type ContractLine struct {
 	OfferingID     int64   `json:"offeringId"`
 	Code           string  `json:"code"`
@@ -62,7 +62,7 @@ type ContractLine struct {
 	TermTotalHours float64 `json:"termTotalHours"`
 }
 
-// ContractView قرارداد قابل نمایش/امضا.
+// ContractView is the viewable/signable contract.
 type ContractView struct {
 	ContractNo           string         `json:"contractNo"`
 	ContractDate         string         `json:"contractDate"`
@@ -95,7 +95,7 @@ type ContractView struct {
 	DocumentID           *int64         `json:"documentId"`
 }
 
-// ContractResponse پاسخ صفحهٔ قرارداد.
+// ContractResponse is the contract page response.
 type ContractResponse struct {
 	Professor  ProfessorInfo  `json:"professor"`
 	Term       TermInfo       `json:"term"`
@@ -134,7 +134,7 @@ type offerForContract struct {
 	SharedKey      *string
 }
 
-// buildContractView پورت buildContractDraft + attachProfessorIdentity.
+// buildContractView ports buildContractDraft + attachProfessorIdentity.
 func (s *Service) buildContractView(ctx context.Context, st *Staff, termID int64) (*ContractView, error) {
 	var termTitle, termCode string
 	if err := s.DB.Pool.QueryRow(ctx, `select title, "termCode" from academic_terms where id = $1`, termID).
@@ -163,7 +163,7 @@ func (s *Service) buildContractView(ctx context.Context, st *Staff, termID int64
 	}
 	rows.Close()
 
-	// جلسات کلاس هر ارائه.
+	// Class sessions of each offering.
 	classSlots := map[int64][]slot{}
 	srows, err := s.DB.Pool.Query(ctx, `
 		select sc."offeringId", sc."dayOfWeek", sc."startTime"::text, sc."endTime"::text,
@@ -193,7 +193,7 @@ func (s *Service) buildContractView(ctx context.Context, st *Staff, termID int64
 		}
 		teachable = append(teachable, o)
 	}
-	// گروه‌بندی ادغامی.
+	// Merged grouping.
 	sort.SliceStable(teachable, func(i, j int) bool { return teachable[i].ID < teachable[j].ID })
 	groups := []mergedGroup{}
 	byKey := map[string]int{}
@@ -211,7 +211,7 @@ func (s *Service) buildContractView(ctx context.Context, st *Staff, termID int64
 		}
 		_ = idx
 	}
-	// بازسازی با نگه‌داشتن اعضا به‌صورت offerForContract.
+	// Rebuild keeping members as offerForContract.
 	type offerGroup struct {
 		Key     string
 		Members []offerForContract
@@ -339,7 +339,7 @@ func onlyDigits(v string) string {
 
 func (s *Service) staffString(ctx context.Context, staffID int64, column string) string {
 	var v *string
-	// ستون از فهرست ثابت داخلی می‌آید (نه ورودی کاربر).
+	// Column comes from an internal fixed list (not user input).
 	_ = s.DB.Pool.QueryRow(ctx, `select `+column+` from staff where id = $1`, staffID).Scan(&v)
 	if v == nil {
 		return ""
@@ -358,7 +358,7 @@ func faDateToday() string {
 	return jalaliDateNow()
 }
 
-// canonicalJSON ترتیب کلیدها را برای هش پایدار یکسان می‌کند.
+// canonicalJSON keeps key order consistent for a stable hash.
 func canonicalJSON(v any) string {
 	raw, err := json.Marshal(v)
 	if err != nil {
@@ -402,7 +402,7 @@ func sha256Hex(v string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-// GetContract پورت professor/contract/page.tsx.
+// GetContract ports professor/contract/page.tsx.
 func (s *Service) GetContract(ctx context.Context, userID int64, cookie *int64) (*ContractResponse, error) {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil {
@@ -434,7 +434,7 @@ func (s *Service) GetContract(ctx context.Context, userID int64, cookie *int64) 
 		return resp, nil
 	}
 
-	// سند موجود.
+	// Existing document.
 	var (
 		docID    int64
 		status   string
@@ -459,7 +459,7 @@ func (s *Service) GetContract(ctx context.Context, userID int64, cookie *int64) 
 		return resp, nil
 	}
 
-	// ساخت/بروزرسانی سند PENDING (idempotent).
+	// Create/update the PENDING document (idempotent).
 	snapshot := canonicalJSON(contract)
 	hashValue := sha256Hex(snapshot)
 	if err == nil {
@@ -494,7 +494,7 @@ func (s *Service) GetContract(ctx context.Context, userID int64, cookie *int64) 
 	return resp, nil
 }
 
-// SendContractOTP صدور کد امضای قرارداد.
+// SendContractOTP issues the contract signing code.
 func (s *Service) SendContractOTP(ctx context.Context, userID, documentID int64) (string, error) {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil || st == nil {
@@ -509,7 +509,7 @@ func (s *Service) SendContractOTP(ctx context.Context, userID, documentID int64)
 	if status == "SIGNED" {
 		return "", errors.New("این سند قبلاً امضا شده است.")
 	}
-	// سقف ۳ کد در ۱۵ دقیقه.
+	// Cap of 3 codes per 15 minutes.
 	var recent int
 	_ = s.DB.Pool.QueryRow(ctx, `
 		select count(*) from signature_otps where "staffId" = $1 and purpose = 'CONTRACT_SIGN'
@@ -545,7 +545,7 @@ func (s *Service) SendContractOTP(ctx context.Context, userID, documentID int64)
 	return code, nil
 }
 
-// SignContract تأیید OTP و امضا.
+// SignContract verifies the OTP and signs.
 func (s *Service) SignContract(ctx context.Context, userID, documentID int64, code, ip, userAgent string) error {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil || st == nil {

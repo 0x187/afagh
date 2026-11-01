@@ -1,4 +1,4 @@
-// ═══ دفتر پایان‌نامه (حق‌الزحمهٔ راهنمایی/مشاوره) — پورت lib/thesis-ledger.ts ═══
+// ═══ Thesis ledger (supervision/advisory fee) — port of lib/thesis-ledger.ts ═══
 package payroll
 
 import (
@@ -9,13 +9,13 @@ import (
 	"strings"
 )
 
-// ThesisRoles نقش‌های مجاز.
+// ThesisRoles allowed roles.
 var ThesisRoles = map[string]bool{"SUPERVISOR": true, "ADVISOR": true}
 
-// ThesisStatuses وضعیت‌ها.
+// ThesisStatuses statuses.
 var ThesisStatuses = map[string]bool{"ONGOING": true, "COMPLETED": true, "CANCELLED": true}
 
-// SupervisionItem ردیف سرجمع.
+// SupervisionItem summary row.
 type SupervisionItem struct {
 	ID             int64   `json:"id"`
 	StaffID        int64   `json:"staffId"`
@@ -34,7 +34,7 @@ type SupervisionItem struct {
 
 func round2(v float64) float64 { return math.Round(v*100) / 100 }
 
-// ListThesisSupervisions فهرست سرجمع‌ها با جمع برداشت‌ها.
+// ListThesisSupervisions list of summaries with total withdrawals.
 func (e *Engine) ListThesisSupervisions(ctx context.Context, universityID, staffID *int64) ([]SupervisionItem, error) {
 	args := []any{}
 	where := ""
@@ -76,7 +76,7 @@ func (e *Engine) ListThesisSupervisions(ctx context.Context, universityID, staff
 		if it.StaffName == "" {
 			it.StaffName = "—"
 		}
-		// نام دانشجو: پروندهٔ دانشجویی ← نام دستی
+		// student name: student record ← manual name
 		it.StudentName = strings.TrimSpace(derefStr(manual))
 		if it.StudentID != nil {
 			var name string
@@ -107,7 +107,7 @@ func (e *Engine) ListThesisSupervisions(ctx context.Context, universityID, staff
 	return out, nil
 }
 
-// CreateSupervisionInput ورودی سرجمع جدید.
+// CreateSupervisionInput new summary input.
 type CreateSupervisionInput struct {
 	StaffID           int64
 	StudentID         *int64
@@ -120,7 +120,7 @@ type CreateSupervisionInput struct {
 	UniversityID      *int64
 }
 
-// CreateSupervision پورت createSupervision.
+// CreateSupervision port of createSupervision.
 func (e *Engine) CreateSupervision(ctx context.Context, in CreateSupervisionInput) (int64, error) {
 	title := strings.TrimSpace(in.Title)
 	if len([]rune(title)) < 3 {
@@ -157,7 +157,7 @@ func nullIfEmptyStr(v string) *string {
 	return &v
 }
 
-// SetSupervisionStatus تغییر وضعیت سرجمع.
+// SetSupervisionStatus change a summary's status.
 func (e *Engine) SetSupervisionStatus(ctx context.Context, id int64, status string) error {
 	if !ThesisStatuses[status] {
 		return errors.New("وضعیت نامعتبر است.")
@@ -172,7 +172,7 @@ func (e *Engine) SetSupervisionStatus(ctx context.Context, id int64, status stri
 	return nil
 }
 
-// DeleteSupervision حذف سرجمع — فقط بدون برداشت.
+// DeleteSupervision delete a summary — only when it has no withdrawals.
 func (e *Engine) DeleteSupervision(ctx context.Context, id int64) error {
 	var hasDraws bool
 	_ = e.Pool.QueryRow(ctx, `select exists(select 1 from thesis_unit_draws where "supervisionId" = $1)`, id).Scan(&hasDraws)
@@ -183,7 +183,7 @@ func (e *Engine) DeleteSupervision(ctx context.Context, id int64) error {
 	return err
 }
 
-// ThesisDraw برداشت واحد.
+// ThesisDraw a single withdrawal.
 type ThesisDraw struct {
 	ID        int64    `json:"id"`
 	TermID    int64    `json:"termId"`
@@ -193,7 +193,7 @@ type ThesisDraw struct {
 	CreatedAt *string  `json:"createdAt"`
 }
 
-// ListThesisDraws برداشت‌های یک سرجمع.
+// ListThesisDraws withdrawals of a summary.
 func (e *Engine) ListThesisDraws(ctx context.Context, supervisionID int64) ([]ThesisDraw, error) {
 	rows, err := e.Pool.Query(ctx, `
 		select d.id, d."termId", t.title, d.units::float8, d.note, d."createdAt"::text
@@ -214,7 +214,7 @@ func (e *Engine) ListThesisDraws(ctx context.Context, supervisionID int64) ([]Th
 	return out, nil
 }
 
-// AddThesisDrawInput ورودی برداشت.
+// AddThesisDrawInput withdrawal input.
 type AddThesisDrawInput struct {
 	SupervisionID int64
 	TermID        int64
@@ -224,7 +224,7 @@ type AddThesisDrawInput struct {
 	UniversityID  *int64
 }
 
-// AddThesisDraw ثبت برداشت مرحله‌ای — سقف: باقی‌ماندهٔ سرجمع.
+// AddThesisDraw records an installment withdrawal — cap: the summary's remaining balance.
 func (e *Engine) AddThesisDraw(ctx context.Context, in AddThesisDrawInput) (int64, error) {
 	if !(in.Units > 0) || in.Units > 12 {
 		return 0, errors.New("واحد برداشت باید بین ۰ تا ۱۲ باشد.")
@@ -257,7 +257,7 @@ func (e *Engine) AddThesisDraw(ctx context.Context, in AddThesisDrawInput) (int6
 	return id, nil
 }
 
-// DeleteThesisDraw حذف برداشت.
+// DeleteThesisDraw delete a withdrawal.
 func (e *Engine) DeleteThesisDraw(ctx context.Context, id int64) error {
 	_, err := e.Pool.Exec(ctx, `delete from thesis_unit_draws where id = $1`, id)
 	return err
@@ -286,7 +286,7 @@ func fmtNumRaw(v float64) string {
 }
 
 func formatUnits(v float64) string {
-	// بدون اعشار اضافی: 2 → "2"، 2.5 → "2.5"
+	// no extra decimals: 2 → "2", 2.5 → "2.5"
 	if v == math.Trunc(v) {
 		return fmt.Sprintf("%d", int64(v))
 	}

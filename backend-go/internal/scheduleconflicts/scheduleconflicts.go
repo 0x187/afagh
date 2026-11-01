@@ -1,9 +1,9 @@
-// ═══ تشخیص تداخل واقعی برنامهٔ هفتگی — پورت schedule-conflicts-core.ts ═══
+// ═══ Real weekly-schedule conflict detection — port of schedule-conflicts-core.ts ═══
 //
-// تداخل گزارش‌شدنی = دو ارائهٔ متفاوت در یک روز با هم‌پوشانی زمانی که
-// «جلسهٔ ادغامی» نیستند. کلاس ادغامی (کلید یکسان غیرـSOLO یا ساعت و سالن
-// دقیقاً یکسان) تداخل نیست؛ اما دو استادِ متفاوت در یک سالن و ساعت همچنان
-// تداخل سالن‌اند. خالص و تست‌پذیر.
+// A reportable conflict = two different offerings on the same day with a time overlap that
+// is not a 'merged session'. A merged class (same non-SOLO key, or exactly identical time and hall)
+// is not a conflict; but two different instructors in the same hall at the same time are still
+// a hall conflict. Pure and testable.
 package scheduleconflicts
 
 import (
@@ -14,13 +14,13 @@ import (
 	"strings"
 )
 
-// DayNamesFa نام روزها (شنبه=0).
+// DayNamesFa is the day names (Saturday=0).
 var DayNamesFa = []string{"شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه"}
 
-// NearSessionToleranceMin تلورانس «یک جلسه» برای پیشنهاد ادغام.
+// NearSessionToleranceMin is the 'one session' tolerance for merge suggestions.
 const NearSessionToleranceMin = 20
 
-// ConflictSlot یک ردیف برنامهٔ هفتگی (schedules با scheduleType='CLASS').
+// ConflictSlot is one weekly schedule row (schedules with scheduleType='CLASS').
 type ConflictSlot struct {
 	ScheduleID             int64
 	OfferingID             int64
@@ -38,7 +38,7 @@ type ConflictSlot struct {
 	SharedScheduleGroupKey *string
 }
 
-// ConflictPair یک تداخل واقعی.
+// ConflictPair is one real conflict.
 type ConflictPair struct {
 	Kind           string // PROFESSOR | ROOM
 	EntityID       int64
@@ -54,7 +54,7 @@ type ConflictPair struct {
 	Fingerprint    string
 }
 
-// ToMinutesPtr «HH:MM» → دقیقه؛ مقدار بد → nil (همان toMinutes این فایل).
+// ToMinutesPtr converts 'HH:MM' -> minutes; a bad value -> nil (same as toMinutes in this file).
 func ToMinutesPtr(v string) *int {
 	s := strings.TrimSpace(v)
 	parts := strings.SplitN(s, ":", 2)
@@ -70,12 +70,12 @@ func ToMinutesPtr(v string) *int {
 	return &v2
 }
 
-// MinutesToHm دقیقه → «HH:MM».
+// MinutesToHm converts minutes -> 'HH:MM'.
 func MinutesToHm(v int) string {
 	return fmt.Sprintf("%02d:%02d", v/60, v%60)
 }
 
-// OverlapMinutes طول اشتراک دو بازه (۰ = بدون هم‌پوشانی).
+// OverlapMinutes is the length of the intersection of two intervals (0 = no overlap).
 func OverlapMinutes(aStart, aEnd, bStart, bEnd int) int {
 	from := aStart
 	if bStart > from {

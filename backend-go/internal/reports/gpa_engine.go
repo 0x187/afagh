@@ -1,4 +1,4 @@
-// ═══ موتور معدل رسمی برای گزارش‌ها — پورت regulations-engine (بخش GPA) ═══
+// ═══ Official GPA engine for reports — port of regulations-engine (GPA part) ═══
 package reports
 
 import (
@@ -37,7 +37,7 @@ func defaultGPACfg() gpaRegCfg {
 	return gpaRegCfg{PassingGrade: 10, RetakeMinGrade: 10, Policy: "EXCLUDE_IF_PASSED", ProbThreshold: 12}
 }
 
-// gpaCfgsFor تنظیم آیین‌نامهٔ هر دانشجو (کش به‌ازای جفت یکتا).
+// gpaCfgsFor resolves each student's regulation (cached per unique pair).
 func gpaCfgsFor(ctx context.Context, s *Service, sids []int64) (map[int64]gpaRegCfg, map[int64][2]*int64, error) {
 	out := map[int64]gpaRegCfg{}
 	pairs := map[int64][2]*int64{}
@@ -116,7 +116,7 @@ func itoa64(v int64) string {
 	return string(buf[i:])
 }
 
-// loadGpaRowsBatch ردیف‌های معدل همهٔ دانشجویان + fallback سیستم قدیمی.
+// loadGpaRowsBatch loads GPA rows for all students + legacy system fallback.
 func (s *Service) loadGpaRowsBatch(ctx context.Context, sids []int64) (map[int64][]gpaRow, error) {
 	out := map[int64][]gpaRow{}
 	if len(sids) == 0 {
@@ -151,7 +151,7 @@ func (s *Service) loadGpaRowsBatch(ctx context.Context, sids []int64) (map[int64
 	}
 	rows.Close()
 
-	// سیستم قدیمی — فقط درس‌هایی که معادلش در enrollments نیست.
+	// Legacy system — only courses whose equivalent is not in enrollments.
 	lrows, err := s.Pool.Query(ctx, `
 		select * from (
 		  select st.id::bigint as sid, lg."courseCode" as code,
@@ -244,7 +244,7 @@ type officialTermRow struct {
 	IsProb   bool
 }
 
-// officialBreakdown معدل ترم‌به‌ترم رسمی (مرتب بر termCode).
+// officialBreakdown is the official term-by-term GPA (sorted by termCode).
 func officialBreakdown(rows []gpaRow, cfg gpaRegCfg) []officialTermRow {
 	groups := map[string][]gpaRow{}
 	order := []string{}

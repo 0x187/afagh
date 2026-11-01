@@ -1,7 +1,7 @@
 // ═══ Persian/Arabic search normalization — port of persian-search.ts ═══
 //
-// Dual-spelling letters are unified: ي↔ی · ك↔ک · ة↔ه · ؤ→و · ئ→ی · أ/إ/آ→ا
-// + remove tatweel (ـ) and diacritics + ZWNJ→space.
+// Dual-spelling letters are unified: Arabic yeh↔Persian yeh · Arabic kaf↔Persian kaf · teh marbuta↔heh · hamza waw→waw · hamza yeh→Persian yeh · alef forms→alef
+// + remove tatweel and diacritics + ZWNJ→space.
 package fa
 
 import "strings"
@@ -36,7 +36,7 @@ func NormalizeFa(s string) string {
 	return strings.Join(fields, " ")
 }
 
-// EscapeLikeChars escapes LIKE special characters (\ ٪ _) — the pattern must be used with ESCAPE '\'.
+// EscapeLikeChars escapes LIKE special characters (\ % _) — the pattern must be used with ESCAPE '\'.
 func EscapeLikeChars(s string) string {
 	var b strings.Builder
 	b.Grow(len(s))

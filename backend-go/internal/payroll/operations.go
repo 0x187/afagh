@@ -1,4 +1,4 @@
-// ═══ عملیات مالی فیش — compute / midterm / settle / payslip / export / config ═══
+// ═══ Payslip financial operations — compute / midterm / settle / payslip / export / config ═══
 package payroll
 
 import (
@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// ComputeTermResult نتیجهٔ محاسبهٔ کل ترم.
+// ComputeTermResult whole-term computation result.
 type ComputeTermResult struct {
 	Ok                bool            `json:"ok"`
 	TermTitle         string          `json:"termTitle"`
@@ -24,9 +24,9 @@ type ComputeTermResult struct {
 	Totals            map[string]float64 `json:"totals"`
 }
 
-// ComputeTermPayroll محاسبهٔ فیش همهٔ اساتید ترم — یک بار بارگذاری، سپس upsert.
-// اساتید بدون قرارداد از محاسبه کنار گذاشته می‌شوند (نه خطا).
-// 🔒 فیشِ در زنجیرهٔ تأیید یا ردشده دست نمی‌خورد مگر بازگشت صریح به DRAFT.
+// ComputeTermPayroll computes payslips for all professors of a term — load once, then upsert.
+// Professors without a contract are excluded from the computation (not an error).
+// 🔒 a payslip in the approval chain or rejected is not touched unless explicitly returned to DRAFT.
 func (e *Engine) ComputeTermPayroll(ctx context.Context, actorUserID *int64, termID *int64) (*ComputeTermResult, error) {
 	term, err := e.CurrentTerm(ctx, termID)
 	if err != nil {
@@ -103,7 +103,7 @@ func (e *Engine) ComputeTermPayroll(ctx context.Context, actorUserID *int64, ter
 		res.Totals["deductions"] += deductions
 		res.Totals["net"] += calc.Net
 
-		// مهر اسنپ‌شات ترمی: اسنپ‌شات قرارداد اگر هست، وگرنه مقدار همین محاسبه.
+		// term snapshot stamp: the contract snapshot if present, otherwise this computation's value.
 		snapRank := contract.RankSnapshot
 		if snapRank == nil {
 			snapRank = calc.Staff.Rank
@@ -181,7 +181,7 @@ func (e *Engine) ComputeTermPayroll(ctx context.Context, actorUserID *int64, ter
 	return res, nil
 }
 
-// PayMidterm علی‌الحساب میان‌ترم — درصد از تنظیمات، پرداخت در تراکنش با قفل سطری.
+// PayMidterm midterm advance — percentage from settings, paid in a transaction with row-level locking.
 func (e *Engine) PayMidterm(ctx context.Context, staffID int64, actorUserID *int64, termID *int64) (float64, error) {
 	term, err := e.CurrentTerm(ctx, termID)
 	if err != nil {
@@ -236,7 +236,7 @@ func (e *Engine) PayMidterm(ctx context.Context, staffID int64, actorUserID *int
 	return amount, nil
 }
 
-// SettleFinal تسویهٔ نهایی — هر دو گلوگاه باید بسته باشد و فیش DEAN_APPROVED.
+// SettleFinal final settlement — both gates must be closed and the payslip DEAN_APPROVED.
 func (e *Engine) SettleFinal(ctx context.Context, staffID int64, actorUserID *int64, termID *int64, afterSettle func(tx pgx.Tx, statementID int64) error) (float64, Gates, error) {
 	term, err := e.CurrentTerm(ctx, termID)
 	if err != nil {
@@ -314,7 +314,7 @@ func (e *Engine) SettleFinal(ctx context.Context, staffID int64, actorUserID *in
 	return amount, g, nil
 }
 
-// PayslipResponse فیش یک استاد برای پرتال استاد/دیالوگ ادمین.
+// PayslipResponse a professor's payslip for the professor portal/admin dialog.
 type PayslipResponse struct {
 	Term      string             `json:"term"`
 	Computed  bool               `json:"computed"`
@@ -322,7 +322,7 @@ type PayslipResponse struct {
 	Statement *PayslipStatement  `json:"statement"`
 }
 
-// PayslipStatement فیش ذخیره‌شده.
+// PayslipStatement the stored payslip.
 type PayslipStatement struct {
 	ID             int64   `json:"id"`
 	Status         string  `json:"status"`
@@ -333,7 +333,7 @@ type PayslipStatement struct {
 	Remaining      float64 `json:"remaining"`
 }
 
-// GetStaffPayslip فیش جاری یک استاد.
+// GetStaffPayslip a professor's current payslip.
 func (e *Engine) GetStaffPayslip(ctx context.Context, staffID int64, termID *int64) (*PayslipResponse, error) {
 	term, err := e.CurrentTerm(ctx, termID)
 	if err != nil {
@@ -375,7 +375,7 @@ func (e *Engine) GetStaffPayslip(ctx context.Context, staffID int64, termID *int
 	return resp, nil
 }
 
-// ExportBatch خروجی واریز دسته‌جمعی (CSV بانکی).
+// ExportBatch bulk deposit export (bank CSV).
 func (e *Engine) ExportBatch(ctx context.Context, termID *int64) (csv string, count int, termTitle string, err error) {
 	ov, err := e.GetOverview(ctx, termID)
 	if err != nil {
@@ -474,7 +474,7 @@ func (e *Engine) ExportBatch(ctx context.Context, termID *int64) (csv string, co
 	return strings.Join(lines, "\n"), count, ov.Term, nil
 }
 
-// extractCoef استخراج عدد از «عملی ×1.5».
+// extractCoef extracts the number from "practical ×1.5".
 func extractCoef(text, key string) (float64, bool) {
 	idx := strings.Index(text, key)
 	if idx < 0 {
@@ -505,7 +505,7 @@ func deref(s *string) string {
 	return *s
 }
 
-// PayConfig پیکربندی شفاف موتور برای پنل مالی.
+// PayConfig transparent engine configuration for the finance panel.
 type PayConfig struct {
 	Year      int          `json:"year"`
 	Coefs     coefs        `json:"coefs"`
@@ -516,7 +516,7 @@ type PayConfig struct {
 	Rules     []PayRule    `json:"rules"`
 }
 
-// PayRateRow سطر نرخ تدریس.
+// PayRateRow teaching rate row.
 type PayRateRow struct {
 	AcademicRank   string  `json:"academicRank"`
 	Degree         string  `json:"degree"`
@@ -525,7 +525,7 @@ type PayRateRow struct {
 	EffectiveYear  int     `json:"effectiveYear"`
 }
 
-// ListPayConfiguration قوانین فرمول‌ساز و ضرایب فعلی.
+// ListPayConfiguration formula-builder rules and current coefficients.
 func (e *Engine) ListPayConfiguration(ctx context.Context) (*PayConfig, error) {
 	cfg := &PayConfig{Rates: []PayRateRow{}, Rules: []PayRule{}}
 	var err error

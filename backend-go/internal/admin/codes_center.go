@@ -1,4 +1,4 @@
-// ═══ Codes Center — a single place to define and review the «کد» of all reference tables ═══
+// ═══ Codes Center — a single place to define and review the "code" of all reference tables ═══
 //
 // Faithful port of afagh-next/src/app/admin/codes/actions.ts and tables.ts.
 //
@@ -115,7 +115,7 @@ type DegreeDetail struct {
 // ── Internal raw row ──
 //
 // scope is the uniqueness key (e.g. university).
-// Why: the term code and the course code are unique only «درون یک دانشگاه» (uq_terms_uni_code and
+// Why: the term code and the course code are unique only "within a university" (uq_terms_uni_code and
 // uq_courses_uni_code), not globally. The global count of 270/525 gave false warnings
 // while the real duplicates were zero. scope=null means global (major, degree level).
 
@@ -1010,7 +1010,7 @@ func (s *Service) CreateCodeRow(ctx context.Context, user *session.User, uniCook
 }
 
 // codeValidationErr is a validation error — equivalent to an early return in a Next action
-// (without the «ثبت نشد:» suffix, which appears only for database errors).
+// (without the "save failed:" suffix, which appears only for database errors).
 type codeValidationErr struct{ msg string }
 
 func (e *codeValidationErr) Error() string { return e.msg }
@@ -1758,7 +1758,7 @@ func (s *Service) UpdateTermRow(ctx context.Context, user *session.User, uniCook
 		return err
 	}
 
-	// Only one «ترم جاری» and one «باز بودن انتخاب واحد» exist per university — the rest are turned off
+	// Only one "current term" and one "course registration open" exist per university — the rest are turned off
 	uniScope := `"universityId" is null`
 	scopeArgs := []any{}
 	if universityID != nil {

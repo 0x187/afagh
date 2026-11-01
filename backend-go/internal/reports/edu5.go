@@ -1,4 +1,4 @@
-// ═══ گزارش‌های وضعیت/عملیات دانشجو — پورت r-status-ops (بخش خواندنی) ═══
+// ═══ Student status/operations reports — port of r-status-ops (readable part) ═══
 package reports
 
 import (

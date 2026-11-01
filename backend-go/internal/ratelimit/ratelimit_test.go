@@ -6,7 +6,7 @@ import (
 	"time"
 )
 
-// حالت درون‌حافظه (Redis=nil) — همان سمانتیک INCR+EXPIRE و سقف پنجره.
+// In-memory mode (Redis=nil) — same INCR+EXPIRE semantics and window cap.
 func TestAllowInMemory(t *testing.T) {
 	l := New(nil)
 	ctx := context.Background()
@@ -54,7 +54,7 @@ func TestPeekHitCountRelease(t *testing.T) {
 	}
 }
 
-// پنجره پس از انقضا باز می‌شود.
+// The window reopens after expiry.
 func TestAllowWindowExpiry(t *testing.T) {
 	l := New(nil)
 	ctx := context.Background()
@@ -71,7 +71,7 @@ func TestAllowWindowExpiry(t *testing.T) {
 	}
 }
 
-// تأخیر تصاعدی — دقیقاً 200*(n+1) با سقف ۱۰ ثانیه.
+// Progressive delay — exactly 200*(n+1) capped at 10 seconds.
 func TestProgressiveDelayMs(t *testing.T) {
 	cases := map[int]int{
 		-1: 200, 0: 200, 1: 400, 4: 1000, 49: 10000, 100: 10000,

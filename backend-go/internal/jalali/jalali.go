@@ -180,7 +180,7 @@ func FaDigits(input string) string {
 	return b.String()
 }
 
-// «۱٬۲۳۴٬۵۶۷» — grouped with Persian separator.
+// "1,234,567" — grouped with Persian separator.
 func GroupThousands(n float64) string {
 	neg := n < 0
 	if neg {
@@ -201,7 +201,7 @@ func GroupThousands(n float64) string {
 	return s
 }
 
-// ToShamsi port of toShamsi: an already-Shamsi input is left untouched; otherwise ISO → «۱۴۰۵/۰۸/۰۴».
+// ToShamsi port of toShamsi: an already-Shamsi input is left untouched; otherwise ISO → "1405/08/04".
 func ToShamsi(s string) string {
 	if s == "" {
 		return "—"

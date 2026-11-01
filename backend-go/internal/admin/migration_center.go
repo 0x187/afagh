@@ -1,12 +1,12 @@
 // ═══ Data migration workbench (ETL) — port of admin/migration ═══
 //
 //	Port of actions.ts + lib/migration/*:
-//	  • Tab «دادهٔ پایه»: CSV import (grades/tuition formulas/legacy financials/code mapping)
-//	    by creating a «دسته» in legacy_import_batches and keeping the raw row for reprocessing
-//	  • Tab «تطبیق کدها»: legacy_code_maps with fixed domains + automatic text suggestion
-//	  • Tab «شهریه و مالی»: formulas + safe expression evaluator + comparison + opening balance
-//	  • Tab «نمرات»: staging → comparison → deliberate apply with rollback log
-//	  • «ناحیهٔ موقت و واگرد»: batch list, reprocess, rollback from migration_audit_entries
+//	  • Tab "Base Data": CSV import (grades/tuition formulas/legacy financials/code mapping)
+//	    by creating a "batch" in legacy_import_batches and keeping the raw row for reprocessing
+//	  • Tab "Code Matching": legacy_code_maps with fixed domains + automatic text suggestion
+//	  • Tab "Tuition and Finance": formulas + safe expression evaluator + comparison + opening balance
+//	  • Tab "Grades": staging → comparison → deliberate apply with rollback log
+//	  • "Staging area and undo": batch list, reprocess, rollback from migration_audit_entries
 //
 //	Deliberate difference from Next: file input is CSV only (the Go backend has no xlsx library
 //	); the rest of the flow is exactly the same.
@@ -224,7 +224,7 @@ func migEmptyReport(kind, fileName, sheet string) *MigReport {
 	return &MigReport{Kind: kind, FileName: fileName, Sheet: sheet, Errors: []MigRowMsg{}, Warnings: []MigRowMsg{}}
 }
 
-// ═══════════════ Tab «دادهٔ پایه» — entities and source servers ═══════════════
+// ═══════════════ Tab "Base Data" — entities and source servers ═══════════════
 
 type MigSource struct {
 	Code  string  `json:"code"`
@@ -507,7 +507,7 @@ func (s *Service) SaveMigrationMap(ctx context.Context, user *session.User, id i
 	return err
 }
 
-// SetMigrationNewCode: register a free-form «کد جدید» for an old code (port of setNewCodeAction).
+// SetMigrationNewCode: register a free-form "new code" for an old code (port of setNewCodeAction).
 func (s *Service) SetMigrationNewCode(ctx context.Context, user *session.User, id int64, newCode string) error {
 	var domain, legacyCode, sourceCode, legacyTitle *string
 	if err := s.DB.Pool.QueryRow(ctx, `
@@ -810,7 +810,7 @@ func (s *Service) MigResolverFor(ctx context.Context, sourceCode, domain string)
 // MigrationImportLimit: CSV file size limit (5 MB).
 const MigrationImportLimit = 5 << 20
 
-// MigrationImport: imports the source CSV into staging and creates a «دسته».
+// MigrationImport: imports the source CSV into staging and creates a "batch".
 func (s *Service) MigrationImport(ctx context.Context, user *session.User, kind, sourceCode, fileName, content string, columnMap map[string]int) (*MigReport, error) {
 	kind = strings.TrimSpace(kind)
 	table := &MigTable{
@@ -2871,7 +2871,7 @@ func (s *Service) ListMigrationFormulasAll(ctx context.Context, src string) ([]M
 	return out, rows.Err()
 }
 
-// ═══ Accepting a legacy balance as «مانده اولیه» (port of acceptLegacyBalance) ═══
+// ═══ Accepting a legacy balance as "opening balance" (port of acceptLegacyBalance) ═══
 
 // MigOpeningBalanceTag: prefix of opening balance documents.
 const MigOpeningBalanceTag = "[مهاجرت] مانده اولیه از سیستم قدیمی"

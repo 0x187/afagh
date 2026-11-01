@@ -4,7 +4,7 @@
 // Port of six modules afagh-next/src/app/admin/{broadcast,bypass,class-sessions,
 // exams/handover,offering-editor,schedule-conflicts} along with their server
 // libraries (bypass-requests.ts, schedule-conflicts.ts, exam-actions.ts).
-// Response contract: {"ok":true,"data":...} / {"ok":false,"error":"فارسی"}.
+// Response contract: {"ok":true,"data":...} / {"ok":false,"error":"Persian"}.
 package admin
 
 import (

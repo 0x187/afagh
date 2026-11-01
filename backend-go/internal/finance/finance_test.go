@@ -240,7 +240,7 @@ func TestFormulas(t *testing.T) {
 }
 
 func TestBucketsAndAllocation(t *testing.T) {
-	// general with the Arabic spelling «عمومي» must be recognized as general
+	// general with the alternate Arabic spelling (omumi) must be recognized as general
 	general := BucketCourseUnits(3, 3, 0, sp("عمومي"))
 	if general.General != 3 || general.Theory != 0 || general.Practical != 0 {
 		t.Fatalf("درس عمومی: %+v", general)

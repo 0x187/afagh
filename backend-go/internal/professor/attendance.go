@@ -1,4 +1,4 @@
-// ═══ حضور و غیاب استاد — پورت professor/attendance ═══
+// ═══ Professor attendance — port of professor/attendance ═══
 package professor
 
 import (
@@ -13,26 +13,26 @@ import (
 	"backend-go/internal/scheduling"
 )
 
-// AttendanceStudent دانشجوی کلاس.
+// AttendanceStudent a student in the class.
 type AttendanceStudent struct {
 	ID          int64  `json:"id"`
 	StudentCode string `json:"studentCode"`
 	FullName    string `json:"fullName"`
 }
 
-// StudentStatus وضعیت حضور دانشجو.
+// StudentStatus student attendance status.
 type StudentStatus struct {
 	Status string `json:"status"`
 }
 
-// ProfessorCheck جزئیات ثبت حضور استاد.
+// ProfessorCheck details of the professor's attendance record.
 type ProfessorCheck struct {
 	VerificationMethod string  `json:"verificationMethod"`
 	IPAddress          *string `json:"ipAddress"`
 	RecordedAt         *string `json:"recordedAt"`
 }
 
-// SessionItem جلسهٔ کلاس.
+// SessionItem a class session.
 type SessionItem struct {
 	ID                 int64                   `json:"id"`
 	SessionNo          int                     `json:"sessionNo"`
@@ -50,7 +50,7 @@ type SessionItem struct {
 	StudentStatuses    map[int64]StudentStatus `json:"studentStatuses"`
 }
 
-// AttendanceOffering ارائه در صفحهٔ حضور.
+// AttendanceOffering the offering on the attendance page.
 type AttendanceOffering struct {
 	ID           int64               `json:"id"`
 	Code         string              `json:"code"`
@@ -67,7 +67,7 @@ type AttendanceOffering struct {
 	Sessions     []SessionItem       `json:"sessions"`
 }
 
-// MakeupRecord سابقهٔ جلسهٔ جبرانی.
+// MakeupRecord makeup session record.
 type MakeupRecord struct {
 	ID                int64  `json:"id"`
 	OfferingID        int64  `json:"offeringId"`
@@ -84,7 +84,7 @@ type MakeupRecord struct {
 	AllocatedAt       string `json:"allocatedAt"`
 }
 
-// RoomOption سالن.
+// RoomOption a room.
 type RoomOption struct {
 	ID       int64  `json:"id"`
 	Name     string `json:"name"`
@@ -92,7 +92,7 @@ type RoomOption struct {
 	Type     string `json:"type"`
 }
 
-// AttendanceResponse پاسخ صفحه.
+// AttendanceResponse the page response.
 type AttendanceResponse struct {
 	Professor         ProfessorInfo        `json:"professor"`
 	TermTitle         string               `json:"termTitle"`
@@ -113,7 +113,7 @@ type attendanceEnrollment struct {
 	LastName    string
 }
 
-// GetAttendance پورت professor/attendance/page.tsx.
+// GetAttendance port of professor/attendance/page.tsx.
 func (s *Service) GetAttendance(ctx context.Context, userID int64, cookie *int64, wantedOfferingID *int64) (*AttendanceResponse, error) {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil {
@@ -124,7 +124,7 @@ func (s *Service) GetAttendance(ctx context.Context, userID int64, cookie *int64
 	}
 	term := s.ResolveTerm(ctx, st.UniversityID, cookie)
 
-	// ارائه‌های ترم.
+	// offerings of the term.
 	type offeringRow struct {
 		ID        int64
 		TermID    int64
@@ -163,7 +163,7 @@ func (s *Service) GetAttendance(ctx context.Context, userID int64, cookie *int64
 	}
 	rows.Close()
 
-	// ارائهٔ پیوندی خارج از ترم انتخابی.
+	// linked offering outside the selected term.
 	if wantedOfferingID != nil {
 		found := false
 		for _, o := range myOfferings {
@@ -200,7 +200,7 @@ func (s *Service) GetAttendance(ctx context.Context, userID int64, cookie *int64
 		offeringIDs = append(offeringIDs, o.ID)
 	}
 
-	// جلسات.
+	// sessions.
 	type sessionRow struct {
 		ID          int64
 		OfferingID  int64
@@ -232,7 +232,7 @@ func (s *Service) GetAttendance(ctx context.Context, userID int64, cookie *int64
 	}
 	srows.Close()
 
-	// برنامه‌های هفتگی (CLASS).
+	// weekly schedules (CLASS).
 	type scheduleInfo struct {
 		OfferingID int64
 		Day        *int
@@ -253,7 +253,7 @@ func (s *Service) GetAttendance(ctx context.Context, userID int64, cookie *int64
 		wrows.Close()
 	}
 
-	// دانشجویان.
+	// students.
 	enrollments := []attendanceEnrollment{}
 	erows, err := s.DB.Pool.Query(ctx, `
 		select e.id, e."offeringId", e."studentId", st."studentCode",
@@ -276,7 +276,7 @@ func (s *Service) GetAttendance(ctx context.Context, userID int64, cookie *int64
 		enrollByID[en.ID] = en
 	}
 
-	// حضور دانشجویان.
+	// student attendance.
 	sessionIDs := []int64{}
 	for _, s := range sessions {
 		sessionIDs = append(sessionIDs, s.ID)
@@ -323,7 +323,7 @@ func (s *Service) GetAttendance(ctx context.Context, userID int64, cookie *int64
 		}
 	}
 
-	// سالن‌ها.
+	// rooms.
 	roomIDs := []int64{}
 	for _, sc := range schedules {
 		if sc.RoomID != nil {
@@ -350,7 +350,7 @@ func (s *Service) GetAttendance(ctx context.Context, userID int64, cookie *int64
 	}
 	sort.Slice(resp.Rooms, func(i, j int) bool { return resp.Rooms[i].Name < resp.Rooms[j].Name })
 
-	// گروه‌بندی ارائه‌های ادغامی.
+	// grouping of merged offerings.
 	slotsByOffering := map[int64][]slot{}
 	for _, sc := range schedules {
 		if sc.Day == nil {
@@ -362,7 +362,7 @@ func (s *Service) GetAttendance(ctx context.Context, userID int64, cookie *int64
 		}
 		slotsByOffering[sc.OfferingID] = append(slotsByOffering[sc.OfferingID], slot{Day: sc.Day, Start: sc.Start, End: sc.End, Room: roomKey})
 	}
-	// گروه‌بندی ساده: کلید ادغام = term|mergedGroupKey.
+	// simple grouping: merge key = term|mergedGroupKey.
 	type group struct {
 		Key     string
 		Members []offeringRow
@@ -414,7 +414,7 @@ func (s *Service) GetAttendance(ctx context.Context, userID int64, cookie *int64
 
 	for _, g := range groups {
 		primary := offeringByID[g.Members[0].ID]
-		// جامعهٔ دانشجویان (یکتا).
+		// student population (deduplicated).
 		students := []AttendanceStudent{}
 		seen := map[int64]bool{}
 		for _, m := range g.Members {
@@ -431,7 +431,7 @@ func (s *Service) GetAttendance(ctx context.Context, userID int64, cookie *int64
 		}
 		sort.SliceStable(students, func(i, j int) bool { return students[i].FullName < students[j].FullName })
 
-		// زمان‌بندی.
+		// schedule.
 		scheduleTime := ""
 		hasSchedules := false
 		canGenerate := false
@@ -454,7 +454,7 @@ func (s *Service) GetAttendance(ctx context.Context, userID int64, cookie *int64
 			}
 		}
 
-		// جلسات گروه (یکتا بر اساس تاریخ/ساعت/جبرانی/جایگزین).
+		// group sessions (unique by date/time/makeup/replacement).
 		items := []SessionItem{}
 		seenSess := map[string]bool{}
 		memberSessions := []sessionRow{}
@@ -552,7 +552,7 @@ func (s *Service) GetAttendance(ctx context.Context, userID int64, cookie *int64
 		})
 	}
 
-	// تاریخچهٔ جلسات جبرانی.
+	// makeup session history.
 	for _, sc := range sessions {
 		if sc.IsMakeUp == 0 {
 			continue
@@ -604,7 +604,7 @@ func jalaliToday() string {
 	return jalali.FaDigits(fmt.Sprintf("%04d/%02d/%02d", d.Y, d.M, d.D))
 }
 
-// GenerateResult نتیجهٔ تولید جلسات.
+// GenerateResult session generation result.
 type GenerateResult struct {
 	OK        bool   `json:"ok"`
 	Error     string `json:"error,omitempty"`
@@ -614,7 +614,7 @@ type GenerateResult struct {
 	Offerings int    `json:"offerings"`
 }
 
-// GenerateSessions تولید جلسات هفتگی یک ارائه از برنامهٔ CLASS.
+// GenerateSessions generates weekly sessions for an offering from the CLASS schedule.
 func (s *Service) GenerateSessions(ctx context.Context, userID, offeringID int64) GenerateResult {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil || st == nil {
@@ -642,7 +642,7 @@ func (s *Service) GenerateSessions(ctx context.Context, userID, offeringID int64
 		return GenerateResult{Error: "شما استاد این درس نیستید."}
 	}
 
-	// بازهٔ ترم.
+	// the term range.
 	var start time.Time
 	var classStart, classEnd *time.Time
 	if err := s.DB.Pool.QueryRow(ctx, `
@@ -651,7 +651,7 @@ func (s *Service) GenerateSessions(ctx context.Context, userID, offeringID int64
 		return GenerateResult{Error: "تاریخ شروع نیمسال ثبت نشده است؛ ابتدا تقویم ترم را تعریف کنید."}
 	}
 
-	// برنامه‌های کلاس.
+	// class schedules.
 	srows, err := s.DB.Pool.Query(ctx, `
 		select "dayOfWeek", "startTime"::text, "endTime"::text, coalesce("scheduleType",'CLASS')
 		  from schedules where "offeringId" = $1 and "scheduleType" <> 'EXAM' order by "dayOfWeek"`, offeringID)
@@ -679,7 +679,7 @@ func (s *Service) GenerateSessions(ctx context.Context, userID, offeringID int64
 		return GenerateResult{Error: "برای این درس زمان‌بندی هفتگی (CLASS) ثبت نشده است؛ با ادارهٔ آموزش هماهنگ کنید."}
 	}
 
-	// اگر جلسهٔ غیرجبرانی وجود دارد → already.
+	// if a non-makeup session exists → already.
 	var regular int
 	_ = s.DB.Pool.QueryRow(ctx, `
 		select count(*) from class_sessions where "offeringId" = $1 and coalesce("isMakeUpSession",0) = 0`, offeringID).Scan(&regular)
@@ -721,14 +721,14 @@ func (s *Service) GenerateSessions(ctx context.Context, userID, offeringID int64
 	return GenerateResult{OK: true, Generated: generated, Skipped: skipped, Offerings: 1}
 }
 
-// AttendanceEntry ردیف حضور.
+// AttendanceEntry an attendance row.
 type AttendanceEntry struct {
 	StudentID   int64  `json:"studentId"`
 	Status      string `json:"status"`
 	LateMinutes *int   `json:"lateMinutes,omitempty"`
 }
 
-// SaveSessionAttendance پورت saveSessionAttendanceAction.
+// SaveSessionAttendance port of saveSessionAttendanceAction.
 func (s *Service) SaveSessionAttendance(ctx context.Context, userID, sessionID int64, entries []AttendanceEntry) (int, int, error) {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil || st == nil {
@@ -774,7 +774,7 @@ func (s *Service) SaveSessionAttendance(ctx context.Context, userID, sessionID i
 		return 0, 0, errors.New("ردیف حضوری برای ذخیره وجود ندارد.")
 	}
 
-	// گسترش به کلاس ادغامی: همان کلید دستی + همان تاریخ/ساعت.
+	// expansion to the merged class: same manual key + same date/time.
 	groupKey := ""
 	_ = s.DB.Pool.QueryRow(ctx, `select coalesce("sharedScheduleGroupKey",'') from course_offerings where id = $1`, offeringID).Scan(&groupKey)
 	groupKey = strings.TrimSpace(groupKey)
@@ -853,7 +853,7 @@ func (s *Service) SaveSessionAttendance(ctx context.Context, userID, sessionID i
 	return inserted, len(targets), nil
 }
 
-// MakeupInput ورودی جلسهٔ جبرانی.
+// MakeupInput makeup session input.
 type MakeupInput struct {
 	OfferingID        int64  `json:"offeringId"`
 	ReplacedSessionID *int64 `json:"replacedSessionId"`
@@ -866,7 +866,7 @@ type MakeupInput struct {
 	AbsenceReason     string `json:"absenceReason"`
 }
 
-// ScheduleMakeup پورت scheduleMakeupSessionAction.
+// ScheduleMakeup port of scheduleMakeupSessionAction.
 func (s *Service) ScheduleMakeup(ctx context.Context, userID int64, input MakeupInput) (int64, error) {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil || st == nil {

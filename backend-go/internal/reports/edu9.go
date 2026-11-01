@@ -1,4 +1,4 @@
-// ═══ سقف‌های آیین‌نامه‌ای مقطع + گزارش‌های مشروطی/واحد — پورت r-edu-probation ═══
+// ═══ Degree-level regulatory caps + probation/units reports — port of r-edu-probation ═══
 package reports
 
 import (
@@ -11,7 +11,7 @@ import (
 	"backend-go/internal/jalali"
 )
 
-// levelCaps سقف‌ها/کف‌های آیین‌نامه به‌ازای (آیین‌نامه، مقطع).
+// levelCaps is the per (regulation, level) caps/floors of the regulations.
 type levelCaps struct {
 	Total, Consecutive, Threshold, MinUnits, MaxUnits, ProbMax float64
 }
@@ -63,7 +63,7 @@ func subMap(m map[string]any, key string) map[string]any {
 	return nil
 }
 
-// levelCapsForStudents سقف هر (آیین‌نامه، مقطع) جمعیت گزارش را می‌سازد.
+// levelCapsForStudents builds the caps of each (regulation, level) for the report population.
 func (s *Service) levelCapsForStudents(ctx context.Context, f Filters) (map[string]levelCaps, []any, error) {
 	pargs := []any{}
 	pwhere := studentWhere(f, &pargs)
@@ -162,7 +162,7 @@ func (s *Service) levelCapsForStudents(ctx context.Context, f Filters) (map[stri
 						caps.ProbMax = *v
 					}
 				}
-				// تفاوت‌های مقطعی از levels
+				// Level differences come from levels
 				if levels := subMap(parsed, "levels"); levels != nil && p.deg != nil {
 					code, ok := degCode[*p.deg]
 					if !ok {
@@ -196,7 +196,7 @@ func deref64(v *int64) float64 {
 	return float64(*v)
 }
 
-// capCaseSQL عبارت CASE (آیین‌نامه+مقطع → مقدار) با fallback JSON می‌سازد.
+// capCaseSQL builds a CASE expression (regulation+level -> value) with a JSON fallback.
 func capCaseSQL(caps map[string]levelCaps, args *[]any, pick func(levelCaps) float64, fallbackSQL string) string {
 	whens := []string{}
 	for k, c := range caps {

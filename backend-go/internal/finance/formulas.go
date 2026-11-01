@@ -151,7 +151,7 @@ func TotalBuckets(courses []UnitBuckets) UnitBuckets {
 }
 
 // AllocateWeightedShares port of allocateWeightedShares: distribute the total amount proportionally
-// by weight with «باقی‌ماندهٔ بزرگ‌تر» so no rial is lost or added.
+// by weight with "larger remainder" so no rial is lost or added.
 func AllocateWeightedShares(weights []float64, target float64) []float64 {
 	n := len(weights)
 	if n == 0 {

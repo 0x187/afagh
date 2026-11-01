@@ -1,4 +1,4 @@
-// ═══ گزارش‌های شورا/مکاتبات و گواهی‌ها — پورت r-council-letters ═══
+// ═══ Council/correspondence and certificate reports — port of r-council-letters ═══
 package reports
 
 import (

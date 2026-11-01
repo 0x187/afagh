@@ -1,8 +1,8 @@
-// ═══ موتور استعلام عمومی — پورت verifyTranscript/verifyFinance/... ═══
+// ═══ Public verification engine — port of verifyTranscript/verifyFinance/... ═══
 //
-//  توکن‌های امضاشده (T1.<payload>.<sig>) — هر پاسخ فقط از پایگاه داده؛
-//  توکن ناشناخته/منقضی صریحاً «یافت نشد» است (هیچ fallback ساختگی).
-//  کد ملی همیشه ماسک‌شده (۳ رقم اول + ۵ ستاره + ۲ رقم آخر).
+//  Signed tokens (T1.<payload>.<sig>) — every answer comes only from the database;
+//  an unknown/expired token explicitly reports 'not found' (no fake fallback).
+//  National ID is always masked (first 3 digits + 5 stars + last 2 digits).
 package publicverify
 
 import (
@@ -15,14 +15,14 @@ import (
 	"backend-go/internal/verification"
 )
 
-// Service سرویس استعلام عمومی.
+// Service is the public verification service.
 type Service struct {
 	Student *student.Service
 	Signer  *verification.Signer
 	Pool    *pgxpool.Pool
 }
 
-// Result پاسخ استعلام.
+// Result is the verification response.
 type Result struct {
 	OK      bool   `json:"ok"`
 	Kind    string `json:"kind,omitempty"`
@@ -31,7 +31,7 @@ type Result struct {
 	Doc     any    `json:"doc,omitempty"`
 }
 
-// MaskNationalCode ماسک با طول ثابت خروجی.
+// MaskNationalCode masks with a fixed output length.
 func MaskNationalCode(code *string) string {
 	if code == nil {
 		return "—"
@@ -47,7 +47,7 @@ func bad(reason, message string) *Result {
 	return &Result{OK: false, Reason: reason, Message: message}
 }
 
-// resolveStudent پروندهٔ هدف توکن: sid (همان شخص) ← uid (ACTIVE-first).
+// resolveStudent resolves the token's target record: sid (same person) <- uid (ACTIVE-first).
 func (s *Service) resolveStudent(ctx context.Context, payload map[string]any) (int64, int64, error) {
 	uid := toInt(payload["uid"])
 	sid := toInt(payload["sid"])
@@ -99,7 +99,7 @@ func toInt(v any) int64 {
 	return 0
 }
 
-// Verify بررسی توکن و تولید سند متناظر.
+// Verify checks the token and produces the corresponding document.
 func (s *Service) Verify(ctx context.Context, rawToken string) *Result {
 	payload, ok, err := s.Signer.Verify(ctx, rawToken)
 	if err != nil || !ok {
@@ -109,7 +109,7 @@ func (s *Service) Verify(ctx context.Context, rawToken string) *Result {
 		case errors.Is(err, verification.ErrMalformed), errors.Is(err, verification.ErrBadSignature):
 			return bad("BAD_TOKEN", "توکن نامعتبر یا دستکاری‌شده است.")
 		case err != nil:
-			// کلید امضا تنظیم نشده یا خطای پیکربندی — fail-closed
+			// Signing key unset or configuration error — fail-closed
 			return bad("BAD_TOKEN", "استعلام در حال حاضر ممکن نیست؛ امضای توکن قابل بررسی نیست.")
 		default:
 			return bad("BAD_TOKEN", "توکن نامعتبر یا دستکاری‌شده است.")

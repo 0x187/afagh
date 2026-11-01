@@ -1,4 +1,4 @@
-// ═══ دفترچهٔ نمرات استاد — پورت professor/grades ═══
+// ═══ Professor gradebook — port of professor/grades ═══
 package professor
 
 import (
@@ -17,7 +17,7 @@ import (
 	"backend-go/internal/messaging"
 )
 
-// GradeStudent دانشجو در دفترچه.
+// GradeStudent is a student in the gradebook.
 type GradeStudent struct {
 	StudentID    int64    `json:"studentId"`
 	StudentCode  string   `json:"studentCode"`
@@ -30,7 +30,7 @@ type GradeStudent struct {
 	SamaCode     *string  `json:"samaGradeStatusCode"`
 }
 
-// GradeAppeal اعتراض دانشجو.
+// GradeAppeal is a student appeal.
 type GradeAppeal struct {
 	ID                   int64    `json:"id"`
 	StudentID            int64    `json:"studentId"`
@@ -45,7 +45,7 @@ type GradeAppeal struct {
 	EnrollmentOfferingID int64    `json:"enrollmentOfferingId"`
 }
 
-// Rubric بارم پیش‌فرض.
+// Rubric is the default grading scheme.
 type Rubric struct {
 	Midterm       float64 `json:"midterm"`
 	Homework      float64 `json:"homework"`
@@ -54,7 +54,7 @@ type Rubric struct {
 	FinalExam     float64 `json:"finalExam"`
 }
 
-// GradeOffering ارائه در دفترچه.
+// GradeOffering is an offering in the gradebook.
 type GradeOffering struct {
 	ID                 int64          `json:"id"`
 	Code               string         `json:"code"`
@@ -75,14 +75,14 @@ type GradeOffering struct {
 	Appeals            []GradeAppeal  `json:"appeals"`
 }
 
-// GradesResponse پاسخ دفترچه.
+// GradesResponse is the gradebook response.
 type GradesResponse struct {
 	Professor ProfessorInfo   `json:"professor"`
 	Term      TermInfo        `json:"term"`
 	Offerings []GradeOffering `json:"offerings"`
 }
 
-// GetGrades پورت professor/grades/page.tsx (بدون دادهٔ دمو).
+// GetGrades ports professor/grades/page.tsx (no demo data).
 func (s *Service) GetGrades(ctx context.Context, userID int64, cookie *int64) (*GradesResponse, error) {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil {
@@ -138,7 +138,7 @@ func (s *Service) GetGrades(ctx context.Context, userID int64, cookie *int64) (*
 		offeringIDs = append(offeringIDs, o.ID)
 	}
 
-	// همکاران درس مشترک و نقش.
+	// Co-instructors of the shared course and their role.
 	type coRow struct {
 		OfferingID int64
 		StaffID    int64
@@ -168,7 +168,7 @@ func (s *Service) GetGrades(ctx context.Context, userID int64, cookie *int64) (*
 		coByOffering[r.OfferingID] = append(coByOffering[r.OfferingID], r)
 	}
 
-	// دانشجویان.
+	// Students.
 	srows, err := s.DB.Pool.Query(ctx, `
 		select e.id, e."offeringId", e."studentId", st."studentCode",
 		       coalesce(u."firstName" || ' ' || u."lastName",''),
@@ -192,7 +192,7 @@ func (s *Service) GetGrades(ctx context.Context, userID int64, cookie *int64) (*
 	}
 	srows.Close()
 
-	// اعتراض‌ها.
+	// Appeals.
 	appealsByOffering := map[int64][]GradeAppeal{}
 	arows, err := s.DB.Pool.Query(ctx, `
 		select a.id, a."enrollmentId", e."studentId", st."studentCode",
@@ -296,7 +296,7 @@ func (s *Service) logGradeChange(ctx context.Context, enrollmentID, studentID, o
 		enrollmentID, studentID, offeringID, oldValue, newValue, oldStatus, newStatus, userID, reason)
 }
 
-// SaveScore ذخیرهٔ نمرهٔ نهایی یک دانشجو (DRAFT) با قفل نهایی.
+// SaveScore stores one student's final score (DRAFT) with a final lock.
 func (s *Service) SaveScore(ctx context.Context, userID, offeringID, studentID int64, value *float64) error {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil || st == nil {
@@ -328,7 +328,7 @@ func (s *Service) SaveScore(ctx context.Context, userID, offeringID, studentID i
 	return nil
 }
 
-// SubmitTemporary ثبت موقت همهٔ نمرات درس.
+// SubmitTemporary registers all course scores provisionally.
 func (s *Service) SubmitTemporary(ctx context.Context, userID, offeringID int64) error {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil || st == nil {
@@ -357,7 +357,7 @@ func (s *Service) SubmitTemporary(ctx context.Context, userID, offeringID int64)
 	return tx.Commit(ctx)
 }
 
-// RequestFinalizeOTP صدور کد نهایی‌سازی.
+// RequestFinalizeOTP issues the finalization code.
 func (s *Service) RequestFinalizeOTP(ctx context.Context, userID, offeringID int64) (string, error) {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil || st == nil {
@@ -404,7 +404,7 @@ func (s *Service) RequestFinalizeOTP(ctx context.Context, userID, offeringID int
 	return code, nil
 }
 
-// Finalize با OTP، زنجیرهٔ هش و ثبت وضعیت نهایی.
+// Finalize with OTP, hash chain, and final status recording.
 func (s *Service) Finalize(ctx context.Context, userID, offeringID int64, code string) error {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil || st == nil {
@@ -452,7 +452,7 @@ func (s *Service) Finalize(ctx context.Context, userID, offeringID int64, code s
 		return fmt.Errorf("کد تأیید نادرست است. (تلاش %d از ۵)", attempts)
 	}
 
-	// هش زنجیره‌ای از نمرات ذخیره‌شده.
+	// Hash chain over the stored scores.
 	type gradeRow struct {
 		ID         int64
 		StudentID  int64
@@ -515,7 +515,7 @@ func (s *Service) Finalize(ctx context.Context, userID, offeringID int64, code s
 	return nil
 }
 
-// ResolveAppeal رسیدگی به اعتراض.
+// ResolveAppeal handles the appeal.
 type AppealDecision struct {
 	AppealID int64    `json:"appealId"`
 	Decision string   `json:"decision"`
@@ -523,7 +523,7 @@ type AppealDecision struct {
 	Reply    string   `json:"reply"`
 }
 
-// ResolveAppealAction پورت resolveAppealAction.
+// ResolveAppealAction ports resolveAppealAction.
 func (s *Service) ResolveAppealAction(ctx context.Context, userID int64, input AppealDecision) error {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil || st == nil {
@@ -590,7 +590,7 @@ func (s *Service) ResolveAppealAction(ctx context.Context, userID int64, input A
 	return nil
 }
 
-// UnfinalizeRequest درخواست بازگشایی.
+// UnfinalizeRequest is a reopening request.
 type UnfinalizeRequest struct {
 	ID         int64   `json:"id"`
 	OfferingID int64   `json:"offeringId"`
@@ -600,7 +600,7 @@ type UnfinalizeRequest struct {
 	ReviewNote *string `json:"reviewNote"`
 }
 
-// RequestUnfinalize ثبت درخواست بازگشایی نمرات.
+// RequestUnfinalize registers a score reopening request.
 func (s *Service) RequestUnfinalize(ctx context.Context, userID, offeringID int64, reason string) error {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil || st == nil {
@@ -626,7 +626,7 @@ func (s *Service) RequestUnfinalize(ctx context.Context, userID, offeringID int6
 	return err
 }
 
-// GetUnfinalizeRequests فهرست درخواست‌های بازگشایی استاد.
+// GetUnfinalizeRequests lists the professor's reopening requests.
 func (s *Service) GetUnfinalizeRequests(ctx context.Context, userID int64) ([]UnfinalizeRequest, error) {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil || st == nil {

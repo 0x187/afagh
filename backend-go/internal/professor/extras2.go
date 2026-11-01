@@ -1,4 +1,4 @@
-// ═══ اسناد الکترونیک، پیام کلاسی و ساعات حضور استاد ═══
+// ═══ Electronic documents, class message and professor availability ═══
 package professor
 
 import (
@@ -15,7 +15,7 @@ import (
 	"backend-go/internal/messaging"
 )
 
-// ProfDocument سند الکترونیک استاد.
+// ProfDocument is the professor's electronic document.
 type ProfDocument struct {
 	ID              int64   `json:"id"`
 	DocType         string  `json:"docType"`
@@ -27,7 +27,7 @@ type ProfDocument struct {
 	DocumentHash    *string `json:"documentHash"`
 }
 
-// ListDocuments پورت professor/documents.
+// ListDocuments ports professor/documents.
 func (s *Service) ListDocuments(ctx context.Context, userID int64) ([]ProfDocument, error) {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil {
@@ -55,14 +55,14 @@ func (s *Service) ListDocuments(ctx context.Context, userID int64) ([]ProfDocume
 	return out, rows.Err()
 }
 
-// DocumentDetail سند + اسنپ‌شات.
+// DocumentDetail is the document + snapshot.
 type DocumentDetail struct {
 	Document ProfDocument    `json:"document"`
 	Snapshot json.RawMessage `json:"snapshot"`
 	Valid    bool            `json:"snapshotValid"`
 }
 
-// GetDocument پورت professor/documents/[id].
+// GetDocument ports professor/documents/[id].
 func (s *Service) GetDocument(ctx context.Context, userID, documentID int64) (*DocumentDetail, error) {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil {
@@ -92,7 +92,7 @@ func (s *Service) GetDocument(ctx context.Context, userID, documentID int64) (*D
 	return detail, nil
 }
 
-// SendDocumentOTP صدور کد امضای سند (محدودیت ۳ در ۱۵ دقیقه).
+// SendDocumentOTP issues the document signing code (limit 3 per 15 minutes).
 func (s *Service) SendDocumentOTP(ctx context.Context, userID, documentID int64) (string, error) {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil || st == nil {
@@ -136,7 +136,7 @@ func (s *Service) SendDocumentOTP(ctx context.Context, userID, documentID int64)
 	return code, nil
 }
 
-// VerifyDocumentSign تأیید OTP و امضای سند.
+// VerifyDocumentSign verifies the OTP and signs the document.
 func (s *Service) VerifyDocumentSign(ctx context.Context, userID, documentID int64, code, ip, userAgent string) error {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil || st == nil {
@@ -229,9 +229,9 @@ func (s *Service) VerifyDocumentSign(ctx context.Context, userID, documentID int
 	return tx.Commit(ctx)
 }
 
-// ───────────────────────── پیام به کلاس ─────────────────────────
+// ───────────────────────── Message to class ─────────────────────────
 
-// MyClass کلاس استاد.
+// MyClass is the professor's class.
 type MyClass struct {
 	OfferingID int64  `json:"offeringId"`
 	TermTitle  string `json:"termTitle"`
@@ -239,7 +239,7 @@ type MyClass struct {
 	Enrolled   int    `json:"enrolled"`
 }
 
-// MyMsgRecord سابقهٔ پیام.
+// MyMsgRecord is a message record.
 type MyMsgRecord struct {
 	EventCode string  `json:"eventCode"`
 	SentAt    *string `json:"sentAt"`
@@ -247,7 +247,7 @@ type MyMsgRecord struct {
 	Total     int     `json:"total"`
 }
 
-// ClassMsgReport گزارش ارسال.
+// ClassMsgReport is the send report.
 type ClassMsgReport struct {
 	Total          int            `json:"total"`
 	Inbox          int            `json:"inbox"`
@@ -256,19 +256,19 @@ type ClassMsgReport struct {
 	FailedRequests int            `json:"failedRequests"`
 }
 
-// ChannelCount تعداد یک کانال.
+// ChannelCount is the count for one channel.
 type ChannelCount struct {
 	Channel string `json:"channel"`
 	N       int    `json:"n"`
 }
 
-// BroadcastResponse کلاس‌ها + سابقه.
+// BroadcastResponse is classes + records.
 type BroadcastResponse struct {
 	Classes []MyClass     `json:"classes"`
 	History []MyMsgRecord `json:"history"`
 }
 
-// GetBroadcast پورت getMyClasses + listMyClassMessages.
+// GetBroadcast ports getMyClasses + listMyClassMessages.
 func (s *Service) GetBroadcast(ctx context.Context, userID int64) (*BroadcastResponse, error) {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil {
@@ -338,7 +338,7 @@ func (s *Service) myClasses(ctx context.Context, staffID int64) ([]MyClass, erro
 		r.item.TermTitle = termTitle
 		list = append(list, r)
 	}
-	// فقط سه ترم آخر.
+	// Only the last three terms.
 	termIDs := []int64{}
 	seenTerm := map[int64]bool{}
 	for _, r := range list {
@@ -363,14 +363,14 @@ func (s *Service) myClasses(ctx context.Context, staffID int64) ([]MyClass, erro
 	return out, nil
 }
 
-// ClassMessageResult نتیجهٔ ارسال.
+// ClassMessageResult is the send result.
 type ClassMessageResult struct {
 	OK     bool            `json:"ok"`
 	Report *ClassMsgReport `json:"report,omitempty"`
 	Error  string          `json:"error,omitempty"`
 }
 
-// PreviewClass پورت previewMyClass.
+// PreviewClass ports previewMyClass.
 func (s *Service) PreviewClass(ctx context.Context, userID, offeringID int64) (int, error) {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil || st == nil {
@@ -387,7 +387,7 @@ func (s *Service) PreviewClass(ctx context.Context, userID, offeringID int64) (i
 
 var profSendable = map[string]bool{"INAPP": true, "SOROUSH": true, "BALE": true, "EITAA": true}
 
-// SendClassMessage پورت sendMyClassMessage (تحویل درون‌سامانه؛ کانال بیرونی فاز ۱۰).
+// SendClassMessage ports sendMyClassMessage (in-app delivery; external channel in phase 10).
 func (s *Service) SendClassMessage(ctx context.Context, userID, offeringID int64, channels []string, text string) ClassMessageResult {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil || st == nil {
@@ -460,7 +460,7 @@ func (s *Service) SendClassMessage(ctx context.Context, userID, offeringID int64
 		inbox++
 		for _, ch := range validChannels {
 			if ch != "INAPP" {
-				// کانال بیرونی: نشانی کاربر بررسی و در فاز ۱۰ ارسال می‌شود؛ اینجا SKIPPED ثبت می‌شود.
+				// External channel: the user's address is verified and sent in phase 10; recorded as SKIPPED here.
 				_, _ = s.DB.Pool.Exec(ctx, `
 					insert into notification_deliveries ("userId","notificationId","eventCode",channel,status,body)
 					values ($1,$2,$3,$4,'SKIPPED',$5)`, uid, notificationID, eventCode, ch, body)
@@ -481,9 +481,9 @@ func (s *Service) SendClassMessage(ctx context.Context, userID, offeringID int64
 	}}
 }
 
-// ───────────────────────── ساعات حضور ─────────────────────────
+// ───────────────────────── Availability ─────────────────────────
 
-// AvailabilityCell سلول ماتریس.
+// AvailabilityCell is a matrix cell.
 type AvailabilityCell struct {
 	DayIndex  int    `json:"dayIndex"`
 	SlotIndex int    `json:"slotIndex"`
@@ -498,7 +498,7 @@ var slotTimes = map[int][2]string{
 	6: {"17:30", "19:30"},
 }
 
-// AvailabilityResponse پاسخ ساعات حضور.
+// AvailabilityResponse is the availability response.
 type AvailabilityResponse struct {
 	Professor      ProfessorInfo      `json:"professor"`
 	Term           TermInfo           `json:"term"`
@@ -507,7 +507,7 @@ type AvailabilityResponse struct {
 	MaxWeeklyUnits float64            `json:"maxWeeklyUnits"`
 }
 
-// GetAvailability پورت loadAvailabilityAction.
+// GetAvailability ports loadAvailabilityAction.
 func (s *Service) GetAvailability(ctx context.Context, userID int64, cookie *int64) (*AvailabilityResponse, error) {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil {
@@ -573,7 +573,7 @@ func minInt(a, b int) int {
 	return b
 }
 
-// SaveAvailability پورت saveAvailabilityAction.
+// SaveAvailability ports saveAvailabilityAction.
 func (s *Service) SaveAvailability(ctx context.Context, userID, termID int64, cells []AvailabilityCell, notes string) error {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil || st == nil {

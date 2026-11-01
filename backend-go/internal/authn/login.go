@@ -91,7 +91,7 @@ func (s *Service) IssueSessionFor(ctx context.Context, w http.ResponseWriter, us
 	return u.MustChangePassword == 1, nil
 }
 
-// candidateSummaries holds display summaries for the «انتخاب حساب» page.
+// candidateSummaries holds display summaries for the "account selection" page.
 func (s *Service) candidateSummaries(ctx context.Context, ids []int64) ([]LoginCandidate, error) {
 	out := make([]LoginCandidate, 0, len(ids))
 	for _, id := range ids {
@@ -376,7 +376,7 @@ func (s *Service) ChooseLoginAccount(ctx context.Context, w http.ResponseWriter,
 
 	payload, ok, verr := s.Signer.Verify(ctx, token)
 	if !ok || verr != nil {
-		// Any signature/expiry error = «نشست انتخاب حساب منقضی شده» (same TS behavior)
+		// Any signature/expiry error = "account selection session expired" (same TS behavior)
 		return &SimpleResult{OK: false, Error: msgChooseSignedOut}, nil
 	}
 	uids := map[int64]bool{}

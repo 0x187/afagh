@@ -1,7 +1,7 @@
-// ═══ ابزار پول و اعداد — پورت lib/money.ts ═══
+// ═══ Money and number utilities — port of lib/money.ts ═══
 //
-// همهٔ محاسبات ریالی روی اعداد صحیح و با گردکردن به مضرب ۱۰ ریال؛
-// واحد درسی با مقیاس ۱۰۰ (۲ رقم اعشار) تا ضرب در ضرایب اعشاری دقیق بماند.
+// all rial computations on integers, rounded to a multiple of 10 rials;
+// course units at scale 100 (2 decimal places) so multiplication by decimal coefficients stays exact.
 package payroll
 
 import (
@@ -10,14 +10,14 @@ import (
 	"strings"
 )
 
-// UnitScale مقیاس اعداد صحیح برای واحد درسی.
+// UnitScale integer scale for course units.
 const UnitScale = 100
 
-// RialStep کوچک‌ترین واحد قابل پرداخت (۱۰ ریال = ۱ تومان).
+// RialStep smallest payable unit (10 rials = 1 toman).
 const RialStep = 10
 
-// MulberryRound گردکردن با حفظ علامت (پورت Math.sign×Math.round —
-// sign(0)=0 پس صفر ورودی خروجی صفر می‌دهد، نه NaN).
+// MulberryRound sign-preserving rounding (port of Math.sign×Math.round —
+// sign(0)=0, so zero input gives zero output, not NaN).
 func MulberryRound(value float64) float64 {
 	sign := 1.0
 	if value < 0 || (value == 0 && math.Signbit(value)) {
@@ -26,9 +26,9 @@ func MulberryRound(value float64) float64 {
 	return sign * math.Round(math.Abs(value))
 }
 
-// UnitsToInt مقدار اعشاری → واحد مقیاس‌شدهٔ صحیح (۲ رقم اعشار).
-// روی «رشتهٔ اعشاری دقیق» (۴ رقم) گرد می‌شود تا ۱.۰۰۵ → ۱۰۱ شود
-// (گردکردن نیمه‌به‌بالا، همان انتظار حسابدار).
+// UnitsToInt decimal value → scaled integer unit (2 decimal places).
+// rounded on the "exact decimal string" (4 digits) so that 1.005 → 101
+// (half-up rounding, same as the accountant's expectation).
 func UnitsToInt(value float64) int {
 	if math.IsNaN(value) || value < 0 {
 		return 0
@@ -49,12 +49,12 @@ func UnitsToInt(value float64) int {
 	return out
 }
 
-// IntToUnits واحد مقیاس‌شدهٔ صحیح → عدد اعشاری (numeric(6,2)).
+// IntToUnits scaled integer unit → decimal number (numeric(6,2)).
 func IntToUnits(value int) float64 {
 	return math.Round(float64(value)) / UnitScale
 }
 
-// ToRial گردکردن پول به مضرب ۱۰ ریال (تومان).
+// ToRial rounds money to a multiple of 10 rials (toman).
 func ToRial(value float64) float64 {
 	if math.IsNaN(value) || math.IsInf(value, 0) {
 		return 0
@@ -62,7 +62,7 @@ func ToRial(value float64) float64 {
 	return MulberryRound(value/RialStep) * RialStep
 }
 
-// PercentOf درصد (۰..۱۰۰) از یک عدد صحیح — گرد به نزدیک‌ترین.
+// PercentOf percentage (0..100) of an integer — rounded to nearest.
 func PercentOf(amountInt float64, percent float64) float64 {
 	if math.IsNaN(percent) {
 		return 0
@@ -70,7 +70,7 @@ func PercentOf(amountInt float64, percent float64) float64 {
 	return MulberryRound((amountInt * percent) / 100)
 }
 
-// RatioOf نسبت (صورت/مخرج) از یک عدد صحیح — برای کسر غیبت به تناسب جلسات.
+// RatioOf ratio (numerator/denominator) of an integer — for prorating absences by sessions.
 func RatioOf(amountInt float64, numerator, denominator float64) float64 {
 	if math.IsNaN(denominator) || denominator <= 0 {
 		return 0

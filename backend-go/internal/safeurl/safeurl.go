@@ -1,7 +1,7 @@
-// ═══ لینک امن برای href — پورت safe-url.ts ═══
+// ═══ Safe link for href — port of safe-url.ts ═══
 //
-// فقط مسیر نسبی تک‌اسلش (نه «//») یا https:// مجاز است؛ javascript:, data:,
-// http:, protocol-relative و هر کاراکتر کنترلی/بک‌اسلش رد می‌شوند.
+// Only a single-slash relative path (not '//') or https:// is allowed; javascript:, data:,
+// http:, protocol-relative, and any control character/backslash are rejected.
 package safeurl
 
 import (
@@ -12,7 +12,7 @@ import (
 var controlOrBackslash = regexp.MustCompile("[\x00-\x1f\x7f\\\\]")
 var httpsPattern = regexp.MustCompile(`(?i)^https://[^\s/?#]`)
 
-// IsSafeLinkURL پورت isSafeLinkUrl.
+// IsSafeLinkURL ports isSafeLinkUrl.
 func IsSafeLinkURL(s string) bool {
 	if controlOrBackslash.MatchString(s) {
 		return false

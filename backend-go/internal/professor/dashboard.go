@@ -1,4 +1,4 @@
-// ═══ داشبورد استاد — پورت professor/page.tsx ═══
+// ═══ Professor dashboard — port of professor/page.tsx ═══
 package professor
 
 import (
@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// ProfessorInfo اطلاعات نمایشی استاد.
+// ProfessorInfo professor display info.
 type ProfessorInfo struct {
 	ID              int64   `json:"id"`
 	Name            string  `json:"name"`
@@ -19,13 +19,13 @@ type ProfessorInfo struct {
 	UniversityLogo  *string `json:"universityLogo"`
 }
 
-// UniversityInfo عنوان/آرم.
+// UniversityInfo title/logo.
 type UniversityInfo struct {
 	Title   string  `json:"title"`
 	LogoURL *string `json:"logoUrl"`
 }
 
-// LiveSession جلسهٔ کلاس مجازی استاد.
+// LiveSession the professor's virtual class session.
 type LiveSession struct {
 	ID              int64  `json:"id"`
 	CourseTitle     string `json:"courseTitle"`
@@ -37,7 +37,7 @@ type LiveSession struct {
 	EndTime         string `json:"endTime"`
 }
 
-// ClassCard کارت کلاس داشبورد.
+// ClassCard dashboard class card.
 type ClassCard struct {
 	Key           string   `json:"key"`
 	OfferingID    int64    `json:"offeringId"`
@@ -55,7 +55,7 @@ type ClassCard struct {
 	MergedCodes   []string `json:"mergedCodes"`
 }
 
-// DashboardStats نوار وضعیت.
+// DashboardStats status bar.
 type DashboardStats struct {
 	ClassCount        int     `json:"classCount"`
 	AvailabilityCount int     `json:"availabilityCount"`
@@ -63,7 +63,7 @@ type DashboardStats struct {
 	GradeDeadline     *string `json:"gradeDeadline"`
 }
 
-// Dashboard پاسخ داشبورد.
+// Dashboard the dashboard response.
 type Dashboard struct {
 	Professor    ProfessorInfo  `json:"professor"`
 	Term         TermInfo       `json:"term"`
@@ -163,7 +163,7 @@ func groupIntoMerged(rows []ScheduleRow, keyOf func(ScheduleRow) string) []merge
 	return groups
 }
 
-// GetDashboard پورت ProfessorHome.
+// GetDashboard port of ProfessorHome.
 func (s *Service) GetDashboard(ctx context.Context, userID int64, cookie *int64) (*Dashboard, error) {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil {
@@ -187,7 +187,7 @@ func (s *Service) GetDashboard(ctx context.Context, userID int64, cookie *int64)
 	if err != nil {
 		return nil, err
 	}
-	// یک ردیف به ازای هر ارائه برای گروه‌بندی.
+	// One row per offering for grouping.
 	unique := []ScheduleRow{}
 	seen := map[int64]bool{}
 	slotsByID := map[int64][]slot{}
@@ -246,7 +246,7 @@ func (s *Service) GetDashboard(ctx context.Context, userID int64, cookie *int64)
 		})
 	}
 
-	// قرارداد و امضا.
+	// Contract and signing.
 	contractStatus := "NONE"
 	var contractID *int64
 	_ = s.DB.Pool.QueryRow(ctx, `
@@ -281,7 +281,7 @@ func (s *Service) GetDashboard(ctx context.Context, userID int64, cookie *int64)
 	}
 	dash.University = s.universityInfo(ctx, uniID)
 
-	// کلاس‌های مجازی استاد.
+	// Professor's virtual classes.
 	offeringIDs := []int64{}
 	for _, r := range rows {
 		offeringIDs = append(offeringIDs, r.ID)

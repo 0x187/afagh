@@ -1,4 +1,4 @@
-// ═══ Annual «سهام» report (IRPHE — saham.irphe.ac.ir) ═══
+// ═══ Annual "shares" report (IRPHE — saham.irphe.ac.ir) ═══
 //
 //	Port of admin/saham + lib/saham/*:
 //	  • University statistics and fill rate of the new Saham columns (page.tsx)
@@ -9,7 +9,7 @@
 //	  • Institute code settings (CRUD of saham_institute_codes — settings/actions.ts)
 //
 //	Deliberate deviation: the Next Excel export is replaced with CSV UTF-8 (BOM) — the Go backend
-//	has no xlsx library and Saham's «ستون‌های متنی» are preserved in CSV as well.
+//	has no xlsx library and Saham's "text columns" are preserved in CSV as well.
 package admin
 
 import (
@@ -55,8 +55,8 @@ var sahamStatusCode = map[string]string{
 // sahamNormFa normalizes Arabic and Persian yeh/kaf for comparison (port of normFa in codes.ts).
 func sahamNormFa(s string) string {
 	s = strings.NewReplacer(
-		"\u06CC", "\u064A", "\u0649", "\u064A", // ی ى → ي
-		"\u06A9", "\u0643", // ک → ك
+		"\u06CC", "\u064A", "\u0649", "\u064A", // Farsi yeh and alef maksura → Arabic yeh
+		"\u06A9", "\u0643", // Persian kaf → Arabic kaf
 		"\u200C", "", // ZWNJ (zero-width non-joiner)
 	).Replace(s)
 	return strings.Join(strings.Fields(s), " ")
@@ -241,7 +241,7 @@ func SahamBirthYear(iso *string) string {
 	return jalaliYearPrefix(m)
 }
 
-// jalaliYearPrefix four-digit Jalali year from the Gregorian year (approximation sufficient for the «سال تولد» column).
+// jalaliYearPrefix four-digit Jalali year from the Gregorian year (approximation sufficient for the "birth year" column).
 func jalaliYearPrefix(m []string) string {
 	if m == nil {
 		return ""
@@ -742,7 +742,7 @@ var SahamGraduateHeaders = []string{
 	"معدل کل", "جمع واحد گذرانده", "جمع واحد مردودی", "شناسه فراگیر اتباع خارجی",
 }
 
-// SahamMilitaryHeaders headers of the second sheet «وضعیت نظام وظیفه».
+// SahamMilitaryHeaders headers of the second sheet "military service status".
 var SahamMilitaryHeaders = []string{"شماره ملی", "شماره دانشجویی", "نام", "نام خانوادگی", "وضعیت نظام وظیفه"}
 
 // SahamInstructorHeaders official instructor headers — 37 columns.
@@ -1025,7 +1025,7 @@ func SahamInstructorRow(r SahamInstructor, maps map[string]map[string]string, co
 		orEmptyI(r.LastDegreeYear), orEmpty(r.LastDegreeCountry), orEmpty(r.LastDegreeUniversity),
 		str(maps, "employment_type", r.EmploymentType), str(maps, "service_type", r.CooperationType),
 		orEmpty(r.StaffType),
-		// «نوع هیات علمی» has no official list — intentionally left empty.
+		// "Faculty type" has no official list — intentionally left empty.
 		"", orEmpty(r.Title), orEmpty(r.HireDate), str(maps, "academic_rank", r.AcademicRank),
 		orEmpty(r.AcademicBase), hireYear, orEmpty(r.PersonnelNo), orEmpty(r.TeachUnits),
 		orEmpty(r.Mobile), orEmpty(r.Phone), orEmpty(r.Email), r.StaffCode,

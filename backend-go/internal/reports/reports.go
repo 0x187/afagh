@@ -1,9 +1,9 @@
-// ═══ مرکز گزارش‌های مالی — پورت admin/reports (مرکز مالی) ═══
+// ═══ Finance report center — port of admin/reports (finance center) ═══
 //
-// هفت گزارش مرکز مالی: شهریه/تراکنش، تعرفه، صورت‌حساب، کارتابل،
-// حق‌التدریس و دو گزارش BI. منطق هر گزارش عیناً از همان ماژول‌های
-// r-finance.ts / r-collect-external.ts / actions.ts گرفته شده تا اعداد
-// گزارش با کارتابل و کارنامهٔ مالی واگرا نشوند.
+// Seven finance center reports: tuition/transaction, tariff, invoice, workbasket,
+// teaching fees, and two BI reports. Each report's logic is taken verbatim from the same
+// r-finance.ts / r-collect-external.ts / actions.ts modules so that the report numbers
+// do not diverge from the workbasket and the financial statement.
 package reports
 
 import (
@@ -27,10 +27,10 @@ import (
 	"backend-go/internal/session"
 )
 
-// Per تعداد ردیف در هر صفحه (همان PER در report-helpers.ts).
+// Per is the row count per page (same as PER in report-helpers.ts).
 const Per = 50
 
-// FilterOptions گزینه‌های فیلتر مرکز گزارش.
+// FilterOptions is the report center filter options.
 type FilterOptions struct {
 	Terms        []TermOption       `json:"terms"`
 	Degrees      []DegreeOption     `json:"degrees"`
@@ -42,32 +42,32 @@ type FilterOptions struct {
 	Universities []UniversityOption `json:"universities"`
 }
 
-// TermOption گزینهٔ ترم.
+// TermOption is a term option.
 type TermOption struct {
 	Code  string  `json:"code"`
 	Title *string `json:"title"`
 }
 
-// DegreeOption گزینهٔ مقطع.
+// DegreeOption is a degree-level option.
 type DegreeOption struct {
 	ID    int64  `json:"id"`
 	Title string `json:"title"`
 }
 
-// NamedOption گزینهٔ نام‌دار.
+// NamedOption is a named option.
 type NamedOption struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
 }
 
-// NamedCodeOption گزینهٔ نام‌دار با کد.
+// NamedCodeOption is a named option with a code.
 type NamedCodeOption struct {
 	ID   int64   `json:"id"`
 	Name string  `json:"name"`
 	Code *string `json:"code"`
 }
 
-// UniversityOption گزینهٔ دانشگاه.
+// UniversityOption is a university option.
 type UniversityOption struct {
 	ID    int64  `json:"id"`
 	Code  string `json:"code"`
@@ -75,14 +75,14 @@ type UniversityOption struct {
 	Kind  string `json:"kind"`
 }
 
-// Column ستون گزارش.
+// Column is a report column.
 type Column struct {
 	Key    string `json:"key"`
 	Title  string `json:"title"`
 	Format string `json:"format,omitempty"`
 }
 
-// Result نتیجهٔ یک صفحهٔ گزارش.
+// Result is one report page result.
 type Result struct {
 	Columns    []Column         `json:"columns"`
 	Rows       []map[string]any `json:"rows"`
@@ -93,13 +93,13 @@ type Result struct {
 	Summary    string           `json:"summary,omitempty"`
 }
 
-// ExportResult خروجی CSV آمادهٔ کلاینت (عنوان‌ها و سطرهای قالب‌بندی‌شده).
+// ExportResult is the client-ready CSV output (formatted headers and rows).
 type ExportResult struct {
 	Header []string   `json:"header"`
 	Lines  [][]string `json:"lines"`
 }
 
-// Filters فیلترهای گزارش — همان فیلدهای ReportFilters در Next.
+// Filters is the report filters — same fields as ReportFilters in Next.
 type Filters struct {
 	Term          string  `json:"term"`
 	DegreeID      int64   `json:"degreeId"`
@@ -136,7 +136,7 @@ type Filters struct {
 	UniversityID  int64   `json:"universityId"`
 }
 
-// Service سرویس گزارش‌ها.
+// Service is the reports service.
 type Service struct {
 	Pool       *pgxpool.Pool
 	Finance    *admin.Service
@@ -145,12 +145,12 @@ type Service struct {
 	Graduation *graduation.Service
 }
 
-// New ساخت سرویس.
+// New constructs the service.
 func New(pool *pgxpool.Pool, financeSvc *admin.Service, payrollEngine *payroll.Engine, biSvc *bi.Service) *Service {
 	return &Service{Pool: pool, Finance: financeSvc, Payroll: payrollEngine, BI: biSvc}
 }
 
-// Options پورت getFilterOptions — تفکیک دانشگاه fail-closed.
+// Options ports getFilterOptions — university isolation is fail-closed.
 func (s *Service) Options(ctx context.Context, user *session.User, uniCookie string) (*FilterOptions, error) {
 	opts := &FilterOptions{
 		Terms: []TermOption{}, Degrees: []DegreeOption{}, Faculties: []NamedOption{},
@@ -234,7 +234,7 @@ func (s *Service) Options(ctx context.Context, user *session.User, uniCookie str
 	return opts, nil
 }
 
-// Run اجرای گزارش مرکز مالی.
+// Run executes a finance center report.
 func (s *Service) Run(ctx context.Context, user *session.User, uniCookie, kind string, f Filters) (*Result, error) {
 	empty := &Result{Columns: []Column{}, Rows: []map[string]any{}, Page: 1, Per: Per, TotalPages: 1}
 	uniID := s.Finance.UniversityID(ctx, user, uniCookie)
@@ -293,7 +293,7 @@ func (s *Service) Run(ctx context.Context, user *session.User, uniCookie, kind s
 	return empty, nil
 }
 
-// ─────────────────── studentWhere (پورت report-helpers) ───────────────────
+// ─────────────────── studentWhere (port of report-helpers) ───────────────────
 
 func studentWhere(f Filters, args *[]any) string {
 	add := func(v any) string {
@@ -358,15 +358,15 @@ func inList(args *[]any, values []string) string {
 	return strings.Join(parts, ", ")
 }
 
-// ─────────────────── صفحه‌بندی SQL ───────────────────
+// ─────────────────── SQL pagination ───────────────────
 
 func (s *Service) pagedQuery(ctx context.Context, selectCols, from, where, groupBy, orderBy string, args []any, page int) ([]map[string]any, int, int, error) {
 	return s.pagedQueryArgs(ctx, selectCols, from, where, groupBy, orderBy, args, args, page)
 }
 
-// pagedQueryArgs نسخهٔ جداشدهٔ count/data — گزارش‌هایی که در SELECT خود
-// پارامتر دارند (مثل IN نوع‌های دفتر) نباید آن پارامترها را به کوئری شمارش
-// بفرستند (Postgres: could not determine data type of parameter).
+// pagedQueryArgs is the separated count/data version — reports that have parameters
+// in their own SELECT (such as IN for record types) must not send those parameters to the count
+// query (Postgres: could not determine data type of parameter).
 func (s *Service) pagedQueryArgs(ctx context.Context, selectCols, from, where, groupBy, orderBy string, countArgs, dataArgs []any, page int) ([]map[string]any, int, int, error) {
 	grp := ""
 	if groupBy != "" {
@@ -459,7 +459,7 @@ func pageOf(columns []Column, all []map[string]any, page int, summary string) *R
 	return &Result{Columns: columns, Rows: rows, Total: total, Page: page, Per: Per, TotalPages: totalPages, Summary: summary}
 }
 
-// ─────────────────── ۱) گزارش شهریه / تراکنش مالی ───────────────────
+// ─────────────────── 1) Tuition / financial transaction report ───────────────────
 
 func (s *Service) runTuition(ctx context.Context, f Filters) (*Result, error) {
 	args := []any{}
@@ -468,8 +468,8 @@ func (s *Service) runTuition(ctx context.Context, f Filters) (*Result, error) {
 		args = append(args, f.Term)
 		conds = append(conds, `t."termCode" = $`+strconv.Itoa(len(args)))
 	}
-	// پارامترهای WHERE فقط تا این‌جا هستند؛ پارامترهای IN داخل SELECT نباید به
-	// کوئری شمارش بروند (وگرنه Postgres نوعشان را نمی‌تواند تعیین کند).
+	// WHERE parameters only go up to here; the IN parameters inside SELECT must not go
+	// to the count query (otherwise Postgres cannot determine their types).
 	whereArgs := append([]any{}, args...)
 	debtIn := inList(&args, finance.DebtLedgerTypes)
 	creditIn := inList(&args, finance.CreditLedgerTypes)
@@ -537,7 +537,7 @@ func numOf(v any) float64 {
 	return 0
 }
 
-// ─────────────────── ۲) تعرفهٔ تحصیلی ───────────────────
+// ─────────────────── 2) Tuition tariff ───────────────────
 
 func (s *Service) runTariff(ctx context.Context, f Filters) (*Result, error) {
 	args := []any{}
@@ -597,7 +597,7 @@ func addArg(args *[]any, v any) string {
 	return "$" + strconv.Itoa(len(*args))
 }
 
-// ─────────────────── ۳) صورت‌حساب شهریه دانشجو ───────────────────
+// ─────────────────── 3) Student tuition invoice ───────────────────
 
 func (s *Service) runStatement(ctx context.Context, f Filters) (*Result, error) {
 	args := []any{}
@@ -645,7 +645,7 @@ func (s *Service) runStatement(ctx context.Context, f Filters) (*Result, error) 
 	return &Result{Columns: columns, Rows: rows, Total: total, Page: clampPage(f.Page, totalPages), Per: Per, TotalPages: totalPages, Summary: summary}, nil
 }
 
-// ─────────────────── ۴) کارتابل مالی ───────────────────
+// ─────────────────── 4) Finance workbasket ───────────────────
 
 func (s *Service) runWorklist(ctx context.Context, user *session.User, uniCookie string, f Filters) (*Result, error) {
 	search := strings.TrimSpace(f.Q)
@@ -697,7 +697,7 @@ func (s *Service) runWorklist(ctx context.Context, user *session.User, uniCookie
 	return pageOf(columns, rows, f.Page, summary), nil
 }
 
-// ─────────────────── ۵) حق‌التدریس اساتید ───────────────────
+// ─────────────────── 5) Instructor teaching fees ───────────────────
 
 func (s *Service) runPayroll(ctx context.Context, f Filters) (*Result, error) {
 	var termID *int64
@@ -752,7 +752,7 @@ func (s *Service) runPayroll(ctx context.Context, f Filters) (*Result, error) {
 	return pageOf(columns, rows, f.Page, summary), nil
 }
 
-// ─────────────────── ۶) کیفیت تدریس (BI) ───────────────────
+// ─────────────────── 6) Teaching quality (BI) ───────────────────
 
 func (s *Service) runBITeaching(ctx context.Context, f Filters) (*Result, error) {
 	ov := s.BI.ManagementOverview(ctx)
@@ -796,7 +796,7 @@ func (s *Service) runBITeaching(ctx context.Context, f Filters) (*Result, error)
 	return pageOf(columns, rows, f.Page, summary), nil
 }
 
-// ─────────────────── ۷) امکانات کلاس‌ها (BI) ───────────────────
+// ─────────────────── 7) Class facilities (BI) ───────────────────
 
 func (s *Service) runBIFacilities(ctx context.Context, f Filters) (*Result, error) {
 	rep := s.BI.FacilitiesReport(ctx)
@@ -832,9 +832,9 @@ func (s *Service) runBIFacilities(ctx context.Context, f Filters) (*Result, erro
 	return pageOf(columns, rows, f.Page, summary), nil
 }
 
-// ─────────────────── خروجی CSV ───────────────────
+// ─────────────────── CSV output ───────────────────
 
-// Export پورت exportReport — ورق‌زدن همهٔ صفحات تا سقف ۵۰۰۰ ردیف.
+// Export ports exportReport — pages through all pages up to a cap of 5000 rows.
 func (s *Service) Export(ctx context.Context, user *session.User, uniCookie, kind string, f Filters) (*ExportResult, error) {
 	first, err := s.Run(ctx, user, uniCookie, kind, Filters{
 		Term: f.Term, DegreeID: f.DegreeID, FacultyID: f.FacultyID, DepartmentID: f.DepartmentID,
@@ -872,7 +872,7 @@ func (s *Service) Export(ctx context.Context, user *session.User, uniCookie, kin
 	return &ExportResult{Header: header, Lines: lines}, nil
 }
 
-// CSVGuard باگ تزریق فرمول: مقادیر شروع‌شونده با = + - @ | تب/CR.
+// CSVGuard prevents formula injection: values starting with = + - @ | tab/CR.
 func csvGuard(v string) string {
 	trimmed := strings.TrimLeft(v, " \t")
 	if trimmed != "" && strings.ContainsRune("=+-@|\t\r", rune(trimmed[0])) {
@@ -881,9 +881,9 @@ func csvGuard(v string) string {
 	return v
 }
 
-// ─────────────────── قالب‌بندی سلول ───────────────────
+// ─────────────────── Cell formatting ───────────────────
 
-// FormatCell پورت formatReportCell — هیچ تاریخ میلادی/مبلغ بی‌جداکننده.
+// FormatCell ports formatReportCell — no Gregorian dates, no amounts without separators.
 func FormatCell(value any, format string) string {
 	switch p := value.(type) {
 	case nil:
@@ -935,7 +935,7 @@ func jalaliSmart(value any, withTime bool) string {
 	if raw == "" {
 		return "—"
 	}
-	// از قبل شمسی؟
+	// Already Jalali?
 	if len(raw) >= 8 && (strings.HasPrefix(raw, "13") || strings.HasPrefix(raw, "14")) {
 		sep := strings.IndexAny(raw, "/-")
 		if sep > 0 {
@@ -955,7 +955,7 @@ func jalaliSmart(value any, withTime bool) string {
 	return jalali.FaDigits(raw)
 }
 
-// faNumInt ارقام فارسی با جداکنندهٔ هزارگان (همان toLocaleString en-US سپس faDigits).
+// faNumInt renders Persian digits with thousands separators (same as toLocaleString en-US then faDigits).
 func faNumInt(v int64) string {
 	neg := v < 0
 	if neg {
@@ -980,7 +980,7 @@ func trimNum(v float64) string {
 	return strconv.FormatFloat(v, 'f', -1, 64)
 }
 
-// StudentsPicker فهرست دانشجویان انتخاب‌گر صورت‌حساب (limit 500).
+// StudentsPicker is the invoice picker's student list (limit 500).
 func (s *Service) StudentsPicker(ctx context.Context, user *session.User, uniCookie string) ([]map[string]any, error) {
 	list, err := s.Finance.ListFinanceStudentsFiltered(ctx, user, uniCookie, admin.FinanceListFilters{Limit: 500})
 	if err != nil {

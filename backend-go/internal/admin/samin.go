@@ -1,4 +1,4 @@
-// ═══ «ثمین» hub — sending student data to the Organization for Student Affairs ═══
+// ═══ "Samin" hub — sending student data to the Organization for Student Affairs ═══
 //
 //	Port of admin/samin + lib/samin/*:
 //	  • crypto.ts → AES-256-GCM encryption with the v1:iv:tag:data envelope (like pii);
@@ -846,7 +846,7 @@ func traceAsInt64(res map[string]any) any {
 	return nil
 }
 
-// SaminSendSampleGraduates sends a «نمونه» — a few specific graduates (port of sendSampleGraduatesToSamin).
+// SaminSendSampleGraduates sends a "sample" — a few specific graduates (port of sendSampleGraduatesToSamin).
 func (s *Service) SaminSendSampleGraduates(ctx context.Context, universityID int64, count int) (map[string]any, error) {
 	if count < 1 {
 		count = 2

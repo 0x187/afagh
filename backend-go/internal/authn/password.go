@@ -2,7 +2,7 @@
 //
 // Storage format (phase zero): «salt:hash» hex — 16-byte random salt, keyLen 32,
 // r=8, p=1 — parameters compatible with Node crypto.scrypt. Constant-time comparison and
-// a dummy «000…:000…» hash for constant-time padding on the «کاربر یافت نشد» path.
+// a dummy "000…:000…" hash for constant-time padding on the "user not found" path.
 package authn
 
 import (
@@ -29,7 +29,7 @@ const scryptNFloor = 16384
 
 // resolveScryptN is a port of the SCRYPT_N_RAW logic in auth.ts:
 //   - an invalid value (non-numeric/non-integer/below floor) in production ⇒ fail-closed error
-//     («سامانه بالا نمی‌آید») — in TS this error is thrown at module load and
+//     ("the system does not start") — in TS this error is thrown at module load and
 //     the service does not come up; in Go, where a package cannot kill the process, the error
 //     is returned on the first hash/verify use and auth paths stay closed.
 //   - the same invalid value in non-production ⇒ warning and fallback to the floor 16384.
@@ -65,7 +65,7 @@ func scryptKey(password, saltHex string) ([]byte, error) {
 const scryptKeyLen = 32
 
 // DUMMY_PASSWORD_HASH is a dummy hash with a valid format (32 zeros : 64 zeros) — only for
-// constant-time padding on the «کاربر یافت نشد» path; we never build a real hash with it.
+// constant-time padding on the "user not found" path; we never build a real hash with it.
 const DUMMY_PASSWORD_HASH = "00000000000000000000000000000000:0000000000000000000000000000000000000000000000000000000000000000"
 
 // VerifyPassword is a line-by-line port of verifyPassword:

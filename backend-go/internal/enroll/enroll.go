@@ -35,7 +35,7 @@ type StudentScope struct {
 	EntryYear     int
 }
 
-// OfferingVisible port of offeringVisible: NULL means «بدون محدودیت».
+// OfferingVisible port of offeringVisible: NULL means "no restriction".
 func OfferingVisible(o Targeting, s StudentScope) bool {
 	if o.TargetDegreeLevelID != nil && (s.DegreeLevelID == nil || *o.TargetDegreeLevelID != *s.DegreeLevelID) {
 		return false

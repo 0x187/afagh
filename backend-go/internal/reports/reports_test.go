@@ -21,12 +21,12 @@ func TestFormatCellMoneyAndNumber(t *testing.T) {
 }
 
 func TestFormatCellJalali(t *testing.T) {
-	// تاریخ میلادی باید شمسی شود.
+	// Gregorian date must be converted to Jalali.
 	ts := time.Date(2026, 10, 30, 12, 0, 0, 0, time.UTC)
 	if got := FormatCell(ts.Format(time.RFC3339), "DATE"); got != "۱۴۰۵/۰۸/۰۸" {
 		t.Fatalf("date = %q", got)
 	}
-	// تاریخ از قبل شمسی دست‌نخورده (با ارقام فارسی) می‌ماند.
+	// A date that is already Jalali stays untouched (with Persian digits).
 	if got := FormatCell("1405/08/08", "DATE"); got != "۱۴۰۵/۰۸/۰۸" {
 		t.Fatalf("jalali passthrough = %q", got)
 	}

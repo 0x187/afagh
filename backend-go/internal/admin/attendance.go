@@ -331,7 +331,7 @@ func (s *Service) GetControl(ctx context.Context, user *session.User, uniCookie 
 	return resp, nil
 }
 
-// RecordClassPresence records «تشکیل کلاس» by the controller on the session and merged members.
+// RecordClassPresence records "class held" by the controller on the session and merged members.
 func (s *Service) RecordClassPresence(ctx context.Context, user *session.User, sessionID int64) error {
 	ids, _, err := s.decideMembers(ctx, sessionID)
 	if err != nil {

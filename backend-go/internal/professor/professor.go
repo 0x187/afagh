@@ -1,4 +1,4 @@
-// ═══ سرویس پورتال استاد (فاز ۴) ═══
+// ═══ Professor portal service (phase 4) ═══
 package professor
 
 import (
@@ -12,14 +12,14 @@ import (
 	"backend-go/internal/scope"
 )
 
-// Settings حداقل تنظیمات.
+// Settings holds the minimal settings.
 type Settings interface {
 	Get(ctx context.Context, key string) (string, error)
 	GetNumber(ctx context.Context, key string, fallback float64) float64
 	GetBool(ctx context.Context, key string) bool
 }
 
-// Service سرویس استاد.
+// Service is the professor service.
 type Service struct {
 	DB         *db.DB
 	Settings   Settings
@@ -32,7 +32,7 @@ func New(database *db.DB, settings Settings, scopeSvc *scope.Service) *Service {
 	return &Service{DB: database, Settings: settings, Scope: scopeSvc}
 }
 
-// Staff پروندهٔ هیئت علمی.
+// Staff is the faculty record.
 type Staff struct {
 	ID              int64
 	UserID          int64
@@ -46,7 +46,7 @@ type Staff struct {
 	Name            string
 }
 
-// ResolveStaff پورت getStaffByUser.
+// ResolveStaff ports getStaffByUser.
 func (s *Service) ResolveStaff(ctx context.Context, userID int64) (*Staff, error) {
 	var st Staff
 	err := s.DB.Pool.QueryRow(ctx, `
@@ -64,7 +64,7 @@ func (s *Service) ResolveStaff(ctx context.Context, userID int64) (*Staff, error
 	return &st, nil
 }
 
-// TermInfo ترم فعال.
+// TermInfo is the active term.
 type TermInfo struct {
 	ID            *int64  `json:"id"`
 	Title         string  `json:"title"`
@@ -72,7 +72,7 @@ type TermInfo struct {
 	GradeDeadline *string `json:"gradeEntryDeadline"`
 }
 
-// ResolveTerm پورت professorTermFilter: ترم انتخابی کوکی، وگرنه ترم مؤثر.
+// ResolveTerm ports professorTermFilter: cookie-selected term, otherwise the effective term.
 func (s *Service) ResolveTerm(ctx context.Context, universityID *int64, cookie *int64) TermInfo {
 	selection := s.Scope.GetTermScope(ctx, universityID, cookie)
 	termID := selection.EffectiveID
@@ -90,7 +90,7 @@ func (s *Service) ResolveTerm(ctx context.Context, universityID *int64, cookie *
 	return info
 }
 
-// ownedOfferings شرط ارائه‌های استاد (مدرس اصلی یا عضو درس مشترک).
+// ownedOfferings is the condition for the professor's offerings (lead instructor or shared-course member).
 func (s *Service) ownedOfferings(ctx context.Context, staffID, termID int64, universityID *int64) ([]int64, error) {
 	q := `select o.id from course_offerings o
 	       where o."termId" = $1 and (o."professorId" = $2 or exists (
@@ -115,7 +115,7 @@ func (s *Service) ownedOfferings(ctx context.Context, staffID, termID int64, uni
 	return out, rows.Err()
 }
 
-// ScheduleRow ردیف برنامهٔ استاد.
+// ScheduleRow is a professor schedule row.
 type ScheduleRow struct {
 	ID            int64   `json:"id"`
 	Code          string  `json:"code"`
@@ -171,7 +171,7 @@ func clock5(v string) string {
 	return v
 }
 
-// ScheduleRows پورت professorScheduleRows.
+// ScheduleRows ports professorScheduleRows.
 func (s *Service) ScheduleRows(ctx context.Context, staffID, termID int64, universityID *int64) ([]ScheduleRow, error) {
 	ids, err := s.ownedOfferings(ctx, staffID, termID, universityID)
 	if err != nil || len(ids) == 0 {
@@ -192,7 +192,7 @@ func (s *Service) ScheduleRows(ctx context.Context, staffID, termID int64, unive
 	}
 	defer rows.Close()
 
-	// همکاران درس مشترک.
+	// Shared-course co-instructors.
 	partners := s.coTaughtPartners(ctx, ids)
 
 	seen := map[string]bool{}
@@ -223,7 +223,7 @@ func (s *Service) ScheduleRows(ctx context.Context, staffID, termID int64, unive
 			continue
 		}
 		seen[key] = true
-		// جلسات امتحان در برنامهٔ هفتگی تدریس نمایش داده نمی‌شوند.
+		// Exam sessions are not shown in the weekly teaching schedule.
 		if scheduleType != nil && strings.ToUpper(*scheduleType) == "EXAM" {
 			continue
 		}

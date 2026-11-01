@@ -1,4 +1,4 @@
-// ═══ نسخه‌های آیین‌نامهٔ حق‌التدریس — پورت payroll/regulations ═══
+// ═══ Teaching-fee regulation versions — port of payroll/regulations ═══
 package payroll
 
 import (
@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// RegulationVersion نسخهٔ آیین‌نامه.
+// RegulationVersion regulation version.
 type RegulationVersion struct {
 	ID          int64    `json:"id"`
 	Code        string   `json:"code"`
@@ -18,7 +18,7 @@ type RegulationVersion struct {
 	CreatedAt   *string  `json:"createdAt"`
 }
 
-// ListRegulations فهرست نسخه‌ها.
+// ListRegulations list of versions.
 func (e *Engine) ListRegulations(ctx context.Context, universityID *int64) ([]RegulationVersion, error) {
 	args := []any{}
 	where := ""
@@ -45,7 +45,7 @@ func (e *Engine) ListRegulations(ctx context.Context, universityID *int64) ([]Re
 	return out, nil
 }
 
-// CreateRegulation ساخت نسخه (کد یکتا).
+// CreateRegulation create a version (unique code).
 func (e *Engine) CreateRegulation(ctx context.Context, universityID *int64, code, title string, year *int, description *string, createdBy int64) (int64, error) {
 	code = strings.TrimSpace(code)
 	title = strings.TrimSpace(title)
@@ -67,7 +67,7 @@ func (e *Engine) CreateRegulation(ctx context.Context, universityID *int64, code
 	return id, nil
 }
 
-// ActivateRegulation فعال‌سازی: فقط یک نسخه فعال در هر دانشگاه.
+// ActivateRegulation activation: only one active version per university.
 func (e *Engine) ActivateRegulation(ctx context.Context, universityID *int64, id int64) error {
 	tx, err := e.Pool.Begin(ctx)
 	if err != nil {
@@ -93,7 +93,7 @@ func (e *Engine) ActivateRegulation(ctx context.Context, universityID *int64, id
 	return tx.Commit(ctx)
 }
 
-// DeleteRegulation حذف نسخهٔ غیرفعال.
+// DeleteRegulation delete an inactive version.
 func (e *Engine) DeleteRegulation(ctx context.Context, id int64) error {
 	var active *int
 	if err := e.Pool.QueryRow(ctx, `select "isActive" from payroll_regulation_versions where id = $1`, id).Scan(&active); err != nil {

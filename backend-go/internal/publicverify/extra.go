@@ -1,4 +1,4 @@
-// ═══ استعلام کارت دانشجویی، مدرک و گواهینامهٔ دورهٔ آزاد ═══
+// ═══ Student card, degree and open-course certificate verification ═══
 package publicverify
 
 import (
@@ -16,7 +16,7 @@ import (
 	"backend-go/internal/jalali"
 )
 
-// StudentCardVerdict نتیجهٔ استعلام کارت دانشجویی.
+// StudentCardVerdict is the student card verification result.
 type StudentCardVerdict struct {
 	Verdict      string   `json:"verdict"` // VALID | REVOKED | LOST | EXPIRED | INACTIVE | BLOCKED | NOT_FOUND
 	Allowed      bool     `json:"allowed"`
@@ -35,7 +35,7 @@ type StudentCardVerdict struct {
 	ExpiresAt    *string  `json:"expiresAt"`
 }
 
-// VerifyStudentCard پورت verifyStudentCard (توکن خام کارت — نه T1).
+// VerifyStudentCard ports verifyStudentCard (raw card token — not T1).
 func (s *Service) VerifyStudentCard(ctx context.Context, rawToken string) *StudentCardVerdict {
 	token := strings.TrimSpace(rawToken)
 	out := &StudentCardVerdict{Verdict: "NOT_FOUND", Reason: "کارتی با این شناسه در سامانه ثبت نشده است."}
@@ -67,7 +67,7 @@ func (s *Service) VerifyStudentCard(ctx context.Context, rawToken string) *Stude
 		return out
 	}
 
-	// بدهی از تراز کانونی دفتر مالی.
+	// Debt comes from the finance office's central balance.
 	debt := 0.0
 	rows, err := s.Pool.Query(ctx, `select "transactionType", amount::float8 from student_ledger where "studentId" = $1`, studentID)
 	if err == nil {
@@ -130,7 +130,7 @@ func faNumber(v float64) string {
 	return jalali.FaDigits(fmt.Sprintf("%d", int64(v)))
 }
 
-// DegreeVerdict نتیجهٔ استعلام مدرک.
+// DegreeVerdict is the degree verification result.
 type DegreeVerdict struct {
 	Found       bool            `json:"found"`
 	Valid       bool            `json:"valid"`
@@ -143,7 +143,7 @@ type DegreeVerdict struct {
 	Snapshot    json.RawMessage `json:"snapshot"`
 }
 
-// VerifyDegree پورت verifyDegree — بازمحاسبهٔ هش سند با canonical JSON.
+// VerifyDegree ports verifyDegree — recomputes the document hash with canonical JSON.
 func (s *Service) VerifyDegree(ctx context.Context, rawCode string) *DegreeVerdict {
 	code := strings.ToUpper(strings.TrimSpace(rawCode))
 	out := &DegreeVerdict{}
@@ -185,7 +185,7 @@ func (s *Service) VerifyDegree(ctx context.Context, rawCode string) *DegreeVerdi
 	return out
 }
 
-// canonicalJSON پورت canonical: کلیدهای شیء مرتب، بدون فاصله، بدون escape HTML.
+// canonicalJSON ports canonical: sorted object keys, no whitespace, no HTML escaping.
 func canonicalJSON(raw []byte) (string, error) {
 	var v any
 	dec := json.NewDecoder(bytes.NewReader(raw))
@@ -202,7 +202,7 @@ func canonicalJSON(raw []byte) (string, error) {
 	return strings.TrimRight(buf.String(), "\n"), nil
 }
 
-// CertificateVerdict نتیجهٔ استعلام گواهینامهٔ دورهٔ آزاد.
+// CertificateVerdict is the open-course certificate verification result.
 type CertificateVerdict struct {
 	Verdict           string  `json:"verdict"` // VALID | REVOKED | TAMPERED | NOT_FOUND
 	CertificateNumber string  `json:"certificateNumber"`
@@ -234,7 +234,7 @@ func gradeLabel(v float64) string {
 	}
 }
 
-// VerifyCertificate پورت verifyCertificate — اثر انگشت sha256(شماره|یادگیرنده|دوره|نمره|ساعت|تاریخ).
+// VerifyCertificate ports verifyCertificate — fingerprint sha256(number|learner|course|score|hours|date).
 func (s *Service) VerifyCertificate(ctx context.Context, rawCode string) *CertificateVerdict {
 	code := strings.ToUpper(strings.TrimSpace(rawCode))
 	out := &CertificateVerdict{Verdict: "NOT_FOUND", Message: "گواهینامه‌ای با این شماره در سوابق یافت نشد."}

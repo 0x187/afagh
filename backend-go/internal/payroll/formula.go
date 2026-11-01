@@ -202,7 +202,7 @@ func (p *parser) factor() (float64, error) {
 	return 0, fmt.Errorf("ساختار نامعتبر در فرمول")
 }
 
-// ValidateFormula اعتبارسنجی هنگام ذخیره — خطا به‌صورت پیام فارسی.
+// ValidateFormula validation at save time — the error is returned as a Persian message.
 func ValidateFormula(src string) string {
 	if strings.TrimSpace(src) == "" {
 		return "فرمول خالی است"
@@ -228,7 +228,7 @@ func ValidateFormula(src string) string {
 	return ""
 }
 
-// EvalFormula محاسبه — فرض: فرمول قبلاً اعتبارسنجی شده؛ خطا = fail-closed.
+// EvalFormula evaluation — assumes the formula was validated earlier; error = fail-closed.
 func EvalFormula(src string, vars FormulaVars) (float64, error) {
 	toks, err := tokenize(src)
 	if err != nil {
@@ -248,7 +248,7 @@ func EvalFormula(src string, vars FormulaVars) (float64, error) {
 	return v, nil
 }
 
-// FormulaVarHelp راهنمای متغیرها برای نمایش در فرم.
+// FormulaVarHelp variable guide for display in the form.
 var FormulaVarHelp = []struct{ V, Fa, Old string }{
 	{"TH", "ساعت نظری هفتگی", "N"},
 	{"PH", "ساعت عملی هفتگی (واحد×۲)", "A"},

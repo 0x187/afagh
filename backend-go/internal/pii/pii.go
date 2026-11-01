@@ -1,15 +1,15 @@
-// ═══ رمزنگاری داده‌های هویتی (PII) — پورت pii.ts ═══
+// ═══ Identity data (PII) encryption — port of pii.ts ═══
 //
-// دو ستون برای کد ملی:
-//   - شاخص کور (HMAC-SHA256، برگشت‌ناپذیر) برای جست‌وجوی برابری
-//   - متن رمزشده (AES-256-GCM) برای نمایش به کاربر مجاز
+// two columns for the national ID:
+//   - blind index (HMAC-SHA256, irreversible) for equality search
+//   - ciphertext (AES-256-GCM) for display to an authorized user
 //
-// پاکت عیناً samin/crypto.ts و سامانهٔ فعلی: `v1:<ivHex>:<tagHex>:<dataHex>`
-// با IV ۱۲ بایتی، tag ۱۶ بایتی و همهٔ اجزا hex. کلید:
-//   - ۶۴ کاراکتر hex → همان ۳۲ بایت AES-256
-//   - هر چیز دیگر → scrypt (N=16384,r=8,p=1) با نمک ثابت afagh:pii:v1
+// envelope identical to samin/crypto.ts and the current system: `v1:<ivHex>:<tagHex>:<dataHex>`
+// with a 12-byte IV, a 16-byte tag, and all parts hex. Key:
+//   - 64 hex chars → the same 32 bytes of AES-256
+//   - anything else → scrypt (N=16384,r=8,p=1) with fixed salt afagh:pii:v1
 //
-// در production نبودِ AFAGH_PII_KEY خطاست (fail-closed)؛ در توسعه کلید عمومی.
+// in production a missing AFAGH_PII_KEY is an error (fail-closed); in development the key is public.
 package pii
 
 import (
@@ -30,9 +30,9 @@ import (
 )
 
 const (
-	// KeyEnv نام متغیر کلید اصلی.
+	// KeyEnv name of the primary key variable.
 	KeyEnv = "AFAGH_PII_KEY"
-	// KeyPreviousEnv نام متغیر کلید قبلی (گردش کلید).
+	// KeyPreviousEnv name of the previous key variable (key rotation).
 	KeyPreviousEnv = "AFAGH_PII_KEY_PREVIOUS"
 
 	envelopeVersion = "v1"
@@ -51,12 +51,12 @@ var (
 	dashRun  = regexp.MustCompile(`[‐‑‒–—―−-]`)
 )
 
-// production آیا محیط تولید است؟ (همان NODE_ENV)
+// production whether this is the production environment? (same as NODE_ENV)
 func production() bool {
 	return strings.TrimSpace(os.Getenv("NODE_ENV")) == "production"
 }
 
-// deriveKey پورت deriveKey: hex64 → بایت‌های خام؛ وگرنه scrypt با نمک ثابت.
+// deriveKey port of deriveKey: hex64 → raw bytes; otherwise scrypt with fixed salt.
 func deriveKey(raw string) ([]byte, error) {
 	value := strings.TrimSpace(raw)
 	if hex64.MatchString(value) {
@@ -73,7 +73,7 @@ func keyFromEnv(name string) ([]byte, error) {
 	return deriveKey(raw)
 }
 
-// Key کلید اصلی PII — صفر/خطا در production بدون کلید (fail-closed).
+// Key the primary PII key — zero value/error in production without a key (fail-closed).
 func Key() ([]byte, error) {
 	key, err := keyFromEnv(KeyEnv)
 	if err != nil {
@@ -88,13 +88,13 @@ func Key() ([]byte, error) {
 	return deriveKey(devFallback)
 }
 
-// KeyPrevious کلید قبلی (اختیاری) — نبودش خطا نیست.
+// KeyPrevious the previous key (optional) — its absence is not an error.
 func KeyPrevious() ([]byte, error) {
 	return keyFromEnv(KeyPreviousEnv)
 }
 
-// NormalizePiiValue پورت normalizePiiValue: ارقام → لاتین، حذف فاصله/کنترل‌های
-// جهت‌دهی/خط تیره‌ها و trim.
+// NormalizePiiValue port of normalizePiiValue: digits → Latin, strip spaces/directional
+// controls/hyphens and trim.
 func NormalizePiiValue(value string) string {
 	s := fa.ToEnDigits(value)
 	s = spaceRun.ReplaceAllString(s, "")
@@ -102,7 +102,7 @@ func NormalizePiiValue(value string) string {
 	return strings.TrimSpace(s)
 }
 
-// IsPiiCiphertext آیا پاکت نسخهٔ فعلی است؟
+// IsPiiCiphertext is this the current envelope version?
 func IsPiiCiphertext(value string) bool {
 	parts := strings.Split(value, ":")
 	if len(parts) != 4 || parts[0] != envelopeVersion {
@@ -112,7 +112,7 @@ func IsPiiCiphertext(value string) bool {
 	return hex24.MatchString(iv) && hex32.MatchString(tag) && hexAny.MatchString(data) && len(data)%2 == 0
 }
 
-// EncryptPii پورت encryptPii — IV تصادفی؛ خروجی v1:iv:tag:data.
+// EncryptPii port of encryptPii — random IV; output v1:iv:tag:data.
 func EncryptPii(plain string) (string, error) {
 	if plain == "" {
 		return "", nil
@@ -128,7 +128,7 @@ func EncryptPii(plain string) (string, error) {
 	return encryptWith(key, iv, []byte(plain))
 }
 
-// encryptWith رمزگذاری با IV مشخص (برای تست پارتی).
+// encryptWith encrypts with a given IV (for party tests).
 func encryptWith(key, iv, plain []byte) (string, error) {
 	block, err := aes.NewCipher(key)
 	if err != nil {
@@ -177,8 +177,8 @@ func decryptWithKey(ivHex, tagHex, dataHex string, key []byte) (string, error) {
 	return string(plain), nil
 }
 
-// DecryptPii پورت decryptPii — ابتدا کلید جاری، سپس کلید قبلی.
-// هیچ ناسازگاری‌ای متن ساده برنمی‌گرداند (fail-closed).
+// DecryptPii port of decryptPii — current key first, then the previous key.
+// any inconsistency returns no plaintext (fail-closed).
 func DecryptPii(cipherText string) (string, error) {
 	if cipherText == "" {
 		return "", nil
@@ -208,8 +208,8 @@ func DecryptPii(cipherText string) (string, error) {
 
 func equalBytes(a, b []byte) bool { return hmac.Equal(a, b) }
 
-// BlindIndex پورت blindIndex: HMAC-SHA256 با کلید فرعی دامنه‌جدا.
-// پیام: `v1|<context>|<مقدار نرمال‌شده>`.
+// BlindIndex port of blindIndex: HMAC-SHA256 with a domain-separated subkey.
+// message: `v1|<context>|<normalized value>`.
 func BlindIndex(value, context string) (string, error) {
 	normalized := NormalizePiiValue(value)
 	ctx := strings.TrimSpace(context)
@@ -232,7 +232,7 @@ func BlindIndex(value, context string) (string, error) {
 	return hex.EncodeToString(mac2.Sum(nil)), nil
 }
 
-// MaskPii پورت maskPii: ۳ رقم اول + ۵ ستاره + ۲ رقم آخر (طول ثابت).
+// MaskPii port of maskPii: first 3 digits + 5 stars + last 2 digits (fixed length).
 func MaskPii(value string) string {
 	c := strings.TrimSpace(value)
 	if c == "" {

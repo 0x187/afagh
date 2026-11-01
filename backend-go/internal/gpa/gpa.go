@@ -1,12 +1,12 @@
 // ═══ Pure GPA core — port of gpa-aggregation.ts ═══
 //
-// a single source of truth for both engines: «معدل رسمی» (regulations) and the
-// «معدل دروازهٔ فارغ‌التحصیلی». Sums are performed on scaled integers:
+// a single source of truth for both engines: "official GPA" (regulations) and the
+// "graduation-gate GPA". Sums are performed on scaled integers:
 //
 //	weighted = Σ (grade×100) × (units×10)
 //	units    = Σ (units×10)
 //
-// the «نمرهٔ ردیف به معدل می‌آید یا نه» rule comes from gradestatus.RowCountsTowardGpa.
+// the "whether the row's grade counts toward the GPA" rule comes from gradestatus.RowCountsTowardGpa.
 package gpa
 
 import (
@@ -22,7 +22,7 @@ const (
 	unitScale  = 10  // units: one decimal place
 )
 
-// ParseGrade port of parseGrade: empty/non-numeric → nil (meaning «نمره‌ای ثبت نشده»).
+// ParseGrade port of parseGrade: empty/non-numeric → nil (meaning "no grade recorded").
 func ParseGrade(value any) *float64 {
 	if value == nil {
 		return nil

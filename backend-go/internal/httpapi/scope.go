@@ -159,7 +159,7 @@ func (a *ScopeAPI) setUniversity(c *gin.Context) {
 }
 
 type setTermBody struct {
-	TermID *int64 `json:"termId"` // null/0 = «همهٔ نیمسال‌ها» (clear the cookie)
+	TermID *int64 `json:"termId"` // null/0 = "all semesters" (clear the cookie)
 }
 
 // setTerm port of POST /api/scope/term.
@@ -182,7 +182,7 @@ func (a *ScopeAPI) setTerm(c *gin.Context) {
 	}
 
 	if body.TermID == nil || *body.TermID <= 0 {
-		// «همهٔ نیمسال‌ها» = clear the cookie
+		// "all semesters" = clear the cookie
 		c.SetCookie(scope.TermCookie, "", -1, "/", "", a.secureCookie(), true)
 		c.JSON(http.StatusOK, gin.H{"ok": true, "termId": nil})
 		return

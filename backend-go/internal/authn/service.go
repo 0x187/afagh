@@ -317,7 +317,7 @@ func (s *Service) SwitchAccount(ctx context.Context, w http.ResponseWriter, kind
 	return &SimpleResult{OK: true, MustChange: mustChange}, nil
 }
 
-// SiblingAccount is a same-person account for the «مشاهده با کد دیگر» banner.
+// SiblingAccount is a same-person account for the "viewed with another code" banner.
 type SiblingAccount struct {
 	Kind            string  `json:"kind"` // staff | student
 	Code            string  `json:"code"`

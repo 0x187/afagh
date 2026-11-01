@@ -1,10 +1,10 @@
-// ═══ Rate-Limit سراسری — پورت وفادار از src/lib/rateLimit.ts ═══
+// ═══ Global rate limit — faithful port of src/lib/rateLimit.ts ═══
 //
-// شمارندهٔ اتمیک در Redis (INCR + EXPIRE در نخستین شمارش). اگر Redis در
-// دسترس نباشد، fallback درون‌حافظه استفاده می‌شود تا هیچ مسیر پرخطر
-// «بدون محدودیت» نماند — حتی به قیمت از دست رفتن شمارش پس از ری‌استارت.
-// کلید قطع‌کنندهٔ ۳۰ثانیه‌ای (breaker) مانع تلنبار شدن درخواست‌ها هنگام
-// قطعی Redis می‌شود (همان BREAKER_MS در TS).
+// Atomic counter in Redis (INCR + EXPIRE on the first count). If Redis is
+// unavailable, an in-memory fallback is used so that no high-risk path
+// is left 'unlimited' — even at the cost of losing counts after a restart.
+// The 30-second breaker key prevents requests from piling up during
+// a Redis outage (same as BREAKER_MS in TS).
 package ratelimit
 
 import (
@@ -24,7 +24,7 @@ type memCount struct {
 	resetAt time.Time
 }
 
-// Limiter پیاده‌سازی RateLimiter قرارداد فاز ۱.
+// Limiter implements the RateLimiter contract of phase 1.
 type Limiter struct {
 	rdb *redis.Client
 
@@ -34,18 +34,18 @@ type Limiter struct {
 	onRedisReady bool
 }
 
-// New سازنده — rdb می‌تواند nil باشد (حالت فقط درون‌حافظه برای تست/توسعه).
+// New is the constructor — rdb may be nil (in-memory-only mode for tests/development).
 func New(rdb *redis.Client) *Limiter {
 	l := &Limiter{rdb: rdb, mem: make(map[string]*memCount)}
 	if rdb != nil {
-		// ready یعنی اتصال دوباره برقرار شد → breaker بسته شود (همان rlRedis.on('ready'))
+		// ready means the connection was re-established -> the breaker should close (same as rlRedis.on('ready'))
 		rdb.AddHook(readyHook{l: l})
 	}
 	return l
 }
 
-// readyHook بر پایهٔ هر فرمانِ موفق، breaker را می‌بندد (جایگزین رویداد ready
-// ioredis که در go-redis معادل مستقیم ندارد).
+// readyHook closes the breaker on every successful command (a replacement for the ready
+// event of ioredis, which go-redis has no direct equivalent of).
 type readyHook struct{ l *Limiter }
 
 func (h readyHook) DialHook(next redis.DialHook) redis.DialHook { return next }
@@ -89,8 +89,8 @@ func (l *Limiter) memSweepLocked(now time.Time) {
 	}
 }
 
-// Allow پورت rateLimit(): درخواست را می‌شمارد و مجاز بودن را برمی‌گرداند.
-// خروجی retryAfterSec فقط وقتی allowed=false معنا دارد.
+// Allow ports rateLimit(): counts the request and returns whether it is allowed.
+// The retryAfterSec output is only meaningful when allowed=false.
 func (l *Limiter) Allow(ctx context.Context, key string, limit, windowSec int) (bool, int, error) {
 	rkey := "rl:" + key
 	if l.redisAvailable() {
@@ -129,8 +129,8 @@ func (l *Limiter) Allow(ctx context.Context, key string, limit, windowSec int) (
 	return true, 0, nil
 }
 
-// Peek پورت peekRateLimit(): بررسی بدون شمارش — برای گیت‌هایی که فقط خطاها
-// باید بشمارند (مثل ورود: موفقیت نباید سهمیه بسوزاند).
+// Peek ports peekRateLimit(): check without counting — for gates that must only count
+// failures (e.g. login: a success must not burn the quota).
 func (l *Limiter) Peek(ctx context.Context, key string, limit, windowSec int) (bool, int, error) {
 	rkey := "rl:" + key
 	if l.redisAvailable() {
@@ -162,7 +162,7 @@ func (l *Limiter) Peek(ctx context.Context, key string, limit, windowSec int) (b
 	return true, 0, nil
 }
 
-// Hit پورت hitRateLimit(): فقط شمارش (بدون بررسی).
+// Hit ports hitRateLimit(): count only (no check).
 func (l *Limiter) Hit(ctx context.Context, key string, windowSec int) error {
 	rkey := "rl:" + key
 	if l.redisAvailable() {
@@ -189,7 +189,7 @@ func (l *Limiter) Hit(ctx context.Context, key string, windowSec int) error {
 	return nil
 }
 
-// Count پورت getRateLimitCount(): شمارش فعلی بدون افزایش.
+// Count ports getRateLimitCount(): current count without incrementing.
 func (l *Limiter) Count(ctx context.Context, key string) (int, error) {
 	rkey := "rl:" + key
 	if l.redisAvailable() {
@@ -212,7 +212,7 @@ func (l *Limiter) Count(ctx context.Context, key string) (int, error) {
 	return 0, nil
 }
 
-// Release پورت releaseRateLimit(): آزادسازی یک رزرو (برگرداندن یک شمارش).
+// Release ports releaseRateLimit(): releases a reservation (returns one count).
 func (l *Limiter) Release(ctx context.Context, key string) error {
 	rkey := "rl:" + key
 	if l.redisAvailable() {
@@ -237,7 +237,7 @@ func (l *Limiter) Release(ctx context.Context, key string) error {
 	return nil
 }
 
-// ProgressiveDelayMs پورت progressiveDelayMs: 200ms، 400ms، … سقف ۱۰ ثانیه.
+// ProgressiveDelayMs ports progressiveDelayMs: 200ms, 400ms, … capped at 10 seconds.
 func ProgressiveDelayMs(failCount int) int {
 	if failCount < 0 {
 		failCount = 0
@@ -249,7 +249,7 @@ func ProgressiveDelayMs(failCount int) int {
 	return ms
 }
 
-// ProgressiveDelay خواب تصاعدی — فراخواننده باید await کند.
+// ProgressiveDelay is a progressive sleep — the caller must await it.
 func ProgressiveDelay(ctx context.Context, failCount int) {
 	t := time.NewTimer(time.Duration(ProgressiveDelayMs(failCount)) * time.Millisecond)
 	defer t.Stop()
@@ -259,7 +259,7 @@ func ProgressiveDelay(ctx context.Context, failCount int) {
 	}
 }
 
-// HashKeyPart کوتاه‌سازی sha256 برای کلیدهای حاوی IP/شناسه — معادل sha256(ip).slice(0,24).
+// HashKeyPart is a shortened sha256 for keys containing IP/identifiers — equivalent to sha256(ip).slice(0,24).
 func HashKeyPart(hexDigest string) string {
 	if len(hexDigest) > 24 {
 		return hexDigest[:24]
@@ -267,7 +267,7 @@ func HashKeyPart(hexDigest string) string {
 	return hexDigest
 }
 
-// Describe برای پیام لاگ/خطا.
+// Describe is for log/error messages.
 func Describe(key string) string {
 	if i := strings.IndexByte(key, ':'); i > 0 {
 		return key[:i]

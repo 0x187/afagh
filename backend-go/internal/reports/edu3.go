@@ -1,4 +1,4 @@
-// ═══ گزارش‌های امتحانات — پورت r-exam ═══
+// ═══ Exam reports — port of r-exam ═══
 package reports
 
 import (

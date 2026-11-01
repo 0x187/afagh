@@ -1,4 +1,4 @@
-// ═══ گزارش‌های اساتید/حضور — پورت r-staff ═══
+// ═══ Instructor/attendance reports — port of r-staff ═══
 package reports
 
 import (

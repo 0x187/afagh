@@ -35,7 +35,7 @@ func (a *MessengerAPI) Register(r gin.IRouter) {
 	r.POST("/messenger/channels/revoke", a.revokeChannel)
 }
 
-// requireUser portal session — same «ابتدا وارد سامانه شوید» as in the Next actions.
+// requireUser portal session — same "log in to the system first" as in the Next actions.
 func (a *MessengerAPI) requireUser(c *gin.Context) *session.User {
 	token := session.ReadToken(parseCookies(c.Request))
 	if token == "" {

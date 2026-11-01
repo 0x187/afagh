@@ -1,4 +1,4 @@
-// ═══ ارزشیابی و عملکرد استاد — پورت professor/evaluation و professor/performance ═══
+// ═══ Professor evaluation and performance — port of professor/evaluation and professor/performance ═══
 package professor
 
 import (
@@ -10,7 +10,7 @@ import (
 	"unicode"
 )
 
-// EvalAxis محور رادار.
+// EvalAxis radar axis.
 type EvalAxis struct {
 	Label     string   `json:"label"`
 	Mine      *float64 `json:"mine"`
@@ -18,20 +18,20 @@ type EvalAxis struct {
 	Responses int      `json:"responses"`
 }
 
-// EvalTrend نقطهٔ روند.
+// EvalTrend trend point.
 type EvalTrend struct {
 	Period string   `json:"period"`
 	Term   string   `json:"term"`
 	Score  *float64 `json:"score"`
 }
 
-// EvalWord واژهٔ پرتکرار.
+// EvalWord frequent word.
 type EvalWord struct {
 	Word  string `json:"word"`
 	Count int    `json:"count"`
 }
 
-// EvaluationResponse پاسخ کارنامهٔ ارزشیابی.
+// EvaluationResponse evaluation report response.
 type EvaluationResponse struct {
 	Name        string      `json:"name"`
 	Rank        *string     `json:"rank"`
@@ -56,7 +56,7 @@ func round2p(v *float64) *float64 {
 	return &r
 }
 
-// GetEvaluation پورت professorPanel.
+// GetEvaluation port of professorPanel.
 func (s *Service) GetEvaluation(ctx context.Context, userID int64, cookie *int64) (*EvaluationResponse, error) {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil {
@@ -86,7 +86,7 @@ func (s *Service) GetEvaluation(ctx context.Context, userID int64, cookie *int64
 		return resp, nil
 	}
 
-	// دورهٔ ارزشیابی.
+	// the evaluation period.
 	var periodID int64
 	var periodTitle string
 	q := `select id, title from evaluation_periods where "isActive" = 1`
@@ -102,7 +102,7 @@ func (s *Service) GetEvaluation(ctx context.Context, userID int64, cookie *int64
 	}
 	q += ` order by id desc limit 1`
 	if err := s.DB.Pool.QueryRow(ctx, q, args...).Scan(&periodID, &periodTitle); err != nil {
-		// بدون دورهٔ فعال: آخرین دورهٔ همین ترم.
+		// no active period: the latest period of this term.
 		_ = s.DB.Pool.QueryRow(ctx, `
 			select id, title from evaluation_periods where "termId" = $1 order by id desc limit 1`, *term.ID).
 			Scan(&periodID, &periodTitle)
@@ -115,7 +115,7 @@ func (s *Service) GetEvaluation(ctx context.Context, userID int64, cookie *int64
 	ownership := `(o."professorId" = $1 or exists (
 		select 1 from offering_professors op where op."offeringId" = o.id and op."staffId" = $1))`
 
-	// محورها.
+	// axes.
 	arows, err := s.DB.Pool.Query(ctx, `
 		select q."axisLabel" as label,
 		       count(*) filter (where `+ownership+`)::int as mine_n,
@@ -143,7 +143,7 @@ func (s *Service) GetEvaluation(ctx context.Context, userID int64, cookie *int64
 		arows.Close()
 	}
 
-	// نمرهٔ وزنی من/گروه + پاسخ‌دهندگان.
+	// my/group weighted score + respondents.
 	var mineScore, deptScore *float64
 	var respondents int
 	_ = s.DB.Pool.QueryRow(ctx, `
@@ -180,7 +180,7 @@ func (s *Service) GetEvaluation(ctx context.Context, userID int64, cookie *int64
 		resp.Flagged = *resp.Score < resp.Threshold
 	}
 
-	// روند چند دورهٔ اخیر.
+	// trend over recent periods.
 	trows, err := s.DB.Pool.Query(ctx, `
 		select p.title, coalesce(t.title,'—'),
 		       (sum(qo."scoreValue" * q.weight) / nullif(sum(q.weight),0))::float8 as s
@@ -208,7 +208,7 @@ func (s *Service) GetEvaluation(ctx context.Context, userID int64, cookie *int64
 		trows.Close()
 	}
 
-	// واژه‌های پرتکرار از پاسخ‌های تشریحی.
+	// frequent words from free-text answers.
 	stopwords := map[string]bool{}
 	if s.Settings != nil {
 		if raw, err := s.Settings.Get(ctx, "BI_STOPWORDS"); err == nil {
@@ -280,7 +280,7 @@ func tokenize(text string) []string {
 	return out
 }
 
-// PerformanceResponse پاسخ کارنامهٔ عملکرد.
+// PerformanceResponse performance report response.
 type PerformanceResponse struct {
 	StaffCode    string  `json:"staffCode"`
 	FullName     string  `json:"fullName"`
@@ -337,7 +337,7 @@ type PerformanceResponse struct {
 	} `json:"incentive"`
 }
 
-// GetPerformance پورت getProfessorPerformance.
+// GetPerformance port of getProfessorPerformance.
 func (s *Service) GetPerformance(ctx context.Context, userID int64, cookie *int64) (*PerformanceResponse, error) {
 	st, err := s.ResolveStaff(ctx, userID)
 	if err != nil {
@@ -367,7 +367,7 @@ func (s *Service) GetPerformance(ctx context.Context, userID int64, cookie *int6
 	ownership := `(o."professorId" = $1 or exists (
 		select 1 from offering_professors op where op."offeringId" = o.id and op."staffId" = $1))`
 
-	// بار تدریس.
+	// teaching load.
 	_ = s.DB.Pool.QueryRow(ctx, `
 		select count(distinct o.id)::int,
 		       coalesce(sum(e.n),0)::int
@@ -392,7 +392,7 @@ func (s *Service) GetPerformance(ctx context.Context, userID int64, cookie *int6
 		resp.Teaching.Courses = []string{}
 	}
 
-	// جلسات.
+	// sessions.
 	srows, err := s.DB.Pool.Query(ctx, `
 		select coalesce(cs.status,''), count(*)::int, coalesce(sum(coalesce(cs."isMakeUpSession",0)),0)::int
 		  from class_sessions cs
@@ -423,7 +423,7 @@ func (s *Service) GetPerformance(ctx context.Context, userID int64, cookie *int6
 		}
 	}
 
-	// وضعیت نمرات.
+	// grade status.
 	_ = s.DB.Pool.QueryRow(ctx, `
 		select count(*) filter (where e."gradeStatus" = 'FINALIZED')::int,
 		       count(*) filter (where e."gradeValue" is null)::int,
@@ -444,7 +444,7 @@ func (s *Service) GetPerformance(ctx context.Context, userID int64, cookie *int6
 		 where o."termId" = $2 and coalesce(a.status,'OPEN') = 'OPEN' and `+ownership,
 		st.ID, *term.ID).Scan(&resp.Grades.AppealsOpen)
 
-	// ارزشیابی.
+	// evaluation.
 	eval, err := s.GetEvaluation(ctx, userID, cookie)
 	if err == nil && eval != nil {
 		resp.Evaluation.Score = eval.Score
@@ -452,7 +452,7 @@ func (s *Service) GetPerformance(ctx context.Context, userID int64, cookie *int6
 		resp.Evaluation.DeptAvg = eval.DeptAvg
 	}
 
-	// همکاران: استادان دارای کلاس در ترم با نمرهٔ ارزشیابی.
+	// peers: professors with a class in the term and an evaluation score.
 	type peerRow struct {
 		StaffID int64
 		Score   *float64
@@ -503,7 +503,7 @@ func (s *Service) GetPerformance(ctx context.Context, userID int64, cookie *int6
 		}
 	}
 
-	// میز خدمت: پرونده‌های ارجاع‌شده به این استاد.
+	// service desk: cases referred to this professor.
 	now := time.Now()
 	monthStart := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, time.Local)
 	_ = s.DB.Pool.QueryRow(ctx, `
@@ -526,7 +526,7 @@ func (s *Service) GetPerformance(ctx context.Context, userID int64, cookie *int6
 		resp.Desk.SLAOnTimePercent = &v
 	}
 
-	// نشان و مشوق.
+	// medals and incentives.
 	score := resp.Evaluation.Score
 	switch {
 	case score != nil && *score >= 4.5:
