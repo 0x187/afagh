@@ -21,17 +21,16 @@ export const STATUS_UI: Record<string, { label: string; cls: string }> = {
 
 export const ROLE_LABELS: Record<string, string> = {
   CORE: 'پایه', MAJOR: 'اصلی', SPECIALIZED: 'تخصصی', ELECTIVE: 'اختیاری', GENERAL: 'عمومی',
-  THESIS: 'پایان‌نامه', INTERNSHIP: 'کارآموزی', WORKSHOP: 'کارگاه',
+  THESIS: 'پایان‌نامه', INTERNSHIP: 'کارآموزی', WORKSHOP: 'کارگاه', COMPENSATORY: 'جبرانی',
 };
 
 /**
  * انواعِ «سهم واحد» که در ستون minRoleUnits مجازند اما نقشِ درس در
- * curriculum_courses نیستند (CHECK دیتابیس فقط ۸ نقش بالا را می‌پذیرد).
- * «جبرانی» واحد مشخصی در چارت ندارد ولی مدیر گروه باید بتواند سهم آن را تعیین کند.
+ * curriculum_courses نیستند. هم‌اکنون خالی است — «جبرانی» از مهاجرت ۰۱۲۹
+ * به نقش‌های رسمیِ چارت (ROLE_LABELS) ارتقا یافت و در همهٔ لیست‌های «نوع درس»
+ * و ویرایشگر سهم واحد حضور دارد.
  */
-export const EXTRA_ROLE_LABELS: Record<string, string> = {
-  COMPENSATORY: 'جبرانی',
-};
+export const EXTRA_ROLE_LABELS: Record<string, string> = {};
 
 /** همهٔ انواعِ قابل انتخاب در ویرایشگر سهم واحد (ترتیب نمایش) */
 export const ROLE_TARGET_KEYS: string[] = [...Object.keys(ROLE_LABELS), ...Object.keys(EXTRA_ROLE_LABELS)];

@@ -841,7 +841,7 @@ export const curriculum_courses = pgTable('curriculum_courses', {
 }, (t) => ({
   uqCourse: unique('uq_curriculum_courses_version_course').on(t.curriculumVersionId, t.courseId),
   semIdx: index('curriculum_courses_semester_idx').on(t.curriculumVersionId, t.recommendedSemester),
-  roleCheck: check('curriculum_courses_role_check', sql`${t.roleType} in ('CORE','MAJOR','ELECTIVE','GENERAL','THESIS','INTERNSHIP','WORKSHOP')`),
+  roleCheck: check('curriculum_courses_role_check', sql`${t.roleType} in ('CORE','MAJOR','SPECIALIZED','ELECTIVE','GENERAL','THESIS','INTERNSHIP','WORKSHOP','COMPENSATORY')`),
 }));
 
 /**

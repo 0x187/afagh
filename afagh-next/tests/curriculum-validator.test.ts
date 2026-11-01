@@ -234,7 +234,8 @@ const allMet = validateCurriculumCore(baseInput({ minRoleUnits: { GENERAL: 3, CO
 eq('همه سهم‌ها تأمین → بدون یافته', hasCheck(allMet, 'ROLE_UNITS_COVERAGE'), false);
 eq('کسری واحد، مانع تأیید نیست (WARN)', hasBlockingErrors(shortGeneral.filter(r => r.check === 'ROLE_UNITS_COVERAGE')), false);
 
-// ── انواعِ خارج از enum چارت: «جبرانی» (کلید COMPENSATORY در minRoleUnits) ──
+// ── «جبرانی» (کلید COMPENSATORY) — از مهاجرت ۰۱۲۹ نقشِ رسمیِ چارت است و
+//     همچنان هدفِ سهم واحد (minRoleUnits) معتبری است ──
 const compShort = validateCurriculumCore(baseInput({ minRoleUnits: { COMPENSATORY: 5 } }));
 const compRow = compShort.find(r => r.check === 'ROLE_UNITS_COVERAGE');
 eq('جبرانی با کسری → WARN', !!compRow, true);

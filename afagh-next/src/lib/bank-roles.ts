@@ -27,7 +27,7 @@ const BANK_TYPE_TO_ROLE: Record<string, string> = {
   'تخصصی': 'SPECIALIZED',
   'اصلی': 'MAJOR',
   'اختیاری': 'ELECTIVE',
-  'جبرانی': 'ELECTIVE',
+  'جبرانی': 'COMPENSATORY',
   // ── کدهای انگلیسی مهاجرت (tuition codemap) ──
   'GENERAL': 'GENERAL',
   'PROJECT': 'THESIS',

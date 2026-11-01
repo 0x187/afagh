@@ -33,7 +33,8 @@ const roleFa: Record<string, string> = {
   GENERAL: 'عمومی',
   THESIS: 'پایان‌نامه',
   INTERNSHIP: 'کارآموزی',
-  WORKSHOP: 'کارگاهی',
+  WORKSHOP: 'کارگاه',
+  COMPENSATORY: 'جبرانی',
 };
 
 const semesterTitle: Record<number, string> = {

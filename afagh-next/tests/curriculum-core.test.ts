@@ -53,8 +53,9 @@ console.log('۲) ثابت‌های نمایشی');
 eq('پنج وضعیت چرخهٔ حیات', Object.keys(STATUS_UI), ['DRAFT', 'REVIEW', 'APPROVED', 'PUBLISHED', 'ARCHIVED']);
 eq('برچسب فارسی منتشرشده', STATUS_UI.PUBLISHED.label, 'منتشرشده');
 eq('وضعیت ناشناخته در STATUS_UI نیست (فایل رندرکننده fallback دارد)', STATUS_UI.NOPE === undefined, true);
-// از کامیت f83f070 «تخصصی» نقش مستقل SPECIALIZED گرفت و از «اصلی» جدا شد ⇒ هشت نقش.
-eq('هشت نقش درس، به همان ترتیب جدول', Object.keys(ROLE_LABELS), ['CORE', 'MAJOR', 'SPECIALIZED', 'ELECTIVE', 'GENERAL', 'THESIS', 'INTERNSHIP', 'WORKSHOP']);
+// از کامیت f83f070 «تخصصی» نقش مستقل SPECIALIZED گرفت و از «اصلی» جدا شد ⇒ هشت نقش؛
+// مهاجرت ۰۱۲۹ «جبرانی» (COMPENSATORY) را به نقش‌های رسمی افزود ⇒ نه نقش.
+eq('نه نقش درس (شامل جبرانی)، به همان ترتیب', Object.keys(ROLE_LABELS), ['CORE', 'MAJOR', 'SPECIALIZED', 'ELECTIVE', 'GENERAL', 'THESIS', 'INTERNSHIP', 'WORKSHOP', 'COMPENSATORY']);
 eq('پنج تب', TABS.map(t => t.key), ['CATALOG', 'COURSES', 'SEMESTERS', 'VERIFY', 'TRANSFER']);
 eq('CURRICULUM_TABS از TABS مشتق می‌شود', CURRICULUM_TABS, TABS.map(t => t.key));
 
@@ -212,11 +213,11 @@ eq('برچسب نقش شناخته‌شده', roleLabel('GENERAL'), 'عمومی'
 eq('جبرانی برچسب فارسی دارد', roleLabel('COMPENSATORY'), 'جبرانی');
 eq('کلید ناشناخته بدون تغییر برمی‌گردد', roleLabel('CUSTOM_TYPE'), 'CUSTOM_TYPE');
 eq('جبرانی در فهرست انواعِ سهم واحد هست', ROLE_TARGET_KEYS.includes('COMPENSATORY'), true);
-eq('فهرست انواع = ۷ نقش چارت + جبرانی', ROLE_TARGET_KEYS.length, Object.keys(ROLE_LABELS).length + 1);
-// ⚠️ جبرانی نباید به ROLE_LABELS اضافه شود؛ آن ثابت گزینه‌های selectِ
-// curriculum_courses.roleType است که CHECK دیتابیس فقط ۷ مقدار را می‌پذیرد.
-eq('جبرانی در نقش‌های چارت نیست (سازگاری با CHECK دیتابیس)', 'COMPENSATORY' in ROLE_LABELS, false);
-eq('EXTRA_ROLE_LABELS فقط جبرانی دارد', Object.keys(EXTRA_ROLE_LABELS).join(','), 'COMPENSATORY');
+eq('فهرست انواع = نقش‌های چارت + انواعِ خارجی (اکنون صفر)', ROLE_TARGET_KEYS.length, Object.keys(ROLE_LABELS).length + Object.keys(EXTRA_ROLE_LABELS).length);
+// مهاجرت ۰۱۲۹: جبرانی اکنون نقشِ رسمیِ نهمِ چارت است (CHECK دیتابیس ۹ مقدار
+// را می‌پذیرد)؛ پس در ROLE_LABELS هست و از EXTRA_ROLE_LABELS خارج شد.
+eq('جبرانی اکنون نقش رسمیِ چارت است (مهاجرت ۰۱۲۹)', 'COMPENSATORY' in ROLE_LABELS, true);
+eq('EXTRA_ROLE_LABELS اکنون خالی است (جبرانی به نقش‌های چارت رفت)', Object.keys(EXTRA_ROLE_LABELS).join(','), '');
 
 const dcRole = (id: number, code: string, role: string, units = 3) => ({
   courseId: id, code, title: code, units, roleType: role,

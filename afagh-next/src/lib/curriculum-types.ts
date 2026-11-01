@@ -71,6 +71,7 @@ export const COURSE_ROLE_TYPES = [
   'THESIS',      // پایان‌نامه
   'INTERNSHIP',  // کارآموزی
   'WORKSHOP',    // کارگاه/مهارتی
+  'COMPENSATORY',// جبرانی
 ] as const;
 export type CourseRoleType = (typeof COURSE_ROLE_TYPES)[number];
 

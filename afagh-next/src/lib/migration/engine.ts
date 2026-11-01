@@ -261,9 +261,9 @@ export function prepare(entity: Entity, tables: Table[], fileName: string): Prep
         'اختیاری': 'ELECTIVE', 'انتخابی': 'ELECTIVE', 'elective': 'ELECTIVE',
         'عمومی': 'GENERAL', 'مشترک': 'GENERAL', 'general': 'GENERAL',
         'پایان‌نامه': 'THESIS', 'thesis': 'THESIS', 'کارآموزی': 'INTERNSHIP', 'کارورزی': 'INTERNSHIP', 'internship': 'INTERNSHIP',
-        'کارگاه': 'WORKSHOP', 'workshop': 'WORKSHOP',
+        'کارگاه': 'WORKSHOP', 'workshop': 'WORKSHOP', 'جبرانی': 'COMPENSATORY', 'compensatory': 'COMPENSATORY',
       };
-      const ROLE_CODES = ['CORE', 'MAJOR', 'SPECIALIZED', 'ELECTIVE', 'GENERAL', 'THESIS', 'INTERNSHIP', 'WORKSHOP'];
+      const ROLE_CODES = ['CORE', 'MAJOR', 'SPECIALIZED', 'ELECTIVE', 'GENERAL', 'THESIS', 'INTERNSHIP', 'WORKSHOP', 'COMPENSATORY'];
       // ستون نقش خالی ⇒ null (نه CORE): نوع درس از بانک دروس خوانده می‌شود
       const role = roleRaw
         ? (ROLE_MAP[roleRaw] ?? ROLE_MAP[norm(roleRaw)] ?? (ROLE_CODES.includes(roleRaw.toUpperCase()) ? roleRaw.toUpperCase() : 'CORE'))
