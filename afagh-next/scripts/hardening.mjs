@@ -221,6 +221,8 @@ try {
     'grade_change_log',
     'system_settings','integrations_config','audit_logs','api_audit_logs','admissions_staging',
     'person_source_identities','sanjesh_mappings','evaluation_responses','verification_otps','step_api_actions','document_signatures',
+    // ماژول سازمان سنجش (مهاجرت 0128) — دادهٔ خام داوطلبان، deny-all
+    'sanjesh_templates','sanjesh_files','sanjesh_file_fields','sanjesh_file_rows','sanjesh_value_maps',
     'curriculum_approvals', // ۱۲ deny-all (چرخهٔ تأیید برنامهٔ درسی: دفتر ممیزیِ فقط-مالک)
     'thesis_progress','thesis_progress_reports','defense_sessions','irandoc_logs','defense_jury_pools',
     // ── ۲۷ جدولِ بخش ⑧ pg-hardening.sql که پیش‌تر در هیچ دروازه‌ای سنجیده نمی‌شدند ──

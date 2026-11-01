@@ -11,7 +11,8 @@ const ok = (c: boolean, m: string) => { if (c) { pass++; console.log('  ✓', m)
 console.log('\n— شش نوع سماء —');
 ok(roleFromBankType('عمومی') === 'GENERAL', 'عمومی → GENERAL');
 ok(roleFromBankType('پایه') === 'CORE', 'پایه → CORE');
-ok(roleFromBankType('تخصصی') === 'MAJOR', 'تخصصی → MAJOR');
+// از کامیت f83f070 به بعد «تخصصی» از «اصلی» جدا شده و نقش مستقل SPECIALIZED می‌گیرد.
+ok(roleFromBankType('تخصصی') === 'SPECIALIZED', 'تخصصی → SPECIALIZED');
 ok(roleFromBankType('اصلی') === 'MAJOR', 'اصلی → MAJOR');
 ok(roleFromBankType('اختیاری') === 'ELECTIVE', 'اختیاری → ELECTIVE');
 ok(roleFromBankType('جبرانی') === 'ELECTIVE', 'جبرانی → ELECTIVE');
@@ -30,7 +31,7 @@ ok(normalizeBankType('تخصصي') === 'تخصصی', 'ي پایانی → ی');
 ok(normalizeBankType('  عمومی  ') === 'عمومی', 'فاصله‌های اضافه حذف');
 ok(normalizeBankType('درس عمومی') === 'درسعمومی', 'نیم‌فاصله/فاصله حذف');
 ok(roleFromBankType('پايه') === 'CORE', 'پايه (عربی) → CORE');
-ok(roleFromBankType('درس تخصصی') === 'MAJOR', '«درس تخصصی» فاصله‌دار → MAJOR');
+ok(roleFromBankType('درس تخصصی') === 'SPECIALIZED', '«درس تخصصی» فاصله‌دار → SPECIALIZED');
 
 console.log('\n— ناشناخته/خالی → CORE بدون خطا —');
 ok(roleFromBankType(null) === 'CORE', 'null → CORE');

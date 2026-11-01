@@ -86,6 +86,18 @@ export const ADMIN_MODULES: AdminModule[] = [
     inGrid: true,
   },
   {
+    href: '/admin/sanjesh',
+    icon: '🗂️',
+    title: 'تبدیل اطلاعات سازمان سنجش',
+    desc: 'فایل‌ها، تطبیق فیلدها، براورد، لیست سنجش و تخصیص',
+    group: 'edu',
+    roles: EDU,
+    accent: 'from-teal-950 to-cyan-950 border-teal-700/50',
+    iconBg: 'bg-teal-700/80 border-teal-500/50',
+    inNav: true,
+    inGrid: true,
+  },
+  {
     href: '/admin/codes',
     icon: '🔑',
     title: 'مرکز کدها',

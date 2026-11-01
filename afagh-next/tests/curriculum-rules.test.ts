@@ -28,10 +28,15 @@ eq('فقط یک قاعده', r1.length, 1);
 eq('کد نسخه حفظ شد', r1[0].logicTree.conditions, [{ course: 'CM200' }]);
 
 console.log('\n۲) بدون قاعدهٔ نسخه → از جدول دروس ساخته می‌شود');
-const r2 = buildRulesWithCatalogFallback([{ courseId: 2, prereqText: 'CM101|CM102' }], []);
+// از کامیت 9c27032 به بعد: «&» یعنی «و» و «|» یعنی «یا» (دروس هم‌ارز).
+const r2 = buildRulesWithCatalogFallback([{ courseId: 2, prereqText: 'CM101&CM102' }], []);
 eq('یک قاعده ساخته شد', r2.length, 1);
 eq('نوع PREREQ', r2[0].ruleType, 'PREREQ');
 eq('هر دو کد با AND', r2[0].logicTree, { operator: 'AND', conditions: [{ course: 'CM101' }, { course: 'CM102' }] });
+
+// «|» سما = «یا» (هم‌ارز)، نه «و»
+const r2b = buildRulesWithCatalogFallback([{ courseId: 5, prereqText: 'CM101|CM102' }], []);
+eq('لولهٔ سما → OR', r2b[0].logicTree.operator, 'OR');
 
 console.log('\n۳) «یا» در متن → OR');
 const r3 = buildRulesWithCatalogFallback([{ courseId: 3, prereqText: 'CM101 یا CM102' }], []);

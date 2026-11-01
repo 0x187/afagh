@@ -271,7 +271,148 @@ export const sanjesh_mappings = pgTable('sanjesh_mappings', {
   sanjeshQuota: varchar('sanjeshQuota', { length: 50 }),
   internalQuotaCode: integer('internalQuotaCode'),
   universityId: integer('universityId').references((): AnyPgColumn => universities.id),
-});
+  /** تهی ⇒ نگاشت سراسری؛ مقدار‌دار ⇒ override همان فایل سنجش */
+  fileId: integer('fileId').references((): AnyPgColumn => sanjesh_files.id, { onDelete: 'cascade' }),
+  note: varchar('note', { length: 200 }),
+}, (t) => [
+  index('idx_sanjesh_mappings_file').on(t.fileId),
+]);
+
+/* ════════════════════════════════════════════════════════════════════════
+   ماژول «تبدیل اطلاعات سازمان سنجش» (مهاجرت 0128)
+   اصل: هیچ داده‌ای از فایل سنجش دور ریخته نمی‌شود — ستون‌های نگاشت‌نشده هم
+   در `dataJson` با کلید شمارهٔ ستون ذخیره می‌شوند.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/** قالب ساختار فایل — **کاربر می‌تواند تعریف/ویرایش کند** (نه فقط قالب‌های کد) */
+export const sanjesh_templates = pgTable('sanjesh_templates', {
+  id: serial('id').primaryKey(),
+  key: varchar('key', { length: 60 }).notNull(),
+  title: varchar('title', { length: 200 }).notNull(),
+  examKind: varchar('examKind', { length: 20 }).notNull(),
+  examYear: integer('examYear').notNull(),
+  columnCount: integer('columnCount').notNull(),
+  pdfRowCount: integer('pdfRowCount'),
+  /** [{ colIndex, sanjeshTitle, charCount, targetField }] */
+  columnsJson: jsonb('columnsJson').notNull(),
+  /** { gender: [{ value, label, internalValue }], … } */
+  decodeTablesJson: jsonb('decodeTablesJson').notNull().default({}),
+  expandedRowsJson: jsonb('expandedRowsJson').notNull().default([]),
+  notes: text('notes'),
+  isBuiltin: boolean('isBuiltin').notNull().default(false),
+  verifiedWithRealFile: boolean('verifiedWithRealFile').notNull().default(false),
+  isActive: boolean('isActive').notNull().default(true),
+  universityId: integer('universityId').references((): AnyPgColumn => universities.id),
+  createdByUserId: integer('createdByUserId').references(() => users.id),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+}, (t) => [
+  // کلید در دامنهٔ هر دانشگاه یکتاست؛ قالب سراسری (NULL) با COALESCE→۰
+  uniqueIndex('uq_sanjesh_templates_key').on(sql`COALESCE(${t.universityId}, 0)`, t.key),
+  index('idx_sanjesh_templates_kind_year').on(t.examKind, t.examYear),
+  index('idx_sanjesh_templates_uni').on(t.universityId),
+]);
+
+/** یک فایل بارگذاری‌شده (یک آزمون/یک سال) */
+export const sanjesh_files = pgTable('sanjesh_files', {
+  id: serial('id').primaryKey(),
+  universityId: integer('universityId').references((): AnyPgColumn => universities.id),
+  termId: integer('termId').references(() => academic_terms.id),
+  degreeLevelId: integer('degreeLevelId').references(() => degree_level_configs.id),
+  templateId: integer('templateId').references(() => sanjesh_templates.id),
+  templateKey: varchar('templateKey', { length: 60 }),
+  title: varchar('title', { length: 200 }).notNull(),
+  examKind: varchar('examKind', { length: 20 }),
+  examYear: integer('examYear'),
+  fileName: varchar('fileName', { length: 255 }),
+  fileSize: integer('fileSize'),
+  fileHash: varchar('fileHash', { length: 64 }),
+  encoding: varchar('encoding', { length: 20 }),
+  columnCount: integer('columnCount').notNull().default(0),
+  rowCount: integer('rowCount').notNull().default(0),
+  /** DRAFT | FIELDS_READY | VALUED | STAGED | DONE */
+  status: varchar('status', { length: 20 }).notNull().default('DRAFT'),
+  warningsJson: jsonb('warningsJson').notNull().default([]),
+  uploadedByUserId: integer('uploadedByUserId').references(() => users.id),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+}, (t) => [
+  index('idx_sanjesh_files_status').on(t.status),
+  index('idx_sanjesh_files_term').on(t.termId),
+  index('idx_sanjesh_files_hash').on(t.fileHash),
+]);
+
+/** تطبیق فیلدها: شمارهٔ ستون ↔ فیلد مقصد */
+export const sanjesh_file_fields = pgTable('sanjesh_file_fields', {
+  id: serial('id').primaryKey(),
+  fileId: integer('fileId').notNull().references(() => sanjesh_files.id, { onDelete: 'cascade' }),
+  /** از فایل والد به ارث می‌رسد تا دامنه‌بندی بدون JOIN ممکن باشد */
+  universityId: integer('universityId').references((): AnyPgColumn => universities.id),
+  colIndex: integer('colIndex').notNull(),
+  sanjeshTitle: varchar('sanjeshTitle', { length: 200 }).notNull(),
+  charCount: integer('charCount').notNull().default(0),
+  /** تهی ⇒ نگاشت‌نشده (مدیر باید تعیین کند) */
+  targetField: varchar('targetField', { length: 60 }),
+  sampleValue: text('sampleValue'),
+  observedLength: integer('observedLength'),
+  isMapped: boolean('isMapped').notNull().default(false),
+}, (t) => [
+  unique('uq_sanjesh_file_fields').on(t.fileId, t.colIndex),
+  index('idx_sanjesh_file_fields_file').on(t.fileId),
+  index('idx_sanjesh_file_fields_uni').on(t.universityId),
+]);
+
+/** دادهٔ خام هر داوطلب — کامل و بی‌کم‌وکاست */
+export const sanjesh_file_rows = pgTable('sanjesh_file_rows', {
+  id: serial('id').primaryKey(),
+  fileId: integer('fileId').notNull().references(() => sanjesh_files.id, { onDelete: 'cascade' }),
+  /** از فایل والد به ارث می‌رسد؛ این جدول PII کامل دارد */
+  universityId: integer('universityId').references((): AnyPgColumn => universities.id),
+  rowNo: integer('rowNo').notNull(),
+  /** خط اصلی فایل، بدون هیچ دستکاری */
+  rawLine: text('rawLine').notNull(),
+  /** { fields: {targetField: value}, columns: {"1": "…"}, meta: {…} } */
+  dataJson: jsonb('dataJson').notNull(),
+  nationalCode: varchar('nationalCode', { length: 10 }),
+  nationalCodeEnc: text('nationalCodeEnc'),
+  nationalCodeBlindIndex: text('nationalCodeBlindIndex'),
+  nationalCodeValid: boolean('nationalCodeValid').notNull().default(false),
+  applicantNo: varchar('applicantNo', { length: 40 }),
+  uniqueId: varchar('uniqueId', { length: 40 }),
+  fullName: varchar('fullName', { length: 200 }),
+  rowHash: varchar('rowHash', { length: 16 }),
+  studentId: integer('studentId').references((): AnyPgColumn => students.id),
+  /** PENDING | MATCHED | DUPLICATE | INVALID | IGNORED */
+  matchStatus: varchar('matchStatus', { length: 20 }).notNull().default('PENDING'),
+  matchNote: text('matchNote'),
+  matchedAt: timestamp('matchedAt'),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+}, (t) => [
+  unique('uq_sanjesh_file_rows').on(t.fileId, t.rowNo),
+  index('idx_sanjesh_file_rows_file').on(t.fileId),
+  index('idx_sanjesh_file_rows_nc').on(t.nationalCode),
+  index('idx_sanjesh_file_rows_nc_blind').on(t.nationalCodeBlindIndex),
+  index('idx_sanjesh_file_rows_status').on(t.matchStatus),
+  index('idx_sanjesh_file_rows_hash').on(t.fileId, t.rowHash),
+  index('idx_sanjesh_file_rows_uni').on(t.universityId),
+]);
+
+/** جدول براورد: کد سنجش ↔ عنوان/کد داخلی (fileId تهی ⇒ سراسری) */
+export const sanjesh_value_maps = pgTable('sanjesh_value_maps', {
+  id: serial('id').primaryKey(),
+  fileId: integer('fileId').references(() => sanjesh_files.id, { onDelete: 'cascade' }),
+  universityId: integer('universityId').references((): AnyPgColumn => universities.id),
+  field: varchar('field', { length: 60 }).notNull(),
+  sanjeshValue: varchar('sanjeshValue', { length: 100 }).notNull(),
+  sanjeshLabel: varchar('sanjeshLabel', { length: 200 }),
+  internalValue: varchar('internalValue', { length: 60 }),
+  internalLabel: varchar('internalLabel', { length: 200 }),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+}, (t) => [
+  unique('uq_sanjesh_value_maps').on(t.fileId, t.field, t.sanjeshValue),
+  index('idx_sanjesh_value_maps_field').on(t.field),
+  index('idx_sanjesh_value_maps_uni').on(t.universityId),
+]);
 
 export const admissions_staging = pgTable('admissions_staging', {
   id: serial('id').primaryKey(),
@@ -294,8 +435,14 @@ export const admissions_staging = pgTable('admissions_staging', {
   studentId: integer('studentId'),
   decisionNote: text('decisionNote'),
   universityId: integer('universityId').references((): AnyPgColumn => universities.id),
+  // ── پیوند با فایل سنجش (مهاجرت 0128) ──
+  fileId: integer('fileId'),
+  rowNo: integer('rowNo'),
+  assignedStudentCode: varchar('assignedStudentCode', { length: 14 }),
+  matchedAt: timestamp('matchedAt'),
 }, (t) => [
   index('idx_adm_stg_nc_blind').on(t.nationalCodeBlindIndex),
+  index('idx_adm_stg_file').on(t.fileId, t.rowNo),
 ]);
 
 export const student_id_formulas = pgTable('student_id_formulas', {

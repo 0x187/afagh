@@ -53,7 +53,8 @@ console.log('۲) ثابت‌های نمایشی');
 eq('پنج وضعیت چرخهٔ حیات', Object.keys(STATUS_UI), ['DRAFT', 'REVIEW', 'APPROVED', 'PUBLISHED', 'ARCHIVED']);
 eq('برچسب فارسی منتشرشده', STATUS_UI.PUBLISHED.label, 'منتشرشده');
 eq('وضعیت ناشناخته در STATUS_UI نیست (فایل رندرکننده fallback دارد)', STATUS_UI.NOPE === undefined, true);
-eq('هفت نقش درس، به همان ترتیب جدول', Object.keys(ROLE_LABELS), ['CORE', 'MAJOR', 'ELECTIVE', 'GENERAL', 'THESIS', 'INTERNSHIP', 'WORKSHOP']);
+// از کامیت f83f070 «تخصصی» نقش مستقل SPECIALIZED گرفت و از «اصلی» جدا شد ⇒ هشت نقش.
+eq('هشت نقش درس، به همان ترتیب جدول', Object.keys(ROLE_LABELS), ['CORE', 'MAJOR', 'SPECIALIZED', 'ELECTIVE', 'GENERAL', 'THESIS', 'INTERNSHIP', 'WORKSHOP']);
 eq('پنج تب', TABS.map(t => t.key), ['CATALOG', 'COURSES', 'SEMESTERS', 'VERIFY', 'TRANSFER']);
 eq('CURRICULUM_TABS از TABS مشتق می‌شود', CURRICULUM_TABS, TABS.map(t => t.key));
 

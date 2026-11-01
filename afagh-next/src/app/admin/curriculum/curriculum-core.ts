@@ -26,7 +26,7 @@ export const ROLE_LABELS: Record<string, string> = {
 
 /**
  * انواعِ «سهم واحد» که در ستون minRoleUnits مجازند اما نقشِ درس در
- * curriculum_courses نیستند (CHECK دیتابیس فقط ۷ نقش بالا را می‌پذیرد).
+ * curriculum_courses نیستند (CHECK دیتابیس فقط ۸ نقش بالا را می‌پذیرد).
  * «جبرانی» واحد مشخصی در چارت ندارد ولی مدیر گروه باید بتواند سهم آن را تعیین کند.
  */
 export const EXTRA_ROLE_LABELS: Record<string, string> = {

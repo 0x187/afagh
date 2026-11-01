@@ -116,7 +116,7 @@ const CASES: [string, React.ComponentType, string[], Record<string, unknown>?][]
   ['CourseRulesModal', CourseRulesModal, ['پیش‌نیاز / هم‌نیاز — CM102', 'مبانی برنامه‌سازی', 'درس به‌عنوان پیش‌نیاز انتخاب شد'], { modal: 'RULES', ruleCourse: courses[1] }],
   ['AddCourseModal', AddCourseModal, ['افزودن درس از بانک دروس', 'ساختار داده'], { modal: 'ADD_COURSE' }],
   ['RejectModal', RejectModal, ['رد نسخه و بازگشت به پیش‌نویس', 'کسری واحد عمومی'], { modal: 'REJECT' }],
-  ['RoleTargetsEditor', RoleTargetsCase, ['موجود ۳ واحد', 'ذخیره سهم‌ها', 'کسری ۵۷'], undefined],
+  ['RoleTargetsEditor', RoleTargetsCase, ['۳ واحد (کسری ۵۷)', 'ذخیره سهم‌ها', 'کسری ۵۷'], undefined],
   ['VersionDetailPanel', VersionDetailPanel, ['ساختار داده', 'پیش‌نیاز / هم‌نیاز'], { activeTab: 'COURSES' }],
   ['CurriculumShell', CurriculumShell, ['مدیریت نسخه‌های برنامهٔ درسی', 'تعریف کاتالوگ رشته', '🗂️ نسخه‌های این رشته'], undefined],
 ];

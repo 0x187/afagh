@@ -91,7 +91,9 @@ ALTER TABLE "request_parallel_checkpoints" ENABLE ROW LEVEL SECURITY;
 REVOKE SELECT ON "system_settings", "integrations_config", "audit_logs", "api_audit_logs",
              "admissions_staging", "person_source_identities", "sanjesh_mappings", "evaluation_responses",
              "verification_otps", "step_api_actions", "document_signatures",
-             "curriculum_approvals"
+             "curriculum_approvals",
+             "sanjesh_templates", "sanjesh_files", "sanjesh_file_fields",
+             "sanjesh_file_rows", "sanjesh_value_maps"
   FROM afagh_app;
 ALTER TABLE "system_settings" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "integrations_config" ENABLE ROW LEVEL SECURITY;
@@ -106,6 +108,12 @@ ALTER TABLE "step_api_actions" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "document_signatures" ENABLE ROW LEVEL SECURITY;
 -- چرخهٔ تأیید برنامهٔ درسی: دفتر ممیزیِ فقط-مالک (بدون سیاست = deny-all برای نقش اپ)
 ALTER TABLE "curriculum_approvals" ENABLE ROW LEVEL SECURITY;
+-- ماژول سازمان سنجش (مهاجرت 0128): دادهٔ خام داوطلبان = PII کامل ⇒ deny-all
+ALTER TABLE "sanjesh_templates" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "sanjesh_files" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "sanjesh_file_fields" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "sanjesh_file_rows" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "sanjesh_value_maps" ENABLE ROW LEVEL SECURITY;
 
 -- جداول پشتیبان دستیِ اطلاعات شخصی (مثل enr_extra_backup_14051 که با studentId ساخته
 -- شده‌اند): اگر موجود باشند RLS می‌گیرند (بدون سیاست = deny-all برای نقش اپ) تا چک
