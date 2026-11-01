@@ -1,4 +1,4 @@
-// ═══ مدیریت دروس و کدهای وضعیت نمره — پورت admin/grade-status-codes و APIهای curriculum ═══
+// ═══ Course management and grade status codes — port of admin/grade-status-codes and curriculum APIs ═══
 package admin
 
 import (
@@ -13,7 +13,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// ── انواع پاسخ ──
+// ── Response types ──
 
 type GradeMajorRow struct {
 	ID   int64  `json:"id"`
@@ -21,7 +21,7 @@ type GradeMajorRow struct {
 	Name string `json:"name"`
 }
 
-// SimpleOption گزینهٔ سادهٔ id/name.
+// SimpleOption: simple id/name option.
 type SimpleOption struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
@@ -113,7 +113,7 @@ type BankCourseRow struct {
 	EquivalentCourseCodes  *string `json:"equivalentCourseCodes"`
 }
 
-// GradeStatusCodeItem یک ردیف جدول مرجع برای UI.
+// GradeStatusCodeItem: a reference table row for UI.
 type GradeStatusCodeItem struct {
 	Code           string `json:"code"`
 	Title          string `json:"title"`
@@ -123,7 +123,7 @@ type GradeStatusCodeItem struct {
 	IsDropped      bool   `json:"isDropped"`
 }
 
-// ── ابزارها ──
+// ── Helpers ──
 
 func escapeLike(s string) string {
 	s = strings.ReplaceAll(s, `\`, `\\`)
@@ -232,9 +232,9 @@ func validLocationType(v string) bool {
 
 func maxRunes(s string, n int) bool { return len([]rune(s)) <= n }
 
-// ── متادیتا ──
+// ── Metadata ──
 
-// GradeMajors پورت /api/admin/curriculum/majors.
+// GradeMajors port of /api/admin/curriculum/majors.
 func (s *Service) GradeMajors(ctx context.Context, user *session.User, cookie string) ([]GradeMajorRow, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	where := ""
@@ -261,12 +261,12 @@ func (s *Service) GradeMajors(ctx context.Context, user *session.User, cookie st
 	return out, rows.Err()
 }
 
-// GradeDepartments پورت /api/admin/curriculum/departments.
+// GradeDepartments port of /api/admin/curriculum/departments.
 func (s *Service) GradeDepartments(ctx context.Context, user *session.User, cookie string) ([]SimpleOption, error) {
 	return s.namedScoped(ctx, user, cookie, "departments", "name", "name")
 }
 
-// GradeClusters پورت /api/admin/curriculum/clusters.
+// GradeClusters port of /api/admin/curriculum/clusters.
 func (s *Service) GradeClusters(ctx context.Context, user *session.User, cookie string) ([]SimpleOption, error) {
 	return s.namedScoped(ctx, user, cookie, "equivalence_clusters", `"clusterTitle"`, `"clusterTitle"`)
 }
@@ -295,7 +295,7 @@ func (s *Service) namedScoped(ctx context.Context, user *session.User, cookie, t
 	return out, rows.Err()
 }
 
-// GradeDegreeLevels همهٔ مقاطع (بدون محدودیت دانشگاه — همان رفتار API).
+// GradeDegreeLevels: all degree levels (no university restriction — same API behavior).
 func (s *Service) GradeDegreeLevels(ctx context.Context) ([]SimpleOption, error) {
 	rows, err := s.DB.Pool.Query(ctx, `select id, title from degree_level_configs order by title`)
 	if err != nil {
@@ -313,7 +313,7 @@ func (s *Service) GradeDegreeLevels(ctx context.Context) ([]SimpleOption, error)
 	return out, rows.Err()
 }
 
-// GradeVersions پورت /api/admin/curriculum/versions.
+// GradeVersions port of /api/admin/curriculum/versions.
 func (s *Service) GradeVersions(ctx context.Context, user *session.User, cookie string, majorID int64) ([]GradeVersionRow, error) {
 	if majorID <= 0 {
 		return []GradeVersionRow{}, nil
@@ -343,7 +343,7 @@ func (s *Service) GradeVersions(ctx context.Context, user *session.User, cookie 
 	return out, rows.Err()
 }
 
-// GradeCurriculumCourses پورت /api/admin/curriculum/courses با نگهبان دانشگاه.
+// GradeCurriculumCourses port of /api/admin/curriculum/courses with university guard.
 func (s *Service) GradeCurriculumCourses(ctx context.Context, user *session.User, cookie string, versionID int64) ([]GradeCurriculumCourseRow, error) {
 	out := []GradeCurriculumCourseRow{}
 	if versionID <= 0 {
@@ -382,7 +382,7 @@ func (s *Service) GradeCurriculumCourses(ctx context.Context, user *session.User
 	return out, rows.Err()
 }
 
-// GradeOffered پورت /api/admin/curriculum/offered.
+// GradeOffered port of /api/admin/curriculum/offered.
 func (s *Service) GradeOffered(ctx context.Context, user *session.User, cookie, q string, majorID, degreeLevelID, versionID int64) ([]OfferedCourseRow, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	conds := []string{}
@@ -449,7 +449,7 @@ func (s *Service) GradeOffered(ctx context.Context, user *session.User, cookie, 
 	return out, rows.Err()
 }
 
-// SetCurriculumGradeCodes پورت PATCH /api/admin/curriculum/grade-codes.
+// SetCurriculumGradeCodes port of PATCH /api/admin/curriculum/grade-codes.
 func (s *Service) SetCurriculumGradeCodes(ctx context.Context, user *session.User, cookie string, versionID, courseID int64, passCode, failCode *string) error {
 	if versionID <= 0 || courseID <= 0 {
 		return errors.New("شناسه نسخه یا درس نامعتبر است.")
@@ -477,7 +477,7 @@ func (s *Service) SetCurriculumGradeCodes(ctx context.Context, user *session.Use
 	return nil
 }
 
-// GradeStatusCodes فهرست جدول مرجع برای dropdownهای UI.
+// GradeStatusCodes: reference table list for UI dropdowns.
 func GradeStatusCodes() []GradeStatusCodeItem {
 	out := make([]GradeStatusCodeItem, 0, len(gradestatus.Codes))
 	for _, c := range gradestatus.Codes {
@@ -489,7 +489,7 @@ func GradeStatusCodes() []GradeStatusCodeItem {
 	return out
 }
 
-// GetGradeThresholds پورت GET /api/admin/grade-thresholds.
+// GetGradeThresholds port of GET /api/admin/grade-thresholds.
 func (s *Service) GetGradeThresholds(ctx context.Context, user *session.User, cookie string, degreeLevelID int64) ([]GradeThresholdRow, string, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	where := ""
@@ -542,7 +542,7 @@ type ThresholdInput struct {
 	Passed   bool    `json:"passed"`
 }
 
-// SaveGradeThresholds پورت POST /api/admin/grade-thresholds.
+// SaveGradeThresholds port of POST /api/admin/grade-thresholds.
 func (s *Service) SaveGradeThresholds(ctx context.Context, user *session.User, cookie string, degreeLevelID int64, displayMode string, thresholds []ThresholdInput) error {
 	if degreeLevelID <= 0 {
 		return errors.New("مقطع تحصیلی الزامی است.")

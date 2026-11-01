@@ -1,11 +1,11 @@
-// ═══ مرکز کدها — یک جای واحد برای تعریف و بازبینی «کد» همهٔ جدول‌های مرجع ═══
+// ═══ Codes Center — a single place to define and review the «کد» of all reference tables ═══
 //
-// پورت وفادار afagh-next/src/app/admin/codes/actions.ts و tables.ts.
+// Faithful port of afagh-next/src/app/admin/codes/actions.ts and tables.ts.
 //
-// چرا لازم است: کد سند اصالت است (کد رشته می‌گوید کدام رشته، کدام مقطع، کدام
-// گروه و کدام دانشکده). تا امروز کدها پراکنده بودند: کد دانشکده هیچ رابطی
-// نداشت، کد گروه فقط از فایل انتقال پر می‌شد و هیچ‌کجا نمی‌شد دید کدام
-// رکوردهای بی‌کد یا دارای کد تکراری‌اند.
+// Why it is needed: the code is the identity document (the major code says which major, which degree level, which
+// department, and which faculty). Until now the codes were scattered: the faculty code had no interface
+// at all, the department code was populated only from an import file, and there was nowhere to see which
+// records are missing a code or have a duplicate code.
 package admin
 
 import (
@@ -23,7 +23,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// ── تعریف جدول‌های کددار — پورت tables.ts ──
+// ── Definition of coded tables — tables.ts port ──
 
 type codeTableDef struct {
 	ID        string `json:"id"`
@@ -39,8 +39,8 @@ var codeTableDefs = []codeTableDef{
 	{ID: "major", Title: "رشته‌ها و گرایش‌ها", Hint: "کد رشته — مقطع و گروه و دانشکده را مشخص می‌کند", Editable: true, Creatable: true},
 	{ID: "degree", Title: "مقاطع تحصیلی", Hint: "کد مقطع — در فایل‌های دانشجو و درس به کار می‌رود", Editable: true, Creatable: true},
 	{ID: "course", Title: "دروس", Hint: "کد درس — کلید یکتای کاتالوگ", Editable: true, Creatable: false},
-	// ترم: کدش ثابت است (در انتخاب واحد، نمره، شهریه و کارنامه ریشه دوانده)، ولی
-	// زمان‌بندی ترم (شروع/پایان، انتخاب واحد، حذف و اضافه، امتحانات) ویرایش‌پذیر است.
+	// Term: its code is fixed (it is rooted in registration, grades, tuition, and transcripts), but
+	// the term schedule (start/end, registration, add/drop, exams) is editable.
 	{ID: "term", Title: "ترم‌ها", Hint: "کد ترم — مثلاً ۴۰۳۱ · کد ثابت، زمان‌بندی ترم ویرایش‌پذیر است", Editable: false, Creatable: true},
 }
 
@@ -52,9 +52,9 @@ func validCodeTable(t string) bool {
 	return false
 }
 
-// ── انواع پاسخ ──
+// ── Response types ──
 
-// CodeRow ردیف نمایشی کد (پورت CodeRow).
+// CodeRow is a code display row (CodeRow port).
 type CodeRow struct {
 	ID           int64   `json:"id"`
 	Code         *string `json:"code"`
@@ -67,7 +67,7 @@ type CodeRow struct {
 	MinistryCode *string `json:"ministryCode"`
 }
 
-// CodeStat آمار سلامت کد یک جدول (پورت CodeStat).
+// CodeStat holds code health statistics for a table (CodeStat port).
 type CodeStat struct {
 	ID        string `json:"id"`
 	Title     string `json:"title"`
@@ -79,26 +79,26 @@ type CodeStat struct {
 	Duplicate int    `json:"duplicate"`
 }
 
-// MissingCodeSummary خلاصهٔ رکوردهای بی‌کد یک جدول.
+// MissingCodeSummary summarizes records with missing codes in a table.
 type MissingCodeSummary struct {
 	Table   string `json:"table"`
 	Missing int    `json:"missing"`
 }
 
-// CodeFormOptions گزینه‌های والد فرم ساخت (پورت FormOptions).
+// CodeFormOptions holds parent options for the create form (FormOptions port).
 type CodeFormOptions struct {
 	Degree     []CodeOption `json:"degree"`
 	Department []CodeOption `json:"department"`
 	Faculty    []CodeOption `json:"faculty"`
 }
 
-// CodeOption یک گزینهٔ select.
+// CodeOption is a select option.
 type CodeOption struct {
 	Value string `json:"value"`
 	Label string `json:"label"`
 }
 
-// DegreeDetail جزئیات یک مقطع برای فرم ویرایش (پورت DegreeDetail).
+// DegreeDetail holds details of a degree level for the edit form (DegreeDetail port).
 type DegreeDetail struct {
 	ID                      int64   `json:"id"`
 	Title                   string  `json:"title"`
@@ -112,12 +112,12 @@ type DegreeDetail struct {
 	IsGraduate              *int64  `json:"isGraduate"`
 }
 
-// ── ردیف خام داخلی ──
+// ── Internal raw row ──
 //
-// scope کلید یکتایی است (مثلاً دانشگاه).
-// چرا: کد ترم و کد درس فقط «درون یک دانشگاه» یکتاست (uq_terms_uni_code و
-// uq_courses_uni_code)، نه سراسری. شمارش سراسری ۲۷۰/۵۲۵ هشدار اشتباه می‌داد
-// در حالی که تکراری واقعی صفر بود. scope=null یعنی سراسری (رشته، مقطع).
+// scope is the uniqueness key (e.g. university).
+// Why: the term code and the course code are unique only «درون یک دانشگاه» (uq_terms_uni_code and
+// uq_courses_uni_code), not globally. The global count of 270/525 gave false warnings
+// while the real duplicates were zero. scope=null means global (major, degree level).
 
 type codeRawRow struct {
 	id           int64
@@ -131,9 +131,9 @@ type codeRawRow struct {
 	endDate      *string
 }
 
-// strPtr/derefStr از pos.go و admissions.go همین پکیج استفاده می‌شوند.
+// strPtr/derefStr are used from pos.go and admissions.go in this same package.
 
-// codeDupSet — پورت dupSet.
+// codeDupSet — dupSet port.
 func codeDupSet(rows []codeRawRow) map[string]bool {
 	seen := map[string]int{}
 	for _, r := range rows {
@@ -162,15 +162,15 @@ func codeScopeKey(r codeRawRow) string {
 
 // ── listCodes ──
 
-// ListCodes پورت listCodes — فهرست کدهای یک جدول مرجع (با تشخیص تکراری و جست‌وجو).
+// ListCodes ports listCodes — lists the codes of a reference table (with duplicate detection and search).
 func (s *Service) ListCodes(ctx context.Context, user *session.User, uniCookie, table, q string) ([]CodeRow, error) {
 	tn := []rune(fa.NormalizeFa(q))
 	if len(tn) > 60 {
 		tn = tn[:60]
 	}
 	t := string(tn)
-	// دانشگاه فعال از سوییچ سربرگ — همهٔ جدول‌های مرجع (جز مقطع که سراسری است)
-	// فقط رکوردهای همین دانشگاه را نشان می‌دهند تا سوییچ واقعاً کار کند.
+	// The active university from the header switch — all reference tables (except degree level, which is global)
+	// show only this university's records so the switch actually works.
 	uniID := s.UniversityID(ctx, user, uniCookie)
 
 	raw, err := s.codesRawRows(ctx, uniID, table)
@@ -205,7 +205,7 @@ func (s *Service) ListCodes(ctx context.Context, user *session.User, uniCookie, 
 	return out, nil
 }
 
-// codesRawRows خواندن خام هر جدول — همان select/orderBy/where نسخهٔ Next.
+// codesRawRows reads each table raw — the same select/orderBy/where as the Next version.
 func (s *Service) codesRawRows(ctx context.Context, uniID *int64, table string) ([]codeRawRow, error) {
 	var rows []codeRawRow
 	var err error
@@ -290,7 +290,7 @@ func (s *Service) codesRawDepartment(ctx context.Context, uniID *int64) ([]codeR
 			&uni, &facName, &facCode, &facID); err != nil {
 			return nil, err
 		}
-		// زمینه: [دانشگاه، دانشکده [کد دانشکده]] با «·»
+		// Context: [university, faculty [faculty code]] with «·»
 		parts := []string{}
 		if uni != nil && *uni != "" {
 			parts = append(parts, *uni)
@@ -305,7 +305,7 @@ func (s *Service) codesRawDepartment(ctx context.Context, uniID *int64) ([]codeR
 		if len(parts) > 0 {
 			r.context = strPtr(strings.Join(parts, " · "))
 		}
-		// گروه ذیل دانشکده است — تکراری واقعی یعنی کد تکراری در یک دانشکده
+		// The department is under the faculty — a real duplicate means a duplicate code within one faculty
 		if facID != nil {
 			r.scope = strPtr(fmt.Sprintf("f%d", *facID))
 		}
@@ -355,7 +355,7 @@ func (s *Service) codesRawMajor(ctx context.Context, uniID *int64) ([]codeRawRow
 		if len(parts) > 0 {
 			r.context = strPtr(strings.Join(parts, " · "))
 		}
-		// کد رشته سراسری یکتاست (majorCode unique) — تکراری واقعی است
+		// The major code is globally unique (majorCode unique) — a duplicate is real
 		out = append(out, r)
 	}
 	return out, rws.Err()
@@ -365,9 +365,9 @@ func (s *Service) codesRawDegree(ctx context.Context, uniID *int64) ([]codeRawRo
 	where := "true"
 	args := []any{}
 	if uniID != nil {
-		// مقطع‌ها عملاً دانشگاه‌محور استفاده می‌شن (هر دانشگاه زیرمجموعهٔ خودش را دارد)
-		// ولی مالکیت‌شان به‌هم‌ریخته است (SAMAها همه به نام آفاق‌اند ولی ۴ دانشگاه
-		// استفاده‌شان می‌کنند). پس فیلتر = مال خود دانشگاه یا مشترک یا مورداستفادهٔ رشته‌هایش.
+		// Degree levels are in practice used per university (each university has its own subset)
+		// But their ownership is messy (the SAMAs are all under Afagh's name while 4 universities
+		// use them). So the filter = owned by the university itself, shared, or used by its fields of study.
 		where = `("universityId" = $1 or "universityId" is null or id in (select "degreeLevelId" from majors where "universityId" = $1))`
 		args = append(args, *uniID)
 	}
@@ -398,7 +398,7 @@ func (s *Service) codesRawDegree(ctx context.Context, uniID *int64) ([]codeRawRo
 			parts = append(parts, "تکمیلی")
 		}
 		r.context = strPtr(strings.Join(parts, " · "))
-		// کد مقطع سراسری یکتاست — تکراری واقعی است
+		// The national degree-level code is unique — this is a real duplicate
 		out = append(out, r)
 	}
 	return out, rws.Err()
@@ -441,7 +441,7 @@ func (s *Service) codesRawCourse(ctx context.Context, uniID *int64) ([]codeRawRo
 		if len(parts) > 0 {
 			r.context = strPtr(strings.Join(parts, " · "))
 		}
-		// کد درس فقط درون یک دانشگاه یکتاست (uq_courses_uni_code)
+		// The course code is unique only within a university (uq_courses_uni_code)
 		if uid != nil {
 			r.scope = strPtr(fmt.Sprintf("u%d", *uid))
 		}
@@ -482,7 +482,7 @@ func (s *Service) codesRawTerm(ctx context.Context, uniID *int64) ([]codeRawRow,
 		if uni != nil {
 			r.context = uni
 		}
-		// کد ترم فقط درون یک دانشگاه یکتاست (uq_terms_uni_code)
+		// The term code is unique only within a university (uq_terms_uni_code)
 		if uid != nil {
 			r.scope = strPtr(fmt.Sprintf("u%d", *uid))
 		}
@@ -493,7 +493,7 @@ func (s *Service) codesRawTerm(ctx context.Context, uniID *int64) ([]codeRawRow,
 
 // ── codeStats / missingCodeSummary ──
 
-// CodeStats پورت codeStats — خلاصهٔ سلامت کدها برای همهٔ جدول‌ها (کارت‌های بالای صفحه).
+// CodeStats is the codeStats port — code health summary for all tables (cards at the top of the page).
 func (s *Service) CodeStats(ctx context.Context, user *session.User, uniCookie string) ([]CodeStat, error) {
 	out := []CodeStat{}
 	for _, d := range codeTableDefs {
@@ -519,8 +519,8 @@ func (s *Service) CodeStats(ctx context.Context, user *session.User, uniCookie s
 	return out, nil
 }
 
-// MissingCodeSummary پورت missingCodeSummary — شمار رکوردهای بی‌کد در هر جدول
-// (برای هشدار پیش از انتقال داده).
+// MissingCodeSummary is the missingCodeSummary port — count of records without a code in each table
+// (for warning before data migration).
 func (s *Service) MissingCodeSummary(ctx context.Context, user *session.User, uniCookie string) ([]MissingCodeSummary, error) {
 	stats, err := s.CodeStats(ctx, user, uniCookie)
 	if err != nil {
@@ -537,7 +537,7 @@ func (s *Service) MissingCodeSummary(ctx context.Context, user *session.User, un
 
 // ── exportCodesCsv ──
 
-// ExportCodesCsv پورت exportCodesCsv — خروجی CSV یک جدول (دانلود از متن).
+// ExportCodesCsv is the exportCodesCsv port — CSV export of one table (download as text).
 func (s *Service) ExportCodesCsv(ctx context.Context, user *session.User, uniCookie, table string) (string, error) {
 	rows, err := s.ListCodes(ctx, user, uniCookie, table, "")
 	if err != nil {
@@ -574,8 +574,8 @@ func (s *Service) ExportCodesCsv(ctx context.Context, user *session.User, uniCoo
 
 // ── countRows ──
 
-// CountRows پورت countRows — شمار کل رکوردهای هر جدول بدون بارگذاری کامل
-// (برای صفحه‌های بزرگ مثل دروس).
+// CountRows is the countRows port — total record count of each table without loading it fully
+// (for large pages such as courses).
 func (s *Service) CountRows(ctx context.Context, user *session.User, uniCookie, table string) (int64, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	var uniCol string
@@ -624,12 +624,12 @@ func codeTableName(table string) string {
 	return ""
 }
 
-// ── setCodeAction — ویرایش کد یک رکورد با بررسی یکتایی ──
+// ── setCodeAction — edit a record's code with a uniqueness check ──
 
-// SetCodeInput ورودی ویرایش کد.
+// SetCodeInput is the input for editing a code.
 //
-// کدهای ملی/وزارتی (ثمین) — فقط وقتی فرم همین فیلدها را فرستاده باشد تغییر می‌کنند؛
-// فرم‌های قدیمی‌تر (ذخیرهٔ کد از ردیف جدول) اصلاً نمی‌فرستند و ستون‌ها دست‌نخورده می‌مانند.
+// National/ministry codes (Samin) — they change only when the form has sent these same fields;
+// older forms (saving a code from a table row) do not send them at all and the columns stay untouched.
 type SetCodeInput struct {
 	Table        string  `json:"table"`
 	ID           int64   `json:"id"`
@@ -638,14 +638,14 @@ type SetCodeInput struct {
 	MinistryCode *string `json:"ministryCode"`
 }
 
-// SetCodeAction پورت setCodeAction.
+// SetCodeAction is the setCodeAction port.
 func (s *Service) SetCodeAction(ctx context.Context, user *session.User, uniCookie string, in SetCodeInput) error {
 	id := in.ID
 	code := strings.TrimSpace(in.Code)
 	if id <= 0 {
 		return errors.New("رکورد نامعتبر است.")
 	}
-	// رکورد باید متعلق به دانشگاه فعال (یا سراسری) باشد
+	// The record must belong to the active university (or be national)
 	uni := s.UniversityID(ctx, user, uniCookie)
 	if uni == nil {
 		return errors.New("دانشگاه فعال نامشخص است.")
@@ -673,14 +673,14 @@ func (s *Service) SetCodeAction(ctx context.Context, user *session.User, uniCook
 		}
 	}
 
-	// کدهای ملی/وزارتی (ثمین) — فقط وقتی فرم همین فیلدها را فرستاده باشد تغییر می‌کنند.
+	// National/ministry codes (Samin) — they change only when the form has sent these same fields.
 	std := optLatinPtr(in.StandardCode)
 	min := optLatinPtr(in.MinistryCode)
 
 	clash := func(foundTitle string) error {
 		return fmt.Errorf("کد «%s» قبلاً برای «%s» ثبت شده — کد باید یکتا باشد.", code, foundTitle)
 	}
-	// clashCode اگر کد برای رکورد دیگری ثبت شده باشد عنوانش را برمی‌گرداند.
+	// clashCode returns its title if the code is already registered to another record.
 	clashCode := func(query string, args ...any) (*string, error) {
 		var title string
 		err := s.DB.Pool.QueryRow(ctx, query, args...).Scan(&title)
@@ -728,7 +728,7 @@ func (s *Service) SetCodeAction(ctx context.Context, user *session.User, uniCook
 		}
 		return s.codesExecUpdate(ctx, `update majors set "majorCode" = $1`, code, std, min, id)
 	case "degree":
-		// کد مقطع NOT NULL است — خالی‌کردنش مجاز نیست
+		// The degree-level code is NOT NULL — clearing it is not allowed
 		if code == "" {
 			return errors.New("کد مقطع نمی‌تواند خالی باشد.")
 		}
@@ -753,7 +753,7 @@ func (s *Service) SetCodeAction(ctx context.Context, user *session.User, uniCook
 		}
 		return s.codesExecUpdate(ctx, `update courses set code = $1`, code, std, min, id)
 	case "term":
-		// کد ترم از این صفحه ویرایش‌پذیر نیست — فقط کدهای ثمینی قابل ثبت‌اند
+		// The term code is not editable from this page — only Samin codes can be registered
 		if std == nil && min == nil {
 			return errors.New("کد این جدول از این صفحه قابل ویرایش نیست.")
 		}
@@ -783,10 +783,10 @@ func (s *Service) SetCodeAction(ctx context.Context, user *session.User, uniCook
 	return errors.New("کد این جدول از این صفحه قابل ویرایش نیست.")
 }
 
-// codesExecUpdate اجرای update کد + کدهای ثمینی اختیاری.
+// codesExecUpdate performs the code update + optional Samin codes.
 func (s *Service) codesExecUpdate(ctx context.Context, baseUpdate, code string, std, min *string, id int64) error {
-	// baseUpdate به شکل `update <tbl> set <col> = $1` است — ستون پایه همیشه هست
-	// (خالی → NULL؛ برای جدول‌های NOT NULL همیشه غیرخالی می‌رسد).
+	// baseUpdate has the form `update <tbl> set <col> = $1` — the base column is always present
+	// (empty → NULL; for NOT NULL tables it always arrives non-empty).
 	sets := []string{strings.TrimPrefix(baseUpdate, "update ")}
 	args := []any{optCode(code)}
 	n := 2
@@ -813,13 +813,13 @@ func (s *Service) codesExecUpdate(ctx context.Context, baseUpdate, code string, 
 	return nil
 }
 
-// ── ابزارهای مشترک ──
+// ── Shared helpers ──
 
-// کاربر ممکن است کد را با ارقام فارسی بنویسد؛ کد باید لاتین ذخیره شود
-// وگرنه با کدِ همان ردیف در فایل اکسل مبدأ تطبیق نمی‌خورد.
+// A user may write the code with Persian digits; the code must be stored in Latin
+// otherwise it will not match the code of the same row in the source Excel file.
 func codeLatin(v string) string { return fa.ToEnDigits(v) }
 
-// optCode خالی یا غایب → nil (ستون‌ها nullable) — پورت optCode.
+// optCode empty or absent → nil (the columns are nullable) — optCode port.
 func optCode(v string) *string {
 	v = strings.TrimSpace(codeLatin(v))
 	if v == "" {
@@ -835,10 +835,10 @@ func optLatinPtr(p *string) *string {
 	return optCode(*p)
 }
 
-// codeStrTrim مقدار رشتهٔ فرم — trim شده.
+// codeStrTrim is the form's string value — trimmed.
 func codeStrTrim(v string) string { return strings.TrimSpace(v) }
 
-// codeNum پورت num — عدد از فرم (ارقام فارسی هم قبول است)؛ نامعتبر → nil.
+// codeNum is the num port — a number from the form (Persian digits are accepted too); invalid → nil.
 func codeNum(v string) *float64 {
 	v = strings.TrimSpace(fa.ToEnDigits(v))
 	if v == "" {
@@ -851,7 +851,7 @@ func codeNum(v string) *float64 {
 	return &n
 }
 
-// codeNumOr پورت num(fd,k) ?? def.
+// codeNumOr is the num(fd,k) ?? def port.
 func codeNumOr(vals map[string]string, key string, def float64) float64 {
 	if n := codeNum(vals[key]); n != nil {
 		return *n
@@ -859,8 +859,8 @@ func codeNumOr(vals map[string]string, key string, def float64) float64 {
 	return def
 }
 
-// normJalali — پورت normJalali در exam-scheduler.ts.
-// تاریخ شمسی 'YYYY/MM/DD' استاندارد (طول ثابت برای مقایسهٔ رشته‌ای).
+// normJalali — the normJalali port in exam-scheduler.ts.
+// Standard Jalali date 'YYYY/MM/DD' (fixed length for string comparison).
 func normJalali(s string) string {
 	parts := strings.Split(strings.TrimSpace(s), "/")
 	if len(parts) != 3 {
@@ -884,9 +884,9 @@ var termCodeRe = regexp.MustCompile(`^[0-9A-Za-z_-]{2,10}$`)
 var dtLocalRe = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$`)
 var jalaliDateRe = regexp.MustCompile(`^\d{4}/\d{1,2}/\d{1,2}$`)
 
-// ── codeFormOptions — گزینه‌های والد برای فرم ساخت رشته ──
+// ── codeFormOptions — parent options for the field-creation form ──
 
-// CodeFormOptionsOf پورت codeFormOptions.
+// CodeFormOptionsOf is the codeFormOptions port.
 func (s *Service) CodeFormOptionsOf(ctx context.Context, user *session.User, uniCookie string) (*CodeFormOptions, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	uniCond := func(col string) string {
@@ -967,14 +967,14 @@ func (s *Service) CodeFormOptionsOf(ctx context.Context, user *session.User, uni
 	return out, nil
 }
 
-// ── ساخت رکورد مرجع تازه ──
+// ── Creating a new reference record ──
 //
-// چرا اینجا: مقطع تحصیلی، دانشکده و رشته تا امروز هیچ رابط ساختی نداشتند و فقط
-// از دادهٔ پایه (seed) یا فایل انتقال ساخته می‌شدند. یعنی اگر دانشگاه مقطع تازه‌ای
-// اضافه می‌کرد، هیچ راهی جز دست‌کاری مستقیم دیتابیس نبود. گروه آموزشی صفحهٔ خودش
-// را دارد و درس در کارتابل مدیر گروه ساخته می‌شود، پس اینجا تکرار نمی‌شوند.
+// Why here: until now degree levels, faculties and fields had no creation UI and were only
+// created from seed data or a migration file. That is, if a university added a new degree level,
+// the only way was to manipulate the database directly. The academic department has its own page
+// and courses are created in the department head's inbox, so they are not duplicated here.
 
-// CreateCodeRow پورت createCodeRowAction — افزودن مقطع، دانشکده، رشته یا ترم.
+// CreateCodeRow is the createCodeRowAction port — adding a degree level, faculty, field or term.
 func (s *Service) CreateCodeRow(ctx context.Context, user *session.User, uniCookie, table string, vals map[string]string) (int64, error) {
 	code := codeLatin(codeStrTrim(vals["code"]))
 	var id int64
@@ -993,9 +993,9 @@ func (s *Service) CreateCodeRow(ctx context.Context, user *session.User, uniCook
 		return 0, codeErr("ساخت رکورد برای این جدول از این صفحه ممکن نیست.")
 	}
 	if err != nil {
-		// پیام‌های اعتبارسنجی عیناً و بدون پسوند برمی‌گردند (مثل return داخل try در Next)؛
-		// اگر دو کاربر هم‌زمان کد یکسانی ثبت کنند، بررسی‌های بالا از هم رد می‌شوند
-		// و داور نهایی خود دیتابیس است — پیامش را فارسی می‌کنیم.
+		// Validation messages are returned verbatim and without a suffix (like a return inside try in Next);
+		// if two users register the same code at the same time, the checks above slip past each other
+		// and the database itself is the final judge — we translate its message into Persian.
 		var ve *codeValidationErr
 		if errors.As(err, &ve) {
 			return 0, err
@@ -1009,8 +1009,8 @@ func (s *Service) CreateCodeRow(ctx context.Context, user *session.User, uniCook
 	return id, nil
 }
 
-// codeValidationErr خطای اعتبارسنجی — معادل return زودهنگام اکشن Next
-// (بدون پسوند «ثبت نشد:» که فقط برای خطاهای دیتابیس می‌آید).
+// codeValidationErr is a validation error — equivalent to an early return in a Next action
+// (without the «ثبت نشد:» suffix, which appears only for database errors).
 type codeValidationErr struct{ msg string }
 
 func (e *codeValidationErr) Error() string { return e.msg }
@@ -1131,7 +1131,7 @@ func (s *Service) codesCreateMajor(ctx context.Context, vals map[string]string, 
 		v := int64(*n)
 		departmentID = &v
 	}
-	// دانشکده را از روی گروه استنتاج می‌کنیم تا زنجیرهٔ رشته→گروه→دانشکده نشکند
+	// We infer the faculty from the department so the chain field→department→faculty does not break
 	var facultyID *int64
 	if departmentID != nil {
 		var f *int64
@@ -1182,8 +1182,8 @@ func (s *Service) codesCreateTerm(ctx context.Context, vals map[string]string, c
 	if !errors.Is(err, pgx.ErrNoRows) {
 		return 0, err
 	}
-	// ترم تازه هرگز ترم جاری نیست و انتخاب واحدش باز نیست؛ این‌ها را
-	// مسئول آموزش آگاهانه در تنظیمات ترم فعال می‌کند، نه هنگام ساخت کد.
+	// A new term is never the current term and its registration is not open; the
+	// education officer enables these deliberately in the term settings, not when creating the code.
 	summer := 0
 	if termType == "SUMMER" {
 		summer = 1
@@ -1198,9 +1198,9 @@ func (s *Service) codesCreateTerm(ctx context.Context, vals map[string]string, c
 	return id, err
 }
 
-// ── ویرایش عمومی سطرها (دانشکده/گروه/رشته/درس) ──
+// ── Generic row editing (faculty/department/field/course) ──
 
-// GetCodeRow پورت getCodeRowAction — خواندن یک سطر برای فرم ویرایش عمومی.
+// GetCodeRow is the getCodeRowAction port — reads one row for the generic edit form.
 func (s *Service) GetCodeRow(ctx context.Context, user *session.User, uniCookie, table string, id int64) (map[string]string, error) {
 	if id <= 0 {
 		return nil, nil
@@ -1300,9 +1300,9 @@ func (s *Service) GetCodeRow(ctx context.Context, user *session.User, uniCookie,
 	return res, nil
 }
 
-// UpdateCodeRow پورت updateCodeRowAction — ویرایش عمومی سطرهای کد
-// (گروه/رشته/درس/دانشکده). فقط فیلدهای همین فرم نوشته می‌شوند و هر نوشتن
-// به دانشگاهِ جاری محدود است.
+// UpdateCodeRow is the updateCodeRowAction port — generic editing of code rows
+// (department/field/course/faculty). Only this form's fields are written and every write
+// is limited to the current university.
 func (s *Service) UpdateCodeRow(ctx context.Context, user *session.User, uniCookie, table string, id int64, vals map[string]string) error {
 	if id <= 0 {
 		return codeErr("شناسهٔ سطر نامعتبر است.")
@@ -1426,10 +1426,10 @@ func (s *Service) UpdateCodeRow(ctx context.Context, user *session.User, uniCook
 	}
 }
 
-// ── ویرایش مقطع ──
+// ── Editing a degree level ──
 
-// GetDegreeRow پورت getDegreeRowAction — خواندن یک مقطع برای فرم ویرایش
-// (همان فیلدهای فرم ساخت).
+// GetDegreeRow is the getDegreeRowAction port — reads a degree level for the edit form
+// (the same fields as the creation form).
 func (s *Service) GetDegreeRow(ctx context.Context, user *session.User, uniCookie string, id int64) (*DegreeDetail, error) {
 	if id <= 0 {
 		return nil, nil
@@ -1457,8 +1457,8 @@ func (s *Service) GetDegreeRow(ctx context.Context, user *session.User, uniCooki
 	return &r, nil
 }
 
-// UpdateDegreeRow پورت updateDegreeRowAction — ویرایش مقطع با همهٔ فیلدهای
-// فرم ساخت؛ کد با همان قاعدهٔ یکتاییِ ویرایش کد.
+// UpdateDegreeRow is the updateDegreeRowAction port — edits a degree level with all fields of
+// the creation form; the code follows the same uniqueness rule as code editing.
 func (s *Service) UpdateDegreeRow(ctx context.Context, user *session.User, uniCookie string, id int64, vals map[string]string) error {
 	if id <= 0 {
 		return errors.New("رکورد نامعتبر است.")
@@ -1549,11 +1549,11 @@ func (s *Service) UpdateDegreeRow(ctx context.Context, user *session.User, uniCo
 	return err
 }
 
-// ── ویرایش ترم (زمان‌بندی تحصیلی) ──
+// ── Editing a term (academic schedule) ──
 
-// GetTermRow پورت getTermRowAction — خواندن یک ترم برای فرم ویرایش؛
-// همهٔ زمان‌بندی‌ها: شروع/پایان ترم، انتخاب واحد، حذف و اضافه، مهلت نمره و
-// اعتراض، پنجرهٔ کل امتحانات (شمسی).
+// GetTermRow is the getTermRowAction port — reads a term for the edit form;
+// all schedules: term start/end, course registration, add/drop, grade deadline and
+// objection, the whole exam window (Jalali).
 func (s *Service) GetTermRow(ctx context.Context, user *session.User, uniCookie string, id int64) (map[string]string, error) {
 	if id <= 0 {
 		return nil, nil
@@ -1644,7 +1644,7 @@ func (s *Service) GetTermRow(ctx context.Context, user *session.User, uniCookie 
 	return res, nil
 }
 
-// UpdateTermRow پورت updateTermRowAction — ویرایش کامل زمان‌بندی ترم.
+// UpdateTermRow is the updateTermRowAction port — full editing of the term schedule.
 func (s *Service) UpdateTermRow(ctx context.Context, user *session.User, uniCookie string, id int64, vals map[string]string) error {
 	if id <= 0 {
 		return errors.New("رکورد نامعتبر است.")
@@ -1677,7 +1677,7 @@ func (s *Service) UpdateTermRow(ctx context.Context, user *session.User, uniCook
 		year = &v
 	}
 
-	// زمان‌بندی‌های datetime-local: خالی = null
+	// datetime-local times: empty = null
 	dtFields := []string{"startDate", "endDate", "enrollmentStartDate", "enrollmentEndDate",
 		"addDropStartDate", "addDropEndDate", "gradeEntryDeadline"}
 	dtVals := map[string]*string{}
@@ -1721,7 +1721,7 @@ func (s *Service) UpdateTermRow(ctx context.Context, user *session.User, uniCook
 		isEnr = 1
 	}
 
-	// پنجرهٔ امتحانات — تاریخ شمسی 'YYYY/M/D' در exam_calendar_configs (به شمسی ذخیره می‌شود)
+	// Exam window — Jalali date 'YYYY/M/D' in exam_calendar_configs (stored as Jalali)
 	exS := codeStrTrim(vals["examStartDate"])
 	exE := codeStrTrim(vals["examEndDate"])
 	if (exS != "" && exE == "") || (exS == "" && exE != "") {
@@ -1758,7 +1758,7 @@ func (s *Service) UpdateTermRow(ctx context.Context, user *session.User, uniCook
 		return err
 	}
 
-	// «ترم جاری» و «باز بودن انتخاب واحد» در هر دانشگاه فقط یکی است — بقیه خاموش می‌شوند
+	// Only one «ترم جاری» and one «باز بودن انتخاب واحد» exist per university — the rest are turned off
 	uniScope := `"universityId" is null`
 	scopeArgs := []any{}
 	if universityID != nil {
@@ -1796,8 +1796,8 @@ func (s *Service) UpdateTermRow(ctx context.Context, user *session.User, uniCook
 		}
 	}
 
-	// پنجرهٔ امتحانات: upsert در exam_calendar_configs — بازه‌های عمومی/تخصصی
-	// قبلی داخل بازهٔ جدید clamp می‌شوند (تغییر جزئیات در ماژول امتحانات).
+	// Exam window: upsert in exam_calendar_configs — general/specialized ranges
+	// previous ones are clamped into the new range (detail changes in the exams module).
 	if zoning != nil {
 		a, b := zoning[0], zoning[1]
 		var (
@@ -1849,20 +1849,20 @@ func (s *Service) UpdateTermRow(ctx context.Context, user *session.User, uniCook
 	return nil
 }
 
-// ── حذف رکورد مرجع ──
+// ── Deleting a reference record ──
 
-// DeleteCodeRow پورت deleteCodeRowAction — حذف فقط وقتی هیچ‌جا استفاده نشده باشد.
+// DeleteCodeRow is the deleteCodeRowAction port — delete only when it is not used anywhere.
 //
-// به‌جای شمردن دستیِ ۱۰+ جدولِ ارجاع‌دهنده، اجازه می‌دهیم خود دیتابیس قضاوت کند
-// و خطای کلید خارجی (SQLSTATE 23503) را به پیام فارسی ترجمه می‌کنیم. این‌طور
-// هیچ جدول تازه‌ای از قلم نمی‌افتد.
+// Instead of manually counting 10+ referencing tables, we let the database itself judge
+// and translate the foreign-key error (SQLSTATE 23503) into a Persian message. This way
+// no new table is overlooked.
 func (s *Service) DeleteCodeRow(ctx context.Context, user *session.User, uniCookie, table string, id int64) error {
 	if id <= 0 {
 		return errors.New("رکورد نامعتبر است.")
 	}
-	// ترم را هم می‌شود حذف کرد: چون کدش ویرایش‌پذیر نیست، اگر اشتباه ثبت شود
-	// تنها راه اصلاح، حذف رکوردِ بی‌استفاده است. محافظ کلید خارجی جلوی حذف
-	// ترمی که انتخاب واحد یا نمره دارد را می‌گیرد.
+	// A term can be deleted too: since its code is not editable, if it is registered by mistake
+	// the only way to correct it is to delete the unused record. The foreign-key guard blocks deleting
+	// a term that has registrations or grades.
 	switch table {
 	case "degree", "faculty", "major", "term":
 	default:
@@ -1872,7 +1872,7 @@ func (s *Service) DeleteCodeRow(ctx context.Context, user *session.User, uniCook
 	where := `id = $1`
 	args := []any{id}
 	if uniID != nil {
-		// رکورد باید متعلق به دانشگاه فعال (یا سراسری) باشد
+		// The record must belong to the active university (or be national)
 		var u *int64
 		err := s.DB.Pool.QueryRow(ctx,
 			`select "universityId" from `+codeTableName(table)+` where id = $1`, id).Scan(&u)

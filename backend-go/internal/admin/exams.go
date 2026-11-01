@@ -1,4 +1,4 @@
-// ═══ برنامه‌ریزی امتحانات (ادمین) — زیرمجموعهٔ کاربردی ═══
+// ═══ Exam scheduling (admin) — practical subset ═══
 package admin
 
 import (
@@ -9,7 +9,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// ExamSession جلسهٔ امتحان.
+// ExamSession exam session.
 type ExamSession struct {
 	ID        int64  `json:"id"`
 	TermID    *int64 `json:"termId"`
@@ -19,7 +19,7 @@ type ExamSession struct {
 	Allocated int    `json:"allocated"`
 }
 
-// ExamCourse درس با جلسهٔ امتحان ثبت‌شده در برنامهٔ هفتگی.
+// ExamCourse course with an exam session recorded in the weekly schedule.
 type ExamCourse struct {
 	OfferingID int64   `json:"offeringId"`
 	Code       string  `json:"courseCode"`
@@ -32,7 +32,7 @@ type ExamCourse struct {
 	SessionID  *int64  `json:"sessionId"`
 }
 
-// ExamHall سالن.
+// ExamHall hall.
 type ExamHall struct {
 	ID        int64   `json:"id"`
 	Name      string  `json:"name"`
@@ -42,7 +42,7 @@ type ExamHall struct {
 	Building  *string `json:"buildingName"`
 }
 
-// ExamsData پاسخ کارتابل.
+// ExamsData dashboard response.
 type ExamsData struct {
 	Term           AdminTerm     `json:"term"`
 	Sessions       []ExamSession `json:"sessions"`
@@ -51,7 +51,7 @@ type ExamsData struct {
 	AllocatedTotal int           `json:"allocatedTotal"`
 }
 
-// GetExams پورت getExamWorkspaceAction (زیرمجموعه).
+// GetExams getExamWorkspaceAction port (subset).
 func (s *Service) GetExams(ctx context.Context, user *session.User, uniCookie string) (*ExamsData, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	resp := &ExamsData{Sessions: []ExamSession{}, Courses: []ExamCourse{}, Halls: []ExamHall{}}
@@ -105,7 +105,7 @@ func (s *Service) GetExams(ctx context.Context, user *session.User, uniCookie st
 		}
 		crows.Close()
 	}
-	// نگاشت جلسه‌ها بر اساس تاریخ/ساعت.
+	// Map sessions by date/time.
 	for i := range resp.Courses {
 		for _, es := range resp.Sessions {
 			if resp.Courses[i].ExamDate == es.ExamDate && resp.Courses[i].StartTime == clock5(es.StartTime) {
@@ -136,7 +136,7 @@ func (s *Service) GetExams(ctx context.Context, user *session.User, uniCookie st
 	return resp, nil
 }
 
-// CreateExamSession پورت ایجاد سشن امتحان.
+// CreateExamSession create exam session port.
 func (s *Service) CreateExamSession(ctx context.Context, user *session.User, uniCookie string, termID int64, examDate, start, end string) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -154,8 +154,8 @@ func (s *Service) CreateExamSession(ctx context.Context, user *session.User, uni
 	return err
 }
 
-// AssignExamSession ارائه را به سشن می‌بندد: برنامهٔ EXAM همان ارائه به
-// تاریخ/ساعت سشن به‌روزرسانی می‌شود (یک منبع حقیقت: schedules).
+// AssignExamSession binds an offering to a session: the EXAM schedule of that offering is
+// updated to the session's date/time (single source of truth: schedules).
 func (s *Service) AssignExamSession(ctx context.Context, user *session.User, uniCookie string, offeringID, sessionID int64) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -183,7 +183,7 @@ func (s *Service) AssignExamSession(ctx context.Context, user *session.User, uni
 	return err
 }
 
-// CreateExamHall پورت ایجاد سالن.
+// CreateExamHall create hall port.
 func (s *Service) CreateExamHall(ctx context.Context, user *session.User, uniCookie string, name string, capacity, rowsCount, colsCount int, building string) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -217,8 +217,8 @@ func (s *Service) CreateExamHall(ctx context.Context, user *session.User, uniCoo
 	return err
 }
 
-// GenerateExamSeats تخصیص صندلی برای سشن‌ها (ساده و قطعی): دانشجویانِ ارائه‌های
-// هر سشن به ترتیب شمارهٔ دانشجویی، صندلی ۱..n در سالن اولِ جادار.
+// GenerateExamSeats assign seats for sessions (simple and deterministic): students of the
+// offerings of each session by student number, seats 1..n in the first hall with capacity.
 func (s *Service) GenerateExamSeats(ctx context.Context, user *session.User, uniCookie string) (int, int, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -258,7 +258,7 @@ func (s *Service) GenerateExamSeats(ctx context.Context, user *session.User, uni
 	allocated := 0
 	sessionCount := 0
 	for _, es := range sessions {
-		// ارائه‌های این سشن بر اساس تطبیق تاریخ/ساعت.
+		// Offerings of this session matched by date/time.
 		offRows, err := s.DB.Pool.Query(ctx, `
 			select o.id from schedules sc
 			  join course_offerings o on o.id = sc."offeringId"
@@ -278,7 +278,7 @@ func (s *Service) GenerateExamSeats(ctx context.Context, user *session.User, uni
 		if len(offeringIDs) == 0 {
 			continue
 		}
-		// دانشجویان این ارائه‌ها.
+		// Students of these offerings.
 		enRows, err := s.DB.Pool.Query(ctx, `
 			select e.id from enrollments e
 			  join students st on st.id = e."studentId"

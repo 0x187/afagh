@@ -1,4 +1,4 @@
-// ═══ انتقال دانشجو بین گروه‌های یک درس — پورت admin/group-transfer ═══
+// ═══ Moving a student between groups of a course — port of admin/group-transfer ═══
 package admin
 
 import (
@@ -13,7 +13,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// TransferOffering گروه درسی.
+// TransferOffering: course offering.
 type TransferOffering struct {
 	OfferingID    int64  `json:"offeringId"`
 	GroupNumber   int    `json:"groupNumber"`
@@ -23,7 +23,7 @@ type TransferOffering struct {
 	IsActive      bool   `json:"isActive"`
 }
 
-// TransferCourseGroup درس + گروه‌هایش.
+// TransferCourseGroup: course + its groups.
 type TransferCourseGroup struct {
 	CourseID       int64              `json:"courseId"`
 	Code           string             `json:"code"`
@@ -34,7 +34,7 @@ type TransferCourseGroup struct {
 	Offerings      []TransferOffering `json:"offerings"`
 }
 
-// GroupRosterRow دانشجوی یک گروه.
+// GroupRosterRow: student in a group.
 type GroupRosterRow struct {
 	EnrollmentID int64  `json:"enrollmentId"`
 	StudentID    int64  `json:"studentId"`
@@ -44,7 +44,7 @@ type GroupRosterRow struct {
 	Status       string `json:"status"`
 }
 
-// TransferResult نتیجهٔ انتقال.
+// TransferResult: transfer result.
 type TransferResult struct {
 	OK           bool     `json:"ok"`
 	Error        *string  `json:"error,omitempty"`
@@ -53,7 +53,7 @@ type TransferResult struct {
 	EnrollmentID *int64   `json:"enrollmentId,omitempty"`
 }
 
-// TransferTargets دروس و گروه‌های ترم.
+// TransferTargets: term courses and groups.
 func (s *Service) TransferTargets(ctx context.Context, user *session.User, cookie string, termID int64) ([]TransferCourseGroup, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -106,7 +106,7 @@ func (s *Service) TransferTargets(ctx context.Context, user *session.User, cooki
 	return out, nil
 }
 
-// TransferRosterOffer مشخصات گروه مبدأ.
+// TransferRosterOffer: source group details.
 type TransferRosterOffer struct {
 	OfferingID    int64  `json:"offeringId"`
 	CourseCode    string `json:"courseCode"`
@@ -117,13 +117,13 @@ type TransferRosterOffer struct {
 	ProfessorName string `json:"professorName"`
 }
 
-// TransferRoster پاسخ فهرست دانشجویان گروه.
+// TransferRoster: group roster response.
 type TransferRoster struct {
 	Offer  TransferRosterOffer `json:"offer"`
 	Roster []GroupRosterRow    `json:"roster"`
 }
 
-// TransferGroupRoster فهرست دانشجویان یک گروه مبدأ.
+// TransferGroupRoster: roster of a source group.
 func (s *Service) TransferGroupRoster(ctx context.Context, user *session.User, cookie string, termID, offeringID int64) (*TransferRoster, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -171,7 +171,7 @@ func (s *Service) TransferGroupRoster(ctx context.Context, user *session.User, c
 	return out, nil
 }
 
-// TransferTargetGroups سایر گروه‌های همان درس.
+// TransferTargetGroups: other groups of the same course.
 func (s *Service) TransferTargetGroups(ctx context.Context, user *session.User, cookie string, termID, offeringID int64) (map[string]any, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -328,7 +328,7 @@ func (s *Service) transferConflicts(ctx context.Context, c transferCtx, toOfferi
 	return warnings, blocks
 }
 
-// TransferStudent انتقال یک ثبت‌نام با گیت‌های آیین‌نامه.
+// TransferStudent: transfer one enrollment with regulation gates.
 func (s *Service) TransferStudent(ctx context.Context, user *session.User, cookie string, enrollmentID, toOfferingID int64, overrideReason string) *TransferResult {
 	uniID := s.UniversityID(ctx, user, cookie)
 	fail := func(msg string) *TransferResult { return &TransferResult{OK: false, Error: &msg} }

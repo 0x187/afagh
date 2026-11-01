@@ -1,4 +1,4 @@
-// ═══ کارتابل مالی ادمین — پورت admin/finance و student-finance ═══
+// ═══ Admin finance dashboard — admin/finance and student-finance port ═══
 package admin
 
 import (
@@ -17,7 +17,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// FinanceStudentRow ردیف مالی دانشجو.
+// FinanceStudentRow student finance row.
 type FinanceStudentRow struct {
 	StudentID      int64   `json:"studentId"`
 	UserID         int64   `json:"userId"`
@@ -40,13 +40,13 @@ type FinanceStudentRow struct {
 	Balance        float64 `json:"balance"`
 }
 
-// FinanceStudentsResponse پاسخ کارتابل مالی.
+// FinanceStudentsResponse finance dashboard response.
 type FinanceStudentsResponse struct {
 	Students []FinanceStudentRow `json:"students"`
 	Totals   FinanceTotals       `json:"totals"`
 }
 
-// FinanceTotals جمع کارتابل.
+// FinanceTotals dashboard totals.
 type FinanceTotals struct {
 	Charges        float64 `json:"charges"`
 	Discounts      float64 `json:"discounts"`
@@ -58,7 +58,7 @@ type FinanceTotals struct {
 	DebtorCount    int     `json:"debtorCount"`
 }
 
-// FinanceListFilters فیلترهای فهرست مالی (هم‌تراز FinanceListFilters در Next).
+// FinanceListFilters finance list filters (aligned with FinanceListFilters in Next).
 type FinanceListFilters struct {
 	Q             string
 	OnlyDebtors   bool
@@ -68,21 +68,21 @@ type FinanceListFilters struct {
 	Limit         int
 }
 
-// ListFinanceStudents پورت listFinanceStudents بدون فیلترهای ماژول گزارش.
+// ListFinanceStudents listFinanceStudents port without report-module filters.
 func (s *Service) ListFinanceStudents(ctx context.Context, user *session.User, uniCookie, q string, onlyDebtors bool) (*FinanceStudentsResponse, error) {
 	return s.ListFinanceStudentsFiltered(ctx, user, uniCookie, FinanceListFilters{
 		Q: q, OnlyDebtors: onlyDebtors, Limit: 1000,
 	})
 }
 
-// ListFinanceStudentsFiltered پورت listFinanceStudents (lib/finance-engine/list-students.ts):
-// مانده از همان computeTermAdjustments می‌آید که کارنامه استفاده می‌کند، پس
-// عدد کارتابل و کارنامه نمی‌تواند واگرا شود. چک وصول‌نشده «پرداخت» شمرده
-// نمی‌شود و در ستون جداگانه می‌آید.
+// ListFinanceStudentsFiltered listFinanceStudents port (lib/finance-engine/list-students.ts):
+// The balance comes from the same computeTermAdjustments used by the transcript, so
+// the dashboard and transcript figures cannot diverge. An uncleared check is not counted as "paid"
+// and appears in a separate column.
 func (s *Service) ListFinanceStudentsFiltered(ctx context.Context, user *session.User, uniCookie string, f FinanceListFilters) (*FinanceStudentsResponse, error) {
 	resp := &FinanceStudentsResponse{Students: []FinanceStudentRow{}}
 	uniID := s.UniversityID(ctx, user, uniCookie)
-	// ⚠ بدون دانشگاه فعال ⇒ فهرست خالی (fail-closed، مطابق DENY_UNI).
+	// ⚠ No active university ⇒ empty list (fail-closed, matching DENY_UNI).
 	if uniID == nil {
 		return resp, nil
 	}
@@ -94,7 +94,7 @@ func (s *Service) ListFinanceStudentsFiltered(ctx context.Context, user *session
 		return "$" + strconv.Itoa(len(args))
 	}
 	if q := strings.TrimSpace(f.Q); q != "" {
-		// کدها انگلیسی‌اند؛ ارقام فارسی ورودی نرمال می‌شود + فرار wildcard.
+		// Codes are English; Persian digits in input are normalized + wildcard escaping.
 		needle := "%" + fa.EscapeLikeChars(fa.ToEnDigits(q)) + "%"
 		p := add(needle)
 		conds = append(conds, `(u."firstName" ilike `+p+` escape '\' or u."lastName" ilike `+p+` escape '\'
@@ -119,7 +119,7 @@ func (s *Service) ListFinanceStudentsFiltered(ctx context.Context, user *session
 	args = append(args, limit)
 	limitArg := "$" + strconv.Itoa(len(args))
 
-	// ردیف پایه دانشجویان.
+	// Base student row.
 	type baseRow struct {
 		ID           int64
 		UserID       int64
@@ -165,7 +165,7 @@ func (s *Service) ListFinanceStudentsFiltered(ctx context.Context, user *session
 		ids[i] = b.ID
 	}
 
-	// پنج کوئری تجمیعی به‌جای حلقه به ازای هر دانشجو.
+	// Five aggregate queries instead of a per-student loop.
 	type ledgerAggRow struct {
 		StudentID int64
 		TermID    *int64
@@ -275,7 +275,7 @@ func (s *Service) ListFinanceStudentsFiltered(ctx context.Context, user *session
 		larows.Close()
 	}
 
-	// تفکیک دفتر مالی با واژگان کانونی ledger-balance.
+	// Ledger breakdown using the canonical ledger-balance vocabulary.
 	const noTerm = int64(0)
 	termChargesByStudent := map[int64][]finance.TermCharge{}
 	paymentsByStudent := map[int64]float64{}
@@ -356,7 +356,7 @@ func (s *Service) ListFinanceStudentsFiltered(ctx context.Context, user *session
 		resp.Students = append(resp.Students, r)
 	}
 
-	// مرتب‌سازی: مانده نزولی، سپس کد دانشجویی.
+	// Sorting: balance descending, then student code.
 	sort.SliceStable(resp.Students, func(i, j int) bool {
 		if resp.Students[i].Balance != resp.Students[j].Balance {
 			return resp.Students[i].Balance > resp.Students[j].Balance
@@ -389,7 +389,7 @@ func (s *Service) ListFinanceStudentsFiltered(ctx context.Context, user *session
 	return resp, nil
 }
 
-// LedgerTxn تراکنش دفتر مالی.
+// LedgerTxn ledger transaction.
 type LedgerTxn struct {
 	ID              int64   `json:"id"`
 	StudentID       int64   `json:"studentId"`
@@ -399,8 +399,8 @@ type LedgerTxn struct {
 	CreatedAt       *string `json:"createdAt"`
 }
 
-// ListLedgerTxns ریز ردیف‌های دفتر مالی یک دانشجو (بخش جدولِ صفحهٔ ادمین؛
-// کارنامهٔ رسمی از موتور مشترک student.GetFinanceByStudentID می‌آید).
+// ListLedgerTxns ledger line items of one student (admin page table section;
+// the official transcript comes from the shared student.GetFinanceByStudentID engine).
 func (s *Service) ListLedgerTxns(ctx context.Context, studentID int64) ([]LedgerTxn, error) {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select id, "studentId", "transactionType", amount::float8, description, "createdAt"
@@ -424,7 +424,7 @@ func (s *Service) ListLedgerTxns(ctx context.Context, studentID int64) ([]Ledger
 	return out, nil
 }
 
-// AdjustLedger ثبت تعدیل دستی دفتر مالی.
+// AdjustLedger record a manual ledger adjustment.
 type AdjustInput struct {
 	StudentID       int64   `json:"studentId"`
 	TransactionType string  `json:"transactionType"`
@@ -432,15 +432,15 @@ type AdjustInput struct {
 	Description     string  `json:"description"`
 }
 
-// انواع مجاز تعدیل دستی — زیرمجموعهٔ CHECK قید `ck_student_ledger_txn_type`
-// (هر نوع بیرون این قید در درج از دیتابیس رد می‌شود، پس fail-closed فیلتر می‌کنیم).
+// Allowed manual adjustment types — subset of the `ck_student_ledger_txn_type` constraint CHECK
+// (any type outside this constraint is rejected by the database on insert, so we filter fail-closed).
 var adjustAllowedTypes = map[string]bool{
 	"CHARGE": true, "CREDIT": true, "PAYMENT": true, "POS_PAYMENT": true,
 	"TUITION_ADJUST_DEC": true, "TUITION_ADJUST_INC": true,
 }
 
-// AdjustLedger پورت ثبت دستی تعدیل (recordLedgerAction): درج ردیف دفتر +
-// ردیف حسابرسی با زنجیرهٔ هش، در یک تراکنش.
+// AdjustLedger manual adjustment record port (recordLedgerAction): insert ledger row +
+// audit row with hash chain, in one transaction.
 func (s *Service) AdjustLedger(ctx context.Context, user *session.User, uniCookie string, in AdjustInput) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -488,7 +488,7 @@ func (s *Service) AdjustLedger(ctx context.Context, user *session.User, uniCooki
 	return tx.Commit(ctx)
 }
 
-// CourseFinanceRow درس با نوع مالی.
+// CourseFinanceRow course with finance type.
 type CourseFinanceRow struct {
 	ID             int64    `json:"id"`
 	Code           string   `json:"code"`
@@ -498,12 +498,12 @@ type CourseFinanceRow struct {
 	LegacyMaliType *int     `json:"legacyMaliType"`
 }
 
-// CourseFinanceResponse پاسخ صفحهٔ نوع درس مالی.
+// CourseFinanceResponse course finance type page response.
 type CourseFinanceResponse struct {
 	Courses []CourseFinanceRow `json:"courses"`
 }
 
-// ListCourseFinance پورت admin/course-finance.
+// ListCourseFinance admin/course-finance port.
 func (s *Service) ListCourseFinance(ctx context.Context, user *session.User, uniCookie string, q string) (*CourseFinanceResponse, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	resp := &CourseFinanceResponse{Courses: []CourseFinanceRow{}}
@@ -534,7 +534,7 @@ func (s *Service) ListCourseFinance(ctx context.Context, user *session.User, uni
 	return resp, nil
 }
 
-// SetCourseFinanceType تعیین نوع درس مالی.
+// SetCourseFinanceType set the course finance type.
 func (s *Service) SetCourseFinanceType(ctx context.Context, user *session.User, courseID int64, maliType int) error {
 	if maliType < 0 || maliType > 99 {
 		return errors.New("نوع درس مالی نامعتبر است.")

@@ -1,4 +1,4 @@
-// ═══ دوره‌های ارزشیابی (ادمین) ═══
+// ═══ Evaluation periods (admin) ═══
 package admin
 
 import (
@@ -10,14 +10,14 @@ import (
 	"backend-go/internal/session"
 )
 
-// EvalTerm ترم در انتخابگر.
+// EvalTerm term in the picker.
 type EvalTerm struct {
 	ID       int64  `json:"id"`
 	Title    string `json:"title"`
 	TermCode string `json:"termCode"`
 }
 
-// EvalPeriod دورهٔ ارزشیابی.
+// EvalPeriod evaluation period.
 type EvalPeriod struct {
 	ID        int64   `json:"id"`
 	Title     string  `json:"title"`
@@ -29,13 +29,13 @@ type EvalPeriod struct {
 	Open      bool    `json:"open"`
 }
 
-// EvaluationsData پاسخ.
+// EvaluationsData response.
 type EvaluationsData struct {
 	Terms   []EvalTerm   `json:"terms"`
 	Periods []EvalPeriod `json:"periods"`
 }
 
-// GetEvaluations پورت admin/evaluations.
+// GetEvaluations admin/evaluations port.
 func (s *Service) GetEvaluations(ctx context.Context, user *session.User, uniCookie string) (*EvaluationsData, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	resp := &EvaluationsData{Terms: []EvalTerm{}, Periods: []EvalPeriod{}}
@@ -77,7 +77,7 @@ func (s *Service) GetEvaluations(ctx context.Context, user *session.User, uniCoo
 	return resp, nil
 }
 
-// CreateEvalPeriod پورت createEvaluationPeriodAction.
+// CreateEvalPeriod createEvaluationPeriodAction port.
 func (s *Service) CreateEvalPeriod(ctx context.Context, user *session.User, uniCookie string, title string, termID int64, startInput, endInput string, active bool) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -107,7 +107,7 @@ func (s *Service) CreateEvalPeriod(ctx context.Context, user *session.User, uniC
 	return err
 }
 
-// ToggleEvalPeriod فعال/غیرفعال.
+// ToggleEvalPeriod enable/disable.
 func (s *Service) ToggleEvalPeriod(ctx context.Context, user *session.User, uniCookie string, periodID int64) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -127,7 +127,7 @@ func (s *Service) ToggleEvalPeriod(ctx context.Context, user *session.User, uniC
 	return err
 }
 
-// DeleteEvalPeriod حذف دوره.
+// DeleteEvalPeriod delete a period.
 func (s *Service) DeleteEvalPeriod(ctx context.Context, user *session.User, uniCookie string, periodID int64) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {

@@ -1,4 +1,4 @@
-// ═══ بانک دروس — GET/POST/PATCH پورت /api/admin/curriculum/bank ═══
+// ═══ Course bank — GET/POST/PATCH port /api/admin/curriculum/bank ═══
 package admin
 
 import (
@@ -13,7 +13,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// BankPage پاسخ صفحه‌بندی‌شدهٔ بانک دروس.
+// BankPage is the paginated course-bank response.
 type BankPage struct {
 	Courses []BankCourseRow `json:"courses"`
 	Total   int             `json:"total"`
@@ -21,7 +21,7 @@ type BankPage struct {
 	Limit   int             `json:"limit"`
 }
 
-// BankCourses پورت GET /api/admin/curriculum/bank.
+// BankCourses is the GET /api/admin/curriculum/bank port.
 func (s *Service) BankCourses(ctx context.Context, user *session.User, cookie, q string, page, limit int) (*BankPage, error) {
 	if page < 1 {
 		page = 1
@@ -132,7 +132,7 @@ func optStr(raw map[string]any, key string) (*string, bool) {
 	return nullableTrim(&sv), true
 }
 
-// strPresent رشتهٔ حاضرشده را برمی‌گرداند حتی اگر خالی باشد (برای پاک‌کردن با null).
+// strPresent returns the present string even if it is empty (for clearing it with null).
 func strPresent(raw map[string]any, key string) (string, bool) {
 	v, ok := raw[key]
 	if !ok || v == nil {
@@ -170,7 +170,7 @@ func checkNumRange(raw map[string]any, key string, min, max float64) error {
 	return nil
 }
 
-// CreateBankCourse پورت POST /api/admin/curriculum/bank.
+// CreateBankCourse is the POST /api/admin/curriculum/bank port.
 func (s *Service) CreateBankCourse(ctx context.Context, user *session.User, cookie string, raw map[string]any) (int64, error) {
 	if err := rejectUnknown(raw, bankFields); err != nil {
 		return 0, err
@@ -388,8 +388,8 @@ func validateLongTexts(raw map[string]any) error {
 	return nil
 }
 
-// courseHasDegreeLevel وجود ستون مقطع در بانک دروس را تشخیص می‌دهد؛ برخی نصب‌های
-// قدیمی این ستون را ندارند و نوشتن مستقیم باعث خطای ۴۲۷۰۳ می‌شود.
+// courseHasDegreeLevel detects whether the degree-level column exists in the course bank; some
+// older installations lack this column and writing directly causes a 42703 error.
 func (s *Service) courseHasDegreeLevel(ctx context.Context) bool {
 	var ok bool
 	_ = s.DB.Pool.QueryRow(ctx, `select exists(select 1 from information_schema.columns
@@ -397,7 +397,7 @@ func (s *Service) courseHasDegreeLevel(ctx context.Context) bool {
 	return ok
 }
 
-// UpdateBankCourse پورت PATCH /api/admin/curriculum/bank.
+// UpdateBankCourse is the PATCH /api/admin/curriculum/bank port.
 func (s *Service) UpdateBankCourse(ctx context.Context, user *session.User, cookie string, id int64, raw map[string]any) error {
 	if id <= 0 {
 		return errors.New("شناسه درس نامعتبر.")

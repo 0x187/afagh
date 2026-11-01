@@ -1,4 +1,4 @@
-// ═══ پذیرش: نگاشت سنجش، Staging، ورود دسته‌ای، ثبت دستی و تست ایرانداک ═══
+// ═══ Admissions: Sanjesh mapping, Staging, bulk import, manual registration, and Irandoc test ═══
 package admin
 
 import (
@@ -20,7 +20,7 @@ import (
 	"backend-go/internal/irandoc"
 )
 
-// StagingItem ردیف داوطلب در Staging.
+// StagingItem is an applicant row in Staging.
 type StagingItem struct {
 	ID              int64          `json:"id"`
 	NationalCode    string         `json:"nationalCode"`
@@ -34,7 +34,7 @@ type StagingItem struct {
 	RawSanjeshData  map[string]any `json:"rawSanjeshData"`
 }
 
-// MappingItem نگاشت کد سنجش.
+// MappingItem is a Sanjesh code mapping.
 type MappingItem struct {
 	ID              int64   `json:"id"`
 	SanjeshCode     string  `json:"sanjeshCode"`
@@ -43,7 +43,7 @@ type MappingItem struct {
 	SanjeshQuota    *string `json:"sanjeshQuota"`
 }
 
-// MajorOption رشته.
+// MajorOption is a major.
 type MajorOption struct {
 	ID            int64   `json:"id"`
 	Name          string  `json:"name"`
@@ -51,14 +51,14 @@ type MajorOption struct {
 	DegreeLevelID *int64  `json:"degreeLevelId"`
 }
 
-// DegreeLevelOption مقطع.
+// DegreeLevelOption is a degree level.
 type DegreeLevelOption struct {
 	ID    int64  `json:"id"`
 	Title string `json:"title"`
 	Code  string `json:"code"`
 }
 
-// FormulaItem فرمول شماره دانشجویی.
+// FormulaItem is a student ID formula.
 type FormulaItem struct {
 	DegreeLevelID   *int64  `json:"degreeLevelId"`
 	DegreeTitle     *string `json:"degreeTitle"`
@@ -66,7 +66,7 @@ type FormulaItem struct {
 	CurrentSequence *int    `json:"currentSequence"`
 }
 
-// ApiAuditItem لاگ استعلام‌ها.
+// ApiAuditItem is a query log entry.
 type ApiAuditItem struct {
 	ID             int64   `json:"id"`
 	ServiceName    string  `json:"serviceName"`
@@ -77,7 +77,7 @@ type ApiAuditItem struct {
 	ExecutedAt     *string `json:"executedAt"`
 }
 
-// AdmissionsData بستهٔ اولیهٔ صفحه.
+// AdmissionsData is the page's initial payload.
 type AdmissionsData struct {
 	StagingList  []StagingItem       `json:"stagingList"`
 	Mappings     []MappingItem       `json:"mappings"`
@@ -87,7 +87,7 @@ type AdmissionsData struct {
 	APILogs      []ApiAuditItem      `json:"apiLogs"`
 }
 
-// EnsureDefaultSanjeshMappings فقط وقتی جدول خالی است، نگاشت‌های پیش‌فرض را می‌سازد.
+// EnsureDefaultSanjeshMappings creates the default mappings only when the table is empty.
 func (s *Service) EnsureDefaultSanjeshMappings(ctx context.Context) {
 	var n int
 	if err := s.DB.Pool.QueryRow(ctx, `select count(*)::int from sanjesh_mappings`).Scan(&n); err != nil || n > 0 {
@@ -128,7 +128,7 @@ func (s *Service) EnsureDefaultSanjeshMappings(ctx context.Context) {
 	}
 }
 
-// AdmissionsList بستهٔ اولیهٔ صفحه.
+// AdmissionsList is the page's initial payload.
 func (s *Service) AdmissionsList(ctx context.Context, uniID int64) (*AdmissionsData, error) {
 	s.EnsureDefaultSanjeshMappings(ctx)
 	out := &AdmissionsData{
@@ -137,7 +137,7 @@ func (s *Service) AdmissionsList(ctx context.Context, uniID int64) (*AdmissionsD
 	}
 	scope := `("universityId" = $1 or "universityId" is null)`
 
-	// رشته‌ها و مقاطع
+	// Majors and degree levels
 	if rows, err := s.DB.Pool.Query(ctx, `select id, name, "majorCode", "degreeLevelId" from majors where `+scope+` order by id`, uniID); err == nil {
 		for rows.Next() {
 			var m MajorOption
@@ -161,7 +161,7 @@ func (s *Service) AdmissionsList(ctx context.Context, uniID int64) (*AdmissionsD
 		majorName[m.ID] = m.Name
 	}
 
-	// نگاشت‌ها
+	// Mappings
 	if rows, err := s.DB.Pool.Query(ctx, `
 		select id, "sanjeshCode", "internalMajorId", "sanjeshQuota" from sanjesh_mappings where `+scope, uniID); err == nil {
 		for rows.Next() {
@@ -179,7 +179,7 @@ func (s *Service) AdmissionsList(ctx context.Context, uniID int64) (*AdmissionsD
 		rows.Close()
 	}
 
-	// فرمول‌ها
+	// Formulas
 	levelTitle := map[int64]string{}
 	for _, d := range out.DegreeLevels {
 		levelTitle[d.ID] = d.Title
@@ -201,7 +201,7 @@ func (s *Service) AdmissionsList(ctx context.Context, uniID int64) (*AdmissionsD
 		rows.Close()
 	}
 
-	// Staging — ۵۰ ردیف آخر
+	// Staging — last 50 rows
 	if rows, err := s.DB.Pool.Query(ctx, `
 		select id, "nationalCode", "fullName", "mappedMajorId", status, "quotaType", "studentId", "mobile", "rawSanjeshData"
 		  from admissions_staging where `+scope+` order by id desc limit 50`, uniID); err == nil {
@@ -230,7 +230,7 @@ func (s *Service) AdmissionsList(ctx context.Context, uniID int64) (*AdmissionsD
 		rows.Close()
 	}
 
-	// لاگ استعلام‌ها (جدول در برخی نسخه‌ها نیست — خطا بی‌صدا)
+	// Query log (the table is missing in some versions — fails silently)
 	if rows, err := s.DB.Pool.Query(ctx, `
 		select id, "serviceName", "requestUrl", "responseStatus", "durationMs", coalesce("isSuccess",1), "executedAt"::text
 		  from api_audit_logs order by id desc limit 20`); err == nil {
@@ -245,14 +245,14 @@ func (s *Service) AdmissionsList(ctx context.Context, uniID int64) (*AdmissionsD
 	return out, nil
 }
 
-// ─────────────────── شمارهٔ دانشجویی ───────────────────
+// ─────────────────── Student ID ───────────────────
 
 type queryExec interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
 }
 
-// GenerateStudentID پورت generateStudentId با افزایش اتمیک شمارنده.
+// GenerateStudentID ports generateStudentId with atomic counter increment.
 func (s *Service) GenerateStudentID(ctx context.Context, q queryExec, degreeLevelID int64, entryYear int, majorCode string, quotaCode int) (string, error) {
 	var levelCode *string
 	_ = q.QueryRow(ctx, `select code from degree_level_configs where id = $1 limit 1`, degreeLevelID).Scan(&levelCode)
@@ -330,12 +330,12 @@ func atoiSafe(v string) int {
 	return n
 }
 
-// ─────────────────── پارس و Staging ───────────────────
+// ─────────────────── Parsing and Staging ───────────────────
 
 var nationalCodeRe = regexp.MustCompile(`^\d{10}$`)
 var partsSplitRe = regexp.MustCompile(`[,;\t|]|\s{2,}`)
 
-// StagedRow نتیجهٔ stage یک خط.
+// StagedRow is the staged result of one row.
 type StagedRow struct {
 	ID              int64   `json:"id"`
 	NationalCode    string  `json:"nationalCode"`
@@ -345,7 +345,7 @@ type StagedRow struct {
 	MappedMajorName *string `json:"mappedMajorName"`
 }
 
-// ParseAndStageSanjesh پورت parseAndStageSanjeshData.
+// ParseAndStageSanjesh ports parseAndStageSanjeshData.
 func (s *Service) ParseAndStageSanjesh(ctx context.Context, uniID int64, rawText string, entryYear int) ([]StagedRow, error) {
 	s.EnsureDefaultSanjeshMappings(ctx)
 	if entryYear <= 0 {
@@ -503,9 +503,9 @@ func nilIfBlankStr(v string) *string {
 	return &s
 }
 
-// ─────────────────── ورود دسته‌ای ───────────────────
+// ─────────────────── Bulk import ───────────────────
 
-// ImportedStudent نتیجهٔ ورود یک ردیف.
+// ImportedStudent is the result of importing one row.
 type ImportedStudent struct {
 	StagingID    int64  `json:"stagingId"`
 	StudentCode  string `json:"studentCode"`
@@ -513,13 +513,13 @@ type ImportedStudent struct {
 	NationalCode string `json:"nationalCode"`
 }
 
-// ImportFailure خطای یک ردیف.
+// ImportFailure is a single-row error.
 type ImportFailure struct {
 	StagingID int64  `json:"stagingId"`
 	Error     string `json:"error"`
 }
 
-// ImportResult نتیجهٔ ورود دسته‌ای.
+// ImportResult is the bulk import result.
 type ImportResult struct {
 	Imported []ImportedStudent `json:"imported"`
 	Failures []ImportFailure   `json:"failures"`
@@ -539,7 +539,7 @@ func randomPassword() string {
 	return base64.RawURLEncoding.EncodeToString(b)[:12]
 }
 
-// ImportStaged پورت importStagedToStudents — هر ردیف تراکنش مستقل.
+// ImportStaged ports importStagedToStudents — each row is an independent transaction.
 func (s *Service) ImportStaged(ctx context.Context, uniID int64, ids []int64) (*ImportResult, error) {
 	res := &ImportResult{Imported: []ImportedStudent{}, Failures: []ImportFailure{}}
 	if len(ids) == 0 {
@@ -716,9 +716,9 @@ func strOf(v any) string {
 	return fmt.Sprint(v)
 }
 
-// ─────────────────── ثبت دستی ───────────────────
+// ─────────────────── Manual registration ───────────────────
 
-// ManualStudentInput ورودی ثبت دستی.
+// ManualStudentInput is the manual registration input.
 type ManualStudentInput struct {
 	NationalCode  string `json:"nationalCode"`
 	FirstName     string `json:"firstName"`
@@ -732,7 +732,7 @@ type ManualStudentInput struct {
 	AdmissionType string `json:"admissionType"`
 }
 
-// ManualStudentResult نتیجهٔ ثبت دستی.
+// ManualStudentResult is the manual registration result.
 type ManualStudentResult struct {
 	StudentID   int64  `json:"studentId"`
 	UserID      int64  `json:"userId"`
@@ -740,7 +740,7 @@ type ManualStudentResult struct {
 	FullName    string `json:"fullName"`
 }
 
-// RegisterManualStudent پورت registerManualStudent.
+// RegisterManualStudent ports registerManualStudent.
 func (s *Service) RegisterManualStudent(ctx context.Context, uniID int64, in ManualStudentInput) (*ManualStudentResult, error) {
 	nc := fa.ToEnDigits(strings.TrimSpace(in.NationalCode))
 	if !nationalCodeRe.MatchString(nc) {
@@ -838,9 +838,9 @@ func (s *Service) RegisterManualStudent(ctx context.Context, uniID int64, in Man
 	}, nil
 }
 
-// ─────────────────── نگاشت و فرمول ───────────────────
+// ─────────────────── Mapping and formula ───────────────────
 
-// SaveSanjeshMapping پورت saveSanjeshMappingAction.
+// SaveSanjeshMapping ports saveSanjeshMappingAction.
 func (s *Service) SaveSanjeshMapping(ctx context.Context, uniID int64, sanjeshCode string, internalMajorID int64, quota string) error {
 	code := strings.TrimSpace(sanjeshCode)
 	if code == "" {
@@ -879,7 +879,7 @@ func (s *Service) SaveSanjeshMapping(ctx context.Context, uniID int64, sanjeshCo
 	return err
 }
 
-// SaveStudentIDFormula پورت saveStudentIdFormulaAction.
+// SaveStudentIDFormula ports saveStudentIdFormulaAction.
 func (s *Service) SaveStudentIDFormula(ctx context.Context, uniID int64, degreeLevelID int64, formula string) error {
 	formula = strings.TrimSpace(formula)
 	if formula == "" || len(formula) > 255 {
@@ -900,7 +900,7 @@ func (s *Service) SaveStudentIDFormula(ctx context.Context, uniID int64, degreeL
 	return err
 }
 
-// settingsNumbers آداپتور GetNumber روی settingsStore.
+// settingsNumbers is a GetNumber adapter over settingsStore.
 type settingsNumbers struct{ store settingsStore }
 
 func (w settingsNumbers) Get(ctx context.Context, key string) (string, error) {
@@ -918,7 +918,7 @@ func (w settingsNumbers) GetNumber(ctx context.Context, key string, fallback flo
 	return v
 }
 
-// TestIrandoc استعلام آزمایشی ایرانداک.
+// TestIrandoc is a test Irandoc query.
 func (s *Service) TestIrandoc(ctx context.Context, nationalCode, trackingCode, thesisTitle string, threshold float64) irandoc.Result {
 	return irandoc.Check(ctx, settingsNumbers{store: s.Store}, irandoc.Params{
 		NationalCode: nationalCode, TrackingCode: trackingCode,

@@ -1,4 +1,4 @@
-// ═══ کارت سکونت خوابگاه — پورت lib/dorm-cards.ts ═══
+// ═══ Dorm residence card — lib/dorm-cards.ts port ═══
 package admin
 
 import (
@@ -12,7 +12,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// DormResidenceRow ردیف سکونت.
+// DormResidenceRow residence row.
 type DormResidenceRow struct {
 	ID           int64      `json:"id"`
 	StudentID    int64      `json:"studentId"`
@@ -30,7 +30,7 @@ type DormResidenceRow struct {
 	CreatedAt    *time.Time `json:"createdAt"`
 }
 
-// DormInput ورودی ایجاد/ویرایش سکونت.
+// DormInput residence create/edit input.
 type DormInput struct {
 	StudentID    int64   `json:"studentId"`
 	DormName     *string `json:"dormName"`
@@ -60,7 +60,7 @@ func parseDormDate(raw *string) (*time.Time, error) {
 	return nil, errors.New("تاریخ نامعتبر است.")
 }
 
-// ListDormResidences فهرست سکونت‌های دانشگاه فعال.
+// ListDormResidences list residences of the active university.
 func (s *Service) ListDormResidences(ctx context.Context, user *session.User, cookie, status string, studentID int64) ([]DormResidenceRow, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	out := []DormResidenceRow{}
@@ -107,7 +107,7 @@ func (s *Service) ListDormResidences(ctx context.Context, user *session.User, co
 	return out, nil
 }
 
-// CreateDormResidence ثبت سکونت + ممیزی در یک تراکنش.
+// CreateDormResidence record residence + audit in one transaction.
 func (s *Service) CreateDormResidence(ctx context.Context, user *session.User, cookie string, in DormInput) (int64, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -163,7 +163,7 @@ func (s *Service) CreateDormResidence(ctx context.Context, user *session.User, c
 	return id, nil
 }
 
-// UpdateDormResidence ویرایش سکونت (فیلد nil = بدون تغییر، همان ?? در TS).
+// UpdateDormResidence edit residence (nil field = no change, same as ?? in TS).
 func (s *Service) UpdateDormResidence(ctx context.Context, user *session.User, cookie string, id int64, in DormInput) error {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -243,7 +243,7 @@ func (s *Service) UpdateDormResidence(ctx context.Context, user *session.User, c
 	return tx.Commit(ctx)
 }
 
-// DeleteDormResidence حذف سکونت اشتباه + ممیزی.
+// DeleteDormResidence delete an erroneous residence + audit.
 func (s *Service) DeleteDormResidence(ctx context.Context, user *session.User, cookie string, id int64) error {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -273,7 +273,7 @@ func (s *Service) DeleteDormResidence(ctx context.Context, user *session.User, c
 	return tx.Commit(ctx)
 }
 
-// StudentSearchForAdmin جست‌وجوی دانشجو برای انتخاب‌گرهای ادمین (حداقل ۲ حرف).
+// StudentSearchForAdmin student search for admin pickers (at least 2 characters).
 func (s *Service) StudentSearchForAdmin(ctx context.Context, user *session.User, cookie, q string) ([]WarningStudentHit, error) {
 	return s.SearchWarningStudents(ctx, user, cookie, q)
 }

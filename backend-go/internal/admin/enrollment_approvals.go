@@ -1,4 +1,4 @@
-// ═══ تأیید انتخاب واحد (دروس زبان) و صدور تأییدیهٔ انتخاب واحد ═══
+// ═══ Enrollment approval (language courses) and enrollment confirmation issuance ═══
 package admin
 
 import (
@@ -13,7 +13,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// EnrollApprovalRow ردیف درخواست تأیید.
+// EnrollApprovalRow approval request row.
 type EnrollApprovalRow struct {
 	ID          int64      `json:"id"`
 	StudentID   int64      `json:"studentId"`
@@ -32,7 +32,7 @@ type EnrollApprovalRow struct {
 	CreatedAt   *time.Time `json:"createdAt"`
 }
 
-// EnrollApprovalsPage پاسخ فهرست.
+// EnrollApprovalsPage list response.
 type EnrollApprovalsPage struct {
 	Rows     []EnrollApprovalRow `json:"rows"`
 	Total    int                 `json:"total"`
@@ -40,7 +40,7 @@ type EnrollApprovalsPage struct {
 	PageSize int                 `json:"pageSize"`
 }
 
-// OfferingHit نتیجهٔ جست‌وجوی ارائه.
+// OfferingHit offering search result.
 type OfferingHit struct {
 	OfferingID    int64  `json:"offeringId"`
 	CourseTitle   string `json:"courseTitle"`
@@ -51,14 +51,14 @@ type OfferingHit struct {
 	EnrolledCount int    `json:"enrolledCount"`
 }
 
-// ConfirmTerm گزینهٔ نیمسال برای تأییدیه.
+// ConfirmTerm semester option for the confirmation.
 type ConfirmTerm struct {
 	ID        int64  `json:"id"`
 	Title     string `json:"title"`
 	IsCurrent int    `json:"isCurrent"`
 }
 
-// ListEnrollApprovals فهرست درخواست‌ها با فیلتر/صفحه‌بندی.
+// ListEnrollApprovals list requests with filters/pagination.
 func (s *Service) ListEnrollApprovals(ctx context.Context, user *session.User, cookie, q, status string, page int) (*EnrollApprovalsPage, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	out := &EnrollApprovalsPage{Rows: []EnrollApprovalRow{}, Page: 1, PageSize: 50}
@@ -129,7 +129,7 @@ func (s *Service) ListEnrollApprovals(ctx context.Context, user *session.User, c
 	return out, nil
 }
 
-// SearchApprovalStudents جست‌وجوی دانشجو (حداقل ۱ حرف — همان رفتار route).
+// SearchApprovalStudents student search (at least 1 character — same as the route behavior).
 func (s *Service) SearchApprovalStudents(ctx context.Context, user *session.User, cookie, q string) ([]WarningStudentHit, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	out := []WarningStudentHit{}
@@ -156,7 +156,7 @@ func (s *Service) SearchApprovalStudents(ctx context.Context, user *session.User
 	return out, nil
 }
 
-// SearchApprovalOfferings جست‌وجوی ارائه (پیش‌فرض: درس‌های زبان/انگلیسی).
+// SearchApprovalOfferings offering search (default: language/English courses).
 func (s *Service) SearchApprovalOfferings(ctx context.Context, user *session.User, cookie, q string) ([]OfferingHit, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	out := []OfferingHit{}
@@ -194,7 +194,7 @@ func (s *Service) SearchApprovalOfferings(ctx context.Context, user *session.Use
 	return out, nil
 }
 
-// CreateEnrollApproval ثبت درخواست تأیید.
+// CreateEnrollApproval record an approval request.
 func (s *Service) CreateEnrollApproval(ctx context.Context, user *session.User, cookie string, studentID, offeringID int64, note *string) (int64, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -237,7 +237,7 @@ func (s *Service) CreateEnrollApproval(ctx context.Context, user *session.User, 
 	return id, nil
 }
 
-// UpdateEnrollApproval تأیید/رد/یادداشت.
+// UpdateEnrollApproval approve/reject/note.
 func (s *Service) UpdateEnrollApproval(ctx context.Context, user *session.User, cookie string, id int64, status *string, note *string) error {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -288,7 +288,7 @@ func (s *Service) UpdateEnrollApproval(ctx context.Context, user *session.User, 
 	return tx.Commit(ctx)
 }
 
-// DeleteEnrollApproval حذف درخواست (فقط ADMIN — گیت در HTTP).
+// DeleteEnrollApproval delete a request (ADMIN only — gate at HTTP).
 func (s *Service) DeleteEnrollApproval(ctx context.Context, user *session.User, cookie string, id int64) error {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -312,7 +312,7 @@ func (s *Service) DeleteEnrollApproval(ctx context.Context, user *session.User, 
 	return tx.Commit(ctx)
 }
 
-// AdminTermsForUniversity نیمسال‌های دانشگاه (حداکثر ۶۰).
+// AdminTermsForUniversity university semesters (max 60).
 func (s *Service) AdminTermsForUniversity(ctx context.Context, uniID int64) ([]ConfirmTerm, error) {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select id, title, coalesce("isCurrent",0) from academic_terms
@@ -331,12 +331,12 @@ func (s *Service) AdminTermsForUniversity(ctx context.Context, uniID int64) ([]C
 	return out, nil
 }
 
-// AuditAction ثبت ممیزی عمومی برای سرویس‌های HTTP.
+// AuditAction generic audit record for HTTP services.
 func (s *Service) AuditAction(ctx context.Context, actorUserID int64, action, entityType string, entityID int64, details string) {
 	_ = s.writeAdminAudit(ctx, actorUserID, action, entityType, entityID, details)
 }
 
-// CheckStudentInUniversity گیت مرز دانشگاه برای سرویس‌های HTTP.
+// CheckStudentInUniversity university boundary gate for HTTP services.
 func (s *Service) CheckStudentInUniversity(ctx context.Context, user *session.User, cookie string, studentID int64) error {
 	return s.studentInUniversity(ctx, user, cookie, studentID)
 }

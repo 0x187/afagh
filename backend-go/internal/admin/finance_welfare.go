@@ -1,4 +1,4 @@
-// ═══ صندوق رفاه: صندوق‌ها و انتساب وام — پورت api/admin/finance/welfare ═══
+// ═══ Welfare fund: funds and loan assignment — port of api/admin/finance/welfare ═══
 package admin
 
 import (
@@ -10,7 +10,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// WelfareFund صندوق رفاه.
+// WelfareFund: welfare fund.
 type WelfareFund struct {
 	ID          int64   `json:"id"`
 	Code        string  `json:"code"`
@@ -21,7 +21,7 @@ type WelfareFund struct {
 	CreatedAt   *string `json:"createdAt"`
 }
 
-// WelfareLoan وام به‌همراه دانشجو.
+// WelfareLoan: loan with student.
 type WelfareLoan struct {
 	ID           int64   `json:"id"`
 	StudentID    int64   `json:"studentId"`
@@ -37,7 +37,7 @@ type WelfareLoan struct {
 	CreatedAt    *string `json:"createdAt"`
 }
 
-// ListWelfareFunds فهرست صندوق‌ها + تعداد وام هر صندوق.
+// ListWelfareFunds: fund list + loan count per fund.
 func (s *Service) ListWelfareFunds(ctx context.Context, user *session.User, uniCookie string) ([]WelfareFund, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -66,7 +66,7 @@ func (s *Service) ListWelfareFunds(ctx context.Context, user *session.User, uniC
 	return out, nil
 }
 
-// ListWelfareLoans وام‌های یک صندوق (fundID nil = بدون صندوق).
+// ListWelfareLoans: loans of one fund (fundID nil = no fund).
 func (s *Service) ListWelfareLoans(ctx context.Context, user *session.User, uniCookie string, fundID *int64, page int) ([]WelfareLoan, int, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -112,7 +112,7 @@ func (s *Service) ListWelfareLoans(ctx context.Context, user *session.User, uniC
 	return out, total, nil
 }
 
-// WelfareFundInput ورودی ذخیرهٔ صندوق.
+// WelfareFundInput: fund save input.
 type WelfareFundInput struct {
 	Code        string  `json:"code"`
 	Title       string  `json:"title"`
@@ -132,7 +132,7 @@ func validateFund(in WelfareFundInput) error {
 	return nil
 }
 
-// CreateWelfareFund پورت POST — کد یکتا در سطح جهانی (unique) → 409.
+// CreateWelfareFund port of POST — globally unique code (unique) → 409.
 func (s *Service) CreateWelfareFund(ctx context.Context, user *session.User, uniCookie string, in WelfareFundInput) (int64, error) {
 	if err := validateFund(in); err != nil {
 		return 0, err
@@ -167,7 +167,7 @@ func (s *Service) CreateWelfareFund(ctx context.Context, user *session.User, uni
 	return id, nil
 }
 
-// UpdateWelfareFund پورت PATCH.
+// UpdateWelfareFund port of PATCH.
 func (s *Service) UpdateWelfareFund(ctx context.Context, user *session.User, id int64, in WelfareFundInput) error {
 	if id <= 0 {
 		return errors.New("invalid_id")
@@ -200,7 +200,7 @@ func (s *Service) UpdateWelfareFund(ctx context.Context, user *session.User, id 
 	return tx.Commit(ctx)
 }
 
-// DeleteWelfareFund پورت DELETE (ADMIN) — صندوق دارای وام حذف نمی‌شود.
+// DeleteWelfareFund port of DELETE (ADMIN) — a fund with loans cannot be deleted.
 func (s *Service) DeleteWelfareFund(ctx context.Context, user *session.User, id int64) error {
 	isAdmin := false
 	for _, r := range user.Roles {
@@ -238,15 +238,15 @@ func (s *Service) DeleteWelfareFund(ctx context.Context, user *session.User, id 
 	return tx.Commit(ctx)
 }
 
-// AssignLoanInput ورودی انتساب وام به صندوق.
+// AssignLoanInput: input for assigning a loan to a fund.
 type AssignLoanInput struct {
 	LoanID int64
 	FundID *int64
-	// FundIDSet نشان می‌دهد کلید fundId اصلاً ارسال شده (null = برداشتن صندوق)
+	// FundIDSet: indicates whether the fundId key was sent at all (null = remove fund)
 	FundIDSet bool
 }
 
-// AssignLoanToFund پورت action=assign-loan.
+// AssignLoanToFund port of action=assign-loan.
 func (s *Service) AssignLoanToFund(ctx context.Context, user *session.User, uniCookie string, in AssignLoanInput) error {
 	if in.LoanID <= 0 || !in.FundIDSet {
 		return errors.New("invalid_loan")

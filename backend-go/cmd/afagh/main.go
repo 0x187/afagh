@@ -1,7 +1,7 @@
-// ═══ سرویس بکند Go آفاق — نقطهٔ شروع ═══
+// ═══ Afagh Go Backend Service — Entry Point ═══
 //
-// فاز ۰ (زیرساخت): لبهٔ مسیریابی strangler + سشن مشترک با Next.js + health.
-// اجرای محلی:
+// Phase 0 (infrastructure): strangler routing edge + shared session with Next.js + health.
+// Running locally:
 //
 //	AFAGH_NEXT_UPSTREAM=http://127.0.0.1:8080 PORT=8090 go run ./cmd/afagh
 package main
@@ -76,7 +76,7 @@ func main() {
 
 	store := session.NewStore(database.Pool)
 
-	// ── سرویس‌های فاز ۱: تنظیمات، rate-limit، امضای توکن، قفل، scope ──
+	// ── Phase 1 services: settings, rate-limit, token signing, lock, scope ──
 	settingsStore := settings.New(database.Pool, settings.PhaseOneDefs)
 
 	var rdb *redis.Client
@@ -228,7 +228,7 @@ func main() {
 		Settings: settingsStore, Limiter: limiter, Signer: signer}
 	publicExtraAPI.Register(ginEngine.Group(""))
 
-	// ── SPA: پروکسی (dev/Vite) یا فایل‌های dist (production) ──
+	// ── SPA: proxy (dev/Vite) or dist files (production) ──
 	var spaHandler http.Handler
 	if cfg.SpaUpstream != "" {
 		u, err := url.Parse(cfg.SpaUpstream)
@@ -285,7 +285,7 @@ func newHostPreservingProxy(u *url.URL) http.Handler {
 	return p
 }
 
-// settingsStoreAdapter سازگارساز settings.Store با رابط بستهٔ admin.
+// settingsStoreAdapter adapts settings.Store to the admin package interface.
 type settingsStoreAdapter struct {
 	store *settings.Store
 }

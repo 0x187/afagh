@@ -1,4 +1,4 @@
-// ═══ ضرایب نیمسال + مبالغ موضوعی (نوع + تخصیص) — پورت finance/coefficients و subject-fees ═══
+// ═══ Semester coefficients + subject fees (type + assignment) — finance/coefficients and subject-fees port ═══
 package admin
 
 import (
@@ -11,9 +11,9 @@ import (
 	"backend-go/internal/session"
 )
 
-// ─────────────────── ضریب افزایشی نیمسال ───────────────────
+// ─────────────────── Semester increase coefficient ───────────────────
 
-// SaveCoefficientInput ورودی upsert ضریب.
+// SaveCoefficientInput coefficient upsert input.
 type SaveCoefficientInput struct {
 	TermID            int64   `json:"termId"`
 	VariableCoefficient float64 `json:"variableCoefficient"`
@@ -21,7 +21,7 @@ type SaveCoefficientInput struct {
 	Note              string  `json:"note"`
 }
 
-// SaveCoefficient پورت POST finance/coefficients — upsert با سقف تغییر ±۲۰٪.
+// SaveCoefficient POST finance/coefficients port — upsert with ±20% change cap.
 func (s *Service) SaveCoefficient(ctx context.Context, user *session.User, uniCookie string, in SaveCoefficientInput) (int64, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -126,7 +126,7 @@ func mathTrunc(v float64) float64 {
 	return float64(int64(v))
 }
 
-// DeleteCoefficient حذف ضریب (دامنهٔ دانشگاه).
+// DeleteCoefficient delete a coefficient (university scope).
 func (s *Service) DeleteCoefficient(ctx context.Context, user *session.User, uniCookie string, id int64) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -144,9 +144,9 @@ func (s *Service) DeleteCoefficient(ctx context.Context, user *session.User, uni
 	return err
 }
 
-// ─────────────────── مبالغ موضوعی: نوع ───────────────────
+// ─────────────────── Subject fees: type ───────────────────
 
-// SubjectFeeKindInput ورودی ذخیرهٔ نوع مبلغ موضوعی.
+// SubjectFeeKindInput subject fee type save input.
 type SubjectFeeKindInput struct {
 	ID              int64   `json:"id"`
 	Code            string  `json:"code"`
@@ -162,7 +162,7 @@ type SubjectFeeKindInput struct {
 var feeKinds = map[string]bool{"ADDITIVE": true, "DEDUCTIVE": true}
 var feeAppliesTo = map[string]bool{"BOTH": true, "FIXED": true, "VARIABLE": true}
 
-// SaveSubjectFeeType پورت POST finance/subject-fees (ایجاد/ویرایش + audit).
+// SaveSubjectFeeType POST finance/subject-fees port (create/edit + audit).
 func (s *Service) SaveSubjectFeeType(ctx context.Context, user *session.User, uniCookie string, in SubjectFeeKindInput) (int64, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -244,7 +244,7 @@ func (s *Service) SaveSubjectFeeType(ctx context.Context, user *session.User, un
 	return id, nil
 }
 
-// DeleteSubjectFeeType حذف نوع — ممنوع اگر به دانشجو تخصیص یافته.
+// DeleteSubjectFeeType delete a type — forbidden if assigned to a student.
 func (s *Service) DeleteSubjectFeeType(ctx context.Context, user *session.User, uniCookie string, id int64) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -278,9 +278,9 @@ func (s *Service) DeleteSubjectFeeType(ctx context.Context, user *session.User, 
 	return tx.Commit(ctx)
 }
 
-// ─────────────────── مبالغ موضوعی: تخصیص به دانشجو ───────────────────
+// ─────────────────── Subject fees: assignment to student ───────────────────
 
-// SubjectFeeAssignment ردیف تخصیص.
+// SubjectFeeAssignment assignment row.
 type SubjectFeeAssignment struct {
 	ID         int64   `json:"id"`
 	StudentID  int64   `json:"studentId"`
@@ -294,7 +294,7 @@ type SubjectFeeAssignment struct {
 	TypeKind   string  `json:"typeKind"`
 }
 
-// ListSubjectFeeAssignments پورت GET assign.
+// ListSubjectFeeAssignments GET assign port.
 func (s *Service) ListSubjectFeeAssignments(ctx context.Context, user *session.User, uniCookie string, studentID, termID int64) ([]SubjectFeeAssignment, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -339,7 +339,7 @@ func (s *Service) ListSubjectFeeAssignments(ctx context.Context, user *session.U
 	return out, nil
 }
 
-// AssignSubjectFeeInput ورودی تخصیص.
+// AssignSubjectFeeInput assignment input.
 type AssignSubjectFeeInput struct {
 	StudentID int64   `json:"studentId"`
 	TermID    int64   `json:"termId"`
@@ -348,7 +348,7 @@ type AssignSubjectFeeInput struct {
 	Note      string  `json:"note"`
 }
 
-// AssignSubjectFee پورت POST assign — upsert با اعتبارسنجی سخت‌گیرانهٔ ریال.
+// AssignSubjectFee POST assign port — upsert with strict rial validation.
 func (s *Service) AssignSubjectFee(ctx context.Context, user *session.User, uniCookie string, in AssignSubjectFeeInput) (int64, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -426,7 +426,7 @@ func (s *Service) AssignSubjectFee(ctx context.Context, user *session.User, uniC
 	return id, nil
 }
 
-// DeleteSubjectFeeAssignment حذف تخصیص.
+// DeleteSubjectFeeAssignment delete an assignment.
 func (s *Service) DeleteSubjectFeeAssignment(ctx context.Context, user *session.User, uniCookie string, id int64) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -444,7 +444,7 @@ func (s *Service) DeleteSubjectFeeAssignment(ctx context.Context, user *session.
 	return err
 }
 
-// CoefficientRow ردیف ضریب نیمسال.
+// CoefficientRow semester coefficient row.
 type CoefficientRow struct {
 	ID                  int64   `json:"id"`
 	TermID              *int64  `json:"termId"`
@@ -456,7 +456,7 @@ type CoefficientRow struct {
 	TermCode            *string `json:"termCode"`
 }
 
-// ListCoefficients پورت GET finance/coefficients.
+// ListCoefficients GET finance/coefficients port.
 func (s *Service) ListCoefficients(ctx context.Context, user *session.User, uniCookie string) ([]CoefficientRow, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -484,7 +484,7 @@ func (s *Service) ListCoefficients(ctx context.Context, user *session.User, uniC
 	return out, nil
 }
 
-// SubjectFeeTypeRow نوع مبلغ موضوعی.
+// SubjectFeeTypeRow subject fee type.
 type SubjectFeeTypeRow struct {
 	ID              int64   `json:"id"`
 	Code            string  `json:"code"`
@@ -497,7 +497,7 @@ type SubjectFeeTypeRow struct {
 	Note            *string `json:"note"`
 }
 
-// ListSubjectFeeTypes پورت GET finance/subject-fees.
+// ListSubjectFeeTypes GET finance/subject-fees port.
 func (s *Service) ListSubjectFeeTypes(ctx context.Context, user *session.User, uniCookie string) ([]SubjectFeeTypeRow, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {

@@ -1,15 +1,15 @@
-// ═══ میز کار مهاجرت داده (ETL) — پورت admin/migration ═══
+// ═══ Data migration workbench (ETL) — port of admin/migration ═══
 //
-//	پورت actions.ts + lib/migration/*:
-//	  • سربرگ «دادهٔ پایه»: واردسازی CSV (نمرات/فرمول شهریه/مالی قدیمی/تطبیق کدها)
-//	    با ساخت «دسته» در legacy_import_batches و نگه‌داشتن سطر خام برای پردازش دوباره
-//	  • سربرگ «تطبیق کدها»: legacy_code_maps با دامنه‌های ثابت + پیشنهاد خودکار متنی
-//	  • سربرگ «شهریه و مالی»: فرمول‌ها + ارزیاب امن عبارت + مقایسه + مانده اولیه
-//	  • سربرگ «نمرات»: staging → مقایسه → اعمال آگاهانه با دفتر واگرد
-//	  • «ناحیهٔ موقت و واگرد»: فهرست دسته‌ها، پردازش دوباره، واگرد از migration_audit_entries
+//	Port of actions.ts + lib/migration/*:
+//	  • Tab «دادهٔ پایه»: CSV import (grades/tuition formulas/legacy financials/code mapping)
+//	    by creating a «دسته» in legacy_import_batches and keeping the raw row for reprocessing
+//	  • Tab «تطبیق کدها»: legacy_code_maps with fixed domains + automatic text suggestion
+//	  • Tab «شهریه و مالی»: formulas + safe expression evaluator + comparison + opening balance
+//	  • Tab «نمرات»: staging → comparison → deliberate apply with rollback log
+//	  • «ناحیهٔ موقت و واگرد»: batch list, reprocess, rollback from migration_audit_entries
 //
-//	تفاوت آگاهانه با Next: ورودی فایل‌ها فقط CSV است (بکند Go کتابخانهٔ xlsx
-//	ندارد)؛ بقیهٔ جریان عیناً همان است.
+//	Deliberate difference from Next: file input is CSV only (the Go backend has no xlsx library
+//	); the rest of the flow is exactly the same.
 package admin
 
 import (
@@ -32,7 +32,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// ═══════════════ نرمال‌سازی (پورت normalize.ts) ═══════════════
+// ═══════════════ Normalization (port of normalize.ts) ═══════════════
 
 var migArabicLetters = strings.NewReplacer(
 	"\u064A", "ی", "\u0649", "ی", "\u06CD", "ی", "\u06D2", "ی",
@@ -40,7 +40,7 @@ var migArabicLetters = strings.NewReplacer(
 	"\u0629", "ه", "\u0624", "و",
 )
 
-// MigNorm پورت norm(): ارقام فارسی/عربی → لاتین، جداکنندهٔ هزارگان، نیم‌فاصله.
+// MigNorm port of norm(): Persian/Arabic digits → Latin, thousands separator, ZWNJ.
 func MigNorm(v any) string {
 	if v == nil {
 		return ""
@@ -53,7 +53,7 @@ func MigNorm(v any) string {
 			b.WriteRune(rune('0' + r - '۰'))
 		case r >= '٠' && r <= '٩':
 			b.WriteRune(rune('0' + r - '٠'))
-		case r == '\u066B': // ممیز فارسی
+		case r == '\u066B': // Persian decimal point
 			b.WriteByte('.')
 		case r == '\u200c' || r == '\u200f' || r == ' ' || r == '\t':
 			b.WriteByte(' ')
@@ -64,7 +64,7 @@ func MigNorm(v any) string {
 	return strings.Join(strings.Fields(b.String()), " ")
 }
 
-// MigNum عدد از هر فرمت فارسی — 0 اگر خالی/نامعتبر و ok=false.
+// MigNum: number from any Persian format — 0 if empty/invalid and ok=false.
 func MigNum(v any) (float64, bool) {
 	s := strings.ReplaceAll(MigNorm(v), " ", "")
 	if s == "" {
@@ -77,14 +77,14 @@ func MigNum(v any) (float64, bool) {
 	return n, true
 }
 
-// migHeaderKey کلید تطبیق سرستون (پورت headerKey).
+// migHeaderKey: column-header matching key (port of headerKey).
 func migHeaderKey(x string) string {
 	s := strings.ToLower(MigNorm(x))
 	s = strings.NewReplacer("آ", "ا", "أ", "ا", "إ", "ا", "ٲ", "ا", "ٳ", "ا").Replace(s)
 	return strings.Trim(s, " _-./\\()[]:،,")
 }
 
-// migPickCol یافتن ستون با نامک‌های فارسی/انگلیسی (پورت pickCol).
+// migPickCol: find a column by Persian/English aliases (port of pickCol).
 func migPickCol(headers []string, aliases []string) int {
 	hk := make([]string, len(headers))
 	for i, h := range headers {
@@ -119,7 +119,7 @@ func migPickCol(headers []string, aliases []string) int {
 	return -1
 }
 
-// MigParseCsv پورت parseCsv: BOM، کوتیشن، تشخیص جداکنندهٔ کاما/سمی‌کالن/تب.
+// MigParseCsv port of parseCsv: BOM, quoting, comma/semicolon/tab delimiter detection.
 func MigParseCsv(text string) [][]string {
 	clean := strings.TrimPrefix(text, "\uFEFF")
 	clean = strings.ReplaceAll(clean, "\r\n", "\n")
@@ -160,15 +160,15 @@ func MigParseCsv(text string) [][]string {
 	return out
 }
 
-// MigTable جدول استخراج‌شده از فایل — پورت Table در tabular.ts.
+// MigTable: table extracted from the file — port of Table in tabular.ts.
 type MigTable struct {
 	Sheet     string
 	Headers   []string
 	Rows      [][]string
-	ColumnMap map[string]int // کلید فیلد → شمارهٔ ستون (اولویت بر تشخیص خودکار)
+	ColumnMap map[string]int // Field key → column number (takes precedence over auto-detection)
 }
 
-// Get خواندن ستون با نامک‌ها برای سطر i (۰-مبنا؛ خط انسانی = i+2).
+// Get: read a column by aliases for row i (0-based; human line = i+2).
 func (t *MigTable) Get(row int, aliases []string) string {
 	idx := -1
 	if t.ColumnMap != nil {
@@ -185,7 +185,7 @@ func (t *MigTable) Get(row int, aliases []string) string {
 	return MigNorm(t.Rows[row][idx])
 }
 
-// RawAll کل سطر به‌صورت سرستون→مقدار (برای staging).
+// RawAll: entire row as header→value (for staging).
 func (t *MigTable) RawAll(row int) map[string]string {
 	out := map[string]string{}
 	if row >= len(t.Rows) {
@@ -200,7 +200,7 @@ func (t *MigTable) RawAll(row int) map[string]string {
 	return out
 }
 
-// ═══════════════ گزارش واردسازی (پورت ImportReport) ═══════════════
+// ═══════════════ Import report (port of ImportReport) ═══════════════
 
 type MigRowMsg struct {
 	Row int    `json:"row"`
@@ -224,7 +224,7 @@ func migEmptyReport(kind, fileName, sheet string) *MigReport {
 	return &MigReport{Kind: kind, FileName: fileName, Sheet: sheet, Errors: []MigRowMsg{}, Warnings: []MigRowMsg{}}
 }
 
-// ═══════════════ سربرگ «دادهٔ پایه» — موجودیت‌ها و سرورهای مبدأ ═══════════════
+// ═══════════════ Tab «دادهٔ پایه» — entities and source servers ═══════════════
 
 type MigSource struct {
 	Code  string  `json:"code"`
@@ -233,7 +233,7 @@ type MigSource struct {
 	Note  *string `json:"note"`
 }
 
-// ListSources فهرست سرورهای مبدأ.
+// ListSources: list of source servers.
 func (s *Service) ListSources(ctx context.Context) ([]MigSource, error) {
 	rows, err := s.DB.Pool.Query(ctx, `select code, title, kind, note from legacy_sources order by code`)
 	if err != nil {
@@ -250,7 +250,7 @@ func (s *Service) ListSources(ctx context.Context) ([]MigSource, error) {
 	return out, rows.Err()
 }
 
-// SaveMigrationSource ثبت/به‌روزرسانی سرور مبدأ (پورت saveSourceAction).
+// SaveMigrationSource: register/update a source server (port of saveSourceAction).
 func (s *Service) SaveMigrationSource(input struct{ Code, Title, Kind, Note string }) error {
 	code := strings.ToUpper(strings.TrimSpace(input.Code))
 	if code == "" {
@@ -278,10 +278,10 @@ func (s *Service) SaveMigrationSource(input struct{ Code, Title, Kind, Note stri
 	return err
 }
 
-// ctx0 زمینهٔ بدون انصراف برای متدهای بدون ctx (سازگاری امضاها).
+// ctx0: non-cancellable context for methods without ctx (signature compatibility).
 func ctx0() context.Context { return context.Background() }
 
-// ═══════════════ میز تطبیق کدها (پورت codemap.ts) ═══════════════
+// ═══════════════ Code mapping workbench (port of codemap.ts) ═══════════════
 
 type MigDomainDef struct {
 	ID    string `json:"id"`
@@ -289,7 +289,7 @@ type MigDomainDef struct {
 	Hint  string `json:"hint"`
 }
 
-// MigDomains پورت MAP_DOMAINS — دامنه‌های میز تطبیق.
+// MigDomains port of MAP_DOMAINS — mapping workbench domains.
 var MigDomains = []MigDomainDef{
 	{ID: "MAJOR", Title: "رشته/گرایش", Hint: "کد رشتهٔ سیستم قدیمی → رشتهٔ سامانهٔ جدید"},
 	{ID: "DEGREE", Title: "مقطع تحصیلی", Hint: "کد مقطع قدیمی → مقطع جدید"},
@@ -304,7 +304,7 @@ var MigDomains = []MigDomainDef{
 	{ID: "FEE_ITEM", Title: "اقلام شهریه", Hint: "عنوان ردیف شهریهٔ قدیمی → قلم استاندارد شهریه"},
 }
 
-// MigFixedOptions فهرست ثابت دامنه‌های بدون جدول (پورت fixed در MAP_DOMAINS).
+// MigFixedOptions: fixed list of domains without a table (port of fixed in MAP_DOMAINS).
 var MigFixedOptions = map[string][]MigOption{
 	"STUDENT_STATUS": {
 		{Code: "ACTIVE", Title: "فعال"}, {Code: "GRADUATED", Title: "فارغ‌التحصیل"},
@@ -341,7 +341,7 @@ type MigOption struct {
 	Title string `json:"title"`
 }
 
-// MigrationTargetOptions گزینه‌های مقصد هر دامنه (پورت targetOptions).
+// MigrationTargetOptions: target options of each domain (port of targetOptions).
 func (s *Service) MigrationTargetOptions(ctx context.Context, domain string) ([]MigOption, error) {
 	if fx, ok := MigFixedOptions[domain]; ok {
 		return fx, nil
@@ -401,7 +401,7 @@ type MigDomainStat struct {
 	Unmapped  int    `json:"unmapped"`
 }
 
-// ListMigrationCodeMaps فهرست نگاشت‌ها + گزینه‌ها + آمار (پورت codemaps route).
+// ListMigrationCodeMaps: mapping list + options + stats (port of codemaps route).
 func (s *Service) ListMigrationCodeMaps(ctx context.Context, sourceCode, domain string) (maps []MigMapRow, options []MigOption, stats []MigDomainStat, err error) {
 	maps = []MigMapRow{}
 	options = []MigOption{}
@@ -468,7 +468,7 @@ func nilIfEmpty(v string) any {
 	return v
 }
 
-// SaveMigrationMap تأیید/تغییر دستی یک نگاشت (پورت saveMapAction).
+// SaveMigrationMap: confirm/change a mapping manually (port of saveMapAction).
 func (s *Service) SaveMigrationMap(ctx context.Context, user *session.User, id int64, targetCode *string, status string) error {
 	var domain, legacyCode string
 	if err := s.DB.Pool.QueryRow(ctx,
@@ -507,7 +507,7 @@ func (s *Service) SaveMigrationMap(ctx context.Context, user *session.User, id i
 	return err
 }
 
-// SetMigrationNewCode ثبت «کد جدید» آزاد برای یک کد قدیمی (پورت setNewCodeAction).
+// SetMigrationNewCode: register a free-form «کد جدید» for an old code (port of setNewCodeAction).
 func (s *Service) SetMigrationNewCode(ctx context.Context, user *session.User, id int64, newCode string) error {
 	var domain, legacyCode, sourceCode, legacyTitle *string
 	if err := s.DB.Pool.QueryRow(ctx, `
@@ -517,7 +517,7 @@ func (s *Service) SetMigrationNewCode(ctx context.Context, user *session.User, i
 	}
 	code := strings.ReplaceAll(MigNorm(newCode), " ", "")
 	if code == "" {
-		// خالی‌کردن کد جدید = لغو جایگزینی
+		// Clearing the new code = cancel replacement
 		_, err := s.DB.Pool.Exec(ctx, `
 			update legacy_code_maps set "targetCode" = null, "targetTitle" = null, "targetId" = null,
 			       confidence = '0', status = 'UNMAPPED', "updatedByUserId" = $2, "updatedAt" = now() where id = $1`, id, user.ID)
@@ -530,7 +530,7 @@ func (s *Service) SetMigrationNewCode(ctx context.Context, user *session.User, i
 	if strings.EqualFold(code, *legacyCode) {
 		return errors.New("کد جدید با کد قدیمی یکسان است — جایگزینی بی‌اثر خواهد بود.")
 	}
-	// دو کد قدیمیِ متفاوت نباید به یک کد جدید برسند.
+	// Two different old codes must not resolve to the same new code.
 	var clashCode *string
 	var clashID int64
 	err := s.DB.Pool.QueryRow(ctx, `
@@ -546,7 +546,7 @@ func (s *Service) SetMigrationNewCode(ctx context.Context, user *session.User, i
 	return err
 }
 
-// ═══ شباهت متنی برای پیشنهاد خودکار (پورت similarity/suggest) ═══
+// ═══ Text similarity for auto-suggestion (port of similarity/suggest) ═══
 
 var migStopTokens = map[string]bool{
 	"رشته": true, "گرایش": true, "مهندسی": true, "کارشناسی": true, "ارشد": true,
@@ -625,7 +625,7 @@ func migLevenshtein(a, b string) int {
 	return prev[len(br)]
 }
 
-// migSimilarity امتیاز شباهت ۰..۱۰۰ — ترکیب تطابق دقیق کد، اشتراک توکن‌ها و فاصلهٔ ویرایشی.
+// migSimilarity: similarity score 0..100 — combination of exact code match, token overlap and edit distance.
 func migSimilarity(legacyCode, legacyTitle string, opt MigOption) int {
 	lc, oc := migCanon(legacyCode), migCanon(opt.Code)
 	if lc != "" && oc != "" && lc == oc {
@@ -678,7 +678,7 @@ func migSimilarity(legacyCode, legacyTitle string, opt MigOption) int {
 	return score
 }
 
-// MigAutoSuggest پیشنهاد خودکار برای همهٔ کدهای بی‌نگاشت یک دامنه (پورت autoSuggestDomain).
+// MigAutoSuggest: auto-suggestion for all unmapped codes of a domain (port of autoSuggestDomain).
 func (s *Service) MigAutoSuggest(ctx context.Context, sourceCode, domain string) (suggested, confirmed, untouched int, err error) {
 	options, err := s.MigrationTargetOptions(ctx, domain)
 	if err != nil {
@@ -737,7 +737,7 @@ func (s *Service) MigAutoSuggest(ctx context.Context, sourceCode, domain string)
 	return suggested, confirmed, untouched, nil
 }
 
-// MigConfirmSuggestions تأیید یکجای همهٔ پیشنهادها با امتیاز حداقل (پورت confirmSuggestionsAction).
+// MigConfirmSuggestions: confirm all suggestions at once with a minimum score (port of confirmSuggestionsAction).
 func (s *Service) MigConfirmSuggestions(ctx context.Context, user *session.User, sourceCode, domain string, minScore int) (int, error) {
 	tag, err := s.DB.Pool.Exec(ctx, `
 		update legacy_code_maps set status = 'CONFIRMED', "updatedByUserId" = $3, "updatedAt" = now()
@@ -750,7 +750,7 @@ func (s *Service) MigConfirmSuggestions(ctx context.Context, user *session.User,
 	return int(tag.RowsAffected()), nil
 }
 
-// MigAddCode افزودن دستی یک کد قدیمی (پورت addCodeAction).
+// MigAddCode: manually add an old code (port of addCodeAction).
 func (s *Service) MigAddCode(ctx context.Context, sourceCode, domain, legacyCode, legacyTitle string) error {
 	if strings.TrimSpace(legacyCode) == "" {
 		return errors.New("کد قدیمی الزامی است.")
@@ -762,7 +762,7 @@ func (s *Service) MigAddCode(ctx context.Context, sourceCode, domain, legacyCode
 	return err
 }
 
-// MigUpsertLegacyCode ثبت/به‌روزرسانی کد قدیمی دیده‌شده در فایل‌ها (پورت upsertLegacyCode).
+// MigUpsertLegacyCode: register/update a legacy code seen in files (port of upsertLegacyCode).
 func (s *Service) MigUpsertLegacyCode(ctx context.Context, sourceCode, domain, legacyCode, legacyTitle string) {
 	if strings.TrimSpace(legacyCode) == "" {
 		return
@@ -779,7 +779,7 @@ func (s *Service) MigUpsertLegacyCode(ctx context.Context, sourceCode, domain, l
 	}
 }
 
-// MigResolverFor نگاشت آمادهٔ مصرف موتورها (پورت resolverFor) — legacyCode → (targetId,targetCode).
+// MigResolverFor: mapping ready for engine use (port of resolverFor) — legacyCode → (targetId,targetCode).
 func (s *Service) MigResolverFor(ctx context.Context, sourceCode, domain string) (map[string]MigOption, error) {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select coalesce("targetId", 0), coalesce("targetCode",''), coalesce("targetTitle",''), "legacyCode"
@@ -805,12 +805,12 @@ func (s *Service) MigResolverFor(ctx context.Context, sourceCode, domain string)
 	return out, rows.Err()
 }
 
-// ═══════════════ واردسازی CSV (پورت importGrades/importFormulas/importFinancials/importCodes) ═══════════════
+// ═══════════════ CSV import (port of importGrades/importFormulas/importFinancials/importCodes) ═══════════════
 
-// MigrationImportLimit سقف حجم فایل CSV (۵ مگابایت).
+// MigrationImportLimit: CSV file size limit (5 MB).
 const MigrationImportLimit = 5 << 20
 
-// MigrationImport CSV مبدأ را وارد staging می‌کند و «دسته» می‌سازد.
+// MigrationImport: imports the source CSV into staging and creates a «دسته».
 func (s *Service) MigrationImport(ctx context.Context, user *session.User, kind, sourceCode, fileName, content string, columnMap map[string]int) (*MigReport, error) {
 	kind = strings.TrimSpace(kind)
 	table := &MigTable{
@@ -827,7 +827,7 @@ func (s *Service) MigrationImport(ctx context.Context, user *session.User, kind,
 	src := migCleanSource(sourceCode)
 	rep := migEmptyReport(kind, fileName, table.Sheet)
 
-	// ساخت دسته
+	// Create batch
 	batchID := int64(0)
 	importType := kind
 	err := s.DB.Pool.QueryRow(ctx, `
@@ -875,14 +875,14 @@ func mustJSON(v any) string {
 	return string(b)
 }
 
-// migStoreRow سطر خام نرمال‌شده را در ناحیهٔ موقت نگه می‌دارد (برای پردازش دوباره).
+// migStoreRow: keeps the normalized raw row in the staging area (for reprocessing).
 func (s *Service) migStoreRow(ctx context.Context, batchID int64, line int, raw map[string]string, status, errMsg string) {
 	_, _ = s.DB.Pool.Exec(ctx, `
 		insert into legacy_import_rows ("batchId", "rowNumber", "rawData", "validationStatus", "errorMessage", "universityId")
 		values ($1,$2,$3,$4,$5,null)`, batchID, line, mustJSON(raw), status, nilIfEmpty(errMsg))
 }
 
-// migReprocessableRows سطرهای یک دسته با وضعیت مشخص.
+// migReprocessableRows: rows of a batch with a given status.
 func (s *Service) migReprocessableRows(ctx context.Context, batchID int64, onlyErrors bool) (headers []string, rows []map[string]string, ids []int64, statuses []string, err error) {
 	q := `select id, "rawData", "validationStatus" from legacy_import_rows where "batchId" = $1`
 	if onlyErrors {
@@ -915,9 +915,9 @@ func (s *Service) migReprocessableRows(ctx context.Context, batchID int64, onlyE
 	return headers, rows, ids, statuses, rws.Err()
 }
 
-// ReprocessMigrationBatch پردازش دوبارهٔ سطرهای یک دسته (پورت reprocessBatch).
-// در این پورت سطر خام «نرمال‌شده» ذخیره می‌شود؛ پردازش دوباره همان upsert را
-// از سطر ذخیره‌شده انجام می‌دهد (پس از تکمیل نگاشت کدها نتیجه تازه می‌شود).
+// ReprocessMigrationBatch: reprocess the rows of a batch (port of reprocessBatch).
+// In this port the "normalized" raw row is stored; reprocessing performs the same upsert
+// from the stored row (the result is refreshed after code mapping is completed).
 func (s *Service) ReprocessMigrationBatch(ctx context.Context, batchID int64, all bool) (reprocessed, inserted, updated, invalid int, err error) {
 	var importType, sourceCode string
 	if err = s.DB.Pool.QueryRow(ctx,
@@ -934,7 +934,7 @@ func (s *Service) ReprocessMigrationBatch(ctx context.Context, batchID int64, al
 	}
 
 	table := &MigTable{Sheet: "CSV"}
-	// سطرها از JSON خام بازسازی می‌شوند؛ سرستون‌ها کلیدهای JSON.
+	// Rows are rebuilt from raw JSON; headers are the JSON keys.
 	headersSet := map[string]bool{}
 	for _, r := range rawRows {
 		for k := range r {
@@ -955,7 +955,7 @@ func (s *Service) ReprocessMigrationBatch(ctx context.Context, batchID int64, al
 		}
 		table.Rows[i] = row
 	}
-	// ستون‌ها را بر اساس نامک‌های استاندارد نگاشت می‌کنیم.
+	// We map columns based on standard aliases.
 	rep := migEmptyReport(importType, "", "CSV")
 	rep.Total = len(table.Rows)
 	switch importType {
@@ -973,7 +973,7 @@ func (s *Service) ReprocessMigrationBatch(ctx context.Context, batchID int64, al
 	if err != nil {
 		return 0, 0, 0, 0, err
 	}
-	// سطرهای موفق علامت خورده و بقیه ERROR می‌مانند.
+	// Successful rows are marked and the rest remain ERROR.
 
 	for _, id := range ids {
 		_, _ = s.DB.Pool.Exec(ctx, `update legacy_import_rows set "processedAt" = now() where id = $1`, id)
@@ -987,9 +987,9 @@ func (s *Service) ReprocessMigrationBatch(ctx context.Context, batchID int64, al
 	return reprocessed, inserted, updated, invalid, nil
 }
 
-// ── نمرات ──
+// ── Grades ──
 
-// MigQualitative نمرهٔ حرفی/کیفی رایج سیستم‌های قدیمی (پورت QUALITATIVE).
+// MigQualitative: the common letter/qualitative grade of legacy systems (port of QUALITATIVE).
 var MigQualitative = map[string]struct {
 	Value  *float64
 	Status string
@@ -1005,7 +1005,7 @@ var MigQualitative = map[string]struct {
 
 func f64(v float64) *float64 { return &v }
 
-// migComputeGradeStatus وضعیت خودکار از نمرهٔ عددی (معادل computeGradeStatus).
+// migComputeGradeStatus: automatic status from a numeric grade (equivalent to computeGradeStatus).
 func migComputeGradeStatus(n float64) string {
 	switch {
 	case n >= 10:
@@ -1017,7 +1017,7 @@ func migComputeGradeStatus(n float64) string {
 	}
 }
 
-// MigParseGrade تفسیر مقدار خام نمره (پورت parseGrade).
+// MigParseGrade: parse the raw grade value (port of parseGrade).
 func MigParseGrade(raw, statusRaw string, statusMap map[string]MigOption) (value *float64, status, note string) {
 	r := MigNorm(raw)
 	st := MigNorm(statusRaw)
@@ -1143,7 +1143,7 @@ func (s *Service) migImportGrades(ctx context.Context, src string, table *MigTab
 	return nil
 }
 
-// migUpsert اجرای insert…returning (xmax=0) — پورت الگوی created/updated.
+// migUpsert: run insert…returning (xmax=0) — port of the created/updated pattern.
 func (s *Service) migUpsert(ctx context.Context, q string, args ...any) (bool, error) {
 	var created bool
 	err := s.DB.Pool.QueryRow(ctx, q+" returning (xmax = 0)", args...).Scan(&created)
@@ -1153,7 +1153,7 @@ func (s *Service) migUpsert(ctx context.Context, q string, args ...any) (bool, e
 	return created, nil
 }
 
-// ── فرمول‌های شهریه ──
+// ── Tuition formulas ──
 
 func (s *Service) migImportFormulas(ctx context.Context, src string, table *MigTable, batchID int64, rep *MigReport) error {
 	for i := range table.Rows {
@@ -1206,7 +1206,7 @@ func (s *Service) migImportFormulas(ctx context.Context, src string, table *MigT
 	return nil
 }
 
-// ── دادهٔ مالی قدیمی ──
+// ── Legacy financial data ──
 
 func (s *Service) migImportFinancials(ctx context.Context, src string, table *MigTable, batchID int64, rep *MigReport) error {
 	for i := range table.Rows {
@@ -1278,7 +1278,7 @@ func (s *Service) migImportFinancials(ctx context.Context, src string, table *Mi
 	return nil
 }
 
-// ── جدول تطبیق از فایل ──
+// ── Mapping table from file ──
 
 var migValidDomains = func() map[string]bool {
 	m := map[string]bool{}
@@ -1312,7 +1312,7 @@ func (s *Service) migImportCodes(ctx context.Context, src string, table *MigTabl
 	return nil
 }
 
-// ═══════════════ نمرات: مقایسه و اعمال ═══════════════
+// ═══════════════ Grades: comparison and apply ═══════════════
 
 type MigGradeCompareRow struct {
 	StudentCode string  `json:"studentCode"`
@@ -1365,7 +1365,7 @@ type migLegacyGrade struct {
 	BatchID     *int64
 }
 
-// CompareMigrationGrades مقایسهٔ نمرات قدیمی با سامانه (پورت compareGrades).
+// CompareMigrationGrades: compare legacy grades with the system (port of compareGrades).
 func (s *Service) CompareMigrationGrades(ctx context.Context, sourceCode, termCode string) (*MigGradeCompare, error) {
 	src := migCleanSource(sourceCode)
 	args := []any{src}
@@ -1432,7 +1432,7 @@ func (s *Service) CompareMigrationGrades(ctx context.Context, sourceCode, termCo
 	}
 	crows.Close()
 
-	// نمرات فعلی سامانه برای همان دانشجویان
+	// Current system grades for the same students
 	type curKey struct{ sid, tid, cid int64 }
 	curMap := map[curKey]migLegacyGrade{}
 	if len(stu) > 0 {
@@ -1524,7 +1524,7 @@ func (s *Service) CompareMigrationGrades(ctx context.Context, sourceCode, termCo
 	return out, nil
 }
 
-// MigApplyResult نتیجهٔ اعمال نمرات (پورت ApplyResult).
+// MigApplyResult: result of applying grades (port of ApplyResult).
 type MigApplyResult struct {
 	Created int      `json:"created"`
 	Updated int      `json:"updated"`
@@ -1532,7 +1532,7 @@ type MigApplyResult struct {
 	Errors  []string `json:"errors"`
 }
 
-// ApplyMigrationGrades اعمال نمرات قدیمی روی سامانه (پورت applyGrades) با دفتر واگرد.
+// ApplyMigrationGrades: apply legacy grades to the system (port of applyGrades) with a rollback log.
 func (s *Service) ApplyMigrationGrades(ctx context.Context, user *session.User, sourceCode, termCode string, statuses []string, overwrite bool) (*MigApplyResult, error) {
 	src := migCleanSource(sourceCode)
 	if len(statuses) == 0 {
@@ -1625,7 +1625,7 @@ func (s *Service) ApplyMigrationGrades(ctx context.Context, user *session.User, 
 			cid = crs[MigNorm(g.courseCode)]
 		}
 		if cid == 0 {
-			// درس قدیمیِ بدون معادل: placeholder می‌سازیم تا کارنامه ناقص نماند
+			// Legacy course without an equivalent: we create a placeholder so the transcript is not left incomplete
 			title := g.courseTitle
 			if title == "" {
 				title = "درس مهاجرتی " + g.courseCode
@@ -1728,7 +1728,7 @@ func (s *Service) ApplyMigrationGrades(ctx context.Context, user *session.User, 
 
 func migStrPtr(s string) *string { return &s }
 
-// ClearMigrationGradeStaging پاک‌سازی staging نمرات یک مبدأ (پورت clearGradeStagingAction).
+// ClearMigrationGradeStaging: clear the grade staging of a source (port of clearGradeStagingAction).
 func (s *Service) ClearMigrationGradeStaging(ctx context.Context, sourceCode string) (int64, error) {
 	tag, err := s.DB.Pool.Exec(ctx, `delete from legacy_grades where "sourceCode" = $1`, migCleanSource(sourceCode))
 	if err != nil {
@@ -1737,7 +1737,7 @@ func (s *Service) ClearMigrationGradeStaging(ctx context.Context, sourceCode str
 	return tag.RowsAffected(), nil
 }
 
-// MigrationGradeStats آمار وضعیت مقایسهٔ نمرات یک مبدأ (پورت gradeStats).
+// MigrationGradeStats: grade comparison status stats of a source (port of gradeStats).
 func (s *Service) MigrationGradeStats(ctx context.Context, sourceCode string) ([]map[string]any, error) {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select coalesce("compareStatus",'PENDING'), count(*)::int from legacy_grades
@@ -1757,9 +1757,9 @@ func (s *Service) MigrationGradeStats(ctx context.Context, sourceCode string) ([
 	return out, rows.Err()
 }
 
-// ═══════════════ دفتر واگرد (پورت audit.ts) ═══════════════
+// ═══════════════ Rollback log (port of audit.ts) ═══════════════
 
-// migAudit ثبت یک سند در دفتر واگرد.
+// migAudit: record a document in the rollback log.
 func (s *Service) migAudit(ctx context.Context, batchID *int64, opGroup, sourceCode string, userID int64,
 	op, table string, rowID int64, before, after map[string]any) {
 	if rowID == 0 {
@@ -1771,7 +1771,7 @@ func (s *Service) migAudit(ctx context.Context, batchID *int64, opGroup, sourceC
 		batchID, opGroup, sourceCode, table, rowID, op, nilIfEmpty(mustJSON(before)), nilIfEmpty(mustJSON(after)), userID)
 }
 
-// MigAuditSummary خلاصهٔ نوشته‌های یک دسته/گروه (پورت auditSummary).
+// MigAuditSummary: summary of writes in a batch/group (port of auditSummary).
 func (s *Service) MigAuditSummary(ctx context.Context, batchID *int64, opGroup, sourceCode string) ([]map[string]any, error) {
 	args := []any{}
 	conds := []string{}
@@ -1810,7 +1810,7 @@ func (s *Service) MigAuditSummary(ctx context.Context, batchID *int64, opGroup, 
 	return out, rows.Err()
 }
 
-// MigAuditGroups گروه‌های عملیاتی واگردپذیر یک مبدأ (پورت auditGroups).
+// MigAuditGroups: rollbackable operation groups of a source (port of auditGroups).
 func (s *Service) MigAuditGroups(ctx context.Context, sourceCode string) ([]map[string]any, error) {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select "opGroup", "batchId", count(*)::int, count(*) filter (where "revertedAt" is null)::int, max("createdAt")::text
@@ -1833,7 +1833,7 @@ func (s *Service) MigAuditGroups(ctx context.Context, sourceCode string) ([]map[
 	return out, rows.Err()
 }
 
-// MigRollbackResult نتیجهٔ واگرد (پورت RollbackResult).
+// MigRollbackResult: rollback result (port of RollbackResult).
 type MigRollbackResult struct {
 	BatchID           *int64            `json:"batchId"`
 	OpGroup           *string           `json:"opGroup"`
@@ -1870,7 +1870,7 @@ func migSafeColumn(name string) bool {
 	return migSafeColumnRE.MatchString(name)
 }
 
-// RollbackMigrationBatch واگرد یک دسته یا گروه عملیاتی (پورت rollbackBatch).
+// RollbackMigrationBatch: roll back a batch or operation group (port of rollbackBatch).
 func (s *Service) RollbackMigrationBatch(ctx context.Context, batchID *int64, opGroup, sourceCode string, force bool, userID int64) (*MigRollbackResult, error) {
 	if (batchID == nil || *batchID <= 0) && strings.TrimSpace(opGroup) == "" {
 		return nil, errors.New("برای واگرد باید دسته یا گروه عملیات مشخص شود.")
@@ -1956,7 +1956,7 @@ func (s *Service) RollbackMigrationBatch(ctx context.Context, batchID *int64, op
 			res.Details = append(res.Details, MigRollbackItem{Table: e.table, RowID: e.rowID, Op: e.op, Result: "MISSING"})
 			continue
 		}
-		// آیا بعد از مهاجرت کسی دستی تغییرش داده؟
+		// Has anyone changed it manually since the migration?
 		if !force && len(e.after) > 0 {
 			after := map[string]any{}
 			if json.Unmarshal(e.after, &after) == nil && len(after) > 0 {
@@ -2029,9 +2029,9 @@ func (s *Service) RollbackMigrationBatch(ctx context.Context, batchID *int64, op
 	return res, nil
 }
 
-// ═══════════════ ناحیهٔ موقت: فهرست دسته‌ها ═══════════════
+// ═══════════════ Staging area: batch list ═══════════════
 
-// ListMigrationBatches فهرست دسته‌های یک مبدأ با آمار واگرد (پورت listBatches).
+// ListMigrationBatches: list of batches of a source with rollback stats (port of listBatches).
 func (s *Service) ListMigrationBatches(ctx context.Context, sourceCode string) ([]map[string]any, error) {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select b.id, b."sourceCode", b."importType", b."fileName", b."sheetName", b."totalRows",
@@ -2064,7 +2064,7 @@ func (s *Service) ListMigrationBatches(ctx context.Context, sourceCode string) (
 	return out, rows.Err()
 }
 
-// MigrationBatchRows سطرهای یک دسته (پورت batchRows).
+// MigrationBatchRows: rows of a batch (port of batchRows).
 func (s *Service) MigrationBatchRows(ctx context.Context, batchID int64, status string) ([]map[string]any, error) {
 	args := []any{batchID}
 	where := `"batchId" = $1`
@@ -2094,16 +2094,16 @@ func (s *Service) MigrationBatchRows(ctx context.Context, batchID int64, status 
 	return out, rows.Err()
 }
 
-// DeleteMigrationBatch حذف یک دسته از ناحیهٔ موقت (پورت deleteBatch).
+// DeleteMigrationBatch: delete a batch from the staging area (port of deleteBatch).
 func (s *Service) DeleteMigrationBatch(ctx context.Context, batchID int64) error {
 	_, err := s.DB.Pool.Exec(ctx, `delete from legacy_import_batches where id = $1`, batchID)
 	return err
 }
 
-// ═══════════════ شهریه: ارزیاب امن فرمول (پورت Parser) ═══════════════
+// ═══════════════ Tuition: safe formula evaluator (port of Parser) ═══════════════
 
-// MigEvalFormula ارزیابی امن عبارت ریاضی با متغیرها (پورت evalFormula — بدون eval).
-// پشتیبانی: + - * / % ^ پرانتز، مقایسه‌ها، min/max/round/floor/ceil/if.
+// MigEvalFormula: safe evaluation of a math expression with variables (port of evalFormula — no eval).
+// Supported: + - * / % ^ parentheses, comparisons, min/max/round/floor/ceil/if.
 func MigEvalFormula(src string, vars map[string]float64) (float64, error) {
 	p := &migParser{src: strings.TrimSpace(MigNorm(src)), vars: vars}
 	v, err := p.parseExpr()
@@ -2397,14 +2397,14 @@ func migCallFn(name string, a []float64) (float64, error) {
 	}
 }
 
-// MigTuitionContext دادهٔ لازم برای محاسبهٔ فرمول (پورت TuitionContext).
+// MigTuitionContext: data needed to compute the formula (port of TuitionContext).
 type MigTuitionContext struct {
 	Units, TheoryUnits, PracticalUnits, GeneralUnits float64
 	EntryYear                                        float64
 	Discount                                         float64
 }
 
-// MigComputeTuition مبلغ شهریه طبق فرمول (پورت computeTuition).
+// MigComputeTuition: tuition amount per the formula (port of computeTuition).
 func MigComputeTuition(fixedAmount, perUnitTheory, perUnitPractical, perUnitGeneral float64, expression, variables string, c MigTuitionContext) (float64, string) {
 	vars := map[string]float64{
 		"fixed": fixedAmount, "ثابت": fixedAmount,
@@ -2437,7 +2437,7 @@ func MigComputeTuition(fixedAmount, perUnitTheory, perUnitPractical, perUnitGene
 	return math.Round(amount), "ثابت + نظری × نرخ + عملی × نرخ + عمومی × نرخ − تخفیف"
 }
 
-// migMatchFormula انتخاب فرمول مناسب یک ردیف مالی (پورت matchFormula).
+// migMatchFormula: select the right formula for a financial row (port of matchFormula).
 func migMatchFormula(formulas []map[string]any, formulaCode, termCode, degreeCode, majorCode string, entryYear int64) map[string]any {
 	str := func(m map[string]any, k string) string { v, _ := m[k].(string); return v }
 	numF := func(m map[string]any, k string) *float64 {
@@ -2501,7 +2501,7 @@ func migMatchFormula(formulas []map[string]any, formulaCode, termCode, degreeCod
 	return best
 }
 
-// MigTuitionFormula یک فرمول منتقل‌شده.
+// MigTuitionFormula: a migrated formula.
 type MigTuitionFormula struct {
 	ID               int64   `json:"id"`
 	FormulaCode      string  `json:"formulaCode"`
@@ -2516,7 +2516,7 @@ type MigTuitionFormula struct {
 	Expression       *string `json:"expression"`
 }
 
-// ListMigrationFormulas فهرست فرمول‌های یک مبدأ (برای سربرگ شهریه).
+// ListMigrationFormulas: list of formulas of a source (for the tuition tab).
 func (s *Service) ListMigrationFormulas(ctx context.Context, sourceCode string) ([]MigTuitionFormula, error) {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select id, "formulaCode", title, "termCode", "degreeCode", "majorCode",
@@ -2538,13 +2538,13 @@ func (s *Service) ListMigrationFormulas(ctx context.Context, sourceCode string) 
 	return out, rows.Err()
 }
 
-// DeleteMigrationFormula حذف یک فرمول قدیمی (پورت deleteFormulaAction).
+// DeleteMigrationFormula: delete a legacy formula (port of deleteFormulaAction).
 func (s *Service) DeleteMigrationFormula(ctx context.Context, id int64) error {
 	_, err := s.DB.Pool.Exec(ctx, `delete from legacy_tuition_formulas where id = $1`, id)
 	return err
 }
 
-// MigrationFinancialCount تعداد ردیف‌های مالی یک مبدأ.
+// MigrationFinancialCount: number of financial rows of a source.
 func (s *Service) MigrationFinancialCount(ctx context.Context, sourceCode string) (int, error) {
 	var n int
 	err := s.DB.Pool.QueryRow(ctx, `select count(*)::int from legacy_financial_records where "sourceCode" = $1`,
@@ -2552,7 +2552,7 @@ func (s *Service) MigrationFinancialCount(ctx context.Context, sourceCode string
 	return n, err
 }
 
-// MigCompareSummary خلاصهٔ اجرای مقایسهٔ شهریه (پورت CompareSummary).
+// MigCompareSummary: summary of the tuition comparison run (port of CompareSummary).
 type MigCompareSummary struct {
 	RunID       int64            `json:"runId"`
 	Total       int              `json:"total"`
@@ -2565,7 +2565,7 @@ type MigCompareSummary struct {
 	Worst       []map[string]any `json:"worst"`
 }
 
-// RunMigrationTuitionCompare اجرای مقایسهٔ فرمول با دادهٔ قدیمی (پورت runTuitionCompare).
+// RunMigrationTuitionCompare: run the formula comparison against legacy data (port of runTuitionCompare).
 func (s *Service) RunMigrationTuitionCompare(ctx context.Context, user *session.User, sourceCode, termCode string, tolerance float64) (*MigCompareSummary, error) {
 	src := migCleanSource(sourceCode)
 	if tolerance < 0 {
@@ -2709,7 +2709,7 @@ func (s *Service) RunMigrationTuitionCompare(ctx context.Context, user *session.
 	return sum, nil
 }
 
-// ListMigrationCompareRuns تاریخچهٔ مقایسه‌ها (پورت listCompareRuns).
+// ListMigrationCompareRuns: comparison history (port of listCompareRuns).
 func (s *Service) ListMigrationCompareRuns(ctx context.Context, limit int) ([]map[string]any, error) {
 	if limit <= 0 || limit > 50 {
 		limit = 15
@@ -2737,7 +2737,7 @@ func (s *Service) ListMigrationCompareRuns(ctx context.Context, limit int) ([]ma
 	return out, rows.Err()
 }
 
-// ApplyMigrationFormulas اعمال فرمول‌های قدیمی روی قواعد مالی ترم (پورت applyFormulasToRules).
+// ApplyMigrationFormulas: apply legacy formulas to the term financial rules (port of applyFormulasToRules).
 func (s *Service) ApplyMigrationFormulas(ctx context.Context, user *session.User, sourceCode string) (applied int, skipped []map[string]string, err error) {
 	src := migCleanSource(sourceCode)
 	skipped = []map[string]string{}
@@ -2850,7 +2850,7 @@ func numOr0(v string) float64 {
 	return 0
 }
 
-// ListMigrationFormulasAll همهٔ فرمول‌های مبدأ با فیلدهای عددی خام.
+// ListMigrationFormulasAll: all formulas of a source with raw numeric fields.
 func (s *Service) ListMigrationFormulasAll(ctx context.Context, src string) ([]MigTuitionFormula, error) {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select id, "formulaCode", title, "termCode", "degreeCode", "majorCode",
@@ -2871,12 +2871,12 @@ func (s *Service) ListMigrationFormulasAll(ctx context.Context, src string) ([]M
 	return out, rows.Err()
 }
 
-// ═══ پذیرش تراز قدیمی به‌عنوان «مانده اولیه» (پورت acceptLegacyBalance) ═══
+// ═══ Accepting a legacy balance as «مانده اولیه» (port of acceptLegacyBalance) ═══
 
-// MigOpeningBalanceTag پیشوند سندهای مانده اولیه.
+// MigOpeningBalanceTag: prefix of opening balance documents.
 const MigOpeningBalanceTag = "[مهاجرت] مانده اولیه از سیستم قدیمی"
 
-// MigOpeningBalanceResult نتیجهٔ ثبت مانده اولیه (پورت OpeningBalanceResult).
+// MigOpeningBalanceResult: opening balance posting result (port of OpeningBalanceResult).
 type MigOpeningBalanceResult struct {
 	Total           int      `json:"total"`
 	Created         int      `json:"created"`
@@ -2889,9 +2889,9 @@ type MigOpeningBalanceResult struct {
 	Errors          []string `json:"errors"`
 }
 
-// AcceptMigrationLegacyBalance ثبت مانده اولیه برای دانشجویان یک مبدأ (پورت acceptLegacyBalance).
-// انحراف آگاهانه: چک‌constraint جدول student_ledger مقدار DEBIT ندارد؛ ماندهٔ مثبت
-// با نوع CHARGE (بدهکار) و منفی با CREDIT ثبت می‌شود.
+// AcceptMigrationLegacyBalance: post opening balances for students of a source (port of acceptLegacyBalance).
+// Deliberate deviation: the student_ledger table's check constraint has no DEBIT value; a positive balance
+// is recorded as CHARGE (debit) and a negative one as CREDIT.
 func (s *Service) AcceptMigrationLegacyBalance(ctx context.Context, user *session.User, sourceCode, termCode string, runID int64) (*MigOpeningBalanceResult, error) {
 	src := migCleanSource(sourceCode)
 	res := &MigOpeningBalanceResult{Errors: []string{}}
@@ -3027,7 +3027,7 @@ func (s *Service) AcceptMigrationLegacyBalance(ctx context.Context, user *sessio
 	return res, nil
 }
 
-// MigrationResolutionStats آمار رفع مغایرت یک اجرا (پورت resolutionStats).
+// MigrationResolutionStats: discrepancy resolution stats of a run (port of resolutionStats).
 func (s *Service) MigrationResolutionStats(ctx context.Context, runID int64) ([]map[string]any, error) {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select "resolutionStatus", count(*)::int from tuition_compare_items where "runId" = $1 group by 1`, runID)
@@ -3046,7 +3046,7 @@ func (s *Service) MigrationResolutionStats(ctx context.Context, runID int64) ([]
 	return out, rows.Err()
 }
 
-// MigrationOverview دادهٔ اولیهٔ کل صفحهٔ مهاجرت.
+// MigrationOverview: initial data for the entire migration page.
 func (s *Service) MigrationOverview(ctx context.Context, sourceCode string) (map[string]any, error) {
 	src := migCleanSource(sourceCode)
 	out := map[string]any{"domains": MigDomains}

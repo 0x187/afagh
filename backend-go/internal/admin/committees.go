@@ -1,4 +1,4 @@
-// ═══ کمیته انضباطی + شورای آموزشی — پورت api/admin/discipline و council ═══
+// ═══ Disciplinary committee + academic council — port api/admin/discipline and council ═══
 package admin
 
 import (
@@ -13,7 +13,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// ─────────────────── کمیتهٔ انضباطی ───────────────────
+// ─────────────────── Disciplinary committee ───────────────────
 
 var disciplineStatuses = map[string]bool{
 	"در حال بررسی": true, "در کمیته": true, "تصمیم‌گیری‌شده": true, "تجدیدنظر": true,
@@ -25,7 +25,7 @@ var disciplineDecisions = map[string]bool{
 
 const disciplinePageSize = 50
 
-// DisciplineCase ردیف پروندهٔ انضباطی.
+// DisciplineCase is a disciplinary case row.
 type DisciplineCase struct {
 	ID                int64   `json:"id"`
 	StudentID         int64   `json:"studentId"`
@@ -43,7 +43,7 @@ type DisciplineCase struct {
 	DocumentCount     int     `json:"documentCount"`
 }
 
-// DisciplineListResponse پاسخ فهرست.
+// DisciplineListResponse is the list response.
 type DisciplineListResponse struct {
 	Rows     []DisciplineCase `json:"rows"`
 	Total    int              `json:"total"`
@@ -51,7 +51,7 @@ type DisciplineListResponse struct {
 	PageSize int              `json:"pageSize"`
 }
 
-// ListDisciplineCases پورت GET /api/admin/discipline.
+// ListDisciplineCases is the GET /api/admin/discipline port.
 func (s *Service) ListDisciplineCases(ctx context.Context, user *session.User, uniCookie, status, q, dateFrom, dateTo string, studentID int64, page int) (*DisciplineListResponse, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -136,7 +136,7 @@ func (s *Service) ListDisciplineCases(ctx context.Context, user *session.User, u
 	return out, nil
 }
 
-// DisciplineStudentHit نتیجهٔ جست‌وجوی دانشجو.
+// DisciplineStudentHit is a student search result.
 type DisciplineStudentHit struct {
 	StudentID   int64  `json:"studentId"`
 	StudentCode string `json:"studentCode"`
@@ -144,7 +144,7 @@ type DisciplineStudentHit struct {
 	EntryYear   *int   `json:"entryYear"`
 }
 
-// SearchDisciplineStudents پورت action=students (q>=2).
+// SearchDisciplineStudents is the action=students port (q>=2).
 func (s *Service) SearchDisciplineStudents(ctx context.Context, user *session.User, uniCookie, q string) ([]DisciplineStudentHit, error) {
 	out := []DisciplineStudentHit{}
 	uniID := s.UniversityID(ctx, user, uniCookie)
@@ -176,7 +176,7 @@ func (s *Service) SearchDisciplineStudents(ctx context.Context, user *session.Us
 	return out, nil
 }
 
-// CreateDisciplineInput ورودی ایجاد پرونده.
+// CreateDisciplineInput is the input for creating a case.
 type CreateDisciplineInput struct {
 	StudentID     int64  `json:"studentId"`
 	ViolationType string `json:"violationType"`
@@ -185,7 +185,7 @@ type CreateDisciplineInput struct {
 	CaseDate      string `json:"caseDate"`
 }
 
-// CreateDisciplineCase پورت POST /api/admin/discipline.
+// CreateDisciplineCase is the POST /api/admin/discipline port.
 func (s *Service) CreateDisciplineCase(ctx context.Context, user *session.User, uniCookie string, in CreateDisciplineInput) (int64, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -237,14 +237,14 @@ func (s *Service) CreateDisciplineCase(ctx context.Context, user *session.User, 
 	return id, nil
 }
 
-// UpdateDisciplineInput ورودی تغییر وضعیت/تصمیم.
+// UpdateDisciplineInput is the input for changing status/decision.
 type UpdateDisciplineInput struct {
 	Status            *string `json:"status"`
 	CommitteeDecision *string `json:"committeeDecision"`
 	DecisionNotes     *string `json:"decisionNotes"`
 }
 
-// UpdateDisciplineCase پورت PATCH /api/admin/discipline.
+// UpdateDisciplineCase is the PATCH /api/admin/discipline port.
 func (s *Service) UpdateDisciplineCase(ctx context.Context, user *session.User, uniCookie string, id int64, in UpdateDisciplineInput) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -313,7 +313,7 @@ func nullableTrim(v *string) *string {
 	return &t
 }
 
-// DeleteDisciplineCase پورت DELETE (فقط ADMIN).
+// DeleteDisciplineCase is the DELETE port (ADMIN only).
 func (s *Service) DeleteDisciplineCase(ctx context.Context, user *session.User, uniCookie string, id int64) error {
 	isAdmin := false
 	for _, r := range user.Roles {
@@ -351,14 +351,14 @@ func (s *Service) DeleteDisciplineCase(ctx context.Context, user *session.User, 
 	return tx.Commit(ctx)
 }
 
-// ─────────────────── شورای آموزشی ───────────────────
+// ─────────────────── Academic council ───────────────────
 
 var councilDecisionTypes = map[string]bool{"مصوبه": true, "توصیه": true, "درخواست تجدیدنظر": true}
 var councilImplementationStatuses = map[string]bool{"در انتظار اجرا": true, "در حال اجرا": true, "اجراشده": true}
 
 const councilPageSize = 50
 
-// CouncilMeeting جلسه.
+// CouncilMeeting is a meeting.
 type CouncilMeeting struct {
 	ID             int64   `json:"id"`
 	Title          string  `json:"title"`
@@ -373,7 +373,7 @@ type CouncilMeeting struct {
 	UpdatedAt      *string `json:"updatedAt"`
 }
 
-// CouncilDecision مصوبه.
+// CouncilDecision is a resolution.
 type CouncilDecision struct {
 	ID                   int64   `json:"id"`
 	MeetingID            int64   `json:"meetingId"`
@@ -390,7 +390,7 @@ type CouncilDecision struct {
 	UpdatedAt            *string `json:"updatedAt"`
 }
 
-// ListCouncilMeetings پورت GET /api/admin/council.
+// ListCouncilMeetings is the GET /api/admin/council port.
 func (s *Service) ListCouncilMeetings(ctx context.Context, user *session.User, uniCookie, q, dateFrom, dateTo string, page int) ([]CouncilMeeting, int, int, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -447,7 +447,7 @@ func (s *Service) ListCouncilMeetings(ctx context.Context, user *session.User, u
 	return out, total, page, nil
 }
 
-// MeetingInput ورودی ذخیرهٔ جلسه.
+// MeetingInput is the input for saving a meeting.
 type MeetingInput struct {
 	ID          int64  `json:"id"`
 	Title       string `json:"title"`
@@ -458,7 +458,7 @@ type MeetingInput struct {
 	Deleted     bool   `json:"deleted"`
 }
 
-// SaveCouncilMeeting ایجاد/ویرایش جلسه.
+// SaveCouncilMeeting creates/edits a meeting.
 func (s *Service) SaveCouncilMeeting(ctx context.Context, user *session.User, uniCookie string, in MeetingInput) (int64, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -517,7 +517,7 @@ func (s *Service) SaveCouncilMeeting(ctx context.Context, user *session.User, un
 	return id, nil
 }
 
-// DeleteCouncilMeeting حذف جلسه (cascade مصوبات).
+// DeleteCouncilMeeting deletes a meeting (cascades resolutions).
 func (s *Service) DeleteCouncilMeeting(ctx context.Context, user *session.User, uniCookie string, id int64) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -543,7 +543,7 @@ func (s *Service) DeleteCouncilMeeting(ctx context.Context, user *session.User, 
 	return tx.Commit(ctx)
 }
 
-// ListCouncilDecisions پورت GET /api/admin/council/decisions.
+// ListCouncilDecisions is the GET /api/admin/council/decisions port.
 func (s *Service) ListCouncilDecisions(ctx context.Context, user *session.User, uniCookie, status, typ string, meetingID, studentID int64, page int) ([]CouncilDecision, int, int, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -614,7 +614,7 @@ func (s *Service) ListCouncilDecisions(ctx context.Context, user *session.User, 
 	return out, total, page, nil
 }
 
-// DecisionInput ورودی ذخیرهٔ مصوبه.
+// DecisionInput is the input for saving a resolution.
 type DecisionInput struct {
 	ID                   int64  `json:"id"`
 	MeetingID            int64  `json:"meetingId"`
@@ -625,7 +625,7 @@ type DecisionInput struct {
 	Deadline             string `json:"deadline"`
 }
 
-// SaveCouncilDecision ایجاد/ویرایش مصوبه.
+// SaveCouncilDecision creates/edits a resolution.
 func (s *Service) SaveCouncilDecision(ctx context.Context, user *session.User, uniCookie string, in DecisionInput) (int64, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -694,7 +694,7 @@ func (s *Service) SaveCouncilDecision(ctx context.Context, user *session.User, u
 	return id, nil
 }
 
-// DeleteCouncilDecision حذف مصوبه.
+// DeleteCouncilDecision deletes a resolution.
 func (s *Service) DeleteCouncilDecision(ctx context.Context, user *session.User, uniCookie string, id int64) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {

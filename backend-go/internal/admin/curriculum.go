@@ -1,4 +1,4 @@
-// ═══ سرفصل/برنامهٔ درسی — پورت admin/curriculum (نسخه‌ها، دروس، قواعد، چرخهٔ حیات، اعتبارسنج) ═══
+// ═══ Curriculum/syllabus — port admin/curriculum (revisions, courses, rules, lifecycle, validator) ═══
 package admin
 
 import (
@@ -14,7 +14,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// ── ماشین حالت (پورت curriculum-types) ──
+// ── State machine (curriculum-types port) ──
 
 var curriculumTransitions = map[string][]string{
 	"DRAFT":     {"REVIEW"},
@@ -44,7 +44,7 @@ func curriculumAssertTransition(from, to, action string) error {
 	return nil
 }
 
-// normalizeLogicNode پورت normalizeLogicNode.
+// normalizeLogicNode is the normalizeLogicNode port.
 type CurriculumLogicCond struct {
 	Course      string                `json:"course,omitempty"`
 	MinGrade    *float64              `json:"minGrade,omitempty"`
@@ -102,7 +102,7 @@ func NormalizeLogicNode(raw map[string]any) (CurriculumLogicCond, error) {
 	return node, nil
 }
 
-// ParseRoleUnitTargets پورت parseRoleUnitTargets.
+// ParseRoleUnitTargets is the parseRoleUnitTargets port.
 func ParseRoleUnitTargets(raw any) map[string]float64 {
 	out := map[string]float64{}
 	var obj map[string]any
@@ -138,13 +138,13 @@ func isAZ(s string) bool {
 	return true
 }
 
-// nextRevisionCode پورت nextRevisionCode.
+// nextRevisionCode is the nextRevisionCode port.
 func NextRevisionCode(code string) string {
 	p := enroll.ParseVersionCode(code)
 	return p.Base + "-R" + strconv.Itoa(p.Revision+1)
 }
 
-// ── نوع‌های پاسخ ──
+// ── Response types ──
 
 type CurriculumCheckResult struct {
 	Check    string   `json:"check"`
@@ -352,7 +352,7 @@ func (s *Service) loadCurriculumRules(ctx context.Context, versionID int64) ([]C
 	return out, rows.Err()
 }
 
-// ── اعتبارسنج ۱۰چکی (پورت curriculum-validator) ──
+// ── 10-check validator (curriculum-validator port) ──
 
 type curriculumCheckInput struct {
 	TotalRequiredUnits float64

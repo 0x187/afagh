@@ -1,4 +1,4 @@
-// ═══ پایش طرح درس ارائه‌ها (ادمین) — پورت admin/lesson-plans ═══
+// ═══ Lesson plan monitoring for offerings (admin) — port of admin/lesson-plans ═══
 package admin
 
 import (
@@ -9,7 +9,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// LessonPlanStatusRow وضعیت طرح درس یک ارائه.
+// LessonPlanStatusRow: lesson plan status of an offering.
 type LessonPlanStatusRow struct {
 	OfferingID    int64   `json:"offeringId"`
 	CourseTitle   string  `json:"courseTitle"`
@@ -20,7 +20,7 @@ type LessonPlanStatusRow struct {
 	UpdatedAt     *string `json:"updatedAt"`
 }
 
-// AdminLessonPlansData پاسخ صفحهٔ پایش.
+// AdminLessonPlansData: monitoring page response.
 type AdminLessonPlansData struct {
 	Rows     []LessonPlanStatusRow `json:"rows"`
 	Required bool                  `json:"required"`
@@ -28,7 +28,7 @@ type AdminLessonPlansData struct {
 	Title    string                `json:"universityTitle"`
 }
 
-// GetAdminLessonPlans پورت listLessonPlanStatus + تنظیمات.
+// GetAdminLessonPlans port of listLessonPlanStatus + settings.
 func (s *Service) GetAdminLessonPlans(ctx context.Context, user *session.User, cookie string) (*AdminLessonPlansData, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -75,7 +75,7 @@ func (s *Service) GetAdminLessonPlans(ctx context.Context, user *session.User, c
 	return resp, rows.Err()
 }
 
-// SetLessonPlanRequired پورت setLessonPlanRequired — فقط بنر اطلاع‌رسانی؛ سدّ فنی نیست.
+// SetLessonPlanRequired port of setLessonPlanRequired — informational banner only; not a technical block.
 func (s *Service) SetLessonPlanRequired(ctx context.Context, user *session.User, cookie string, isRequired bool, notice string) error {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {

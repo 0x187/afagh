@@ -1,4 +1,4 @@
-// ═══ ترمینال‌های POS و تراکنش‌ها — پورت lib/pos-actions.ts ═══
+// ═══ POS terminals and transactions — port of lib/pos-actions.ts ═══
 package admin
 
 import (
@@ -17,17 +17,17 @@ import (
 	"backend-go/internal/session"
 )
 
-// ═══ اصول ایمنی پورت‌شده ═══
-//   • مبلغ فقط ریال صحیح مثبت تا سقف ۱۰٬۰۰۰٬۰۰۰٬۰۰۰ (safeRials)
-//   • نوع تراکنش از کلاینت پذیرفته نمی‌شود — فروش همیشه SALE
-//   • پرداخت تا راستی‌آزمایی بانکی PENDING می‌ماند و در دفتر مالی ثبت نمی‌شود
-//   • ویدی: قفل سطری، پنجرهٔ ۲۴ ساعت، تفکیک وظایف، برگشتی با پیوند به اصل
+// ═══ Ported safety principles ═══
+//   • Amount: positive integer rials only, up to 10,000,000,000 (safeRials)
+//   • Transaction type is not accepted from the client — a sale is always SALE
+//   • Payment remains PENDING until bank verification and is not recorded in the financial ledger
+//   • Void: row lock, 24-hour window, separation of duties, reversal linked to the original
 
 const posMaxRials = 10_000_000_000
 
 var posVoidSeniorRoles = map[string]bool{"ADMIN": true, "FINANCE_EXPERT": true, "FINANCE": true}
 
-// PosTerminal ترمینال POS.
+// PosTerminal: POS terminal.
 type PosTerminal struct {
 	ID          int64   `json:"id"`
 	Code        string  `json:"code"`
@@ -41,7 +41,7 @@ type PosTerminal struct {
 	Note        *string `json:"note"`
 }
 
-// PosTxn تراکنش POS.
+// PosTxn: POS transaction.
 type PosTxn struct {
 	ID            int64    `json:"id"`
 	Stan          string   `json:"stan"`
@@ -60,7 +60,7 @@ type PosTxn struct {
 	StudentName   string   `json:"studentName"`
 }
 
-// GetPosTerminals پورت getPosTerminals.
+// GetPosTerminals port of getPosTerminals.
 func (s *Service) GetPosTerminals(ctx context.Context, user *session.User, uniCookie string) ([]PosTerminal, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	out := []PosTerminal{}
@@ -87,7 +87,7 @@ func (s *Service) GetPosTerminals(ctx context.Context, user *session.User, uniCo
 	return out, nil
 }
 
-// GetPosTransactions پورت getPosTransactions.
+// GetPosTransactions port of getPosTransactions.
 func (s *Service) GetPosTransactions(ctx context.Context, user *session.User, uniCookie, studentCode, status string, limit int) ([]PosTxn, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	out := []PosTxn{}
@@ -136,7 +136,7 @@ func (s *Service) GetPosTransactions(ctx context.Context, user *session.User, un
 	return out, nil
 }
 
-// PosSaleInput ورودی ثبت فروش.
+// PosSaleInput: sale recording input.
 type PosSaleInput struct {
 	TerminalCode     string  `json:"terminalCode"`
 	StudentCode      string  `json:"studentCode"`
@@ -150,7 +150,7 @@ type PosSaleInput struct {
 	Description      string  `json:"description"`
 }
 
-// RecordPosSale پورت recordPosSale — فروش PENDING بدون ثبت در دفتر مالی.
+// RecordPosSale port of recordPosSale — PENDING sale without a financial ledger entry.
 func (s *Service) RecordPosSale(ctx context.Context, user *session.User, uniCookie string, in PosSaleInput) (*PosTxn, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -180,7 +180,7 @@ func (s *Service) RecordPosSale(ctx context.Context, user *session.User, uniCook
 	if err != nil {
 		return nil, errors.New("دانشجو با این شماره دانشجویی یافت نشد")
 	}
-	// ترم مالی فعال ← ترم علمی جاری
+	// Active fiscal term ← current academic term
 	var financialTermID *int64
 	var ftID int64
 	if err := s.DB.Pool.QueryRow(ctx, `
@@ -252,7 +252,7 @@ func nullIfEmpty(v string) *string {
 
 func strPtr(v string) *string { return &v }
 
-// maskPan پوشاندن شمارهٔ کارت — شش رقم نخست و چهار رقم آخر.
+// maskPan: mask the card number — first six and last four digits.
 func maskPan(pan string) string {
 	digits := make([]rune, 0, len(pan))
 	for _, r := range pan {
@@ -281,7 +281,7 @@ func (s *Service) getPosTerminal(ctx context.Context, uniID int64, code string) 
 	return &t, nil
 }
 
-// voidStan شناسهٔ یکتای تراکنش ویدی.
+// voidStan: unique identifier of the void transaction.
 func voidStan(stan string) string {
 	b := make([]byte, 4)
 	_, _ = rand.Read(b)
@@ -293,7 +293,7 @@ func voidStan(stan string) string {
 	return out
 }
 
-// VoidPosTransaction پورت voidPosTransaction — ویدی با برگشتی دفتر مالی.
+// VoidPosTransaction port of voidPosTransaction — void with financial ledger reversal.
 func (s *Service) VoidPosTransaction(ctx context.Context, user *session.User, uniCookie, terminalCode, stan, reason string) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -375,7 +375,7 @@ func (s *Service) VoidPosTransaction(ctx context.Context, user *session.User, un
 		return errors.New("خطا در ویدی تراکنش POS")
 	}
 
-	// ردیف اصلی دفتر مالی: ledgerTxnId وگرنه جست‌وجو با referenceId
+	// Primary financial ledger row: ledgerTxnId, otherwise look up by referenceId
 	var originalLedgerID *int64
 	var ledgerTxnID *int64
 	_ = tx.QueryRow(ctx, `select "ledgerTxnId" from pos_transactions where id = $1`, txnID).Scan(&ledgerTxnID)
@@ -397,7 +397,7 @@ func (s *Service) VoidPosTransaction(ctx context.Context, user *session.User, un
 		return errors.New("ردیف اصلی دفتر مالی برای این تراکنش یافت نشد؛ ویدی ممکن نیست")
 	}
 
-	// برگشتی دفتر مالی — مبلغ منفی با همان نوع، referenceId به اصل
+	// Financial ledger reversal — negative amount with the same type, referenceId to the original
 	var dup int64
 	_ = tx.QueryRow(ctx, `
 		select count(*) from student_ledger where "referenceId" = $1 and amount::numeric < 0`, *originalLedgerID).Scan(&dup)
@@ -429,7 +429,7 @@ func (s *Service) VoidPosTransaction(ctx context.Context, user *session.User, un
 	return tx.Commit(ctx)
 }
 
-// writeAdminAuditTx نسخهٔ تراکنشی حسابرسی زنجیره‌هش.
+// writeAdminAuditTx: transactional version of the hash-chain audit.
 func (s *Service) writeAdminAuditTx(ctx context.Context, tx pgx.Tx, actorUserID int64, action, entityType string, entityID int64, details string) error {
 	var prev string
 	if err := tx.QueryRow(ctx, `select coalesce(hash,'') from audit_logs order by id desc limit 1 for update`).Scan(&prev); err != nil && err != pgx.ErrNoRows {

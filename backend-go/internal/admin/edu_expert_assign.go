@@ -1,15 +1,15 @@
-// ═══ تخصیص کارشناس آموزشی به اتاق/گروه/ارائه — پورت admin/edu-expert-assign ═══
+// ═══ Assigning education expert to room/group/offering — admin/edu-expert-assign port ═══
 //
-// پورت وفادار afagh-next/src/app/admin/edu-expert-assign/{page.tsx,actions.ts}
-// و afagh-next/src/lib/edu-expert.ts.
+// Faithful port of afagh-next/src/app/admin/edu-expert-assign/{page.tsx,actions.ts}
+// and afagh-next/src/lib/edu-expert.ts.
 //
-// زنجیرهٔ تصمیم کارشناسِ یک درس (از دقیق به کلی):
+// Decision chain for a course's expert (from specific to general):
 //
-//	۱) course_offering_edu_experts — استثنای همان درس (چند‌به‌چند)
-//	۲) classroom_edu_experts       — کارشناسِ اتاقِ سانس‌های همان درس
-//	۳) expert_scopes               — گروه → دانشگاه
+//	1) course_offering_edu_experts — exception for that course (many-to-many)
+//	2) classroom_edu_experts       — expert for the room of that course's sessions
+//	3) expert_scopes               — department → university
 //
-// واحدِ اصلیِ تخصیص «اتاق» است؛ تخصیصِ سطحِ درس فقط «استثنا».
+// The primary assignment unit is "room"; course-level assignment is only an "exception".
 package admin
 
 import (
@@ -22,23 +22,23 @@ import (
 	"backend-go/internal/session"
 )
 
-// ── انواع پاسخ (JSON هم‌نام با کلاینت Next) ──
+// ── Response types (JSON names match the Next client) ──
 
-// EduExpertTerm ترم تحصیلی برای انتخاب‌گر.
+// EduExpertTerm academic term for the picker.
 type EduExpertTerm struct {
 	ID        int64  `json:"id"`
 	Title     string `json:"title"`
 	IsCurrent bool   `json:"isCurrent"`
 }
 
-// EduExpertCandidate کاندید «مسئول اتاق/کلاس» — کارشناس آموزش یا کنترل‌کنندهٔ حضور.
+// EduExpertCandidate "room/class owner" candidate — education expert or attendance controller.
 type EduExpertCandidate struct {
 	UserID int64  `json:"userId"`
 	Name   string `json:"name"`
 	Kind   string `json:"kind"` // EDU_EXPERT | ATTENDANCE_CONTROLLER
 }
 
-// EduExpertDepartment گروه آموزشی + مدیرگروهش — برای «گروهِ مسئولِ اتاق».
+// EduExpertDepartment department + its head — for the "room's responsible group".
 type EduExpertDepartment struct {
 	ID          int64   `json:"id"`
 	Name        string  `json:"name"`
@@ -46,7 +46,7 @@ type EduExpertDepartment struct {
 	HeadName    *string `json:"headName"`
 }
 
-// ClassroomSessionRow یک سانسِ هفتگیِ برگزارشده در اتاق.
+// ClassroomSessionRow a weekly session held in the room.
 type ClassroomSessionRow struct {
 	ScheduleID    int64   `json:"scheduleId"`
 	OfferingID    int64   `json:"offeringId"`
@@ -58,7 +58,7 @@ type ClassroomSessionRow struct {
 	ProfessorName string  `json:"professorName"`
 }
 
-// ClassroomAssignRow اتاق + کارشناسانش + برنامهٔ هفتگی (پورت ClassroomAssignRow).
+// ClassroomAssignRow room + its experts + weekly schedule (ClassroomAssignRow port).
 type ClassroomAssignRow struct {
 	RoomID         int64                 `json:"roomId"`
 	RoomName       string                `json:"roomName"`
@@ -74,7 +74,7 @@ type ClassroomAssignRow struct {
 	Sessions       []ClassroomSessionRow `json:"sessions"`
 }
 
-// EduExpertAssignRow یک ردیف جدول استثناهای درس (پورت EduExpertAssignRow).
+// EduExpertAssignRow one row of the course exceptions table (EduExpertAssignRow port).
 type EduExpertAssignRow struct {
 	OfferingID      int64    `json:"offeringId"`
 	CourseTitle     string   `json:"courseTitle"`
@@ -88,7 +88,7 @@ type EduExpertAssignRow struct {
 	Source          *string  `json:"source"` // offering | classroom | scope | null
 }
 
-// EduExpertAssignInit دادهٔ اولیهٔ کامل صفحه (پورت EduExpertAssignInit).
+// EduExpertAssignInit full initial page data (EduExpertAssignInit port).
 type EduExpertAssignInit struct {
 	Terms       []EduExpertTerm       `json:"terms"`
 	Candidates  []EduExpertCandidate  `json:"candidates"`
@@ -97,7 +97,7 @@ type EduExpertAssignInit struct {
 	Rows        []EduExpertAssignRow  `json:"rows"`
 }
 
-// ListEduExpertAssignInit پورت getEduExpertAssignInit — همه‌چیز در یک رفت‌وبرگشت.
+// ListEduExpertAssignInit getEduExpertAssignInit port — everything in one round trip.
 func (s *Service) ListEduExpertAssignInit(ctx context.Context, user *session.User, cookie string, termID *int64) (*EduExpertAssignInit, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 
@@ -109,7 +109,7 @@ func (s *Service) ListEduExpertAssignInit(ctx context.Context, user *session.Use
 		Rows:        []EduExpertAssignRow{},
 	}
 
-	// ترم‌ها
+	// Terms
 	rows, err := s.DB.Pool.Query(ctx, `
 		select id, title, coalesce("isCurrent",0) = 1
 		  from academic_terms
@@ -132,7 +132,7 @@ func (s *Service) ListEduExpertAssignInit(ctx context.Context, user *session.Use
 	}
 	rows.Close()
 
-	// ترم جاری پیش‌فرض است تا کاربر هر بار ترم را عوض نکند.
+	// The current term is the default so the user doesn't switch terms every time.
 	var tid int64
 	if termID != nil && *termID > 0 {
 		tid = *termID
@@ -164,7 +164,7 @@ func (s *Service) ListEduExpertAssignInit(ctx context.Context, user *session.Use
 	return resp, nil
 }
 
-// listEduExpertCandidates پورت listEduExpertCandidates — دو نقشِ مجازِ ثبت حضور.
+// listEduExpertCandidates listEduExpertCandidates port — the two roles allowed to record attendance.
 func (s *Service) listEduExpertCandidates(ctx context.Context, uniID *int64) ([]EduExpertCandidate, error) {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select u.id,
@@ -196,7 +196,7 @@ func (s *Service) listEduExpertCandidates(ctx context.Context, uniID *int64) ([]
 	return out, rows.Err()
 }
 
-// listDepartmentsForRoomOwner گروه‌های آموزشی دانشگاه جاری + نامِ مدیرگروه هرکدام.
+// listDepartmentsForRoomOwner departments of the current university + each head's name.
 func (s *Service) listDepartmentsForRoomOwner(ctx context.Context, uniID *int64) ([]EduExpertDepartment, error) {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select d.id, d.name, f.name as "facultyName", (to_jsonb(d)->>'headStaffId')::int
@@ -267,9 +267,9 @@ func (s *Service) listDepartmentsForRoomOwner(ctx context.Context, uniID *int64)
 	return out, nil
 }
 
-// ── سطح اتاق — فهرست اتاق‌های دارای سانس + کارشناسان + برنامهٔ هفتگی ──
+// ── Room level — rooms with sessions + experts + weekly schedule ──
 
-// listClassroomExpertAssignments پورت listClassroomExpertAssignments.
+// listClassroomExpertAssignments listClassroomExpertAssignments port.
 func (s *Service) listClassroomExpertAssignments(ctx context.Context, termID int64, uniID *int64) ([]ClassroomAssignRow, error) {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select s.id, s."scheduleType", s."roomId", s."dayOfWeek",
@@ -315,7 +315,7 @@ func (s *Service) listClassroomExpertAssignments(ctx context.Context, termID int
 	}
 	rows.Close()
 
-	// سانس امتحان اتاقش سالنِ امتحان است، نه کلاسِ درس — بیرونش می‌گذاریم.
+	// An exam session's room is an exam hall, not a class — we leave it out.
 	filtered := all[:0:0]
 	roomSeen := map[int64]bool{}
 	roomIDs := []int64{}
@@ -345,7 +345,7 @@ func (s *Service) listClassroomExpertAssignments(ctx context.Context, termID int
 		return []ClassroomAssignRow{}, nil
 	}
 
-	// فرادادهٔ اتاق‌ها (نام/ساختمان/طبقه/گروه مسئول)
+	// Room metadata (name/building/floor/responsible group)
 	type roomMeta struct {
 		id           int64
 		name         string
@@ -373,7 +373,7 @@ func (s *Service) listClassroomExpertAssignments(ctx context.Context, termID int
 		return nil, err
 	}
 	rrows.Close()
-	// اگر اتاقی پیدا نشد یعنی مشکل واقعی است — به جای جعلِ نام، خطا بده.
+	// If a room is not found it's a real problem — return an error instead of fabricating a name.
 	if len(roomByID) == 0 {
 		return nil, errors.New("read_classroom_meta_failed")
 	}
@@ -432,7 +432,7 @@ func (s *Service) listClassroomExpertAssignments(ctx context.Context, termID int
 	}
 	arows.Close()
 
-	// مدیرگروهِ گروهِ مسئولِ هر اتاق
+	// Head of each room's responsible group
 	type ownerDept struct {
 		name        string
 		headStaffID *int64
@@ -556,7 +556,7 @@ func (s *Service) listClassroomExpertAssignments(ctx context.Context, termID int
 		row.OfferingCount = len(offeringSet)
 		out = append(out, *row)
 	}
-	// اول اتاق‌های پرکار، بعد بی‌کار — تا مدیر از بالا شروع کند
+	// Busy rooms first, idle ones after — so the manager starts from the top
 	sort.SliceStable(out, func(i, j int) bool {
 		if out[i].SessionCount != out[j].SessionCount {
 			return out[i].SessionCount > out[j].SessionCount
@@ -595,9 +595,9 @@ func containsString(list []string, v string) bool {
 	return false
 }
 
-// ── سطح درس (استثنا) — فهرست انبوه ──
+// ── Course level (exception) — bulk listing ──
 
-// listOfferingExpertAssignments پورت listOfferingExpertAssignments.
+// listOfferingExpertAssignments listOfferingExpertAssignments port.
 func (s *Service) listOfferingExpertAssignments(ctx context.Context, termID int64, uniID *int64) ([]EduExpertAssignRow, error) {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select o.id, c.title, o."groupNumber", o."ownerDepartmentId", o."universityId",
@@ -671,7 +671,7 @@ func (s *Service) listOfferingExpertAssignments(ctx context.Context, termID int6
 		return nil
 	}
 
-	// اتاق‌های هر درس از schedules (بدون سانسِ امتحان)
+	// Rooms of each course from schedules (excluding exam sessions)
 	type schedRaw struct {
 		offeringID int64
 		roomID     *int64
@@ -742,7 +742,7 @@ func (s *Service) listOfferingExpertAssignments(ctx context.Context, termID int6
 		}
 	}
 
-	// کارشناسانِ سطح اتاق — یک کوئری برای همهٔ اتاق‌های این ترم
+	// Room-level experts — one query for all rooms of this term
 	expertsByRoom := map[int64][]int64{}
 	if len(roomIDs) > 0 {
 		erows, err := s.DB.Pool.Query(ctx, `
@@ -768,7 +768,7 @@ func (s *Service) listOfferingExpertAssignments(ctx context.Context, termID int6
 		erows.Close()
 	}
 
-	// نقش‌ها (expert_scopes) یک بار خوانده می‌شود و در حافظه جست‌وجو می‌شود
+	// Roles (expert_scopes) are read once and searched in memory
 	type scopeRow struct {
 		userID    int64
 		scopeType string
@@ -795,7 +795,7 @@ func (s *Service) listOfferingExpertAssignments(ctx context.Context, termID int6
 		return nil
 	}
 
-	// کارشناسانِ سطح کلاس — یک کوئری برای همهٔ ارائه‌های ترم
+	// Class-level experts — one query for all offerings of the term
 	expertsByOffering := map[int64][]int64{}
 	xrows, err := s.DB.Pool.Query(ctx, `
 		select "offeringId", "userId" from course_offering_edu_experts
@@ -835,7 +835,7 @@ func (s *Service) listOfferingExpertAssignments(ctx context.Context, termID int6
 			AssignedUserIDs: []int64{},
 		}
 
-		// ۱) استثنای درس (چند‌به‌چند) — ستون قدیمی eduExpertUserId هم تورِ ایمنی است
+		// 1) Course exception (many-to-many) — the legacy eduExpertUserId column is also a safety net
 		explicit := expertsByOffering[r.offeringID]
 		if len(explicit) == 0 && r.eduExpertUID != nil {
 			explicit = []int64{*r.eduExpertUID}
@@ -850,7 +850,7 @@ func (s *Service) listOfferingExpertAssignments(ctx context.Context, termID int6
 			continue
 		}
 
-		// ۲) کارشناسِ اتاق‌های همین درس
+		// 2) Expert of this same course's rooms
 		fromRooms := []int64{}
 		for _, roomID := range roomIDsByOffering[r.offeringID] {
 			for _, uid := range expertsByRoom[roomID] {
@@ -869,7 +869,7 @@ func (s *Service) listOfferingExpertAssignments(ctx context.Context, termID int6
 			continue
 		}
 
-		// ۳) از نقش‌ها: گروه سازنده → دانشگاه
+		// 3) From roles: creator department → university
 		fromScope := scopeHit("DEPARTMENT", r.ownerDeptID)
 		if fromScope == nil {
 			fromScope = scopeHit("UNIVERSITY", r.universityID)
@@ -891,9 +891,9 @@ func ptrEq(a, b *int64) bool {
 	return *a == *b
 }
 
-// ── عملیات نوشتن ──
+// ── Write operations ──
 
-// assertEduExpertUserID اعتبارسنجی کاربر: واقعاً حساب است و (اگر داده بود) فعال است.
+// assertEduExpertUserID validate the user: the account really exists and (if provided) is active.
 func (s *Service) assertEduExpertUserID(ctx context.Context, userID *int64) error {
 	if userID == nil {
 		return nil
@@ -909,8 +909,8 @@ func (s *Service) assertEduExpertUserID(ctx context.Context, userID *int64) erro
 	return nil
 }
 
-// setOfferingEduExpertIDs جایگزینی کامل فهرست کارشناسان یک کلاس (پورت setOfferingEduExperts).
-// ids خالی = آزاد کردن کلاس (بازگشت به نقش‌ها). خروجی فهرست نهایی ذخیره‌شده است.
+// setOfferingEduExpertIDs fully replace a class's expert list (setOfferingEduExperts port).
+// empty ids = release the class (fall back to roles). Output is the final saved list.
 func (s *Service) setOfferingEduExpertIDs(ctx context.Context, offeringID int64, userIDs []int64) ([]int64, error) {
 	ids := dedupeInt64(userIDs)
 	tx, err := s.DB.Pool.Begin(ctx)
@@ -943,8 +943,8 @@ func (s *Service) setOfferingEduExpertIDs(ctx context.Context, offeringID int64,
 	return ids, nil
 }
 
-// addOfferingEduExpertIDs افزودن یک کارشناس به کلاس‌ها بدون دست‌زدن به بقیه
-// (پورت addOfferingEduExperts). خروجی: تعداد کلاس‌های تغییر‌یافته.
+// addOfferingEduExpertIDs add one expert to classes without touching the rest
+// (addOfferingEduExperts port). Output: number of changed classes.
 func (s *Service) addOfferingEduExpertIDs(ctx context.Context, offeringIDs []int64, userID int64) (int, error) {
 	ids := dedupeInt64(offeringIDs)
 	if len(ids) == 0 || userID <= 0 {
@@ -956,7 +956,7 @@ func (s *Service) addOfferingEduExpertIDs(ctx context.Context, offeringIDs []int
 		on conflict do nothing`, ids, userID); err != nil {
 		return 0, err
 	}
-	// برای ارائه‌هایی که هنوز «کارشناسِ اصلی» ندارند، همین نفر اصلی می‌شود.
+	// For offerings with no "primary expert" yet, this person becomes the primary.
 	ct, err := s.DB.Pool.Exec(ctx, `
 		update course_offerings set "eduExpertUserId" = $2
 		 where id = any($1::int[]) and "eduExpertUserId" is null`, ids, userID)
@@ -967,7 +967,7 @@ func (s *Service) addOfferingEduExpertIDs(ctx context.Context, offeringIDs []int
 	return len(ids), nil
 }
 
-// SetOfferingEduExpert پورت setOfferingEduExpertAction — تخصیصِ تک‌مقداری (یا آزاد کردن با null).
+// SetOfferingEduExpert setOfferingEduExpertAction port — single-value assignment (or release with null).
 func (s *Service) SetOfferingEduExpert(ctx context.Context, user *session.User, cookie string, offeringID int64, userID *int64) error {
 	if err := s.assertEduExpertUserID(ctx, userID); err != nil {
 		return err
@@ -980,7 +980,7 @@ func (s *Service) SetOfferingEduExpert(ctx context.Context, user *session.User, 
 	return err
 }
 
-// SetOfferingEduExpertList پورت setOfferingEduExpertsAction — جایگزینی کامل فهرست.
+// SetOfferingEduExpertList setOfferingEduExpertsAction port — fully replace the list.
 func (s *Service) SetOfferingEduExpertList(ctx context.Context, user *session.User, cookie string, offeringID int64, userIDs []int64) ([]int64, error) {
 	for _, id := range userIDs {
 		uid := id
@@ -991,7 +991,7 @@ func (s *Service) SetOfferingEduExpertList(ctx context.Context, user *session.Us
 	return s.setOfferingEduExpertIDs(ctx, offeringID, userIDs)
 }
 
-// AddOfferingEduExpert پورت addOfferingEduExpertAction — افزودن بدون حذف بقیه.
+// AddOfferingEduExpert addOfferingEduExpertAction port — add without removing the others.
 func (s *Service) AddOfferingEduExpert(ctx context.Context, user *session.User, cookie string, offeringID int64, userID int64) error {
 	uid := userID
 	if err := s.assertEduExpertUserID(ctx, &uid); err != nil {
@@ -1004,7 +1004,7 @@ func (s *Service) AddOfferingEduExpert(ctx context.Context, user *session.User, 
 	return err
 }
 
-// RemoveOfferingEduExpert پورت removeOfferingEduExpertAction — حذف یک نفر (بقیه می‌مانند).
+// RemoveOfferingEduExpert removeOfferingEduExpertAction port — remove one person (the rest stay).
 func (s *Service) RemoveOfferingEduExpert(ctx context.Context, user *session.User, cookie string, offeringID, userID int64) ([]int64, error) {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select "userId" from course_offering_edu_experts
@@ -1035,7 +1035,7 @@ func (s *Service) RemoveOfferingEduExpert(ctx context.Context, user *session.Use
 	return s.setOfferingEduExpertIDs(ctx, offeringID, next)
 }
 
-// BulkSetOfferingEduExpert پورت bulkSetOfferingEduExpertAction — جایگزینی گروهی.
+// BulkSetOfferingEduExpert bulkSetOfferingEduExpertAction port — bulk replace.
 func (s *Service) BulkSetOfferingEduExpert(ctx context.Context, user *session.User, cookie string, offeringIDs []int64, userID *int64) (int, error) {
 	if err := s.assertEduExpertUserID(ctx, userID); err != nil {
 		return 0, err
@@ -1044,7 +1044,7 @@ func (s *Service) BulkSetOfferingEduExpert(ctx context.Context, user *session.Us
 	if len(ids) == 0 {
 		return 0, nil
 	}
-	// فقط ارائه‌های موجود را به‌روز کن تا عددِ updated دروغ نگوید
+	// Update only existing offerings so the updated count doesn't lie
 	rows, err := s.DB.Pool.Query(ctx, `select id from course_offerings where id = any($1::int[])`, ids)
 	if err != nil {
 		return 0, err
@@ -1078,7 +1078,7 @@ func (s *Service) BulkSetOfferingEduExpert(ctx context.Context, user *session.Us
 	return len(existing), nil
 }
 
-// BulkAddOfferingEduExpert پورت bulkAddOfferingEduExpertAction — افزودن گروهی.
+// BulkAddOfferingEduExpert bulkAddOfferingEduExpertAction port — bulk add.
 func (s *Service) BulkAddOfferingEduExpert(ctx context.Context, user *session.User, cookie string, offeringIDs []int64, userID int64) (int, error) {
 	uid := userID
 	if err := s.assertEduExpertUserID(ctx, &uid); err != nil {
@@ -1115,8 +1115,8 @@ func (s *Service) BulkAddOfferingEduExpert(ctx context.Context, user *session.Us
 	return s.addOfferingEduExpertIDs(ctx, existing, userID)
 }
 
-// ClearTermEduExperts پورت clearTermEduExpertAction — آزاد کردن همهٔ تخصیص‌های یک ترم.
-// هر دو لایه پاک می‌شوند: جدولِ واسط و ستونِ «کارشناسِ اصلی».
+// ClearTermEduExperts clearTermEduExpertAction port — release all assignments of a term.
+// Both layers are cleared: the junction table and the "primary expert" column.
 func (s *Service) ClearTermEduExperts(ctx context.Context, user *session.User, cookie string, termID int64) (int, error) {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select id from course_offerings
@@ -1152,8 +1152,8 @@ func (s *Service) ClearTermEduExperts(ctx context.Context, user *session.User, c
 	return len(ids), nil
 }
 
-// SetClassroomDepartment پورت setClassroomDepartmentAction — گروهِ مسئولِ اتاق
-// (همان گروهِ مسئول، مدیرگروهش را هم مشخص می‌کند).
+// SetClassroomDepartment setClassroomDepartmentAction port — the room's responsible group
+// (the same responsible group also determines its head).
 func (s *Service) SetClassroomDepartment(ctx context.Context, user *session.User, cookie string, classroomID int64, departmentID *int64) error {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if classroomID <= 0 {
@@ -1181,7 +1181,7 @@ func (s *Service) SetClassroomDepartment(ctx context.Context, user *session.User
 	return err
 }
 
-// AddClassroomExperts پورت addClassroomExpertAction — افزودن به یک یا چند اتاق.
+// AddClassroomExperts addClassroomExpertAction port — add to one or more rooms.
 func (s *Service) AddClassroomExperts(ctx context.Context, user *session.User, cookie string, classroomIDs []int64, userID int64) (int, error) {
 	uid := userID
 	if err := s.assertEduExpertUserID(ctx, &uid); err != nil {
@@ -1203,7 +1203,7 @@ func (s *Service) AddClassroomExperts(ctx context.Context, user *session.User, c
 	return len(ids), nil
 }
 
-// RemoveClassroomExpert پورت removeClassroomExpertAction — حذف یک نفر از اتاق.
+// RemoveClassroomExpert removeClassroomExpertAction port — remove one person from a room.
 func (s *Service) RemoveClassroomExpert(ctx context.Context, user *session.User, cookie string, classroomID, userID int64) ([]int64, error) {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select "userId" from classroom_edu_experts
@@ -1234,7 +1234,7 @@ func (s *Service) RemoveClassroomExpert(ctx context.Context, user *session.User,
 	return s.setClassroomEduExpertIDs(ctx, classroomID, next)
 }
 
-// SetClassroomExperts پورت setClassroomExpertsAction — جایگزینی کامل فهرست اتاق.
+// SetClassroomExperts setClassroomExpertsAction port — fully replace the room's list.
 func (s *Service) SetClassroomExperts(ctx context.Context, user *session.User, cookie string, classroomID int64, userIDs []int64) ([]int64, error) {
 	for _, id := range userIDs {
 		uid := id
@@ -1245,7 +1245,7 @@ func (s *Service) SetClassroomExperts(ctx context.Context, user *session.User, c
 	return s.setClassroomEduExpertIDs(ctx, classroomID, userIDs)
 }
 
-// setClassroomEduExpertIDs جایگزینی کامل کارشناسان یک اتاق (پورت setClassroomEduExperts).
+// setClassroomEduExpertIDs fully replace a room's experts (setClassroomEduExperts port).
 func (s *Service) setClassroomEduExpertIDs(ctx context.Context, classroomID int64, userIDs []int64) ([]int64, error) {
 	ids := dedupeInt64(userIDs)
 	tx, err := s.DB.Pool.Begin(ctx)
@@ -1270,8 +1270,8 @@ func (s *Service) setClassroomEduExpertIDs(ctx context.Context, classroomID int6
 	return ids, nil
 }
 
-// ClearAllClassroomExperts پورت clearAllClassroomExpertsAction — آزاد کردن همهٔ
-// تخصیص‌های سطح اتاق (کل سامانه، نه یک ترم — همان رفتار مرجع).
+// ClearAllClassroomExperts clearAllClassroomExpertsAction port — release all
+// room-level assignments (whole system, not one term — same as the reference behavior).
 func (s *Service) ClearAllClassroomExperts(ctx context.Context, user *session.User, cookie string) (int, error) {
 	ct, err := s.DB.Pool.Exec(ctx, `delete from classroom_edu_experts`)
 	if err != nil {

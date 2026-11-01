@@ -1,4 +1,4 @@
-// ═══ میز برنامه‌ریزی دفاع پایان‌نامه — پورت admin/defense-scheduling ═══
+// ═══ Thesis defense scheduling desk — admin/defense-scheduling port ═══
 package admin
 
 import (
@@ -13,7 +13,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// DefenseJury نام داوران.
+// DefenseJury jury member names.
 type DefenseJury struct {
 	Chair      *string `json:"chair"`
 	Supervisor *string `json:"supervisor"`
@@ -21,7 +21,7 @@ type DefenseJury struct {
 	External   *string `json:"external"`
 }
 
-// DefensePoolPreview پیش‌نمایش استخر انتخابی.
+// DefensePoolPreview preview of the selected pool.
 type DefensePoolPreview struct {
 	ID             int64   `json:"id"`
 	DepartmentCode string  `json:"departmentCode"`
@@ -31,7 +31,7 @@ type DefensePoolPreview struct {
 	External       *string `json:"external"`
 }
 
-// DefenseBoardRow ردیف پروندهٔ دفاع.
+// DefenseBoardRow defense case row.
 type DefenseBoardRow struct {
 	AuditID               int64               `json:"auditId"`
 	ThesisProgressID      int64               `json:"thesisProgressId"`
@@ -63,13 +63,13 @@ type DefenseBoardRow struct {
 	Pool                  *DefensePoolPreview `json:"pool"`
 }
 
-// DefenseBoardGroup گروه بر اساس وضعیت پروپوزال.
+// DefenseBoardGroup group by proposal status.
 type DefenseBoardGroup struct {
 	Status string            `json:"status"`
 	Rows   []DefenseBoardRow `json:"rows"`
 }
 
-// DefensePoolRow استخر داوران.
+// DefensePoolRow jury pool.
 type DefensePoolRow struct {
 	ID             int64   `json:"id"`
 	DepartmentCode string  `json:"departmentCode"`
@@ -83,7 +83,7 @@ type DefensePoolRow struct {
 	IsActive       bool    `json:"isActive"`
 }
 
-// DefenseBoard پاسخ میز.
+// DefenseBoard desk response.
 type DefenseBoard struct {
 	Groups        []DefenseBoardGroup `json:"groups"`
 	Pools         []DefensePoolRow    `json:"pools"`
@@ -124,7 +124,7 @@ func tsPtr(t *time.Time) *string {
 	return &v
 }
 
-// DefenseBoardData بارگذاری میز دفاع.
+// DefenseBoardData defense desk load.
 func (s *Service) DefenseBoardData(ctx context.Context, user *session.User, cookie string) (*DefenseBoard, error) {
 	if !defenseAllowed(user) {
 		return nil, errors.New("دسترسی ندارید.")
@@ -229,7 +229,7 @@ func (s *Service) DefenseBoardData(ctx context.Context, user *session.User, cook
 		rows.Close()
 	}
 
-	// استخرها
+	// Pools
 	pools := []DefensePoolRow{}
 	prs, err := s.DB.Pool.Query(ctx, `
 		select id, "departmentCode", "majorId", "chairId", "internalIds", "externalIds", "roomId", coalesce("isActive",1)
@@ -292,7 +292,7 @@ func (s *Service) DefenseBoardData(ctx context.Context, user *session.User, cook
 		return best(generic)
 	}
 
-	// سطرهای پرونده
+	// Case rows
 	type tpRow struct {
 		AuditID, TPID, StudentID int64
 		Workflow                 string
@@ -345,7 +345,7 @@ func (s *Service) DefenseBoardData(ctx context.Context, user *session.User, cook
 	}
 	rows.Close()
 
-	// سشن‌ها
+	// Sessions
 	type sess struct {
 		TPID                          int64
 		RoomID, ChairID, SupervisorID *int64
@@ -500,7 +500,7 @@ func (s *Service) defenseAuditInUni(ctx context.Context, user *session.User, coo
 	return nil
 }
 
-// ApproveProposal تایید پروپوزال + ثبت کد رهگیری بارگذاری ایرانداک.
+// ApproveProposal approve the proposal + record the IranDoc upload tracking code.
 func (s *Service) ApproveProposal(ctx context.Context, user *session.User, cookie string, auditID int64, tracking string) error {
 	if err := s.defenseAuditInUni(ctx, user, cookie, auditID); err != nil {
 		return err
@@ -524,7 +524,7 @@ func (s *Service) ApproveProposal(ctx context.Context, user *session.User, cooki
 	return err
 }
 
-// SupervisorApproveDefense تایید/رد درخواست دفاع توسط استاد راهنما.
+// SupervisorApproveDefense supervisor approves/rejects the defense request.
 func (s *Service) SupervisorApproveDefense(ctx context.Context, user *session.User, cookie string, auditID int64, approved bool) error {
 	if err := s.defenseAuditInUni(ctx, user, cookie, auditID); err != nil {
 		return err
@@ -554,7 +554,7 @@ func (s *Service) SupervisorApproveDefense(ctx context.Context, user *session.Us
 	return err
 }
 
-// ScheduleDefenseTime تعیین وقت دفاع با انتخاب خودکار استخر/اتاق.
+// ScheduleDefenseTime set the defense time with automatic pool/room selection.
 func (s *Service) ScheduleDefenseTime(ctx context.Context, user *session.User, cookie string, auditID int64, at time.Time) error {
 	if err := s.defenseAuditInUni(ctx, user, cookie, auditID); err != nil {
 		return err
@@ -581,7 +581,7 @@ func (s *Service) ScheduleDefenseTime(ctx context.Context, user *session.User, c
 	if status == nil || *status != "EXPERT_REVIEW" {
 		return errors.New("درخواست دفاع در مرحله بررسی کارشناس نیست")
 	}
-	// استخر
+	// Pool
 	type pool struct {
 		ID                  int64
 		ChairID, RoomID     *int64
@@ -684,7 +684,7 @@ func (s *Service) ScheduleDefenseTime(ctx context.Context, user *session.User, c
 	return tx.Commit(ctx)
 }
 
-// RecordDefenseResult ثبت نتیجهٔ دفاع.
+// RecordDefenseResult record the defense result.
 func (s *Service) RecordDefenseResult(ctx context.Context, user *session.User, cookie string, auditID int64, result, minutes string, at time.Time) error {
 	if err := s.defenseAuditInUni(ctx, user, cookie, auditID); err != nil {
 		return err
@@ -723,7 +723,7 @@ func (s *Service) RecordDefenseResult(ctx context.Context, user *session.User, c
 	return tx.Commit(ctx)
 }
 
-// DefensePoolInput ورودی استخر داوران.
+// DefensePoolInput jury pool input.
 type DefensePoolInput struct {
 	ID             *int64 `json:"id"`
 	DepartmentCode string `json:"departmentCode"`
@@ -749,7 +749,7 @@ func csvIDs(v string) []int64 {
 	return out
 }
 
-// SaveDefensePool ایجاد/ویرایش استخر داوران.
+// SaveDefensePool create/edit a jury pool.
 func (s *Service) SaveDefensePool(ctx context.Context, user *session.User, cookie string, in DefensePoolInput) error {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -785,7 +785,7 @@ func (s *Service) SaveDefensePool(ctx context.Context, user *session.User, cooki
 	return err
 }
 
-// ToggleDefensePool فعال/غیرفعال کردن استخر.
+// ToggleDefensePool enable/disable a pool.
 func (s *Service) ToggleDefensePool(ctx context.Context, user *session.User, cookie string, id int64, active bool) error {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {

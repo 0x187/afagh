@@ -1,4 +1,4 @@
-// ═══ ثبت‌نام دستی کارشناس (تک/bulk)، کاتالوگ دانشجو و تاریخچه — پورت admin/manual-enroll ═══
+// ═══ Staff manual enrollment (single/bulk), student catalog and history — port of admin/manual-enroll ═══
 package admin
 
 import (
@@ -16,7 +16,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// ManualOffering ارائهٔ درس برای کارشناس.
+// ManualOffering: course offering for staff.
 type ManualOffering struct {
 	OfferingID    int64    `json:"offeringId"`
 	Code          string   `json:"code"`
@@ -45,7 +45,7 @@ func (s *Service) settingBool(ctx context.Context, key string, fallback bool) bo
 	return fallback
 }
 
-// SearchManualStudents جست‌وجوی دانشجوی فعال برای ثبت دستی.
+// SearchManualStudents: search active students for manual enrollment.
 func (s *Service) SearchManualStudents(ctx context.Context, user *session.User, cookie, q string) ([]WarningStudentHit, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	out := []WarningStudentHit{}
@@ -72,7 +72,7 @@ func (s *Service) SearchManualStudents(ctx context.Context, user *session.User, 
 	return out, nil
 }
 
-// ListManualOfferings ارائه‌های فعال ترم.
+// ListManualOfferings: active term offerings.
 func (s *Service) ListManualOfferings(ctx context.Context, user *session.User, cookie string, termID int64) ([]ManualOffering, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	out := []ManualOffering{}
@@ -103,7 +103,7 @@ func (s *Service) ListManualOfferings(ctx context.Context, user *session.User, c
 	return out, nil
 }
 
-// ─────────────────── تداخل ───────────────────
+// ─────────────────── Conflict ───────────────────
 
 type schedSlot struct {
 	OfferingID int64
@@ -127,7 +127,7 @@ func rangesOverlap(a, b, c, d string) bool {
 	return toMin(a) < toMin(d) && toMin(c) < toMin(b)
 }
 
-// conflictIndex ایندکس تداخل هفتگی/امتحانی هر ارائه با بقیهٔ ثبت‌نام‌های دانشجو.
+// conflictIndex: weekly/exam conflict index of each offering against the student's other enrollments.
 func (s *Service) conflictIndex(ctx context.Context, studentID, termID int64) map[int64][]string {
 	out := map[int64][]string{}
 	erows, err := s.DB.Pool.Query(ctx, `
@@ -215,7 +215,7 @@ func (s *Service) conflictIndex(ctx context.Context, studentID, termID int64) ma
 	return out
 }
 
-// StudentWarning اخطار آیین‌نامه.
+// StudentWarning: regulation warning.
 type StudentWarning struct {
 	Code   string `json:"code"`
 	Level  string `json:"level"`
@@ -223,7 +223,7 @@ type StudentWarning struct {
 	Detail string `json:"detail"`
 }
 
-// ManualStudentWarnings اخطارهای قابل‌توجه برای انتخاب واحد.
+// ManualStudentWarnings: notable warnings for course selection.
 func (s *Service) ManualStudentWarnings(ctx context.Context, user *session.User, cookie string, studentID, termID int64) ([]StudentWarning, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	items := []StudentWarning{}
@@ -269,7 +269,7 @@ func (s *Service) ManualStudentWarnings(ctx context.Context, user *session.User,
 	return items, nil
 }
 
-// ManualEnrollInput ورودی تک‌ثبت‌نام.
+// ManualEnrollInput: single enrollment input.
 type ManualEnrollInput struct {
 	StudentID  int64  `json:"studentId"`
 	OfferingID int64  `json:"offeringId"`
@@ -277,7 +277,7 @@ type ManualEnrollInput struct {
 	Reason     string `json:"reason"`
 }
 
-// ManualEnroll ثبت‌نام تک‌نفره به‌جای دانشجو با همان گیت‌های آیین‌نامه.
+// ManualEnroll: enroll a single student on their behalf with the same regulation gates.
 func (s *Service) ManualEnroll(ctx context.Context, user *session.User, cookie string, in ManualEnrollInput) (int64, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -444,7 +444,7 @@ func uniqueStrings(in []string) []string {
 	return out
 }
 
-// DropManualEnrollment حذف/اصلاح ثبت‌نام توسط کارشناس.
+// DropManualEnrollment: removal/correction of an enrollment by staff.
 func (s *Service) DropManualEnrollment(ctx context.Context, user *session.User, cookie string, enrollmentID int64, reason string) error {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -485,9 +485,9 @@ func (s *Service) DropManualEnrollment(ctx context.Context, user *session.User, 
 	return tx.Commit(ctx)
 }
 
-// ─────────────────── عملیات گروهی ───────────────────
+// ─────────────────── Bulk operations ───────────────────
 
-// BulkFilter فیلتر گروه مخاطب.
+// BulkFilter: target group filter.
 type BulkFilter struct {
 	TermID       int64   `json:"termId"`
 	EntryYear    *int    `json:"entryYear"`
@@ -544,7 +544,7 @@ func (s *Service) bulkStudentIDs(ctx context.Context, uniID int64, f BulkFilter)
 	return out, nil
 }
 
-// CountBulkStudents شمارش گروه مخاطب.
+// CountBulkStudents: count the target group.
 func (s *Service) CountBulkStudents(ctx context.Context, user *session.User, cookie string, f BulkFilter) (int, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -554,7 +554,7 @@ func (s *Service) CountBulkStudents(ctx context.Context, user *session.User, coo
 	return len(ids), err
 }
 
-// BulkEnrollResult نتیجهٔ عملیات گروهی.
+// BulkEnrollResult: bulk operation result.
 type BulkEnrollResult struct {
 	Inserted int `json:"inserted"`
 	Skipped  int `json:"skipped"`
@@ -562,7 +562,7 @@ type BulkEnrollResult struct {
 	Dropped  int `json:"dropped"`
 }
 
-// BulkEnroll ثبت دسته‌جمعی (سقف ۳۰۰۰ ردیف).
+// BulkEnroll: bulk enrollment (limit 3000 rows).
 func (s *Service) BulkEnroll(ctx context.Context, user *session.User, cookie string, f BulkFilter, offeringIDs []int64, override bool, reason string) (*BulkEnrollResult, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -636,7 +636,7 @@ func (s *Service) BulkEnroll(ctx context.Context, user *session.User, cookie str
 	return res, nil
 }
 
-// BulkDrop حذف دسته‌جمعی ثبت‌نام‌های REGISTERED.
+// BulkDrop: bulk removal of REGISTERED enrollments.
 func (s *Service) BulkDrop(ctx context.Context, user *session.User, cookie string, f BulkFilter, offeringIDs []int64, reason string) (*BulkEnrollResult, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -681,7 +681,7 @@ func (s *Service) BulkDrop(ctx context.Context, user *session.User, cookie strin
 	return res, nil
 }
 
-// ManualHistoryRow ردیف تاریخچهٔ ثبت دستی.
+// ManualHistoryRow: manual enrollment history row.
 type ManualHistoryRow struct {
 	ID          int64   `json:"id"`
 	StudentCode string  `json:"studentCode"`
@@ -696,7 +696,7 @@ type ManualHistoryRow struct {
 	Reason      *string `json:"reason"`
 }
 
-// ManualEnrollHistory تاریخچهٔ ثبت‌های کارشناسی.
+// ManualEnrollHistory: staff enrollment history.
 func (s *Service) ManualEnrollHistory(ctx context.Context, user *session.User, cookie string, limit int) ([]ManualHistoryRow, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	out := []ManualHistoryRow{}
@@ -744,7 +744,7 @@ func (s *Service) ManualEnrollHistory(ctx context.Context, user *session.User, c
 	return out, nil
 }
 
-// ActivateTermForFilter فعال/غیرفعال کردن دانشجویان فیلتر در یک ترم.
+// ActivateTermForFilter: activate/deactivate filtered students in a term.
 func (s *Service) ActivateTermForFilter(ctx context.Context, user *session.User, cookie string, f BulkFilter, active bool) (int, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -783,7 +783,7 @@ func (s *Service) ActivateTermForFilter(ctx context.Context, user *session.User,
 	return len(sids), nil
 }
 
-// CatalogOffering ردیف کاتالوگ دانشجو برای کارشناس.
+// CatalogOffering: student catalog row for staff.
 type CatalogOffering struct {
 	ManualOffering
 	CourseID         int64    `json:"courseId"`
@@ -797,7 +797,7 @@ type CatalogOffering struct {
 	Scope            string   `json:"scope"`
 }
 
-// CatalogEnrollment درس ثبت‌شدهٔ فعلی.
+// CatalogEnrollment: currently enrolled course.
 type CatalogEnrollment struct {
 	EnrollmentID  int64    `json:"enrollmentId"`
 	OfferingID    int64    `json:"offeringId"`
@@ -812,7 +812,7 @@ type CatalogEnrollment struct {
 	Override      bool     `json:"override"`
 }
 
-// CatalogChart خلاصهٔ چارت/سقف.
+// CatalogChart: curriculum chart/cap summary.
 type CatalogChart struct {
 	VersionCode       *string  `json:"versionCode"`
 	Title             *string  `json:"title"`
@@ -824,7 +824,7 @@ type CatalogChart struct {
 	CurrentUnits      float64  `json:"currentUnits"`
 }
 
-// CatalogResult پاسخ کاتالوگ.
+// CatalogResult: catalog response.
 type CatalogResult struct {
 	Items             []CatalogOffering   `json:"items"`
 	Enrolled          []CatalogEnrollment `json:"enrolled"`
@@ -833,7 +833,7 @@ type CatalogResult struct {
 	ChartTotalCount   int                 `json:"chartTotalCount"`
 }
 
-// StudentCatalog کاتالوگ همان دانشجو برای کارشناس (چارت/مشترک/سایر + پیش‌نیاز/تداخل).
+// StudentCatalog: the same student's catalog for staff (chart/shared/other + prerequisite/conflict).
 func (s *Service) StudentCatalog(ctx context.Context, user *session.User, cookie string, studentID, termID int64, q string) (*CatalogResult, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	out := &CatalogResult{Items: []CatalogOffering{}, Enrolled: []CatalogEnrollment{}, Chart: CatalogChart{}}
@@ -850,7 +850,7 @@ func (s *Service) StudentCatalog(ctx context.Context, user *session.User, cookie
 		return nil, errors.New("این دانشجو از دانشگاه دیگری است.")
 	}
 
-	// چارت
+	// Chart
 	chartCourseIDs := map[int64]bool{}
 	if version, err := enroll.ResolveStudentCurriculum(ctx, s.DB.Pool, studentID); err == nil && version != nil {
 		vc := version.VersionCode
@@ -902,7 +902,7 @@ func (s *Service) StudentCatalog(ctx context.Context, user *session.User, cookie
 		enrollByCourse[e.CourseID] = e
 	}
 
-	// ارائه‌ها
+	// Offerings
 	type row struct {
 		OfferingID    int64
 		CourseID      int64
@@ -955,7 +955,7 @@ func (s *Service) StudentCatalog(ctx context.Context, user *session.User, cookie
 	}
 	out.Chart.CurrentUnits = currentUnits
 
-	// درس‌های ثبت‌شده
+	// Enrolled courses
 	crows, err := s.DB.Pool.Query(ctx, `
 		select e.id, e."offeringId", c.id, c.code, c.title, coalesce(o."groupNumber",0), c.units::float8,
 		       e.status, coalesce(nullif(trim(u."firstName" || ' ' || u."lastName"),''), '—'),
@@ -1049,7 +1049,7 @@ func (s *Service) StudentCatalog(ctx context.Context, user *session.User, cookie
 	out.ChartOfferedCount = out.Chart.ChartCount
 	out.ChartTotalCount = len(chartCourseIDs)
 
-	// دروس چارتی که در ترم ارائه نشده‌اند
+	// Chart courses not offered in the term
 	missing := []int64{}
 	for id := range chartCourseIDs {
 		if !offeredCourseIDs[id] {

@@ -1,8 +1,8 @@
-// ═══ بررسی آیین‌نامه‌ای کدهای وضعیت نمرهٔ سما — پورت admin/regulation-check ═══
+// ═══ Regulation check of Sama grade status codes — port of admin/regulation-check ═══
 //
-// اسکن نمرات تثبیت‌شده و مقایسهٔ کد فعلی با کد صحیح آیین‌نامه (resolveSamaCode)،
-// اعمال اصلاح دسته‌ای با ثبت در grade_change_log، و یافتن فارغ‌التحصیلان بدون
-// هیچ سابقهٔ نمره (مغایرت وضعیت).
+// Scan finalized grades and compare the current code with the correct regulation code (resolveSamaCode),
+// apply batch corrections with logging in grade_change_log, and find graduates without
+// any grade record (status mismatch).
 package admin
 
 import (
@@ -22,7 +22,7 @@ import (
 
 const samaScanLimit = 2000
 
-// SamaMismatchRow یک نمره با کد وضعیت نادرست.
+// SamaMismatchRow: a grade with an incorrect status code.
 type SamaMismatchRow struct {
 	EnrollmentID   int64    `json:"enrollmentId"`
 	StudentID      int64    `json:"studentId"`
@@ -39,14 +39,14 @@ type SamaMismatchRow struct {
 	RegulationName *string  `json:"regulationTitle"`
 }
 
-// SamaScanResult نتیجهٔ اسکن.
+// SamaScanResult: scan result.
 type SamaScanResult struct {
 	Rows      []SamaMismatchRow `json:"rows"`
 	Scanned   int               `json:"scanned"`
 	Truncated bool              `json:"truncated"`
 }
 
-// StatusMismatchRow فارغ‌التحصیل بدون سابقهٔ نمره.
+// StatusMismatchRow: a graduate without a grade record.
 type StatusMismatchRow struct {
 	StudentID      int64   `json:"studentId"`
 	StudentCode    string  `json:"studentCode"`
@@ -55,7 +55,7 @@ type StatusMismatchRow struct {
 	RegulationName *string `json:"regulationTitle"`
 }
 
-// ── داده‌های کمکی resolver ──
+// ── resolver helper data ──
 
 type samaRegConfig struct {
 	GradingAndGPA struct {
@@ -97,7 +97,7 @@ type samaPassRow struct {
 	TermSortOrder *int
 }
 
-// samaResolver کش‌دار — اسکن ۲۰۰۰ ردیفی بدون تکرار کوئری‌های ثابت.
+// samaResolver: cached — a 2000-row scan without repeating constant queries.
 type samaResolver struct {
 	ctx       context.Context
 	s         *Service
@@ -137,7 +137,7 @@ func strPtrEq(a, b *string) bool {
 	return *a == *b
 }
 
-// termChronologicalValue پورت term-chronology.ts.
+// termChronologicalValue port of term-chronology.ts.
 func termChronologicalValue(termCode *string, sortOrder *int) int {
 	if sortOrder != nil && *sortOrder > 0 {
 		return *sortOrder
@@ -151,7 +151,7 @@ func termChronologicalValue(termCode *string, sortOrder *int) int {
 	} else if len(code) == 4 && (strings.HasPrefix(code, "4") || strings.HasPrefix(code, "0")) {
 		code = "1" + code
 	}
-	// parseInt: تا اولین کاراکتر غیررقمی
+	// parseInt: up to the first non-digit character
 	end := 0
 	for end < len(code) && code[end] >= '0' && code[end] <= '9' {
 		end++
@@ -312,7 +312,7 @@ func resolveRetakeBar(policy string, retakeMin *float64, passingGrade float64) *
 	return nil
 }
 
-// resolve پورت resolveSamaGradeStatusCode. خروجی خالی = null در TS.
+// resolve: port of resolveSamaGradeStatusCode. Empty output = null in TS.
 func (r *samaResolver) resolve(studentID, offeringID int64, gradeValue *float64, currentCode *string) string {
 	if gradeValue == nil {
 		if c := ptrTrim(currentCode); c != nil {
@@ -368,7 +368,7 @@ func (r *samaResolver) resolve(studentID, offeringID int64, gradeValue *float64,
 		return "1"
 	}
 
-	// کد منجمد فعلی (۵/۶/۷/۲۲ و …) هرگز با منطق آیین‌نامه عوض نمی‌شود.
+	// The current frozen code (5/6/7/22 and …) is never changed by regulation logic.
 	if c := ptrTrim(currentCode); c != nil && gradestatus.RegulationFrozenCodes[*c] {
 		return *c
 	}
@@ -434,7 +434,7 @@ func (r *samaResolver) resolve(studentID, offeringID int64, gradeValue *float64,
 	return "2"
 }
 
-// ScanMismatchedSamaCodes پورت scanMismatchedSamaCodes.
+// ScanMismatchedSamaCodes port of scanMismatchedSamaCodes.
 func (s *Service) ScanMismatchedSamaCodes(ctx context.Context, user *session.User, cookie string) (*SamaScanResult, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {

@@ -1,4 +1,4 @@
-// ═══ تعاریف موتور مالی — پورت admin/finance/rules ═══
+// ═══ Finance engine definitions — admin/finance/rules port ═══
 package admin
 
 import (
@@ -12,9 +12,9 @@ import (
 	"backend-go/internal/session"
 )
 
-// ─────────────────── خواندن کاتالوگ‌ها ───────────────────
+// ─────────────────── Reading catalogs ───────────────────
 
-// DiscountType نوع تخفیف.
+// DiscountType discount type.
 type DiscountType struct {
 	ID               int64    `json:"id"`
 	Code             string   `json:"code"`
@@ -29,7 +29,7 @@ type DiscountType struct {
 	Note             *string  `json:"note"`
 }
 
-// Sponsor بنیاد حامی.
+// Sponsor sponsoring foundation.
 type Sponsor struct {
 	ID               int64   `json:"id"`
 	Code             string  `json:"code"`
@@ -40,7 +40,7 @@ type Sponsor struct {
 	Note             *string `json:"note"`
 }
 
-// TuitionFormula فرمول شهریه.
+// TuitionFormula tuition formula.
 type TuitionFormula struct {
 	ID             int64    `json:"id"`
 	Code           string   `json:"code"`
@@ -58,7 +58,7 @@ type TuitionFormula struct {
 	Note           *string  `json:"note"`
 }
 
-// LoanProduct نهاد وام.
+// LoanProduct loan institution.
 type LoanProduct struct {
 	ID                  int64    `json:"id"`
 	Code                string   `json:"code"`
@@ -73,7 +73,7 @@ type LoanProduct struct {
 	Note                *string  `json:"note"`
 }
 
-// TuitionCoefficient ضریب افزایشی نیمسال.
+// TuitionCoefficient semester increase coefficient.
 type TuitionCoefficient struct {
 	ID                int64   `json:"id"`
 	TermID            *int64  `json:"termId"`
@@ -84,7 +84,7 @@ type TuitionCoefficient struct {
 	TermCode          *string `json:"termCode"`
 }
 
-// SubjectFeeType مبلغ موضوعی.
+// SubjectFeeType subject fee.
 type SubjectFeeType struct {
 	ID              int64   `json:"id"`
 	Code            string  `json:"code"`
@@ -97,20 +97,20 @@ type SubjectFeeType struct {
 	Note            *string `json:"note"`
 }
 
-// OptionItem گزینهٔ انتخابی.
+// OptionItem selectable option.
 type OptionItem struct {
 	ID    int64  `json:"id"`
 	Title string `json:"title"`
 }
 
-// TermOption گزینهٔ ترم.
+// TermOption term option.
 type TermOption struct {
 	ID       int64  `json:"id"`
 	TermCode string `json:"termCode"`
 	TermTitle string `json:"termTitle"`
 }
 
-// FinanceRulesResponse پاسخ صفحهٔ تعاریف موتور مالی.
+// FinanceRulesResponse finance engine definitions page response.
 type FinanceRulesResponse struct {
 	DiscountTypes  []DiscountType        `json:"discountTypes"`
 	Sponsors       []Sponsor             `json:"sponsors"`
@@ -123,7 +123,7 @@ type FinanceRulesResponse struct {
 	Terms          []TermOption          `json:"terms"`
 }
 
-// ListFinanceRules پورت page admin/finance/rules — همهٔ کاتالوگ‌ها در یک پاسخ.
+// ListFinanceRules page admin/finance/rules port — all catalogs in one response.
 func (s *Service) ListFinanceRules(ctx context.Context, user *session.User, uniCookie string) (*FinanceRulesResponse, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	resp := &FinanceRulesResponse{
@@ -137,7 +137,7 @@ func (s *Service) ListFinanceRules(ctx context.Context, user *session.User, uniC
 	uni := *uniID
 	scope := ` where ("universityId" = $1 or "universityId" is null)`
 
-	// انواع تخفیف
+	// Discount types
 	rows, err := s.DB.Pool.Query(ctx, `
 		select id, coalesce(code,''), coalesce(title,''), coalesce(kind,'PERCENT'),
 		       "defaultPercent"::float8, "defaultAmount"::float8, "maxPercent"::float8,
@@ -159,7 +159,7 @@ func (s *Service) ListFinanceRules(ctx context.Context, user *session.User, uniC
 	}
 	rows.Close()
 
-	// بنیادها
+	// Foundations
 	rows, err = s.DB.Pool.Query(ctx, `
 		select id, coalesce(code,''), coalesce(title,''), "contactInfo",
 		       coalesce("settlementMethod",'DIRECT'), "isActive", note
@@ -177,7 +177,7 @@ func (s *Service) ListFinanceRules(ctx context.Context, user *session.User, uniC
 	}
 	rows.Close()
 
-	// فرمول‌ها
+	// Formulas
 	rows, err = s.DB.Pool.Query(ctx, `
 		select id, coalesce(code,''), coalesce(title,''), "degreeLevelId", "majorId",
 		       "entryYearFrom", "entryYearTo", "fixedAmount"::float8, "perUnitTheory"::float8,
@@ -198,7 +198,7 @@ func (s *Service) ListFinanceRules(ctx context.Context, user *session.User, uniC
 	}
 	rows.Close()
 
-	// مقاطع
+	// Degree levels
 	rows, err = s.DB.Pool.Query(ctx, `
 		select id, title from degree_level_configs`+scope+` order by title`, uni)
 	if err != nil {
@@ -212,7 +212,7 @@ func (s *Service) ListFinanceRules(ctx context.Context, user *session.User, uniC
 	}
 	rows.Close()
 
-	// رشته‌ها
+	// Fields
 	rows, err = s.DB.Pool.Query(ctx, `
 		select id, name from majors`+scope+` order by name`, uni)
 	if err != nil {
@@ -226,7 +226,7 @@ func (s *Service) ListFinanceRules(ctx context.Context, user *session.User, uniC
 	}
 	rows.Close()
 
-	// نهادهای وام
+	// Loan institutions
 	rows, err = s.DB.Pool.Query(ctx, `
 		select id, coalesce(code,''), coalesce(title,''), coalesce(lender,''),
 		       "maxAmount"::float8, "defaultAmount"::float8, "defaultInstallments",
@@ -248,7 +248,7 @@ func (s *Service) ListFinanceRules(ctx context.Context, user *session.User, uniC
 	}
 	rows.Close()
 
-	// ضرایب نیمسال
+	// Semester coefficients
 	rows, err = s.DB.Pool.Query(ctx, `
 		select tc.id, tc."termId", tc."variable_coefficient"::float8, tc."fixed_coefficient"::float8,
 		       tc.note, t.title, t."termCode"
@@ -267,7 +267,7 @@ func (s *Service) ListFinanceRules(ctx context.Context, user *session.User, uniC
 	}
 	rows.Close()
 
-	// مبالغ موضوعی
+	// Subject fees
 	rows, err = s.DB.Pool.Query(ctx, `
 		select id, coalesce(code,''), coalesce(title,''), coalesce(kind,''),
 		       "fixed_amount"::float8, "variable_percent"::float8, "applies_to", "is_active", note
@@ -285,7 +285,7 @@ func (s *Service) ListFinanceRules(ctx context.Context, user *session.User, uniC
 	}
 	rows.Close()
 
-	// ترم‌ها
+	// Terms
 	rows, err = s.DB.Pool.Query(ctx, `
 		select id, coalesce("termCode",''), title from academic_terms`+scope+` order by "termCode"`, uni)
 	if err != nil {
@@ -302,9 +302,9 @@ func (s *Service) ListFinanceRules(ctx context.Context, user *session.User, uniC
 	return resp, nil
 }
 
-// ─────────────────── کمکی‌های مرز دانشگاه ───────────────────
+// ─────────────────── University boundary helpers ───────────────────
 
-// assertRowUni رکورد باید متعلق به دانشگاه فعال (یا سراسری) باشد.
+// assertRowUni the record must belong to the active university (or be global).
 func (s *Service) assertRowUni(ctx context.Context, table string, id, uniID int64) error {
 	var rowUni *int64
 	err := s.DB.Pool.QueryRow(ctx, `select "universityId" from `+table+` where id = $1`, id).Scan(&rowUni)
@@ -332,9 +332,9 @@ func boolToDigit(b bool) int {
 	return 0
 }
 
-// ─────────────────── ذخیره/حذف انواع تخفیف ───────────────────
+// ─────────────────── Save/delete discount types ───────────────────
 
-// DiscountTypeInput ورودی ذخیرهٔ نوع تخفیف.
+// DiscountTypeInput discount type save input.
 type DiscountTypeInput struct {
 	ID               int64    `json:"id"`
 	Code             string   `json:"code"`
@@ -349,7 +349,7 @@ type DiscountTypeInput struct {
 	Note             string   `json:"note"`
 }
 
-// SaveDiscountType پورت saveDiscountTypeAction.
+// SaveDiscountType saveDiscountTypeAction port.
 func (s *Service) SaveDiscountType(ctx context.Context, user *session.User, uniCookie string, in DiscountTypeInput) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -399,7 +399,7 @@ func (s *Service) SaveDiscountType(ctx context.Context, user *session.User, uniC
 	return err
 }
 
-// DeleteDiscountType پورت deleteDiscountTypeAction — تخصیص‌یافته حذف نمی‌شود.
+// DeleteDiscountType deleteDiscountTypeAction port — assigned ones cannot be deleted.
 func (s *Service) DeleteDiscountType(ctx context.Context, user *session.User, uniCookie string, id int64) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -428,9 +428,9 @@ func clampF(v, lo, hi float64) float64 {
 	return v
 }
 
-// ─────────────────── بنیادها ───────────────────
+// ─────────────────── Foundations ───────────────────
 
-// SponsorInput ورودی ذخیرهٔ بنیاد.
+// SponsorInput foundation save input.
 type SponsorInput struct {
 	ID               int64  `json:"id"`
 	Code             string `json:"code"`
@@ -441,7 +441,7 @@ type SponsorInput struct {
 	Note             string `json:"note"`
 }
 
-// SaveSponsor پورت saveSponsorAction.
+// SaveSponsor saveSponsorAction port.
 func (s *Service) SaveSponsor(ctx context.Context, user *session.User, uniCookie string, in SponsorInput) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -474,7 +474,7 @@ func (s *Service) SaveSponsor(ctx context.Context, user *session.User, uniCookie
 	return err
 }
 
-// DeleteSponsor پورت deleteSponsorAction.
+// DeleteSponsor deleteSponsorAction port.
 func (s *Service) DeleteSponsor(ctx context.Context, user *session.User, uniCookie string, id int64) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -493,9 +493,9 @@ func (s *Service) DeleteSponsor(ctx context.Context, user *session.User, uniCook
 	return err
 }
 
-// ─────────────────── نهادهای وام ───────────────────
+// ─────────────────── Loan institutions ───────────────────
 
-// LoanProductInput ورودی ذخیرهٔ نهاد وام.
+// LoanProductInput loan institution save input.
 type LoanProductInput struct {
 	ID                  int64    `json:"id"`
 	Code                string   `json:"code"`
@@ -510,7 +510,7 @@ type LoanProductInput struct {
 	Note                string   `json:"note"`
 }
 
-// SaveLoanProduct پورت saveLoanProductAction.
+// SaveLoanProduct port of saveLoanProductAction.
 func (s *Service) SaveLoanProduct(ctx context.Context, user *session.User, uniCookie string, in LoanProductInput) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -578,7 +578,7 @@ func (s *Service) SaveLoanProduct(ctx context.Context, user *session.User, uniCo
 	return nil
 }
 
-// DeleteLoanProduct پورت deleteLoanProductAction.
+// DeleteLoanProduct port of deleteLoanProductAction.
 func (s *Service) DeleteLoanProduct(ctx context.Context, user *session.User, uniCookie string, id int64) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -604,9 +604,9 @@ func (s *Service) DeleteLoanProduct(ctx context.Context, user *session.User, uni
 	return nil
 }
 
-// ─────────────────── فرمول‌های شهریه ───────────────────
+// ─────────────────── Tuition formulas ───────────────────
 
-// FormulaInput ورودی ذخیرهٔ فرمول (پورت saveFormulaAction).
+// FormulaInput: formula save input (port of saveFormulaAction).
 type FormulaInput struct {
 	ID               int64   `json:"id"`
 	Code             string  `json:"code"`
@@ -624,7 +624,7 @@ type FormulaInput struct {
 	Note             string  `json:"note"`
 }
 
-// SaveFormula پورت saveFormulaAction.
+// SaveFormula port of saveFormulaAction.
 func (s *Service) SaveFormula(ctx context.Context, user *session.User, uniCookie string, in FormulaInput) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -672,7 +672,7 @@ func (s *Service) SaveFormula(ctx context.Context, user *session.User, uniCookie
 	return err
 }
 
-// DeleteFormula پورت deleteFormulaAction.
+// DeleteFormula port of deleteFormulaAction.
 func (s *Service) DeleteFormula(ctx context.Context, user *session.User, uniCookie string, id int64) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -685,7 +685,7 @@ func (s *Service) DeleteFormula(ctx context.Context, user *session.User, uniCook
 	return err
 }
 
-// ─────────────────── کمکی‌های JSON/حسابرسی ───────────────────
+// ─────────────────── JSON/audit helpers ───────────────────
 
 func fmtNum(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64) }
 
@@ -715,7 +715,7 @@ func jsonNumPtr(v *float64) string {
 	return strconv.FormatFloat(*v, 'f', -1, 64)
 }
 
-// writeAdminAudit درج ردیف حسابرسی زنجیره‌هش (بی‌صدا — خطا مانع عملیات نیست).
+// writeAdminAudit: insert a hash-chain audit row (silent — errors do not block the operation).
 func (s *Service) writeAdminAudit(ctx context.Context, actorUserID int64, action, entityType string, entityID int64, details string) error {
 	var prev string
 	_ = s.DB.Pool.QueryRow(ctx, `select coalesce(hash,'') from audit_logs order by id desc limit 1`).Scan(&prev)

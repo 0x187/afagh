@@ -1,4 +1,4 @@
-// ═══ حضور دستی/کنترلی ادمین — پورت admin/attendance-manual و attendance-control ═══
+// ═══ Admin Manual/Control Attendance — port of admin/attendance-manual and attendance-control ═══
 package admin
 
 import (
@@ -12,7 +12,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// ManualRow ردیف جلسه برای تأیید دستی.
+// ManualRow is a session row for manual confirmation.
 type ManualRow struct {
 	SessionID        int64   `json:"sessionId"`
 	SessionNo        int     `json:"sessionNo"`
@@ -33,14 +33,14 @@ type ManualRow struct {
 	MemberSessionIDs []int64 `json:"memberSessionIds"`
 }
 
-// ManualAttendanceData پاسخ صفحهٔ تأیید دستی.
+// ManualAttendanceData is the manual confirmation page response.
 type ManualAttendanceData struct {
 	Term  AdminTerm   `json:"term"`
 	Terms []EvalTerm  `json:"terms"`
 	Rows  []ManualRow `json:"rows"`
 }
 
-// GetManualAttendance پورت attendance-manual (خواندن).
+// GetManualAttendance ports attendance-manual (read).
 func (s *Service) GetManualAttendance(ctx context.Context, user *session.User, uniCookie string) (*ManualAttendanceData, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	resp := &ManualAttendanceData{Terms: []EvalTerm{}, Rows: []ManualRow{}}
@@ -114,7 +114,7 @@ func (s *Service) GetManualAttendance(ctx context.Context, user *session.User, u
 		}
 		byKey[k] = append(byKey[k], resp.Rows[i])
 	}
-	// ادغام گروه‌های دستی: نماینده اول + اعضا.
+	// Manual group merge: primary representative + members.
 	out := []ManualRow{}
 	mergedKeys := map[string]bool{}
 	for _, r := range resp.Rows {
@@ -149,7 +149,7 @@ func (s *Service) GetManualAttendance(ctx context.Context, user *session.User, u
 	return resp, nil
 }
 
-// decideMembers گسترش جلسات عضو (ادغام دستی) یا فقط خودش.
+// decideMembers expands member sessions (manual merge) or just itself.
 func (s *Service) decideMembers(ctx context.Context, sessionID int64) ([]int64, string, error) {
 	var offeringID int64
 	var sharedKey *string
@@ -189,7 +189,7 @@ func (s *Service) decideMembers(ctx context.Context, sessionID int64) ([]int64, 
 	return ids, key, nil
 }
 
-// ConfirmProfessorAttendance تأیید دستی حضور استاد برای یک جلسه (و اعضای ادغام).
+// ConfirmProfessorAttendance manually confirms the professor's attendance for one session (and merged members).
 func (s *Service) ConfirmProfessorAttendance(ctx context.Context, user *session.User, sessionID int64) error {
 	ids, _, err := s.decideMembers(ctx, sessionID)
 	if err != nil {
@@ -221,7 +221,7 @@ func (s *Service) ConfirmProfessorAttendance(ctx context.Context, user *session.
 	return nil
 }
 
-// MarkClassHeld ثبت تشکیل کلاس (وضعیت جلسه).
+// MarkClassHeld records that the class was held (session status).
 func (s *Service) MarkClassHeld(ctx context.Context, user *session.User, sessionID int64, status string) error {
 	if status != "HELD" && status != "ABSENT" && status != "SCHEDULED" {
 		return errors.New("وضعیت نامعتبر است.")
@@ -238,7 +238,7 @@ func (s *Service) MarkClassHeld(ctx context.Context, user *session.User, session
 	return nil
 }
 
-// ControlRow جلسهٔ امروز یک سالن (کنترل).
+// ControlRow is today's session for a hall (control).
 type ControlRow struct {
 	RoomID       int64   `json:"roomId"`
 	RoomName     string  `json:"roomName"`
@@ -256,13 +256,13 @@ type ControlRow struct {
 	MemberCount  int     `json:"memberCount"`
 }
 
-// ControlData پاسخ کارتابل کنترل.
+// ControlData is the control inbox response.
 type ControlData struct {
 	TodayJalali string       `json:"todayJalali"`
 	Rows        []ControlRow `json:"rows"`
 }
 
-// GetControl پورت attendance-control (زیرمجموعه: همهٔ اتاق‌های دانشگاه).
+// GetControl ports attendance-control (subset: all rooms of the university).
 func (s *Service) GetControl(ctx context.Context, user *session.User, uniCookie string) (*ControlData, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	now := time.Now()
@@ -315,7 +315,7 @@ func (s *Service) GetControl(ctx context.Context, user *session.User, uniCookie 
 			if sharedKey != nil && strings.TrimSpace(*sharedKey) != "" && !strings.HasPrefix(strings.TrimSpace(*sharedKey), "SOLO-") {
 				r.Merged = true
 			}
-			// شمار اعضای ادغام (دستی).
+			// Merged member count (manual).
 			if r.Merged {
 				var n int
 				_ = s.DB.Pool.QueryRow(ctx, `
@@ -331,7 +331,7 @@ func (s *Service) GetControl(ctx context.Context, user *session.User, uniCookie 
 	return resp, nil
 }
 
-// RecordClassPresence ثبت «تشکیل کلاس» توسط کنترل‌کننده روی جلسه و اعضای ادغام.
+// RecordClassPresence records «تشکیل کلاس» by the controller on the session and merged members.
 func (s *Service) RecordClassPresence(ctx context.Context, user *session.User, sessionID int64) error {
 	ids, _, err := s.decideMembers(ctx, sessionID)
 	if err != nil {

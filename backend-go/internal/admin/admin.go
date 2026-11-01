@@ -1,4 +1,4 @@
-// ═══ پنل ادمین هستهٔ آموزشی (فاز ۶) ═══
+// ═══ Academic Core Admin Panel (Phase 6) ═══
 package admin
 
 import (
@@ -15,7 +15,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// settingsStore برای جلوگیری از وابستگی چرخشی — همان رابط admin/settings.go.
+// settingsStore avoids a circular dependency — same interface as admin/settings.go.
 type settingsStore interface {
 	Get(ctx context.Context, key string) (string, error)
 	Save(ctx context.Context, key, value string) error
@@ -24,7 +24,7 @@ type settingsStore interface {
 	Invalidate()
 }
 
-// SettingsDef تعریف یک تنظیم (عمومی برای آداپتور).
+// SettingsDef defines a setting (generic for the adapter).
 type SettingsDef struct {
 	Key     string
 	Env     string
@@ -32,21 +32,21 @@ type SettingsDef struct {
 	EnvOnly bool
 }
 
-// Service سرویس ادمین.
+// Service is the admin service.
 type Service struct {
 	DB    *db.DB
 	Scope *scope.Service
 	Store settingsStore
 }
 
-// SetStore تنظیم مخزن تنظیمات.
+// SetStore sets the settings repository.
 func (s *Service) SetStore(store settingsStore) { s.Store = store }
 
 func New(database *db.DB, scopeSvc *scope.Service) *Service {
 	return &Service{DB: database, Scope: scopeSvc}
 }
 
-// UniversityID دانشگاه فعال از کوکی/دسترسی.
+// UniversityID is the active university from the cookie/access.
 func (s *Service) UniversityID(ctx context.Context, user *session.User, cookie string) *int64 {
 	uni, err := s.Scope.CurrentUniversity(ctx, user, cookie)
 	if err != nil || uni.ID <= 0 || uni.Kind == "NONE" {
@@ -56,7 +56,7 @@ func (s *Service) UniversityID(ctx context.Context, user *session.User, cookie s
 	return &id
 }
 
-// DashboardStats آمار داشبورد.
+// DashboardStats holds dashboard statistics.
 type DashboardStats struct {
 	StudentsTotal  int `json:"studentsTotal"`
 	StudentsActive int `json:"studentsActive"`
@@ -66,7 +66,7 @@ type DashboardStats struct {
 	RequestsTotal  int `json:"requestsTotal"`
 }
 
-// InboxRow ردیف کارتابل.
+// InboxRow is an inbox row.
 type InboxRow struct {
 	ID      int64   `json:"id"`
 	Track   string  `json:"trackingCode"`
@@ -77,7 +77,7 @@ type InboxRow struct {
 	Process *string `json:"processTitle"`
 }
 
-// GradeLive فعالیت زندهٔ نمرات.
+// GradeLive is live grade activity.
 type GradeLive struct {
 	Actor       string  `json:"actor"`
 	ActorRole   *string `json:"actorRole"`
@@ -87,7 +87,7 @@ type GradeLive struct {
 	At          *string `json:"at"`
 }
 
-// DashboardResponse پاسخ داشبورد.
+// DashboardResponse is the dashboard response.
 type DashboardResponse struct {
 	UniversityTitle string         `json:"universityTitle"`
 	Stats           DashboardStats `json:"stats"`
@@ -97,7 +97,7 @@ type DashboardResponse struct {
 	GradeLive       []GradeLive    `json:"gradeLive"`
 }
 
-// GetDashboard پورت admin/page.tsx (خلاصه).
+// GetDashboard ports admin/page.tsx (summary).
 func (s *Service) GetDashboard(ctx context.Context, user *session.User, uniCookie string) (*DashboardResponse, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	resp := &DashboardResponse{Inbox: []InboxRow{}, GradeLive: []GradeLive{}}
@@ -108,7 +108,7 @@ func (s *Service) GetDashboard(ctx context.Context, user *session.User, uniCooki
 		resp.UniversityTitle = "دانشگاه آفاق"
 	}
 
-	// آمار دانشجو/ارائه/ثبت‌نام.
+	// Student/offering/enrollment statistics.
 	if uniID != nil {
 		_ = s.DB.Pool.QueryRow(ctx, `
 			select count(*), count(*) filter (where status = 'ACTIVE')
@@ -127,7 +127,7 @@ func (s *Service) GetDashboard(ctx context.Context, user *session.User, uniCooki
 			Scan(&resp.Stats.Enrollments)
 	}
 
-	// کارتابل درخواست‌ها (همین دانشگاه + سراسری).
+	// Requests inbox (this university + global).
 	scopeCond := `(r."universityId" is null or ($1::int is not null and r."universityId" = $1))`
 	_ = s.DB.Pool.QueryRow(ctx, `
 		select count(*), count(*) filter (where status in ('SUBMITTED','IN_REVIEW','RETURNED'))
@@ -154,7 +154,7 @@ func (s *Service) GetDashboard(ctx context.Context, user *session.User, uniCooki
 		rows.Close()
 	}
 
-	// فعالیت زندهٔ نمرات ۳۰ دقیقهٔ اخیر.
+	// Live grade activity for the last 30 minutes.
 	grows, err := s.DB.Pool.Query(ctx, `
 		select coalesce(u2."firstName" || ' ' || u2."lastName",'—'), g."actorRole",
 		       st."studentCode", c.title, g."newGradeValue"::text, g."createdAt"::text
@@ -177,7 +177,7 @@ func (s *Service) GetDashboard(ctx context.Context, user *session.User, uniCooki
 	return resp, nil
 }
 
-// StudentRow ردیف دانشجو.
+// StudentRow is a student row.
 type StudentRow struct {
 	ID           int64   `json:"id"`
 	StudentCode  string  `json:"studentCode"`
@@ -191,14 +191,14 @@ type StudentRow struct {
 	IsActive     int     `json:"isActive"`
 }
 
-// StudentsResponse فهرست دانشجویان.
+// StudentsResponse is the student list.
 type StudentsResponse struct {
 	Total int          `json:"total"`
 	Page  int          `json:"page"`
 	Rows  []StudentRow `json:"rows"`
 }
 
-// ListStudents پورت admin/students (جست‌وجو/صفحه‌بندی).
+// ListStudents ports admin/students (search/pagination).
 func (s *Service) ListStudents(ctx context.Context, user *session.User, uniCookie, q, status string, page int) (*StudentsResponse, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if page < 1 {
@@ -256,7 +256,7 @@ func (s *Service) ListStudents(ctx context.Context, user *session.User, uniCooki
 	return resp, rows.Err()
 }
 
-// SetUserActive فعال/غیرفعال کردن حساب.
+// SetUserActive enables/disables an account.
 func (s *Service) SetUserActive(ctx context.Context, userID int64, active bool) error {
 	tag, err := s.DB.Pool.Exec(ctx, `update users set "isActive" = $1 where id = $2`, boolInt(active), userID)
 	if err != nil {
@@ -268,7 +268,7 @@ func (s *Service) SetUserActive(ctx context.Context, userID int64, active bool) 
 	return nil
 }
 
-// ResetPasswordToNationalCode بازنشانی رمز به کد ملی + اجبار تغییر.
+// ResetPasswordToNationalCode resets the password to the national code + forces a change.
 func (s *Service) ResetPasswordToNationalCode(ctx context.Context, userID int64) error {
 	var nationalCode *string
 	if err := s.DB.Pool.QueryRow(ctx, `select "nationalCode" from users where id = $1`, userID).Scan(&nationalCode); err != nil {
@@ -286,7 +286,7 @@ func (s *Service) ResetPasswordToNationalCode(ctx context.Context, userID int64)
 	return err
 }
 
-// DepartmentRow ردیف دانشکده/گروه.
+// DepartmentRow is a faculty/department row.
 type DepartmentRow struct {
 	ID        int64   `json:"id"`
 	Name      string  `json:"name"`
@@ -295,19 +295,19 @@ type DepartmentRow struct {
 	Faculty   string  `json:"facultyName"`
 }
 
-// FacultyRow دانشکده.
+// FacultyRow is a faculty.
 type FacultyRow struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
 }
 
-// DepartmentsResponse پاسخ صفحه.
+// DepartmentsResponse is the page response.
 type DepartmentsResponse struct {
 	Faculties   []FacultyRow    `json:"faculties"`
 	Departments []DepartmentRow `json:"departments"`
 }
 
-// ListDepartments پورت admin/departments (خواندن).
+// ListDepartments ports admin/departments (read).
 func (s *Service) ListDepartments(ctx context.Context, user *session.User, uniCookie string) (*DepartmentsResponse, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	resp := &DepartmentsResponse{Faculties: []FacultyRow{}, Departments: []DepartmentRow{}}
@@ -343,7 +343,7 @@ func (s *Service) ListDepartments(ctx context.Context, user *session.User, uniCo
 	return resp, nil
 }
 
-// StaffRow ردیف کارمند/استاد.
+// StaffRow is a staff/professor row.
 type StaffRow struct {
 	ID           int64   `json:"id"`
 	StaffCode    string  `json:"staffCode"`
@@ -355,7 +355,7 @@ type StaffRow struct {
 	IsActive     int     `json:"isActive"`
 }
 
-// ListStaff پورت admin/staff (خواندن+جست‌وجو).
+// ListStaff ports admin/staff (read+search).
 func (s *Service) ListStaff(ctx context.Context, user *session.User, uniCookie, q string) ([]StaffRow, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	out := []StaffRow{}

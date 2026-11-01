@@ -1,4 +1,4 @@
-// ═══ فرمول ویژهٔ دانشجو (student_tuition_overrides) — پورت admin/finance/student-formula ═══
+// ═══ Student-specific formula (student_tuition_overrides) — admin/finance/student-formula port ═══
 package admin
 
 import (
@@ -13,7 +13,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// TuitionOverride ردیف فرمول ویژه.
+// TuitionOverride special formula row.
 type TuitionOverride struct {
 	ID            int64   `json:"id"`
 	StudentID     int64   `json:"studentId"`
@@ -29,7 +29,7 @@ type TuitionOverride struct {
 	UpdatedAt     *string `json:"updatedAt"`
 }
 
-// ListTuitionOverrides پورت GET (q/studentId/active/page).
+// ListTuitionOverrides GET port (q/studentId/active/page).
 func (s *Service) ListTuitionOverrides(ctx context.Context, user *session.User, uniCookie, q string, studentID int64, activeOnly bool, page int) ([]TuitionOverride, int, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -97,7 +97,7 @@ func (s *Service) ListTuitionOverrides(ctx context.Context, user *session.User, 
 	return out, total, nil
 }
 
-// deactivateConflicts غیرفعال‌سازی فرمول‌های فعالِ متعارض (همان دانشجو + همان دامنهٔ ترم).
+// deactivateConflicts deactivate conflicting active formulas (same student + same term scope).
 func (s *Service) deactivateConflicts(ctx context.Context, tx execer, studentID int64, termID *int64, exceptID int64) error {
 	args := []any{studentID}
 	where := ` where "studentId" = $1 and "isActive" = 1`
@@ -123,10 +123,10 @@ func (t *txExec) Exec(ctx context.Context, sql string, args ...any) (pgconn.Comm
 	return t.tx.Exec(ctx, sql, args...)
 }
 
-// txExec آداپتور pgx.Tx برای execer.
+// txExec pgx.Tx adapter for execer.
 type txExec struct{ tx pgx.Tx }
 
-// SaveTuitionOverrideInput ورودی ایجاد.
+// SaveTuitionOverrideInput create input.
 type SaveTuitionOverrideInput struct {
 	StudentID     int64    `json:"studentId"`
 	TermID        *int64   `json:"termId"`
@@ -137,7 +137,7 @@ type SaveTuitionOverrideInput struct {
 
 const maxOverrideRials = 9_999_999_999_999
 
-// CreateTuitionOverride پورت POST — غیرفعال‌سازی متعارض‌ها + audit.
+// CreateTuitionOverride POST port — deactivate conflicts + audit.
 func (s *Service) CreateTuitionOverride(ctx context.Context, user *session.User, uniCookie string, in SaveTuitionOverrideInput) (int64, error) {
 	if in.StudentID <= 0 {
 		return 0, errors.New("invalid_body")
@@ -188,7 +188,7 @@ func (s *Service) CreateTuitionOverride(ctx context.Context, user *session.User,
 	return id, nil
 }
 
-// UpdateTuitionOverrideInput ورودی PATCH — همه فیلدها اختیاری‌اند.
+// UpdateTuitionOverrideInput PATCH input — all fields are optional.
 type UpdateTuitionOverrideInput struct {
 	TermID        **int64  `json:"termId"`
 	FixedAmount   *float64 `json:"fixedAmount"`
@@ -197,7 +197,7 @@ type UpdateTuitionOverrideInput struct {
 	IsActive      *bool    `json:"isActive"`
 }
 
-// UpdateTuitionOverride پورت PATCH.
+// UpdateTuitionOverride PATCH port.
 func (s *Service) UpdateTuitionOverride(ctx context.Context, user *session.User, id int64, in UpdateTuitionOverrideInput) error {
 	if id <= 0 {
 		return errors.New("invalid_id")
@@ -245,7 +245,7 @@ func (s *Service) UpdateTuitionOverride(ctx context.Context, user *session.User,
 	if len(sets) == 0 {
 		return errors.New("empty_patch")
 	}
-	// فعال‌سازی دوباره = غیرفعال‌سازی متعارض‌ها.
+	// Reactivation = deactivating conflicts.
 	if in.IsActive != nil && *in.IsActive {
 		effTerm := curTerm
 		if in.TermID != nil {
@@ -265,7 +265,7 @@ func (s *Service) UpdateTuitionOverride(ctx context.Context, user *session.User,
 	return tx.Commit(ctx)
 }
 
-// DeleteTuitionOverride پورت DELETE (فقط ADMIN).
+// DeleteTuitionOverride DELETE port (ADMIN only).
 func (s *Service) DeleteTuitionOverride(ctx context.Context, user *session.User, id int64) error {
 	isAdmin := false
 	for _, r := range user.Roles {

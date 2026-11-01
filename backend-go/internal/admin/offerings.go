@@ -1,4 +1,4 @@
-// ═══ ارائه‌ها و پنجرهٔ انتخاب واحد (ادمین) ═══
+// ═══ Offerings and course selection window (admin) ═══
 package admin
 
 import (
@@ -12,13 +12,13 @@ import (
 	"backend-go/internal/session"
 )
 
-// Option گزینه.
+// Option: option.
 type Option struct {
 	ID    int64  `json:"id"`
 	Title string `json:"title"`
 }
 
-// AdminOffering ردیف ارائه.
+// AdminOffering: offering row.
 type AdminOffering struct {
 	ID                  int64   `json:"id"`
 	Code                string  `json:"code"`
@@ -34,7 +34,7 @@ type AdminOffering struct {
 	TargetLabel         string  `json:"targetLabel"`
 }
 
-// WindowStatus وضعیت پنجره.
+// WindowStatus: window status.
 type WindowStatus struct {
 	Open  bool    `json:"open"`
 	State string  `json:"state"`
@@ -43,7 +43,7 @@ type WindowStatus struct {
 	End   *string `json:"end"`
 }
 
-// AdminOfferingsData پاسخ.
+// AdminOfferingsData: response.
 type AdminOfferingsData struct {
 	Term      TermInfo        `json:"term"`
 	Window    WindowStatus    `json:"window"`
@@ -52,7 +52,7 @@ type AdminOfferingsData struct {
 	Majors    []Option        `json:"majors"`
 }
 
-// AdminTerm ترم جاری.
+// AdminTerm: current term.
 type AdminTerm struct {
 	ID     *int64 `json:"id"`
 	Title  string `json:"title"`
@@ -109,7 +109,7 @@ func timeISO(t *time.Time) *string {
 	return &v
 }
 
-// GetOfferings پورت admin/offerings.
+// GetOfferings port of admin/offerings.
 func (s *Service) GetOfferings(ctx context.Context, user *session.User, uniCookie string) (*AdminOfferingsData, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	resp := &AdminOfferingsData{Offerings: []AdminOffering{}, Degrees: []Option{}, Majors: []Option{}}
@@ -173,7 +173,7 @@ func (s *Service) GetOfferings(ctx context.Context, user *session.User, uniCooki
 		mrows.Close()
 	}
 
-	// برچسب هدف‌گیری.
+	// Targeting label.
 	degTitle := map[int64]string{}
 	for _, d := range resp.Degrees {
 		degTitle[d.ID] = d.Title
@@ -211,7 +211,7 @@ func (s *Service) GetOfferings(ctx context.Context, user *session.User, uniCooki
 	return resp, nil
 }
 
-// SaveWindow پورت saveWindowAction.
+// SaveWindow port of saveWindowAction.
 func (s *Service) SaveWindow(ctx context.Context, user *session.User, uniCookie string, termID int64, open bool, startInput, endInput string) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -255,7 +255,7 @@ func parseLocalInput(v string) (time.Time, error) {
 	return time.Time{}, errors.New("قالب زمان نامعتبر است.")
 }
 
-// SaveTargeting پورت saveTargetingAction.
+// SaveTargeting port of saveTargetingAction.
 func (s *Service) SaveTargeting(ctx context.Context, user *session.User, uniCookie string, offeringID int64, degree, major *int64, ys, ye *int) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -278,7 +278,7 @@ func (s *Service) SaveTargeting(ctx context.Context, user *session.User, uniCook
 	return err
 }
 
-// SaveOfferingType پورت saveOfferingTypeAction.
+// SaveOfferingType port of saveOfferingTypeAction.
 func (s *Service) SaveOfferingType(ctx context.Context, user *session.User, uniCookie string, offeringID int64, offeringType string) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {

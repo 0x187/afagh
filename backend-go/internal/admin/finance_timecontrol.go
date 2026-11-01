@@ -1,4 +1,4 @@
-// ═══ کنترل زمانی ثبت مالی — پورت lib/finance-time-control.ts + api route ═══
+// ═══ Finance posting time control — port of lib/finance-time-control.ts + api route ═══
 package admin
 
 import (
@@ -12,7 +12,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// AccountingPeriod دورهٔ مالی.
+// AccountingPeriod: fiscal period.
 type AccountingPeriod struct {
 	ID         int64   `json:"id"`
 	PeriodName *string `json:"periodName"`
@@ -21,7 +21,7 @@ type AccountingPeriod struct {
 	IsLocked   bool    `json:"isLocked"`
 }
 
-// LockState وضعیت قفل برای UI.
+// LockState: lock state for UI.
 type LockState struct {
 	Configured   bool              `json:"configured"`
 	Locked       bool              `json:"locked"`
@@ -31,7 +31,7 @@ type LockState struct {
 	Now          string            `json:"now"`
 }
 
-// latestPeriod آخرین دورهٔ ثبت‌شده (ردیف با بزرگ‌ترین id).
+// latestPeriod: latest posted period (row with the largest id).
 func (s *Service) latestPeriod(ctx context.Context) (*AccountingPeriod, error) {
 	var p AccountingPeriod
 	var name *string
@@ -51,13 +51,13 @@ func (s *Service) latestPeriod(ctx context.Context) (*AccountingPeriod, error) {
 	return &p, nil
 }
 
-// financeNow متن زمان جاری برای پیام‌ها (شمسی).
+// financeNow: current time text for messages (Solar Hijri).
 func financeNow(t time.Time) string {
 	j := jalali.ToJalaliFromTime(t)
 	return jalali.FaDigits(fmt.Sprintf("%04d/%02d/%02d %02d:%02d", j.Y, j.M, j.D, t.Hour(), t.Minute()))
 }
 
-// GetLockState پورت getLockState.
+// GetLockState port of getLockState.
 func (s *Service) GetLockState(ctx context.Context, user *session.User, uniCookie string) (*LockState, error) {
 	now := time.Now()
 	row, err := s.latestPeriod(ctx)
@@ -98,7 +98,7 @@ func (s *Service) GetLockState(ctx context.Context, user *session.User, uniCooki
 	}, nil
 }
 
-// SavePeriodInput ورودی ذخیرهٔ دوره.
+// SavePeriodInput: period save input.
 type SavePeriodInput struct {
 	ID         int64  `json:"id"`
 	PeriodName string `json:"periodName"`
@@ -107,12 +107,12 @@ type SavePeriodInput struct {
 	IsLocked   bool   `json:"isLocked"`
 }
 
-// SaveAccountingPeriod پورت POST time-control — ایجاد/به‌روزرسانی + audit.
+// SaveAccountingPeriod port of POST time-control — create/update + audit.
 func (s *Service) SaveAccountingPeriod(ctx context.Context, user *session.User, uniCookie string, in SavePeriodInput) (*LockState, error) {
 	opens, err1 := time.Parse(time.RFC3339, in.OpensAt)
 	closes, err2 := time.Parse(time.RFC3339, in.ClosesAt)
 	if err1 != nil || err2 != nil {
-		// تلاش با قالب datetime-local («2006-01-02T15:04»)
+		// Attempt with datetime-local format ("2006-01-02T15:04")
 		if o, e1 := time.Parse("2006-01-02T15:04", in.OpensAt); e1 == nil {
 			opens, err1 = o, nil
 		}

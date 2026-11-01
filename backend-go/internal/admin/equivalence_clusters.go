@@ -1,4 +1,4 @@
-// ═══ خوشه‌های دروس هم‌ارز — پورت actions/equivalence-clusters ═══
+// ═══ Equivalent course clusters — actions/equivalence-clusters port ═══
 package admin
 
 import (
@@ -10,7 +10,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// EquivCluster خوشه.
+// EquivCluster cluster.
 type EquivCluster struct {
 	ID               int64  `json:"id"`
 	ClusterTitle     string `json:"clusterTitle"`
@@ -18,7 +18,7 @@ type EquivCluster struct {
 	UniversityID     *int64 `json:"universityId"`
 }
 
-// EquivCourse درس برای عضویت در خوشه.
+// EquivCourse course for cluster membership.
 type EquivCourse struct {
 	ID        int64   `json:"id"`
 	Code      string  `json:"code"`
@@ -27,7 +27,7 @@ type EquivCourse struct {
 	ClusterID *int64  `json:"clusterId"`
 }
 
-// EquivalenceClustersData بستهٔ اولیهٔ صفحه.
+// EquivalenceClustersData page initial payload.
 type EquivalenceClustersData struct {
 	Clusters []EquivCluster `json:"clusters"`
 	Courses  []EquivCourse  `json:"courses"`
@@ -45,7 +45,7 @@ func clusterVisible(uniID int64, rowUni *int64) bool {
 	return rowUni == nil || *rowUni == uniID
 }
 
-// EquivalenceClusters فهرست خوشه‌ها و دروس دانشگاه.
+// EquivalenceClusters list the university's clusters and courses.
 func (s *Service) EquivalenceClusters(ctx context.Context, user *session.User, cookie string) (*EquivalenceClustersData, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	out := &EquivalenceClustersData{Clusters: []EquivCluster{}, Courses: []EquivCourse{}}
@@ -83,7 +83,7 @@ func (s *Service) EquivalenceClusters(ctx context.Context, user *session.User, c
 	return out, nil
 }
 
-// CreateEquivCluster ایجاد خوشه.
+// CreateEquivCluster create a cluster.
 func (s *Service) CreateEquivCluster(ctx context.Context, user *session.User, cookie, title string, general bool) (int64, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -124,7 +124,7 @@ func (s *Service) CreateEquivCluster(ctx context.Context, user *session.User, co
 	return id, nil
 }
 
-// UpdateEquivCluster ویرایش خوشه.
+// UpdateEquivCluster edit a cluster.
 func (s *Service) UpdateEquivCluster(ctx context.Context, user *session.User, cookie string, id int64, title *string, general *bool) error {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -181,7 +181,7 @@ func (s *Service) UpdateEquivCluster(ctx context.Context, user *session.User, co
 	return tx.Commit(ctx)
 }
 
-// DeleteEquivCluster حذف خوشه و جداکردن دروس.
+// DeleteEquivCluster delete a cluster and detach its courses.
 func (s *Service) DeleteEquivCluster(ctx context.Context, user *session.User, cookie string, id int64) error {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -214,7 +214,7 @@ func (s *Service) DeleteEquivCluster(ctx context.Context, user *session.User, co
 	return tx.Commit(ctx)
 }
 
-// SetEquivClusterMembers تعیین اعضای خوشه (جداکردن بقیه).
+// SetEquivClusterMembers set cluster members (detach the rest).
 func (s *Service) SetEquivClusterMembers(ctx context.Context, user *session.User, cookie string, clusterID int64, courseIDs []int64) error {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {

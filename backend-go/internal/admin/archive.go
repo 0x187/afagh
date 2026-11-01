@@ -1,4 +1,4 @@
-// ═══ بایگانی الکترونیک مدارک — پورت admin/archive + api/archive ═══
+// ═══ Electronic Document Archive — port of admin/archive + api/archive ═══
 package admin
 
 import (
@@ -16,7 +16,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// ArchiveDoc ردیف سند بایگانی.
+// ArchiveDoc is an archive document row.
 type ArchiveDoc struct {
 	ID          int64   `json:"id"`
 	FileName    string  `json:"fileName"`
@@ -30,21 +30,21 @@ type ArchiveDoc struct {
 	DocType     string  `json:"type"`
 }
 
-// ArchiveListResponse پاسخ فهرست.
+// ArchiveListResponse is the list response.
 type ArchiveListResponse struct {
 	Rows       []ArchiveDoc    `json:"rows"`
 	Categories []OptionItem    `json:"categories"`
 	Types      []ArchiveType   `json:"types"`
 }
 
-// ArchiveType نوع سند با دسته.
+// ArchiveType is a document type with a category.
 type ArchiveType struct {
 	ID         int64   `json:"id"`
 	Title      string  `json:"title"`
 	CategoryID *int64  `json:"categoryId"`
 }
 
-// ListArchiveDocuments پورت صفحهٔ admin/archive.
+// ListArchiveDocuments ports the admin/archive page.
 func (s *Service) ListArchiveDocuments(ctx context.Context, user *session.User, uniCookie string) (*ArchiveListResponse, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	resp := &ArchiveListResponse{Rows: []ArchiveDoc{}, Categories: []OptionItem{}, Types: []ArchiveType{}}
@@ -102,7 +102,7 @@ func (s *Service) ListArchiveDocuments(ctx context.Context, user *session.User, 
 	return resp, nil
 }
 
-// VerifyArchiveDoc تأیید/رد مدرک + ممیزی زنجیره‌هش.
+// VerifyArchiveDoc approves/rejects a document + hash-chain audit.
 func (s *Service) VerifyArchiveDoc(ctx context.Context, user *session.User, uniCookie string, docID int64, decision, reason string) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil {
@@ -146,7 +146,7 @@ func truncateRunes(v string, n int) string {
 	return string(r[:n])
 }
 
-// ArchiveUploadInput ورودی بارگذاری سند.
+// ArchiveUploadInput is the document upload input.
 type ArchiveUploadInput struct {
 	FileName      string
 	ClaimedType   string
@@ -156,7 +156,7 @@ type ArchiveUploadInput struct {
 	TypeID        *int64
 }
 
-// UploadArchiveDocument پورت api/admin/archive/upload — فقط URL و هش در DB.
+// UploadArchiveDocument ports api/admin/archive/upload — only URL and hash in DB.
 func (s *Service) UploadArchiveDocument(ctx context.Context, user *session.User, uniCookie string, store *archive.Store, in ArchiveUploadInput) (int64, error) {
 	privileged := false
 	for _, r := range user.Roles {
@@ -216,7 +216,7 @@ func (s *Service) UploadArchiveDocument(ctx context.Context, user *session.User,
 	return id, nil
 }
 
-// ArchiveDocForDownload اطلاعات لازم برای سرو فایل.
+// ArchiveDocForDownload holds the information needed to serve the file.
 type ArchiveDocForDownload struct {
 	ID           int64
 	FileName     string
@@ -226,7 +226,7 @@ type ArchiveDocForDownload struct {
 	UniversityID *int64
 }
 
-// GetArchiveDocForDownload بررسی دسترسی و برگرداندن شیء.
+// GetArchiveDocForDownload checks access and returns the object.
 func (s *Service) GetArchiveDocForDownload(ctx context.Context, user *session.User, uniCookie string, docID int64) (*ArchiveDocForDownload, error) {
 	var d ArchiveDocForDownload
 	var mime, key *string
@@ -252,7 +252,7 @@ func (s *Service) GetArchiveDocForDownload(ctx context.Context, user *session.Us
 			return nil, errors.New("دانشگاه فعال نامشخص است")
 		}
 		if d.UniversityID == nil {
-			// سند بدون دانشگاه: فقط حساب پلتفرمی (نقش ADMIN با دسترسی سراسری)
+			// Document without a university: platform account only (ADMIN role with global access)
 			allowed := false
 			for _, r := range user.Roles {
 				if r == "ADMIN" {

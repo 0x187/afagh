@@ -1,4 +1,4 @@
-// ═══ عملیات برنامهٔ درسی — نسخه‌ها، چرخهٔ حیات، دروس، قواعد ═══
+// ═══ Curriculum operations — versions, lifecycle, courses, rules ═══
 package admin
 
 import (
@@ -40,9 +40,9 @@ func (s *Service) curriculumAudit(ctx context.Context, userID int64, action stri
 		values ($1,$2,'curriculum',$3,$4,$5,$6)`, userID, action, entityID, raw, prev, hash)
 }
 
-// ── خواندن ──
+// ── Reading ──
 
-// GetCurriculumOverview فهرست رشته‌ها/نسخه‌ها/گرایش‌ها (پورت read.ts).
+// GetCurriculumOverview lists majors/versions/tracks (read.ts port).
 func (s *Service) GetCurriculumOverview(ctx context.Context, user *session.User, cookie string) (*CurriculumOverview, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	out := &CurriculumOverview{Majors: []map[string]any{}, Versions: []CurriculumVersionRow{}, Tracks: []map[string]any{}}
@@ -119,7 +119,7 @@ func (s *Service) GetCurriculumOverview(ctx context.Context, user *session.User,
 	return out, nil
 }
 
-// GetCurriculumDetail جزئیات کامل نسخه + چک‌ها (پورت read.ts/version detail).
+// GetCurriculumDetail full version details + checks (read.ts/version detail port).
 func (s *Service) GetCurriculumDetail(ctx context.Context, versionID int64) (*CurriculumVersionDetail, error) {
 	v, err := s.curriculumVersion(ctx, versionID)
 	if err != nil {
@@ -174,7 +174,7 @@ func (s *Service) GetCurriculumDetail(ctx context.Context, versionID int64) (*Cu
 	return detail, nil
 }
 
-// curriculumChecks ساخت ورودی اعتبارسنج و اجرای چک‌ها.
+// curriculumChecks builds validator input and runs the checks.
 func (s *Service) curriculumChecks(ctx context.Context, versionID int64, v map[string]any, courses []CurriculumCourseRow, rules []CurriculumRuleRow) ([]CurriculumCheckResult, error) {
 	degID := v["degreeLevelId"].(int64)
 	var degCode *string
@@ -220,7 +220,7 @@ func (s *Service) curriculumChecks(ctx context.Context, versionID int64, v map[s
 	return ValidateCurriculumCore(in), nil
 }
 
-// RunCurriculumChecks اعتبارسنجی بدون تغییر وضعیت.
+// RunCurriculumChecks validation without changing state.
 func (s *Service) RunCurriculumChecks(ctx context.Context, versionID int64) ([]CurriculumCheckResult, bool, error) {
 	v, err := s.curriculumVersion(ctx, versionID)
 	if err != nil {
@@ -245,7 +245,7 @@ func (s *Service) RunCurriculumChecks(ctx context.Context, versionID int64) ([]C
 	return checks, blocked, err
 }
 
-// ── نسخه‌ها ──
+// ── Versions ──
 
 type CurriculumCreateInput struct {
 	MajorID            int64    `json:"majorId"`
@@ -303,7 +303,7 @@ func (s *Service) CreateCurriculumVersion(ctx context.Context, user *session.Use
 		return 0, "", err
 	}
 	defer tx.Rollback(ctx)
-	// برخی نصب‌ها ردیف‌ها را با id صریح وارد کرده‌اند؛ ترتیب را همیشه ترمیم کن.
+	// Some installations inserted rows with explicit ids; always repair the order.
 	_, _ = tx.Exec(ctx, `select setval('syllabuses_id_seq',
 		GREATEST((select coalesce(max(id),0) from curriculum_versions),
 		         (select last_value from syllabuses_id_seq)), true)`)
@@ -492,7 +492,7 @@ func (s *Service) CreateCurriculumRevision(ctx context.Context, user *session.Us
 	return createdID, fmt.Sprintf("نسخهٔ %s (DRAFT) از روی %s ساخته شد.", newCode, oldCode), nil
 }
 
-// ── چرخهٔ حیات ──
+// ── Lifecycle ──
 
 func (s *Service) transitionCurriculum(ctx context.Context, user *session.User, versionID int64, to, approvalType, action, note string) (string, error) {
 	v, err := s.curriculumVersion(ctx, versionID)
@@ -539,7 +539,7 @@ func (s *Service) transitionCurriculum(ctx context.Context, user *session.User, 
 	return "وضعیت نسخه به " + to + " تغییر کرد.", nil
 }
 
-// TransitionCurriculum گذارهای ساده (approve/reject/archive) — publish جداگانه است.
+// TransitionCurriculum simple transitions (approve/reject/archive) — publish is separate.
 func (s *Service) TransitionCurriculum(ctx context.Context, user *session.User, versionID int64, to, approvalType, action, note string) (string, error) {
 	return s.transitionCurriculum(ctx, user, versionID, to, approvalType, action, note)
 }
@@ -651,7 +651,7 @@ func (s *Service) PublishCurriculum(ctx context.Context, user *session.User, ver
 	return superseded, msg, nil
 }
 
-// ── دروس نسخه ──
+// ── Version courses ──
 
 type CurriculumAddCourse struct {
 	CourseID               int64    `json:"courseId"`
@@ -1018,7 +1018,7 @@ func (s *Service) MarkGradRequiredBulk(ctx context.Context, user *session.User, 
 	return updated, len(list), fmt.Sprintf("شرط فارغ‌التحصیلی برای %d درس از %d درس الزامی علامت خورد.", updated, len(list)), nil
 }
 
-// roleFromBankType پورت lib/bank-roles (تنها منبع نگاشت).
+// roleFromBankType lib/bank-roles port (single source of the mapping).
 func roleFromBankType(courseType *string) string {
 	t := ""
 	if courseType != nil {
@@ -1037,7 +1037,7 @@ func roleFromBankType(courseType *string) string {
 	return "CORE"
 }
 
-// ── قواعد ──
+// ── Rules ──
 
 func (s *Service) setCurriculumRule(ctx context.Context, user *session.User, versionID, courseID int64, ruleType string, treeInput map[string]any) (string, error) {
 	v, err := s.curriculumVersion(ctx, versionID)
@@ -1125,7 +1125,7 @@ func (s *Service) SetCurriculumCourseGradeCodes(ctx context.Context, user *sessi
 	return err
 }
 
-// ── بانک دروس (نسخهٔ سبک مخصوص کاتالوگ) ──
+// ── Course bank (lightweight version dedicated to the catalog) ──
 
 type CurriculumBankInput struct {
 	Code             string  `json:"code"`

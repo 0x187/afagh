@@ -1,4 +1,4 @@
-// ═══ ادغام دروس (گروه‌بندی برنامهٔ هفتگی) — پورت api/admin/offering-merge ═══
+// ═══ Course merge (weekly schedule grouping) — port api/admin/offering-merge ═══
 package admin
 
 import (
@@ -12,7 +12,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// MergeMember عضو یک گروه ادغام.
+// MergeMember is a member of a merge group.
 type MergeMember struct {
 	OfferingID    int64   `json:"offeringId"`
 	CourseCode    string  `json:"courseCode"`
@@ -24,7 +24,7 @@ type MergeMember struct {
 	Slots         string  `json:"slots"`
 }
 
-// MergeGroup گروه ادغام.
+// MergeGroup is a merge group.
 type MergeGroup struct {
 	Key           *string       `json:"key"`
 	Merged        bool          `json:"merged"`
@@ -73,7 +73,7 @@ type mergeSlot struct {
 	End   string
 }
 
-// CourseMergeGroups فهرست گروه‌های ادغام یک ترم.
+// CourseMergeGroups is the list of merge groups for a term.
 func (s *Service) CourseMergeGroups(ctx context.Context, user *session.User, cookie string, termID int64) ([]MergeGroup, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -204,7 +204,7 @@ func (s *Service) CourseMergeGroups(ctx context.Context, user *session.User, coo
 	return out, nil
 }
 
-// UpdateCourseMerge ادغام/جداکردن/بازگشت به خودکار.
+// UpdateCourseMerge merges/separates/reverts to automatic.
 func (s *Service) UpdateCourseMerge(ctx context.Context, user *session.User, cookie string, offeringIDs []int64, mode string) error {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
