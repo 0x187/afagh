@@ -1,4 +1,4 @@
-// ═══ کارت دانشجویی — صدور، تمدید، ابطال و چاپ ═══
+// ═══ Student card — issuance, renewal, revocation and printing ═══
 package admin
 
 import (
@@ -17,7 +17,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// StudentCardStats آمار کارت‌ها.
+// StudentCardStats card statistics.
 type StudentCardStats struct {
 	Total   int `json:"total"`
 	Issued  int `json:"issued"`
@@ -25,7 +25,7 @@ type StudentCardStats struct {
 	Expired int `json:"expired"`
 }
 
-// StudentCardInfo کارت یک دانشجو.
+// StudentCardInfo a student's card.
 type StudentCardInfo struct {
 	ID          int64   `json:"id"`
 	Token       string  `json:"token"`
@@ -36,7 +36,7 @@ type StudentCardInfo struct {
 	Expired     bool    `json:"expired"`
 }
 
-// StudentCardRow ردیف فهرست کارت‌ها.
+// StudentCardRow card list row.
 type StudentCardRow struct {
 	StudentID    int64            `json:"studentId"`
 	StudentCode  string           `json:"studentCode"`
@@ -50,7 +50,7 @@ type StudentCardRow struct {
 	Debt         float64          `json:"debt"`
 }
 
-// StudentCardsResponse پاسخ فهرست.
+// StudentCardsResponse list response.
 type StudentCardsResponse struct {
 	Rows       []StudentCardRow `json:"rows"`
 	Total      int              `json:"total"`
@@ -79,7 +79,7 @@ func (s *Service) settingNumber(ctx context.Context, key string, fallback float6
 	return v
 }
 
-// ListStudentCards پورت صفحهٔ admin/student-cards (با تجمیع یک‌بارهٔ دفتر مالی).
+// ListStudentCards port of the admin/student-cards page (with a one-time financial-office aggregation).
 func (s *Service) ListStudentCards(ctx context.Context, user *session.User, cookie, q string, page int) (*StudentCardsResponse, error) {
 	resp := &StudentCardsResponse{
 		Rows: []StudentCardRow{}, Page: 1, PerPage: cardPerPage,
@@ -175,7 +175,7 @@ func (s *Service) ListStudentCards(ctx context.Context, user *session.User, cook
 	resp.Page = page
 	resp.TotalPages = totalPages
 
-	// آمار کلی (مستقل از صفحه/جست‌وجو — همان رفتار TS)
+	// Overall statistics (independent of page/search — same TS behavior)
 	_ = s.DB.Pool.QueryRow(ctx, `select count(*)::int from students`).Scan(&resp.Stats.Total)
 	_ = s.DB.Pool.QueryRow(ctx, `select count(*)::int from student_cards`).Scan(&resp.Stats.Issued)
 	_ = s.DB.Pool.QueryRow(ctx, `
@@ -189,7 +189,7 @@ func (s *Service) ListStudentCards(ctx context.Context, user *session.User, cook
 	return resp, nil
 }
 
-// IssueCardResult نتیجهٔ صدور.
+// IssueCardResult issuance result.
 type IssueCardResult struct {
 	Token   string `json:"token"`
 	Renewed bool   `json:"renewed"`
@@ -203,7 +203,7 @@ func randomHex(n int) string {
 	return hex.EncodeToString(b)
 }
 
-// IssueStudentCard پورت issueStudentCard (توکن ۴۸ کاراکتری/QRFID).
+// IssueStudentCard port of issueStudentCard (48-character token/QRFID).
 func (s *Service) IssueStudentCard(ctx context.Context, user *session.User, cookie string, studentID int64, force bool) (*IssueCardResult, error) {
 	if err := s.studentInUniversity(ctx, user, cookie, studentID); err != nil {
 		return nil, err
@@ -249,7 +249,7 @@ func (s *Service) IssueStudentCard(ctx context.Context, user *session.User, cook
 	return &IssueCardResult{Token: newToken, Renewed: false}, nil
 }
 
-// RevokeStudentCard ابطال/مفقودی کارت.
+// RevokeStudentCard revoke/lost card.
 func (s *Service) RevokeStudentCard(ctx context.Context, user *session.User, cookie string, studentID int64, status string) error {
 	if status != "REVOKED" && status != "LOST" {
 		return errors.New("وضعیت نامعتبر است.")
@@ -276,7 +276,7 @@ func (s *Service) studentInUniversity(ctx context.Context, user *session.User, c
 	return nil
 }
 
-// StudentCardPrint دادهٔ صفحهٔ چاپ کارت.
+// StudentCardPrint card print page data.
 type StudentCardPrint struct {
 	StudentID    int64   `json:"studentId"`
 	UserID       int64   `json:"userId"`
@@ -297,7 +297,7 @@ type StudentCardPrint struct {
 	QRSVG        string  `json:"qrSvg"`
 }
 
-// StudentCardPrintData پورت صفحهٔ چاپ کارت با QR گیت حراست.
+// StudentCardPrintData port of the card print page with the security-gate QR.
 func (s *Service) StudentCardPrintData(ctx context.Context, studentID int64) (*StudentCardPrint, error) {
 	var out StudentCardPrint
 	var expires *time.Time

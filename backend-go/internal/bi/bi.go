@@ -1,8 +1,8 @@
-// ═══ موتور هوش تجاری ارزشیابی (BI) — پورت lib/bi-engine.ts ═══
+// ═══ Evaluation business intelligence (BI) engine — port of lib/bi-engine.ts ═══
 //
-// فقط دو گزارش مدیریتی که مرکز گزارش‌ها لازم دارد: نمای کلی کیفیت تدریس و
-// تحلیل امکانات. همهٔ کوئری‌ها تجمیعی و بدون N+1 هستند و نتیجه در
-// analytics_snapshots کش می‌شود (همان کلیدها و همان TTL سامانهٔ فعلی).
+// Only the two management reports the reports center needs: teaching quality overview and
+// facilities analysis. All queries are aggregate and N+1-free, and results are
+// cached in analytics_snapshots (the same keys and the same TTL as the current system).
 package bi
 
 import (
@@ -16,23 +16,23 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Settings حداقل وابستگی تنظیمات.
+// Settings holds the minimal configuration dependencies.
 type Settings interface {
 	GetNumber(ctx context.Context, key string, fallback float64) float64
 }
 
-// Service موتور BI.
+// Service is the BI engine.
 type Service struct {
 	Pool     *pgxpool.Pool
 	Settings Settings
 }
 
-// New ساخت موتور.
+// New constructs the engine.
 func New(pool *pgxpool.Pool, settings Settings) *Service {
 	return &Service{Pool: pool, Settings: settings}
 }
 
-// TrendPoint یک نقطهٔ روند.
+// TrendPoint is a trend point.
 type TrendPoint struct {
 	Period string   `json:"period"`
 	Term   string   `json:"term"`
@@ -40,7 +40,7 @@ type TrendPoint struct {
 	Score  *float64 `json:"score"`
 }
 
-// ManagementRow سطر ماتریس مدیریتی.
+// ManagementRow is a row of the management matrix.
 type ManagementRow struct {
 	StaffID     int64        `json:"staffId"`
 	Name        string       `json:"name"`
@@ -55,7 +55,7 @@ type ManagementRow struct {
 	Trend       []TrendPoint `json:"trend"`
 }
 
-// ManagementOverview نمای کلی مدیریتی.
+// ManagementOverview is the management overview.
 type ManagementOverview struct {
 	Term             string          `json:"term"`
 	Period           *string         `json:"period"`
@@ -68,14 +68,14 @@ type ManagementOverview struct {
 	CacheAgeSeconds  *int            `json:"cacheAgeSeconds"`
 }
 
-// FacilityAxis یک محور امکانات.
+// FacilityAxis is a facilities axis.
 type FacilityAxis struct {
 	Label     string  `json:"label"`
 	Score     float64 `json:"score"`
 	Responses int     `json:"responses"`
 }
 
-// FacilityRow یک کلاس در گزارش امکانات.
+// FacilityRow is a class in the facilities report.
 type FacilityRow struct {
 	RoomID      int64          `json:"roomId"`
 	Room        string         `json:"room"`
@@ -89,7 +89,7 @@ type FacilityRow struct {
 	Responses   int            `json:"responses"`
 }
 
-// FacilitiesReport گزارش امکانات.
+// FacilitiesReport is the facilities report.
 type FacilitiesReport struct {
 	Term             string        `json:"term"`
 	Period           *string       `json:"period"`
@@ -160,7 +160,7 @@ func round2(v *float64) *float64 {
 	return &r
 }
 
-// ─────────────────── کش ───────────────────
+// ─────────────────── cache ───────────────────
 
 func (s *Service) cacheTTL(ctx context.Context) float64 {
 	if s.Settings == nil {
@@ -207,7 +207,7 @@ func (s *Service) writeCache(ctx context.Context, key, reportType string, payloa
 		key, reportType, string(raw), rowCount, expires)
 }
 
-// ─────────────────── نمرهٔ وزنی همهٔ اساتید ───────────────────
+// ─────────────────── weighted score of all professors ───────────────────
 
 type staffPeriodScore struct {
 	StaffID     int64
@@ -339,12 +339,12 @@ func (s *Service) teachingStaff(ctx context.Context, termID int64) []teachingSta
 	return out
 }
 
-// ManagementOverview پورت managementOverview — بدترین رکورد اول (با کش).
+// ManagementOverview ports managementOverview — worst record first (with cache).
 func (s *Service) ManagementOverview(ctx context.Context) *ManagementOverview {
 	return s.managementOverview(ctx, false)
 }
 
-// ManagementOverviewForce محاسبهٔ دوباره بدون خواندن کش.
+// ManagementOverviewForce recomputes without reading the cache.
 func (s *Service) ManagementOverviewForce(ctx context.Context) *ManagementOverview {
 	return s.managementOverview(ctx, true)
 }
@@ -463,12 +463,12 @@ func (s *Service) managementOverview(ctx context.Context, force bool) *Managemen
 	return report
 }
 
-// FacilitiesReport پورت facilitiesReport (با کش).
+// FacilitiesReport ports facilitiesReport (with cache).
 func (s *Service) FacilitiesReport(ctx context.Context) *FacilitiesReport {
 	return s.facilitiesReport(ctx, false)
 }
 
-// FacilitiesReportForce محاسبهٔ دوباره بدون خواندن کش.
+// FacilitiesReportForce recomputes without reading the cache.
 func (s *Service) FacilitiesReportForce(ctx context.Context) *FacilitiesReport {
 	return s.facilitiesReport(ctx, true)
 }

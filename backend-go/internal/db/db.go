@@ -1,15 +1,15 @@
-// ═══ لایهٔ دسترسی دیتابیس — پورت وفادار از afagh-next/src/db/index.ts ═══
+// ═══ Database access layer — faithful port from afagh-next/src/db/index.ts ═══
 //
-// دو استخر اتصال:
-//   - Pool (مالک اسکیما، نقش afagh، max 20)   → همهٔ کوئری‌های مدیریتی/موتورها
-//   - AppPool (نقش محدود afagh_app، max 10)   → فقط خواندن/نوشتن دانشکیت با RLS
+// Two connection pools:
+//   - Pool (schema owner, role afagh, max 20)   → all management/engine queries
+//   - AppPool (restricted role afagh_app, max 10)   → only knowledge-kit reads/writes with RLS
 //
-// withUserRls همان الگوی تراکنش-به-درخواست Next را دارد:
+// withUserRls follows the same transaction-per-request pattern as Next:
 //
 //	BEGIN; set_config('app.user_id', $uid, true); ... ; COMMIT
 //
-// set_config فقط در همان تراکنش زنده است؛ با INVALID کردن RLS زیرساخت،
-// در production هرگز به استخر مالک برنمی‌گردیم (FAIL-CLOSED — بازبینی بند ۶).
+// set_config lives only in that transaction; by INVALIDATING the RLS infrastructure,
+// in production we never fall back to the owner pool (FAIL-CLOSED — review clause 6).
 package db
 
 import (
@@ -26,13 +26,13 @@ import (
 )
 
 type DB struct {
-	Pool    *pgxpool.Pool // مالک
-	AppPool *pgxpool.Pool // محدود (RLS) — ممکن است nil باشد اگر DATABASE_URL_APP ست نباشد
+	Pool    *pgxpool.Pool // owner
+	AppPool *pgxpool.Pool // restricted (RLS) — may be nil if DATABASE_URL_APP is not set
 	log     *logger.Logger
 }
 
-// Connect دو استخر را می‌سازد. استخر مالک اجباری است؛ استخر RLS اختیاری
-// (در production فقط هشدار — مصرف‌کننده‌های RLS خودشان fail-closed می‌دهند).
+// Connect creates both pools. The owner pool is mandatory; the RLS pool is optional
+// (in production only a warning — RLS consumers fail closed themselves).
 func Connect(ctx context.Context, databaseURL, databaseURLApp string) (*DB, error) {
 	log := logger.For("db")
 	cfg, err := pgxpool.ParseConfig(databaseURL)
@@ -70,7 +70,7 @@ func Connect(ctx context.Context, databaseURL, databaseURLApp string) (*DB, erro
 	return d, nil
 }
 
-// Close هر دو استخر را می‌بندد.
+// Close closes both pools.
 func (d *DB) Close() {
 	if d.AppPool != nil {
 		d.AppPool.Close()
@@ -78,8 +78,8 @@ func (d *DB) Close() {
 	d.Pool.Close()
 }
 
-// errRLSInfra تشخیص «مشکل زیرساخت RLS» — همان سیاههٔ خطاها در withUserRls.ts:
-// رمز/مجوز/جدول ناموجود/دیتابیس ناموجود/تراکنش فقط-خواندنی/اشاره به afagh_app.
+// errRLSInfra detects an "RLS infrastructure problem" — the same error catalog as in withUserRls.ts:
+// password/permission/missing table/missing database/read-only transaction/reference to afagh_app.
 func errRLSInfra(err error) bool {
 	if err == nil {
 		return false
@@ -103,18 +103,18 @@ func errRLSInfra(err error) bool {
 		strings.Contains(msg, "connection")
 }
 
-// WithUserRls اجرای fn داخل تراکنش با زمینهٔ RLS کاربر — پورت مستقیم withUserRls.
+// WithUserRls runs fn inside a transaction with the user's RLS context — direct port of withUserRls.
 //
-// FAIL-CLOSED در production: اگر زیرساخت RLS (نقش afagh_app، grantها، پچ‌های RLS)
-// از دست برود، هرگز به اتصال مالک (BYPASSRLS) برنمی‌گردیم؛ پیام امنِ فارسی برمی‌گردد.
-// فقط در توسعه fallback به استخر مالک با هشدار بلند مجاز است (دباگ بدون afagh_app محلی).
+// FAIL-CLOSED in production: if the RLS infrastructure (afagh_app role, grants, RLS patches)
+// is lost, we never fall back to the owner connection (BYPASSRLS); a safe Persian message is returned.
+// Only in development is falling back to the owner pool with a loud warning allowed (debugging without a local afagh_app).
 func (d *DB) WithUserRls(ctx context.Context, userID int64, isProduction bool, fn func(tx pgx.Tx) error) error {
 	run := func(pool *pgxpool.Pool) error {
 		tx, err := pool.Begin(ctx)
 		if err != nil {
 			return err
 		}
-		defer tx.Rollback(ctx) //nolint:errcheck // rollback پس از commit فقط no-op است
+		defer tx.Rollback(ctx) //nolint:errcheck // rollback after commit is a no-op
 		if _, err := tx.Exec(ctx, `select set_config('app.user_id', $1, true)`, fmt.Sprintf("%d", userID)); err != nil {
 			return err
 		}
@@ -136,7 +136,7 @@ func (d *DB) WithUserRls(ctx context.Context, userID int64, isProduction bool, f
 		d.log.Warn("rls_dev_fallback_enabled", nil)
 	}
 	if d.AppPool == nil && isProduction {
-		// استخر RLS اصلاً ساخته نشده — در production هیچ مسیر جایگزینی وجود ندارد.
+		// The RLS pool was not created at all — in production there is no fallback path.
 		d.log.Error("rls_infra_lost", logger.Fields{"reason": "DATABASE_URL_APP تنظیم نشده است"})
 		return errors.New("خطای امنیتی زیرساخت (RLS). با مدیر سامانه تماس بگیرید.")
 	}

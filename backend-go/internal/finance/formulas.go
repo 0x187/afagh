@@ -1,4 +1,4 @@
-// ═══ فرمول تخصیص و توزیع سهمیه — پورت formulas.ts ═══
+// ═══ Allocation formula and quota distribution — port of formulas.ts ═══
 package finance
 
 import (
@@ -8,7 +8,7 @@ import (
 	"backend-go/internal/tuition"
 )
 
-// FormulaLike فرمول تخصیص.
+// FormulaLike allocation formula.
 type FormulaLike struct {
 	ID               int64
 	Code             *string
@@ -25,14 +25,14 @@ type FormulaLike struct {
 	IsActive         *int
 }
 
-// FormulaContext بافت دانشجو.
+// FormulaContext student context.
 type FormulaContext struct {
 	DegreeLevelID *int64
 	MajorID       *int64
 	EntryYear     *int
 }
 
-// FormulaMatches پورت formulaMatches — فیلد تهی = بدون محدودیت.
+// FormulaMatches port of formulaMatches — empty field = no restriction.
 func FormulaMatches(f FormulaLike, ctx FormulaContext) bool {
 	if f.IsActive == nil || *f.IsActive == 0 {
 		return false
@@ -63,7 +63,7 @@ func eqI64(a, b *int64) bool {
 	return *a == *b
 }
 
-// PickFormula پورت pickFormula — انتخاب با resolver شهریه و برگرداندن ردیف اصلی.
+// PickFormula port of pickFormula — select via the tuition resolver and return the original row.
 func PickFormula(formulas []FormulaLike, ctx FormulaContext) *FormulaLike {
 	canonical := make([]tuition.RuleLike, 0, len(formulas))
 	for _, f := range formulas {
@@ -96,14 +96,14 @@ func PickFormula(formulas []FormulaLike, ctx FormulaContext) *FormulaLike {
 	return nil
 }
 
-// UnitBuckets سطل‌های واحد.
+// UnitBuckets unit buckets.
 type UnitBuckets struct {
 	Theory    float64
 	Practical float64
 	General   float64
 }
 
-// NormalizeBankType پورت normalizeBankType: حروف عربی/فاصله/نیم‌فاصله حذف + بزرگ.
+// NormalizeBankType port of normalizeBankType: strip Arabic letters/spaces/ZWNJ + uppercase.
 func NormalizeBankType(t string) string {
 	rep := map[rune]rune{'ي': 'ی', 'ك': 'ک', 'ة': 'ه'}
 	out := []rune{}
@@ -122,7 +122,7 @@ func NormalizeBankType(t string) string {
 	return string(out)
 }
 
-// BucketCourseUnits پورت bucketCourseUnits.
+// BucketCourseUnits port of bucketCourseUnits.
 func BucketCourseUnits(units, theoreticalUnits, practicalUnits any, courseType *string) UnitBuckets {
 	u := ToNum(units)
 	typ := ""
@@ -139,7 +139,7 @@ func BucketCourseUnits(units, theoreticalUnits, practicalUnits any, courseType *
 	return UnitBuckets{Theory: theory + leftover, Practical: practical, General: 0}
 }
 
-// TotalBuckets جمع سطل‌های چند درس.
+// TotalBuckets sum of buckets across several courses.
 func TotalBuckets(courses []UnitBuckets) UnitBuckets {
 	var t UnitBuckets
 	for _, c := range courses {
@@ -150,8 +150,8 @@ func TotalBuckets(courses []UnitBuckets) UnitBuckets {
 	return t
 }
 
-// AllocateWeightedShares پورت allocateWeightedShares: توزیع مبلغ کل به تناسب
-// وزن با «باقی‌ماندهٔ بزرگ‌تر» تا هیچ ریالی گم/اضافه نشود.
+// AllocateWeightedShares port of allocateWeightedShares: distribute the total amount proportionally
+// by weight with «باقی‌ماندهٔ بزرگ‌تر» so no rial is lost or added.
 func AllocateWeightedShares(weights []float64, target float64) []float64 {
 	n := len(weights)
 	if n == 0 {
@@ -172,7 +172,7 @@ func AllocateWeightedShares(weights []float64, target float64) []float64 {
 	for _, w := range clean {
 		sum += w
 	}
-	// وزن‌های صفر → تقسیم مساوی (باقی‌مانده به ترتیب سطرها)
+	// zero weights → equal split (remainder in row order)
 	if sum <= 0 {
 		base := math.Floor(total / float64(n))
 		out := make([]float64, n)
@@ -218,7 +218,7 @@ func AllocateWeightedShares(weights []float64, target float64) []float64 {
 		out[idx]++
 		remainder--
 	}
-	// بازماندهٔ نظری (خطای ممیز شناور) — به ترتیب سطرها
+	// theoretical remainder (floating-point error) — in row order
 	for i := 0; remainder > 0; i = (i + 1) % n {
 		out[i]++
 		remainder--
@@ -226,7 +226,7 @@ func AllocateWeightedShares(weights []float64, target float64) []float64 {
 	return out
 }
 
-// FormulaRates فیلدهای نرخ فرمول.
+// FormulaRates formula rate fields.
 type FormulaRates struct {
 	FixedAmount      any
 	PerUnitTheory    any
@@ -234,14 +234,14 @@ type FormulaRates struct {
 	PerUnitGeneral   any
 }
 
-// TuitionFromFormula پورت tuitionFromFormula.
+// TuitionFromFormula port of tuitionFromFormula.
 type TuitionBreakdown struct {
 	Fixed    float64
 	Variable float64
 	Total    float64
 }
 
-// TuitionFromFormula محاسبهٔ شهریهٔ ناخالص از فرمول و سطل‌های واحد.
+// TuitionFromFormula computes gross tuition from the formula and unit buckets.
 func TuitionFromFormula(f FormulaRates, buckets UnitBuckets) TuitionBreakdown {
 	fixed := ToRial(ToNum(f.FixedAmount))
 	variable := ToRial(

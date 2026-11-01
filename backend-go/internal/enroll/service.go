@@ -1,4 +1,4 @@
-// ═══ سرویس انتخاب واحد — وابستگی‌ها و ابزارهای مشترک ═══
+// ═══ Enrollment service — dependencies and shared helpers ═══
 package enroll
 
 import (
@@ -12,17 +12,17 @@ import (
 	"backend-go/internal/scope"
 )
 
-// Pool نام کوتاه برای استخر اتصال.
+// Pool short name for the connection pool.
 type Pool = pgxpool.Pool
 
-// Settings حداقل تنظیمات لازم.
+// Settings minimum required settings.
 type Settings interface {
 	Get(ctx context.Context, key string) (string, error)
 	GetNumber(ctx context.Context, key string, fallback float64) float64
 	GetBool(ctx context.Context, key string) bool
 }
 
-// Service موتور انتخاب واحد.
+// Service enrollment engine.
 type Service struct {
 	DB         *db.DB
 	WR         *WaitingRoom
@@ -36,14 +36,14 @@ func NewService(database *db.DB, rdb *redis.Client, settings Settings, scopeSvc 
 	return &Service{DB: database, WR: wr, Settings: settings, Scope: scopeSvc, Production: production}
 }
 
-// StartWorker کارگر صف را در پروسه فعال می‌کند (اگر Redis در دسترس باشد).
+// StartWorker starts the queue worker in-process (if Redis is available).
 func (s *Service) StartWorker() {
 	s.WR.EnsureWorker(func(ctx context.Context, uid, sid int64, risk bool) any {
 		return s.ProcessQueuedSubmit(ctx, uid, sid, risk)
 	})
 }
 
-// ledgerBalance تراز کانونی دفتر دانشجو.
+// ledgerBalance canonical student ledger balance.
 func (s *Service) ledgerBalance(ctx context.Context, studentID int64) float64 {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select "transactionType", amount::float8 from student_ledger where "studentId" = $1`, studentID)
@@ -61,7 +61,7 @@ func (s *Service) ledgerBalance(ctx context.Context, studentID int64) float64 {
 	return finance.LedgerBalance(list)
 }
 
-// LiveCapacities نمای زندهٔ ظرفیت از Redis.
+// LiveCapacities live capacity view from Redis.
 func (s *Service) LiveCapacities(ctx context.Context, ids []int64) map[int64]CapacityInfo {
 	return s.WR.PeekCapacities(ctx, ids)
 }

@@ -1,15 +1,15 @@
-// ═══ گزارش سالانهٔ «سهام» (IRPHE — saham.irphe.ac.ir) ═══
+// ═══ Annual «سهام» report (IRPHE — saham.irphe.ac.ir) ═══
 //
-//	پورت admin/saham + lib/saham/*:
-//	  • آمار دانشگاه‌ها و درصد پر بودن ستون‌های تازهٔ سهام (page.tsx)
-//	  • لوک‌آپ‌های فیلتر (وضعیت/رشته/دانشکده/ترم/سال ورود)
-//	  • خروجی رسمی CSV با همان ستون‌های فایل‌های 1-Student / 2-Graduate /
-//	    3-TeachingStaff و شیت نظام وظیفه — mapping عیناً از student-rows.ts و
-//	    graduate-rows.ts و instructor-rows.ts و فهرست‌های بستهٔ codes.ts
-//	  • تنظیمات کد مؤسسه (CRUD saham_institute_codes — settings/actions.ts)
+//	Port of admin/saham + lib/saham/*:
+//	  • University statistics and fill rate of the new Saham columns (page.tsx)
+//	  • Filter lookups (status/field/faculty/term/entry year)
+//	  • Official CSV export with the same columns as the 1-Student / 2-Graduate /
+//	    3-TeachingStaff files and the military service sheet — mapping copied verbatim from student-rows.ts and
+//	    graduate-rows.ts and instructor-rows.ts and the closed lists in codes.ts
+//	  • Institute code settings (CRUD of saham_institute_codes — settings/actions.ts)
 //
-//	انحراف آگاهانه: خروجی اکسل Next با CSV UTF-8 (BOM) جایگزین شده — بکند Go
-//	کتابخانهٔ xlsx ندارد و «ستون‌های متنی» سهام در CSV هم حفظ می‌شوند.
+//	Deliberate deviation: the Next Excel export is replaced with CSV UTF-8 (BOM) — the Go backend
+//	has no xlsx library and Saham's «ستون‌های متنی» are preserved in CSV as well.
 package admin
 
 import (
@@ -25,7 +25,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// ═══════════════ فهرست‌های بستهٔ رسمی سهام (پورت codes.ts) ═══════════════
+// ═══════════════ Official Saham closed lists (port of codes.ts) ═══════════════
 
 var sahamClosedLists = map[string][]string{
 	"teaching_mode":    {"حضوری", "نیمه حضوری", "غیر حضوری"},
@@ -46,18 +46,18 @@ var sahamClosedLists = map[string][]string{
 	"service_type":     {"شاغل تمام وقت", "شاغلين غير تمام وقت", "اشتغال به كار", "مرخصي با حقوق", "مرخصي بدون حقوق", "مأمور از ساير دانشگاه ها", "مأمور به ساير دانشگاه ها", "مأموريت تحصيلي تمام وقت", "مأموريت تحصيلي نيمه وقت", "آماده به خدمت", "پايان مأموريت", "انتقال"},
 }
 
-// sahamStatusCode کد وضعیت کلی دانشجو (پورت C_student_status_code).
+// sahamStatusCode student overall status code (port of C_student_status_code).
 var sahamStatusCode = map[string]string{
 	"ACTIVE": "1", "EXPELLED": "2", "WITHDRAWN": "3", "TRANSFERRED": "3",
 	"GRADUATED": "4", "SUSPENDED": "5", "DECEASED": "6", "NO_SHOW": "7", "UNKNOWN": "8",
 }
 
-// sahamNormFa یکسان‌سازی ی/ک عربی و فارسی برای مقایسه (پورت normFa در codes.ts).
+// sahamNormFa normalizes Arabic and Persian yeh/kaf for comparison (port of normFa in codes.ts).
 func sahamNormFa(s string) string {
 	s = strings.NewReplacer(
 		"\u06CC", "\u064A", "\u0649", "\u064A", // ی ى → ي
 		"\u06A9", "\u0643", // ک → ك
-		"\u200C", "", // نیم‌فاصله
+		"\u200C", "", // ZWNJ (zero-width non-joiner)
 	).Replace(s)
 	return strings.Join(strings.Fields(s), " ")
 }
@@ -76,8 +76,8 @@ func sahamNormList(field string) map[string]string {
 	return m
 }
 
-// SahamMapClosed نگاشت امن ستون‌های فهرست‌بسته (پورت mapSahamClosed):
-// ۱) نگاشت داخلی saham_value_maps ۲) تطابق با املای رسمی ۳) ” (هرگز کد داخلی).
+// SahamMapClosed safe mapping of closed-list columns (port of mapSahamClosed):
+// 1) internal mapping via saham_value_maps 2) match with the official spelling 3) ” (never the internal code).
 func SahamMapClosed(maps map[string]map[string]string, field string, value any) string {
 	if value == nil {
 		return ""
@@ -109,7 +109,7 @@ func SahamMapClosed(maps map[string]map[string]string, field string, value any) 
 	return ""
 }
 
-// SahamMapValue نگاشت ساده؛ اگر نگاشتی نبود خودِ مقدار برمی‌گردد.
+// SahamMapValue simple mapping; if there is no mapping, the value itself is returned.
 func SahamMapValue(maps map[string]map[string]string, field string, value any) string {
 	if value == nil {
 		return ""
@@ -126,7 +126,7 @@ func SahamMapValue(maps map[string]map[string]string, field string, value any) s
 	return v
 }
 
-// SahamLoadValueMaps همهٔ نگاشت‌های فعال (پورت loadSahamValueMaps).
+// SahamLoadValueMaps all active mappings (port of loadSahamValueMaps).
 func (s *Service) SahamLoadValueMaps(ctx context.Context) map[string]map[string]string {
 	out := map[string]map[string]string{}
 	rows, err := s.DB.Pool.Query(ctx, `select "field", "sourceValue", "sahamTitle" from saham_value_maps where "isActive" = 1`)
@@ -146,7 +146,7 @@ func (s *Service) SahamLoadValueMaps(ctx context.Context) map[string]map[string]
 	return out
 }
 
-// SahamGeoTitles نام استان/شهر از جدول‌های geo (پورت loadGeoTitles).
+// SahamGeoTitles province/city names from the geo tables (port of loadGeoTitles).
 type SahamGeoTitles struct {
 	Province   map[string]string
 	City       map[string]string
@@ -188,7 +188,7 @@ func sahamCityTitle(geo *SahamGeoTitles, provinceCode, cityCode *string) string 
 	return geo.CityScoped[*provinceCode+":"+*cityCode]
 }
 
-// SahamInstituteCode سطر کد واحد سهام.
+// SahamInstituteCode Saham institute code row.
 type SahamInstituteCode struct {
 	UniversityID int64
 	FacultyID    *int64
@@ -199,7 +199,7 @@ type SahamInstituteCode struct {
 	IsDefault    int
 }
 
-// SahamLoadInstituteCodes کدهای فعال هر دانشگاه (پورت loadSahamInstituteCodes).
+// SahamLoadInstituteCodes active codes per university (port of loadSahamInstituteCodes).
 func (s *Service) SahamLoadInstituteCodes(ctx context.Context) map[int64][]SahamInstituteCode {
 	out := map[int64][]SahamInstituteCode{}
 	rows, err := s.DB.Pool.Query(ctx, `
@@ -218,7 +218,7 @@ func (s *Service) SahamLoadInstituteCodes(ctx context.Context) map[int64][]Saham
 	return out
 }
 
-// SahamPickCode انتخاب سطر کد سهام برای دانشگاه+دانشکده — فقط تطبیق دقیق.
+// SahamPickCode picks the Saham code row for university+faculty — exact match only.
 func SahamPickCode(byUni map[int64][]SahamInstituteCode, universityID int64, facultyID *int64) *SahamInstituteCode {
 	list, ok := byUni[universityID]
 	if !ok || len(list) == 0 || facultyID == nil {
@@ -232,7 +232,7 @@ func SahamPickCode(byUni map[int64][]SahamInstituteCode, universityID int64, fac
 	return nil
 }
 
-// SahamBirthYear سال تولد شمسی از تاریخ میلادی ISO (پورت sahamBirthYear).
+// SahamBirthYear Jalali birth year from an ISO Gregorian date (port of sahamBirthYear).
 func SahamBirthYear(iso *string) string {
 	if iso == nil || *iso == "" {
 		return ""
@@ -241,7 +241,7 @@ func SahamBirthYear(iso *string) string {
 	return jalaliYearPrefix(m)
 }
 
-// jalaliYearPrefix سال شمسی چهاررقمی از سال میلادی (تقریب کافی برای ستون «سال تولد»).
+// jalaliYearPrefix four-digit Jalali year from the Gregorian year (approximation sufficient for the «سال تولد» column).
 func jalaliYearPrefix(m []string) string {
 	if m == nil {
 		return ""
@@ -250,7 +250,7 @@ func jalaliYearPrefix(m []string) string {
 	if err != nil || gy < 1900 {
 		return ""
 	}
-	// تبدیل تقریبی: سال جلالی ≈ میلادی − 621/622 بر پایهٔ ماه
+	// Approximate conversion: Jalali year ≈ Gregorian − 621/622 depending on the month
 	jy := gy - 622
 	if jy < 1 {
 		return ""
@@ -258,7 +258,7 @@ func jalaliYearPrefix(m []string) string {
 	return strconv.Itoa(jy)
 }
 
-// SahamEntryYear سال ورود سهام — سه رقم آخر سال + نیمسال (پورت sahamEntryYear).
+// SahamEntryYear Saham entry year — last three digits of the year + semester (port of sahamEntryYear).
 func SahamEntryYear(entryYear *int64, entryTerm *int64) string {
 	if entryYear == nil {
 		return ""
@@ -270,7 +270,7 @@ func SahamEntryYear(entryYear *int64, entryTerm *int64) string {
 	return fmt.Sprintf("%d%s", *entryYear%1000, sem)
 }
 
-// SahamGradTermFromDate نیمسال فارغ‌التحصیلی از تاریخ فراغت جلالی (پورت sahamGradTermFromDate).
+// SahamGradTermFromDate graduation semester from the Jalali graduation date (port of sahamGradTermFromDate).
 func SahamGradTermFromDate(d *string) string {
 	if d == nil || *d == "" {
 		return ""
@@ -293,7 +293,7 @@ func SahamGradTermFromDate(d *string) string {
 
 var sahamNativeMap = map[string]string{"1": "بومی", "2": "غیربومی"}
 
-// SahamNative نگاشت بومی/غیربومی (پورت sahamNative).
+// SahamNative native/non-native mapping (port of sahamNative).
 func SahamNative(v *string) string {
 	if v == nil {
 		return ""
@@ -305,9 +305,9 @@ func SahamNative(v *string) string {
 	return t
 }
 
-// ═══════════════ آمار و لوک‌آپ‌ها (پورت page.tsx) ═══════════════
+// ═══════════════ Statistics and lookups (port of page.tsx) ═══════════════
 
-// SahamStats آمار یک دانشگاه برای صفحهٔ سهام.
+// SahamStats statistics for one university for the Saham page.
 type SahamStats struct {
 	UniversityID   int64          `json:"universityId"`
 	Code           string         `json:"code"`
@@ -328,7 +328,7 @@ type SahamFillStats struct {
 	ResidenceProvince int `json:"residenceProvince"`
 }
 
-// GetSahamStats آمار همهٔ دانشگاه‌های فعال.
+// GetSahamStats statistics for all active universities.
 func (s *Service) GetSahamStats(ctx context.Context) ([]SahamStats, error) {
 	rows, err := s.DB.Pool.Query(ctx, `
 		SELECT u.id, u.code, u.title, u.kind,
@@ -363,7 +363,7 @@ func (s *Service) GetSahamStats(ctx context.Context) ([]SahamStats, error) {
 	return out, rows.Err()
 }
 
-// SahamLookups لوک‌آپ‌های فیلتر (پورت SahamFilterLookups).
+// SahamLookups filter lookups (port of SahamFilterLookups).
 type SahamLookups struct {
 	Statuses   []map[string]any `json:"statuses"`
 	Majors     []map[string]any `json:"majors"`
@@ -372,7 +372,7 @@ type SahamLookups struct {
 	EntryYears []map[string]any `json:"entryYears"`
 }
 
-// GetSahamLookups لوک‌آپ‌های سبک فیلتر.
+// GetSahamLookups lightweight filter lookups.
 func (s *Service) GetSahamLookups(ctx context.Context) (*SahamLookups, error) {
 	out := &SahamLookups{
 		Statuses: []map[string]any{}, Majors: []map[string]any{}, Faculties: []map[string]any{},
@@ -450,12 +450,12 @@ func (s *Service) GetSahamLookups(ctx context.Context) (*SahamLookups, error) {
 	return out, nil
 }
 
-// ═══════════════ استخراج ردیف‌ها (پورت student-rows.ts / instructor-rows.ts) ═══════════════
+// ═══════════════ Row extraction (port of student-rows.ts / instructor-rows.ts) ═══════════════
 
 const SahamDefaultLimit = 5000
 const SahamMaxLimit = 20000
 
-// SahamStudentFilters فیلترهای سمت سرور.
+// SahamStudentFilters server-side filters.
 type SahamStudentFilters struct {
 	Status       string
 	MajorID      int64
@@ -468,7 +468,7 @@ type SahamStudentFilters struct {
 	Limit        int
 }
 
-// SahamStudent ردیف خام دانشجو با همهٔ ستون‌های سهام.
+// SahamStudent raw student row with all Saham columns.
 type SahamStudent struct {
 	UniversityID       int64
 	UniversityTitle    string
@@ -522,7 +522,7 @@ type SahamStudent struct {
 	TotalFailedUnits   *string
 	ForeignStudentID   *string
 	IsThesis           int
-	// توجه: ستون militaryStatus در دیتابیس فعلی وجود ندارد — شیت نظام وظیفه خالی می‌ماند.
+	// Note: the militaryStatus column does not exist in the current database — the military service sheet stays empty.
 	Address      *string
 	GraduateDate *string
 	EduEndYear   *int64
@@ -640,7 +640,7 @@ func (f *SahamStudentFilters) conds(idx *int) ([]string, []any) {
 	return conds, args
 }
 
-// SahamCountStudents تعداد رکوردهای فیلترشدهٔ یک دانشگاه.
+// SahamCountStudents number of filtered records for one university.
 func (s *Service) SahamCountStudents(ctx context.Context, universityID int64, f SahamStudentFilters) (int64, error) {
 	idx := 1
 	conds, args := f.conds(&idx)
@@ -657,7 +657,7 @@ func (s *Service) SahamCountStudents(ctx context.Context, universityID int64, f 
 	return n, err
 }
 
-// SahamFetchStudents خواندن دانشجویان یک دانشگاه با همهٔ ستون‌های سهام.
+// SahamFetchStudents reads the students of one university with all Saham columns.
 func (s *Service) SahamFetchStudents(ctx context.Context, universityID int64, f SahamStudentFilters) ([]SahamStudent, int64, bool, error) {
 	limit := f.Limit
 	if limit <= 0 {
@@ -709,7 +709,7 @@ func (s *Service) SahamFetchStudents(ctx context.Context, universityID int64, f 
 	return out, total, total > int64(len(out)), rows.Err()
 }
 
-// SahamStudentHeaders سرستون‌های رسمی فایل دانشجویان سهام — ۵۲ ستون، ترتیب عیناً همین.
+// SahamStudentHeaders official headers of the Saham student file — 52 columns, exactly this order.
 var SahamStudentHeaders = []string{
 	"نام موسسه آموزش عالی", "کد دانشکده / مرکز / واحد", "نام دانشکده / مرکز / واحد",
 	"استان محل استقرار دانشکده / مرکز / واحد", "شهر محل استقرار دانشکده / مرکز / واحد",
@@ -728,7 +728,7 @@ var SahamStudentHeaders = []string{
 	"شناسه فراگیر اتباع خارجی",
 }
 
-// SahamGraduateHeaders سرستون‌های رسمی شیت اول دانش‌آموختگان — ۴۳ ستون.
+// SahamGraduateHeaders official headers of the first graduates sheet — 43 columns.
 var SahamGraduateHeaders = []string{
 	"نام موسسه آموزش عالی", "کد دانشکده / مرکز / واحد", "نام  دانشکده / مرکز / واحد",
 	"استان محل استقرار  دانشکده / مرکز / واحد", "شهر محل استقرار  دانشکده / مرکز / واحد",
@@ -742,10 +742,10 @@ var SahamGraduateHeaders = []string{
 	"معدل کل", "جمع واحد گذرانده", "جمع واحد مردودی", "شناسه فراگیر اتباع خارجی",
 }
 
-// SahamMilitaryHeaders سرستون‌های شیت دوم «وضعیت نظام وظیفه».
+// SahamMilitaryHeaders headers of the second sheet «وضعیت نظام وظیفه».
 var SahamMilitaryHeaders = []string{"شماره ملی", "شماره دانشجویی", "نام", "نام خانوادگی", "وضعیت نظام وظیفه"}
 
-// SahamInstructorHeaders سرستون‌های رسمی آموزشگران — ۳۷ ستون.
+// SahamInstructorHeaders official instructor headers — 37 columns.
 var SahamInstructorHeaders = []string{
 	"نام موسسه آموزش عالی", "کد دانشکده / مرکز / واحد", "نام  دانشکده / مرکز / واحد",
 	"استان محل استقرار دانشکده یا محل خدمت", "شهر محل استقرار دانشکده یا محل خدمت",
@@ -782,7 +782,7 @@ func orEmptyI(v *int) string {
 	return strconv.Itoa(*v)
 }
 
-// SahamStudentRow تبدیل ردیف خام به ۵۲ ستون سهام (پورت toSahamRow).
+// SahamStudentRow converts a raw row to 52 Saham columns (port of toSahamRow).
 func SahamStudentRow(r SahamStudent, maps map[string]map[string]string, code *SahamInstituteCode, geo *SahamGeoTitles) []string {
 	instCode, instTitle := "", orEmpty(r.FacultyTitle)
 	provName, cityName := "", ""
@@ -843,7 +843,7 @@ func sahamCountry(r SahamStudent) string {
 	return ""
 }
 
-// SahamGraduateRow تبدیل به ۴۳ ستون دانش‌آموختگان (پورت toSahamGraduateRow).
+// SahamGraduateRow conversion to 43 graduate columns (port of toSahamGraduateRow).
 func SahamGraduateRow(r SahamStudent, maps map[string]map[string]string, code *SahamInstituteCode, geo *SahamGeoTitles) []string {
 	instCode, instTitle := "", orEmpty(r.FacultyTitle)
 	provName, cityName := "", ""
@@ -885,13 +885,13 @@ func SahamGraduateRow(r SahamStudent, maps map[string]map[string]string, code *S
 	}
 }
 
-// SahamMilitaryRow شیت نظام وظیفه (پورت toSahamMilitaryRow).
+// SahamMilitaryRow military service sheet (port of toSahamMilitaryRow).
 func SahamMilitaryRow(r SahamStudent) []string {
-	// ستون نظام وظیفه در دیتابیس فعلی موجود نیست → خالی.
+	// The military service column does not exist in the current database → empty.
 	return []string{r.NationalCode, r.StudentCode, r.FirstName, r.LastName, ""}
 }
 
-// SahamInstructor ردیف خام آموزشگر.
+// SahamInstructor raw instructor row.
 type SahamInstructor struct {
 	UniversityID         int64
 	UniversityTitle      string
@@ -930,7 +930,7 @@ type SahamInstructor struct {
 	StaffCode            string
 }
 
-// SahamCountInstructors تعداد اساتید دارای ارائهٔ فعال در نیمسال.
+// SahamCountInstructors number of professors with an active offering in the semester.
 func (s *Service) SahamCountInstructors(ctx context.Context, universityID, termID int64) (int64, error) {
 	var n int64
 	err := s.DB.Pool.QueryRow(ctx, `
@@ -941,7 +941,7 @@ func (s *Service) SahamCountInstructors(ctx context.Context, universityID, termI
 	return n, err
 }
 
-// SahamFetchInstructors استخراج آموزشگران نیمسال (پورت fetchSahamInstructors).
+// SahamFetchInstructors extracts the semester's instructors (port of fetchSahamInstructors).
 func (s *Service) SahamFetchInstructors(ctx context.Context, universityID, termID int64, limit int) ([]SahamInstructor, error) {
 	if limit <= 0 {
 		limit = SahamDefaultLimit
@@ -995,7 +995,7 @@ func (s *Service) SahamFetchInstructors(ctx context.Context, universityID, termI
 	return out, rows.Err()
 }
 
-// SahamInstructorRow تبدیل به ۳۷ ستون آموزشگران (پورت toSahamInstructorRow).
+// SahamInstructorRow conversion to 37 instructor columns (port of toSahamInstructorRow).
 func SahamInstructorRow(r SahamInstructor, maps map[string]map[string]string, code *SahamInstituteCode, geo *SahamGeoTitles) []string {
 	instCode, instTitle := "", orEmpty(r.InstituteTitle)
 	provName, cityName := "", ""
@@ -1025,7 +1025,7 @@ func SahamInstructorRow(r SahamInstructor, maps map[string]map[string]string, co
 		orEmptyI(r.LastDegreeYear), orEmpty(r.LastDegreeCountry), orEmpty(r.LastDegreeUniversity),
 		str(maps, "employment_type", r.EmploymentType), str(maps, "service_type", r.CooperationType),
 		orEmpty(r.StaffType),
-		// «نوع هیات علمی» فهرست رسمی ندارد — عمداً خالی می‌ماند.
+		// «نوع هیات علمی» has no official list — intentionally left empty.
 		"", orEmpty(r.Title), orEmpty(r.HireDate), str(maps, "academic_rank", r.AcademicRank),
 		orEmpty(r.AcademicBase), hireYear, orEmpty(r.PersonnelNo), orEmpty(r.TeachUnits),
 		orEmpty(r.Mobile), orEmpty(r.Phone), orEmpty(r.Email), r.StaffCode,
@@ -1041,9 +1041,9 @@ func firstNonEmpty(vals ...string) string {
 	return ""
 }
 
-// ═══════════════ ساخت خروجی CSV (پورت build.ts — با CSV به‌جای xlsx) ═══════════════
+// ═══════════════ Building the CSV output (port of build.ts — with CSV instead of xlsx) ═══════════════
 
-// SahamKind نوع گزارش سهام.
+// SahamKind Saham report type.
 type SahamKind string
 
 const (
@@ -1052,9 +1052,9 @@ const (
 	SahamInstructors SahamKind = "instructors"
 )
 
-// SahamBuildFile خروجی CSV یک یا چند دانشگاه — سه برگه در فایل‌های مجزا نیست؛
-// خروجی اصلی + شیت نظام وظیفه به‌صورت دو CSV در یک بایت‌استریم می‌آید وقتی لازم است.
-// برای سادگی مصرف‌کننده: student/graduate → CSV اصلی؛ military همان RDN عطف نامستقل.
+// SahamBuildFile CSV output for one or more universities — the three sheets are not separate files;
+// the main output + the military service sheet come as two CSVs in one byte stream when needed.
+// For consumer simplicity: student/graduate → main CSV; military is that same RDN, a non-independent continuation.
 type SahamBuildResult struct {
 	CSV      []byte
 	FileName string
@@ -1065,7 +1065,7 @@ type SahamBuildResult struct {
 
 func sahamWriteCSV(headers []string, rows [][]string) []byte {
 	var buf bytes.Buffer
-	buf.WriteString("\uFEFF") // BOM تا اکسل UTF-8 را درست بخواند
+	buf.WriteString("\uFEFF") // BOM so Excel reads UTF-8 correctly
 	w := csv.NewWriter(&buf)
 	w.UseCRLF = true
 	_ = w.Write(headers)
@@ -1074,7 +1074,7 @@ func sahamWriteCSV(headers []string, rows [][]string) []byte {
 	return buf.Bytes()
 }
 
-// SahamBuildWorkbook ساخت خروجی رسمی برای یک یا چند دانشگاه (پورت buildSahamWorkbook/Many).
+// SahamBuildWorkbook builds the official output for one or more universities (port of buildSahamWorkbook/Many).
 func (s *Service) SahamBuildWorkbook(ctx context.Context, universityIDs []int64, kind SahamKind, f SahamStudentFilters) (*SahamBuildResult, error) {
 	if len(universityIDs) == 0 {
 		return nil, errors.New("مؤسسه‌ای برای خروجی یافت نشد.")
@@ -1121,7 +1121,7 @@ func (s *Service) SahamBuildWorkbook(ctx context.Context, universityIDs []int64,
 		total += t
 		hasMore = hasMore || more
 	}
-	// مرتب‌سازی بر اساس شماره دانشجویی
+	// Sort by student number
 	for i := 1; i < len(all); i++ {
 		for j := i; j > 0 && all[j].StudentCode < all[j-1].StudentCode; j-- {
 			all[j], all[j-1] = all[j-1], all[j]
@@ -1142,7 +1142,7 @@ func (s *Service) SahamBuildWorkbook(ctx context.Context, universityIDs []int64,
 	suffix := sahamSuffix(universityIDs)
 	var res *SahamBuildResult
 	if kind == SahamGraduates {
-		// شیت نظام وظیفه به‌صورت بخش دوم همان فایل با سرستون جدا می‌آید.
+		// The military service sheet comes as the second section of the same file with separate headers.
 		body := append(sahamWriteCSV(SahamGraduateHeaders, data), sahamWriteCSV(SahamMilitaryHeaders, mil)...)
 		res = &SahamBuildResult{CSV: body, FileName: fmt.Sprintf("SAHAM-Graduates-%s.csv", suffix), Count: len(all), Total: total, HasMore: hasMore}
 	} else {
@@ -1159,9 +1159,9 @@ func sahamSuffix(ids []int64) string {
 	return fmt.Sprintf("%duni", len(ids))
 }
 
-// ═══════════════ تنظیمات کد مؤسسه (پورت settings/actions.ts) ═══════════════
+// ═══════════════ Institute code settings (port of settings/actions.ts) ═══════════════
 
-// SahamInstituteCodeInput ورودی ذخیرهٔ کد مؤسسه.
+// SahamInstituteCodeInput institute code save input.
 type SahamInstituteCodeInput struct {
 	ID           int64  `json:"id"`
 	UniversityID int64  `json:"universityId"`
@@ -1174,7 +1174,7 @@ type SahamInstituteCodeInput struct {
 	IsActive     bool   `json:"isActive"`
 }
 
-// SahamSaveInstituteCode ذخیره (درج/ویرایش) یک سطر کد مؤسسه.
+// SahamSaveInstituteCode saves (insert/update) one institute code row.
 func (s *Service) SahamSaveInstituteCode(ctx context.Context, in SahamInstituteCodeInput) (int64, error) {
 	title := strings.TrimSpace(in.Title)
 	if title == "" {
@@ -1216,7 +1216,7 @@ func (s *Service) SahamSaveInstituteCode(ctx context.Context, in SahamInstituteC
 			return 0, errors.New("این کد قبلاً برای همین دانشگاه ثبت شده است.")
 		}
 	}
-	// فقط یک پیش‌فرض برای هر دانشگاه — بقیه صفر می‌شوند
+	// Only one default per university — the rest are zeroed
 	if in.IsDefault && savedID > 0 {
 		_, _ = s.DB.Pool.Exec(ctx, `
 			update saham_institute_codes set "isDefault" = 0
@@ -1225,13 +1225,13 @@ func (s *Service) SahamSaveInstituteCode(ctx context.Context, in SahamInstituteC
 	return savedID, nil
 }
 
-// SahamDeleteInstituteCode حذف یک سطر.
+// SahamDeleteInstituteCode deletes one row.
 func (s *Service) SahamDeleteInstituteCode(ctx context.Context, id int64) error {
 	_, err := s.DB.Pool.Exec(ctx, `delete from saham_institute_codes where id = $1`, id)
 	return err
 }
 
-// SahamSettingsBundle دادهٔ صفحهٔ تنظیمات سهام.
+// SahamSettingsBundle data for the Saham settings page.
 func (s *Service) SahamSettingsBundle(ctx context.Context) (map[string]any, error) {
 	out := map[string]any{}
 	universities := []map[string]any{}
@@ -1311,7 +1311,7 @@ func (s *Service) SahamSettingsBundle(ctx context.Context) (map[string]any, erro
 	return out, nil
 }
 
-// SahamAuthorizer فهرست دانشگاه‌های مجاز برای کاربر (پورت authorizedIds سمت سرور).
+// SahamAuthorizer list of universities authorized for the user (port of server-side authorizedIds).
 func (s *Service) SahamAuthorizer(ctx context.Context, user *session.User, uniCookie string) []int64 {
 	if id := s.UniversityID(ctx, user, uniCookie); id != nil {
 		return []int64{*id}

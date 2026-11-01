@@ -1,4 +1,4 @@
-// ═══ ابزار عدد/تاریخ مالی — پورت numbers.ts ═══
+// ═══ Financial number/date helpers — port of numbers.ts ═══
 package finance
 
 import (
@@ -11,8 +11,8 @@ import (
 
 var decimalRe = regexp.MustCompile(`^[+-]?(\d+(\.\d*)?|\.\d+)$`)
 
-// ToNum تبدیل سخت‌گیرانهٔ numeric/رشته/تهی به عدد — نما/هگز/حروف/ارقام فارسی → ۰.
-// تهی/NaN → ۰ (سازگاری با جمع‌های legacy).
+// ToNum strict conversion of numeric/string/empty to a number — exponent/hex/letters/Persian digits → 0.
+// empty/NaN → 0 (compatibility with legacy sums).
 func ToNum(value any) float64 {
 	switch v := value.(type) {
 	case nil:
@@ -46,7 +46,7 @@ func ToNum(value any) float64 {
 	return 0
 }
 
-// ToRial گرد کردن به ریال (بدون کسری).
+// ToRial round to rial (no fraction).
 func ToRial(value float64) float64 {
 	if math.IsNaN(value) || math.IsInf(value, 0) {
 		return 0
@@ -54,7 +54,7 @@ func ToRial(value float64) float64 {
 	return math.Round(value)
 }
 
-// ToMs پورت toMs: رشته/زمان → میلی‌ثانیه epoch؛ تهی/نامعتبر → nil.
+// ToMs port of toMs: string/time → epoch milliseconds; empty/invalid → nil.
 func ToMs(value any) *int64 {
 	switch v := value.(type) {
 	case nil:

@@ -1,4 +1,4 @@
-// ═══ کرون هشدارهای زمان‌بندی‌شده — پورت runPendingWarnings ═══
+// ═══ Scheduled warning cron — port of runPendingWarnings ═══
 package cron
 
 import (
@@ -24,7 +24,7 @@ var warnValidChannels = map[string]bool{
 	"EITAA": true, "SOROUSH": true, "IGAP": true,
 }
 
-// schedWarnChannels کانال‌های مجاز از SCHED_WARN_CHANNELS؛ خالی = همهٔ فعال‌ها.
+// schedWarnChannels allowed channels from SCHED_WARN_CHANNELS; empty = all active ones.
 func (e *Engine) schedWarnChannels(ctx context.Context) []string {
 	raw, _ := e.Settings.Get(ctx, "SCHED_WARN_CHANNELS")
 	raw = strings.TrimSpace(raw)
@@ -54,9 +54,9 @@ func (e *Engine) notifyUserChannels(ctx context.Context, userID int64, eventCode
 	messaging.NotifyExternalDefaultChannels(ctx, userID, eventCode, text, channels)
 }
 
-// runScheduledWarnings ارسال ردیف‌های pending با sendAt <= اکنون (حداکثر ۵۰۰).
-// ضدتکرار: فقط بعد از ارسال موفق status=sent می‌شود؛ خطا ردیف را pending
-// نگه می‌دارد تا دور بعد دوباره تلاش شود (همان رفتار TS).
+// runScheduledWarnings sends pending rows with sendAt <= now (at most 500).
+// Deduplication: status=sent only after a successful send; an error keeps the row pending
+// so it is retried on the next round (the same behavior as TS).
 func (e *Engine) runScheduledWarnings(ctx context.Context) (map[string]any, error) {
 	type warnRow struct {
 		ID          int64
@@ -97,7 +97,7 @@ func (e *Engine) runScheduledWarnings(ctx context.Context) (map[string]any, erro
 	now := time.Now().UTC()
 	for _, w := range list {
 		if w.UserID == nil || *w.UserID <= 0 {
-			// دانشجو بدون کاربر متصل — لغو تا هر دور دوباره تلاش نشود.
+			// Student without a connected user — cancelled so it is not retried every round.
 			_, _ = e.Pool.Exec(ctx, `update scheduled_warnings set status = 'cancelled', "sentAt" = $2 where id = $1`, w.ID, now)
 			skipped++
 			continue

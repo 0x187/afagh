@@ -1,4 +1,4 @@
-// ═══ حل نسخهٔ برنامهٔ درسی — پورت curriculum-resolution.ts (بخش Pure) ═══
+// ═══ Curriculum version resolution — port of curriculum-resolution.ts (Pure section) ═══
 package enroll
 
 import (
@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// ResolvableVersion حداقل شکل نسخهٔ برنامه برای Resolution.
+// ResolvableVersion minimal curriculum version shape for Resolution.
 type ResolvableVersion struct {
 	ID               int64
 	MajorID          int64
@@ -38,7 +38,7 @@ type ParsedVersionCode struct {
 
 var versionCodeRe = regexp.MustCompile(`^(.+)-R(\d+)$`)
 
-// ParseVersionCode پورت parseVersionCode.
+// ParseVersionCode port of parseVersionCode.
 func ParseVersionCode(code string) ParsedVersionCode {
 	trimmed := strings.TrimSpace(code)
 	if m := versionCodeRe.FindStringSubmatch(trimmed); m != nil {
@@ -50,7 +50,7 @@ func ParseVersionCode(code string) ParsedVersionCode {
 
 var digitsRe = regexp.MustCompile(`^\d+$`)
 
-// CompareVersionCodes پورت compareVersionCodes (منفی = a قدیمی‌تر).
+// CompareVersionCodes port of compareVersionCodes (negative = a is older).
 func CompareVersionCodes(a, b string) int {
 	pa, pb := ParseVersionCode(a), ParseVersionCode(b)
 	var baseCmp int
@@ -67,7 +67,7 @@ func CompareVersionCodes(a, b string) int {
 	return pa.Revision - pb.Revision
 }
 
-// CurriculumContext زمینهٔ حل نسخه.
+// CurriculumContext version resolution context.
 type CurriculumContext struct {
 	MajorID       int64
 	DegreeLevelID int64
@@ -76,14 +76,14 @@ type CurriculumContext struct {
 	EntryTerm     *int
 }
 
-// ResolutionOutcome نتیجهٔ حل.
+// ResolutionOutcome resolution result.
 type ResolutionOutcome struct {
 	Version    *ResolvableVersion
 	Reason     string
 	Candidates []int64
 }
 
-// RankVersions پورت rankVersions.
+// RankVersions port of rankVersions.
 func RankVersions(a, b ResolvableVersion) int {
 	if st := statusRank[a.Status] - statusRank[b.Status]; st != 0 {
 		return st
@@ -103,7 +103,7 @@ func RankVersions(a, b ResolvableVersion) int {
 	return 0
 }
 
-// ResolveApplicableCurriculum پورت resolveApplicableCurriculum.
+// ResolveApplicableCurriculum port of resolveApplicableCurriculum.
 func ResolveApplicableCurriculum(versions []ResolvableVersion, ctx CurriculumContext) ResolutionOutcome {
 	if len(versions) == 0 {
 		return ResolutionOutcome{Reason: "NO_VERSIONS"}
@@ -171,10 +171,10 @@ func ResolveApplicableCurriculum(versions []ResolvableVersion, ctx CurriculumCon
 	return ResolutionOutcome{Version: &best, Reason: "RESOLVED", Candidates: candidates}
 }
 
-// ── لایهٔ DB: حل نسخهٔ دانشجو (پورت curriculum-apply.ts) ──
+// ── DB layer: student curriculum resolution (port of curriculum-apply.ts) ──
 
-// ResolveStudentCurriculum نسخهٔ قابل اعمال برای دانشجو را از DB تعیین می‌کند.
-// فقط نسخه‌های همان رشته واکشی می‌شوند؛ بقیهٔ فیلترها در Resolver خالص است.
+// ResolveStudentCurriculum determines the applicable curriculum for a student from the DB.
+// Only versions of the same major are fetched; the remaining filters live in the pure Resolver.
 func ResolveStudentCurriculum(ctx context.Context, pool *pgxpool.Pool, studentID int64) (*ResolvableVersion, error) {
 	var (
 		majorID, degreeLevelID *int64

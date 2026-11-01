@@ -1,4 +1,4 @@
-// ═══ مدیریت دوره‌های آزاد (کوتاه‌مدت) — پورت admin/short-courses ═══
+// ═══ Short-term (free) course management — port of admin/short-courses ═══
 package admin
 
 import (
@@ -15,7 +15,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// ShortTermLearner شرکت‌کننده.
+// ShortTermLearner participant.
 type ShortTermLearner struct {
 	RegistrationID    int64    `json:"registrationId"`
 	ID                int64    `json:"id"`
@@ -36,7 +36,7 @@ type ShortTermLearner struct {
 	RegisteredAt      string   `json:"registeredAt"`
 }
 
-// ShortTermCourse دورهٔ آزاد.
+// ShortTermCourse short-term course.
 type ShortTermCourse struct {
 	ID             int64              `json:"id"`
 	Code           string             `json:"code"`
@@ -54,7 +54,7 @@ type ShortTermCourse struct {
 	Learners       []ShortTermLearner `json:"learners"`
 }
 
-// ShortTermDiscount کد تخفیف.
+// ShortTermDiscount discount code.
 type ShortTermDiscount struct {
 	ID                int64  `json:"id"`
 	Code              string `json:"code"`
@@ -66,13 +66,13 @@ type ShortTermDiscount struct {
 	IsActive          bool   `json:"isActive"`
 }
 
-// ShortCoursesData بستهٔ اولیه.
+// ShortCoursesData initial bundle.
 type ShortCoursesData struct {
 	Courses   []ShortTermCourse   `json:"courses"`
 	Discounts []ShortTermDiscount `json:"discounts"`
 }
 
-// ShortCourses فهرست دوره‌ها و کدهای تخفیف.
+// ShortCourses list of courses and discount codes.
 func (s *Service) ShortCourses(ctx context.Context, user *session.User, cookie string) (*ShortCoursesData, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	out := &ShortCoursesData{Courses: []ShortTermCourse{}, Discounts: []ShortTermDiscount{}}
@@ -160,13 +160,13 @@ func jalaliDate(t time.Time) string {
 	return jalali.ToShamsi(t.Format(time.RFC3339))
 }
 
-// ShortCourseCreateInput ورودی ایجاد دوره.
+// ShortCourseCreateInput course creation input.
 type ShortCourseCreateInput struct {
 	Code, Title, TitleEn, Category, InstructorName string
 	Hours, TuitionPrice, Capacity                  int
 }
 
-// CreateShortCourse ایجاد دورهٔ آزاد.
+// CreateShortCourse creates a short-term course.
 func (s *Service) CreateShortCourse(ctx context.Context, user *session.User, cookie string, in ShortCourseCreateInput) (int64, string, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -211,7 +211,7 @@ func (s *Service) CreateShortCourse(ctx context.Context, user *session.User, coo
 	return id, code, nil
 }
 
-// ShortCourseLearnerInput ورودی ثبت شرکت‌کننده.
+// ShortCourseLearnerInput participant registration input.
 type ShortCourseLearnerInput struct {
 	CourseID   int64  `json:"courseId"`
 	FullName   string `json:"fullName"`
@@ -220,7 +220,7 @@ type ShortCourseLearnerInput struct {
 	Mobile     string `json:"mobile"`
 }
 
-// AddShortTermLearner ثبت شرکت‌کننده + ثبت‌نام PENDING.
+// AddShortTermLearner registers a participant + PENDING enrollment.
 func (s *Service) AddShortTermLearner(ctx context.Context, user *session.User, cookie string, in ShortCourseLearnerInput) (int64, int64, string, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -263,7 +263,7 @@ func (s *Service) AddShortTermLearner(ctx context.Context, user *session.User, c
 	return learnerID, regID, tracking, nil
 }
 
-// UpdateShortTermRegistration ثبت حضور/نمره و محاسبهٔ قبولی.
+// UpdateShortTermRegistration records attendance/score and calculates pass.
 func (s *Service) UpdateShortTermRegistration(ctx context.Context, user *session.User, cookie string, regID int64, attendance *int, grade *float64) (bool, float64, int, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -350,7 +350,7 @@ func (s *Service) UpdateShortTermRegistration(ctx context.Context, user *session
 	return afterPassed != 0, g, afterAtt, nil
 }
 
-// IssueShortTermCertificate صدور گواهینامه با شمارهٔ سریال و اثر انگشت.
+// IssueShortTermCertificate issues a certificate with a serial number and fingerprint.
 type ShortCertificateIssued struct {
 	ID                int64  `json:"id"`
 	CertificateNumber string `json:"certificateNumber"`
@@ -403,7 +403,7 @@ func (s *Service) IssueShortTermCertificate(ctx context.Context, user *session.U
 	}
 	_ = nationalID
 	_ = mobile
-	// شمارنده
+	// counter
 	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended('short_term_certificate_seq', 0))`); err != nil {
 		return nil, err
 	}
@@ -461,7 +461,7 @@ func (s *Service) IssueShortTermCertificate(ctx context.Context, user *session.U
 	return &ShortCertificateIssued{ID: certID, CertificateNumber: certNo, VerificationHash: hash}, nil
 }
 
-// RevokeShortTermCertificate باطل‌سازی گواهینامه.
+// RevokeShortTermCertificate revokes a certificate.
 func (s *Service) RevokeShortTermCertificate(ctx context.Context, user *session.User, cookie, certNumber, reason string) error {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -501,7 +501,7 @@ func (s *Service) RevokeShortTermCertificate(ctx context.Context, user *session.
 	return tx.Commit(ctx)
 }
 
-// UpdateShortCourseStatus تغییر وضعیت دوره.
+// UpdateShortCourseStatus changes the course status.
 func (s *Service) UpdateShortCourseStatus(ctx context.Context, user *session.User, cookie string, courseID int64, status string) error {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -523,7 +523,7 @@ func (s *Service) UpdateShortCourseStatus(ctx context.Context, user *session.Use
 	return err
 }
 
-// SyncShortCourseCounts همگام‌سازی شمار ثبت‌نام‌شده‌ها.
+// SyncShortCourseCounts syncs the registration counts.
 func (s *Service) SyncShortCourseCounts(ctx context.Context, user *session.User, cookie string) error {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -536,7 +536,7 @@ func (s *Service) SyncShortCourseCounts(ctx context.Context, user *session.User,
 	return err
 }
 
-// ShortTermDiscountInput ورودی ساخت کد تخفیف.
+// ShortTermDiscountInput discount code creation input.
 type ShortTermDiscountInput struct {
 	Code              string
 	CourseID          *int64
@@ -545,7 +545,7 @@ type ShortTermDiscountInput struct {
 	MaxUsage          *int
 }
 
-// CreateShortTermDiscount ساخت کد تخفیف.
+// CreateShortTermDiscount creates a discount code.
 func (s *Service) CreateShortTermDiscount(ctx context.Context, user *session.User, cookie string, in ShortTermDiscountInput) (int64, string, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -590,7 +590,7 @@ func (s *Service) CreateShortTermDiscount(ctx context.Context, user *session.Use
 	return id, code, nil
 }
 
-// ListShortTermDiscounts فهرست کدهای تخفیف (اختیاری بر اساس دوره).
+// ListShortTermDiscounts lists discount codes (optionally by course).
 func (s *Service) ListShortTermDiscounts(ctx context.Context, user *session.User, cookie string, courseID *int64) ([]ShortTermDiscount, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	out := []ShortTermDiscount{}
@@ -623,7 +623,7 @@ func (s *Service) ListShortTermDiscounts(ctx context.Context, user *session.User
 	return out, nil
 }
 
-// ToggleShortTermDiscount فعال/غیرفعال.
+// ToggleShortTermDiscount enable/disable.
 func (s *Service) ToggleShortTermDiscount(ctx context.Context, user *session.User, cookie string, id int64, active bool) error {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -644,7 +644,7 @@ func (s *Service) ToggleShortTermDiscount(ctx context.Context, user *session.Use
 	return err
 }
 
-// ConfirmShortTermPayment ثبت واریز شهریه (PENDING → PAID).
+// ConfirmShortTermPayment records the tuition payment (PENDING → PAID).
 func (s *Service) ConfirmShortTermPayment(ctx context.Context, user *session.User, cookie string, regID int64, refID string, amount float64) error {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {

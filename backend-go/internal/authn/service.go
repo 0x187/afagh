@@ -1,4 +1,4 @@
-// ═══ تغییر رمز و جابه‌جایی حساب — پورت از auth.ts / account-switch.ts ═══
+// ═══ Password change and account switch — port from auth.ts / account-switch.ts ═══
 package authn
 
 import (
@@ -10,12 +10,12 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// ChangePassword پورت changePassword:
-//   - گارد با allowPendingPasswordChange=true (نشستِ mustChange هم اجازهٔ تغییر دارد)
-//   - تأیید رمز فعلی (+ واریانت ارقام فارسی)
-//   - اعتبارسنجی با پیام‌های عیناً auth.ts
-//   - هش تازه + mustChangePassword=0
-//   - ابطال همهٔ نشست‌های دیگر کاربر (نشست جاری حفظ می‌شود)
+// ChangePassword is a port of changePassword:
+//   - guard with allowPendingPasswordChange=true (a mustChange session can also change the password)
+//   - verify the current password (+ Persian digit variant)
+//   - validation with exactly the auth.ts messages
+//   - fresh hash + mustChangePassword=0
+//   - revoke all other user sessions (the current session is kept)
 func (s *Service) ChangePassword(ctx context.Context, currentToken, currentPassword, newPassword string) (*SimpleResult, error) {
 	me, err := s.Store.Get(ctx, currentToken, true)
 	if err != nil {
@@ -34,7 +34,7 @@ func (s *Service) ChangePassword(ctx context.Context, currentToken, currentPassw
 	}
 
 	if !VerifyPasswordIgnoreErr(currentPassword, u.PasswordHash) {
-		// اغماض حالت کیبورد: رمز فعلی با ارقام فارسی تایپ شده باشد
+		// Keyboard-layout tolerance: the current password may have been typed with Persian digits
 		norm := ToEnDigits(currentPassword)
 		if norm == currentPassword || !VerifyPasswordIgnoreErr(norm, u.PasswordHash) {
 			return &SimpleResult{OK: false, Error: "رمز فعلی نادرست است."}, nil
@@ -73,7 +73,7 @@ func (s *Service) ChangePassword(ctx context.Context, currentToken, currentPassw
 		return nil, err
 	}
 
-	// ابطال همهٔ نشست‌های دیگر (نشست جاری می‌ماند تا کاربر وسط کار اخراج نشود).
+	// Revoke all other sessions (the current session remains so the user is not kicked out mid-work).
 	if _, err := s.Pool.Exec(ctx,
 		`delete from sessions where "userId" = $1 and token <> $2`, u.ID, sha256Hex(currentToken)); err != nil {
 		return nil, err
@@ -81,8 +81,8 @@ func (s *Service) ChangePassword(ctx context.Context, currentToken, currentPassw
 	return &SimpleResult{OK: true}, nil
 }
 
-// personNCs همهٔ کدملی‌های منتسب به یک کاربر: کدملی خودش + کدملیِ فایل برای
-// کدهای پرسنلی‌اش (پورت personNCs در account-switch.ts).
+// personNCs returns all national IDs attributed to a user: their own + the file national ID for
+// their staff codes (port of personNCs in account-switch.ts).
 func (s *Service) personNCs(ctx context.Context, userID int64) (map[string]bool, error) {
 	out := map[string]bool{}
 	var nc *string
@@ -110,7 +110,7 @@ func (s *Service) personNCs(ctx context.Context, userID int64) (map[string]bool,
 	return out, rows.Err()
 }
 
-// describeUser پورت describeUser — کد و نوع حساب و عنوان دانشگاه.
+// describeUser is a port of describeUser — code, account type, and university title.
 func (s *Service) describeUser(ctx context.Context, id int64) (*SiblingAccount, error) {
 	u, err := scanUserRow(s.Pool.QueryRow(ctx, `select `+userSelectColumns+` from users where id = $1`, id))
 	if err != nil {
@@ -155,7 +155,7 @@ func (s *Service) describeUser(ctx context.Context, id int64) (*SiblingAccount, 
 	return &SiblingAccount{Kind: kind, Code: code, Name: name, UniversityTitle: uniTitle}, nil
 }
 
-// GetSiblingAccounts حساب‌های هم‌شخصِ کاربر جاری (حداکثر ۱۰) — پورت getSiblingAccounts.
+// GetSiblingAccounts returns same-person accounts of the current user (max 10) — port of getSiblingAccounts.
 func (s *Service) GetSiblingAccounts(ctx context.Context, currentUserID int64) ([]SiblingAccount, error) {
 	ncs, err := s.personNCs(ctx, currentUserID)
 	if err != nil || len(ncs) == 0 {
@@ -230,7 +230,7 @@ func (s *Service) GetSiblingAccounts(ctx context.Context, currentUserID int64) (
 	return out, nil
 }
 
-// SwitchAccount پورت switchAccountAction: جابه‌جایی به حساب هم‌شخص با رمز همان حساب.
+// SwitchAccount is a port of switchAccountAction: switch to a same-person account with that account's password.
 func (s *Service) SwitchAccount(ctx context.Context, w http.ResponseWriter, kind, code, password, currentToken, clientIP string) (*SimpleResult, error) {
 	if clientIP == "" {
 		clientIP = UNKNOWN_CLIENT_IP
@@ -268,7 +268,7 @@ func (s *Service) SwitchAccount(ctx context.Context, w http.ResponseWriter, kind
 		return &SimpleResult{OK: false, Error: "حساب دیگری برای شما ثبت نشده است."}, nil
 	}
 
-	// کاربر مقصد فقط از روی کد پیدا می‌شود (userId از کلاینت پذیرفته نمی‌شود).
+	// The target user is found by code only (userId is not accepted from the client).
 	var target *userRow
 	if kind == "staff" {
 		target, err = scanUserRow(s.Pool.QueryRow(ctx,
@@ -291,7 +291,7 @@ func (s *Service) SwitchAccount(ctx context.Context, w http.ResponseWriter, kind
 		return &SimpleResult{OK: false, Error: "همین حساب فعال است."}, nil
 	}
 
-	// پیوند هم‌شخصی باید برقرار باشد (کدملی مشترک) — وگرنه جابه‌جایی ممنوع.
+	// A same-person link must exist (shared national ID) — otherwise switching is forbidden.
 	targetNCs, err := s.personNCs(ctx, target.ID)
 	if err != nil {
 		return nil, err
@@ -317,7 +317,7 @@ func (s *Service) SwitchAccount(ctx context.Context, w http.ResponseWriter, kind
 	return &SimpleResult{OK: true, MustChange: mustChange}, nil
 }
 
-// SiblingAccount حساب هم‌شخص برای بنر «مشاهده با کد دیگر».
+// SiblingAccount is a same-person account for the «مشاهده با کد دیگر» banner.
 type SiblingAccount struct {
 	Kind            string  `json:"kind"` // staff | student
 	Code            string  `json:"code"`
@@ -325,8 +325,8 @@ type SiblingAccount struct {
 	UniversityTitle *string `json:"universityTitle"`
 }
 
-// VerifyPasswordForUser تأیید رمز کاربر جاری برای گیت unlock — پیاده‌سازی
-// interface محلی httpapi.PasswordVerifier. کاربر غیرفعال/ناموجود = false.
+// VerifyPasswordForUser verifies the current user's password for the unlock gate — implements
+// the local httpapi.PasswordVerifier interface. Inactive/missing user = false.
 func (s *Service) VerifyPasswordForUser(ctx context.Context, userID int64, password string) (bool, error) {
 	u, err := scanUserRow(s.Pool.QueryRow(ctx, `select `+userSelectColumns+` from users where id = $1`, userID))
 	if err != nil {

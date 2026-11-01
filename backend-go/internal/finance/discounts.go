@@ -1,7 +1,7 @@
-// ═══ تخفیف و پوشش بنیاد — پورت discounts.ts و sponsorships.ts ═══
+// ═══ Discounts and foundation sponsorship — port of discounts.ts and sponsorships.ts ═══
 package finance
 
-// DiscountLike ردیف تخفیف.
+// DiscountLike discount row.
 type DiscountLike struct {
 	ID         int64
 	Kind       string // PERCENT | FIXED
@@ -12,7 +12,7 @@ type DiscountLike struct {
 	Title      *string
 }
 
-// AppliedAmount مبلغ اعمال‌شده (با termId اختیاری برای کارنامه).
+// AppliedAmount applied amount (with optional termId for the transcript).
 type AppliedAmount struct {
 	ID     int64
 	Title  *string
@@ -20,7 +20,7 @@ type AppliedAmount struct {
 	TermID *int64
 }
 
-// DiscountBase پورت discountBase بر اساس قلمروی اثر.
+// DiscountBase port of discountBase based on the scope of effect.
 func DiscountBase(appliesTo *string, fixedTuition, variableTuition float64) float64 {
 	scope := ""
 	if appliesTo != nil {
@@ -35,7 +35,7 @@ func DiscountBase(appliesTo *string, fixedTuition, variableTuition float64) floa
 	return ToNum(fixedTuition) + ToNum(variableTuition)
 }
 
-// EffectivePercent پورت effectivePercent با سقف مجاز نوع تخفیف.
+// EffectivePercent port of effectivePercent with the discount type's allowed cap.
 func EffectivePercent(d DiscountLike) float64 {
 	cap := 100.0
 	if d.MaxPercent != nil && d.MaxPercent != "" {
@@ -55,7 +55,7 @@ func mathMax0(v float64) float64 {
 	return v
 }
 
-// DiscountAmount مبلغ یک تخفیف پیش از سقف «بیش از کل شهریه نشود».
+// DiscountAmount amount of one discount before the «بیش از کل شهریه نشود» cap.
 func DiscountAmount(d DiscountLike, fixedTuition, variableTuition float64) float64 {
 	if d.Kind == "PERCENT" {
 		base := DiscountBase(d.AppliesTo, fixedTuition, variableTuition)
@@ -64,14 +64,14 @@ func DiscountAmount(d DiscountLike, fixedTuition, variableTuition float64) float
 	return ToRial(mathMax0(ToNum(d.Amount)))
 }
 
-// DiscountOutcome نتیجهٔ اعمال زنجیرهٔ تخفیف‌ها.
+// DiscountOutcome result of applying the discount chain.
 type DiscountOutcome struct {
 	Total   float64
 	Net     float64
 	Applied []AppliedAmount
 }
 
-// ApplyDiscounts پورت applyDiscounts — ترتیب ورودی مؤثر است.
+// ApplyDiscounts port of applyDiscounts — input order matters.
 func ApplyDiscounts(list []DiscountLike, fixedTuition, variableTuition float64) DiscountOutcome {
 	gross := ToNum(fixedTuition) + ToNum(variableTuition)
 	remaining := gross
@@ -90,7 +90,7 @@ func ApplyDiscounts(list []DiscountLike, fixedTuition, variableTuition float64) 
 	return DiscountOutcome{Total: gross - remaining, Net: remaining, Applied: applied}
 }
 
-// SponsorshipLike ردیف پوشش بنیاد.
+// SponsorshipLike foundation sponsorship row.
 type SponsorshipLike struct {
 	ID           int64
 	CoverageKind string // PERCENT | FIXED
@@ -99,14 +99,14 @@ type SponsorshipLike struct {
 	Title        *string
 }
 
-// SponsorshipOutcome نتیجهٔ پوشش.
+// SponsorshipOutcome sponsorship result.
 type SponsorshipOutcome struct {
 	Total        float64
 	StudentShare float64
 	Applied      []AppliedAmount
 }
 
-// ApplySponsorships پورت applySponsorships — روی خالصِ پس از تخفیف.
+// ApplySponsorships port of applySponsorships — on the net after discounts.
 func ApplySponsorships(list []SponsorshipLike, netTuition float64) SponsorshipOutcome {
 	net := mathMax0(ToNum(netTuition))
 	remaining := net
@@ -137,15 +137,15 @@ func ApplySponsorships(list []SponsorshipLike, netTuition float64) SponsorshipOu
 	return SponsorshipOutcome{Total: net - remaining, StudentShare: remaining, Applied: applied}
 }
 
-// ─────────────────────────── تعدیلات ترم ───────────────────────────
+// ─────────────────────────── Term adjustments ───────────────────────────
 
-// TermCharge بدهی ثبت‌شدهٔ ترم.
+// TermCharge recorded term debt.
 type TermCharge struct {
 	TermID  int64
 	Charges float64
 }
 
-// DiscountRowLike تخفیف با دامنهٔ ترم (nil = همهٔ ترم‌ها).
+// DiscountRowLike discount with term scope (nil = all terms).
 type DiscountRowLike struct {
 	ID      int64
 	TermID  *int64
@@ -155,7 +155,7 @@ type DiscountRowLike struct {
 	Title   *string
 }
 
-// SponsorRowLike پوشش با دامنهٔ ترم (nil = همهٔ ترم‌ها).
+// SponsorRowLike sponsorship with term scope (nil = all terms).
 type SponsorRowLike struct {
 	ID           int64
 	TermID       *int64
@@ -165,7 +165,7 @@ type SponsorRowLike struct {
 	Title        *string
 }
 
-// TermAdjustment تعدیلات یک ترم.
+// TermAdjustment adjustments of one term.
 type TermAdjustment struct {
 	TermID        int64
 	Charges       float64
@@ -176,8 +176,8 @@ type TermAdjustment struct {
 	SponsorLines  []AppliedAmount
 }
 
-// ComputeTermAdjustments پورت computeTermAdjustments: تخفیف روی شهریهٔ ترم،
-// سپس پوشش روی خالص؛ تخفیفِ بدون ترم روی تک‌تک ترم‌ها اثر دارد.
+// ComputeTermAdjustments port of computeTermAdjustments: discount on the term tuition,
+// then sponsorship on the net; a term-less discount affects each term individually.
 func ComputeTermAdjustments(termCharges []TermCharge, discounts []DiscountRowLike, sponsorships []SponsorRowLike) []TermAdjustment {
 	out := []TermAdjustment{}
 	for _, tc := range termCharges {

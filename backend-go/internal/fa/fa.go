@@ -1,7 +1,7 @@
-// ═══ نرمال‌سازی ارقام فارسی/عربی — پورت toEnDigits از persian-search.ts ═══
+// ═══ Persian/Arabic digit normalization — port of toEnDigits from persian-search.ts ═══
 package fa
 
-// ToEnDigits ارقام فارسی/عربی را به لاتین تبدیل می‌کند (کدهای سیستمی انگلیسی‌اند).
+// ToEnDigits converts Persian/Arabic digits to Latin (system codes are in English).
 func ToEnDigits(s string) string {
 	out := make([]rune, 0, len(s))
 	for _, r := range s {

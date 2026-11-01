@@ -1,4 +1,4 @@
-// ═══ عملیات انتخاب واحد — پورت student/enroll/actions.ts ═══
+// ═══ Enrollment operations — port of student/enroll/actions.ts ═══
 package enroll
 
 import (
@@ -13,14 +13,14 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// ActionError خطای قابل نمایش.
+// ActionError is a displayable error.
 type ActionError struct{ Message string }
 
 func (e *ActionError) Error() string { return e.Message }
 
 func actionErr(msg string) error { return &ActionError{Message: msg} }
 
-// currentTermForStudent ترم جاریِ همان دانشگاه (fail-closed).
+// currentTermForStudent is the current term of the same university (fail-closed).
 func (s *Service) currentTermForStudent(ctx context.Context, studentID int64) (int64, int64, error) {
 	var uni *int64
 	if err := s.DB.Pool.QueryRow(ctx, `select "universityId" from students where id = $1`, studentID).Scan(&uni); err != nil {
@@ -53,7 +53,7 @@ type scopedOffering struct {
 	OfferingType        string
 }
 
-// offeringInMyScope بررسی ارائه در دانشگاه/ترم/فعال.
+// offeringInMyScope checks the offering in the university/term/active.
 func (s *Service) offeringInMyScope(ctx context.Context, universityID *int64, termID, offeringID int64) (*scopedOffering, error) {
 	if universityID == nil {
 		return nil, actionErr("این ارائه برای دانشگاه/نیمسال شما در دسترس نیست")
@@ -87,7 +87,7 @@ func (s *Service) studentScope(ctx context.Context, studentID int64) (StudentSco
 	return StudentScope{DegreeLevelID: degreeLevelID, MajorID: majorID, EntryYear: entryYear}, nil
 }
 
-// AddToCart پورت addToCartAction.
+// AddToCart ports addToCartAction.
 func (s *Service) AddToCart(ctx context.Context, studentID, offeringID int64) error {
 	termID, uni, err := s.currentTermForStudent(ctx, studentID)
 	if err != nil {
@@ -100,7 +100,7 @@ func (s *Service) AddToCart(ctx context.Context, studentID, offeringID int64) er
 	if err != nil {
 		return err
 	}
-	// ثبت تکراری همان ارائه ممنوع — ردیف در سبد گیر نمی‌کند.
+	// Duplicate registration of the same offering is forbidden — the row does not get into the cart.
 	var already int
 	_ = s.DB.Pool.QueryRow(ctx, `
 		select 1 from enrollments
@@ -121,15 +121,15 @@ func (s *Service) AddToCart(ctx context.Context, studentID, offeringID int64) er
 		return actionErr("این ارائه به مقطع/رشته/سال ورودی شما اختصاص ندارد.")
 	}
 
-	// حذف سایر گروه‌های همین درس از سبد (جایگزینی گروه).
+	// Removing other groups of the same course from the cart (group replacement).
 	if _, err := s.DB.Pool.Exec(ctx, `
 		delete from cart_items where "studentId" = $1 and "offeringId" in (
 			select id from course_offerings where "termId" = $2 and "courseId" = $3
 		)`, studentID, termID, off.CourseID); err != nil {
 		return err
 	}
-	// قرارداد اسکیما یکتایی (studentId, offeringId) ندارد؛ حذف+درج داخل تراکنش
-	// همان اثر را بدون نیاز به unique index می‌دهد (رفتار سیستم فعلی).
+	// The schema contract has no uniqueness on (studentId, offeringId); delete+insert inside the transaction
+	// gives the same effect without needing a unique index (current system behavior).
 	tx, err := s.DB.Pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -144,19 +144,19 @@ func (s *Service) AddToCart(ctx context.Context, studentID, offeringID int64) er
 	return tx.Commit(ctx)
 }
 
-// RemoveFromCart پورت removeFromCartAction.
+// RemoveFromCart ports removeFromCartAction.
 func (s *Service) RemoveFromCart(ctx context.Context, studentID, offeringID int64) error {
 	_, err := s.DB.Pool.Exec(ctx, `delete from cart_items where "studentId" = $1 and "offeringId" = $2`, studentID, offeringID)
 	return err
 }
 
-// ClearCart پورت clearCartAction (ستون‌های سبد بدون universityId هم کار می‌کند).
+// ClearCart ports clearCartAction (works with cart columns without universityId too).
 func (s *Service) ClearCart(ctx context.Context, studentID int64) error {
 	_, err := s.DB.Pool.Exec(ctx, `delete from cart_items where "studentId" = $1`, studentID)
 	return err
 }
 
-// SubmitTick نتیجهٔ ورود به صف/ثبت مستقیم.
+// SubmitTick is the result of entering the queue/direct registration.
 type SubmitTick struct {
 	Queued   bool          `json:"queued"`
 	TicketID string        `json:"ticketId"`
@@ -167,12 +167,12 @@ type SubmitTick struct {
 	Error    string        `json:"error,omitempty"`
 }
 
-// SubmitCart پورت submitCartAction.
+// SubmitCart ports submitCartAction.
 func (s *Service) SubmitCart(ctx context.Context, userID, studentID int64, acceptSameDayRisk bool) SubmitTick {
 	if !s.WR.RateLimitSubmit(ctx, userID) {
 		return SubmitTick{Limited: true}
 	}
-	// کارگر صف؛ در نبود Redis مسیر مستقیم.
+	// Queue worker; direct path when Redis is absent.
 	s.WR.EnsureWorker(func(wctx context.Context, uid, sid int64, risk bool) any {
 		return s.ProcessQueuedSubmit(wctx, uid, sid, risk)
 	})
@@ -188,12 +188,12 @@ func (s *Service) SubmitCart(ctx context.Context, userID, studentID int64, accep
 	return SubmitTick{Queued: true, TicketID: ticket.ID, Position: position}
 }
 
-// MyStatus وضعیت صف کاربر.
+// MyStatus is the user's queue status.
 func (s *Service) MyStatus(ctx context.Context, userID int64) WrStatus {
 	return s.WR.MyStatus(ctx, userID)
 }
 
-// ExamConflict یک تداخل امتحانی در پیش‌نمایش.
+// ExamConflict is an exam conflict in the preview.
 type ExamConflict struct {
 	OfferingID int64  `json:"offeringId"`
 	CourseCode string `json:"courseCode"`
@@ -203,7 +203,7 @@ type ExamConflict struct {
 	WithCourse string `json:"withCourse"`
 }
 
-// PreviewExamConflicts پورت previewExamConflictsAction.
+// PreviewExamConflicts ports previewExamConflictsAction.
 func (s *Service) PreviewExamConflicts(ctx context.Context, studentID int64) (hard, soft []ExamConflict, err error) {
 	termID, _, err := s.currentTermForStudent(ctx, studentID)
 	if err != nil {
@@ -289,7 +289,7 @@ func strDeref(p *string) string {
 	return *p
 }
 
-// ReferCouncil پورت referCouncilAction.
+// ReferCouncil ports referCouncilAction.
 func (s *Service) ReferCouncil(ctx context.Context, userID, studentID, offeringID int64, reason string) error {
 	termID, _, err := s.currentTermForStudent(ctx, studentID)
 	if err != nil {
@@ -342,7 +342,7 @@ func (s *Service) ReferCouncil(ctx context.Context, userID, studentID, offeringI
 	return nil
 }
 
-// RequestBypass پورت requestBypassAction + createBypassRequest.
+// RequestBypass ports requestBypassAction + createBypassRequest.
 func (s *Service) RequestBypass(ctx context.Context, studentID, offeringID int64, kind string) error {
 	if kind != "PREREQ" && kind != "EXAM_CONFLICT" {
 		return actionErr("نوع درخواست نامعتبر است.")
@@ -357,7 +357,7 @@ func (s *Service) RequestBypass(ctx context.Context, studentID, offeringID int64
 	if err != nil {
 		return err
 	}
-	// ثبت تکراری همان ارائه ممنوع — ردیف در سبد گیر نمی‌کند.
+	// Duplicate registration of the same offering is forbidden — the row does not get into the cart.
 	var already int
 	_ = s.DB.Pool.QueryRow(ctx, `
 		select 1 from enrollments
@@ -430,7 +430,7 @@ func (s *Service) RequestBypass(ctx context.Context, studentID, offeringID int64
 		}
 	}
 
-	// تکراری.
+	// duplicate.
 	var dup int64
 	if err := s.DB.Pool.QueryRow(ctx, `
 		select b.id from enroll_bypass_requests b
@@ -440,7 +440,7 @@ func (s *Service) RequestBypass(ctx context.Context, studentID, offeringID int64
 		return actionErr("برای این درس یک درخواست باز دارید.")
 	}
 
-	// سقف واحد: ثبت‌شده + درخواست‌های باز + همین درس.
+	// Unit cap: registered + open requests + this course.
 	var registeredUnits, pendingUnits float64
 	_ = s.DB.Pool.QueryRow(ctx, `
 		select coalesce(sum(c.units),0)::float8 from enrollments e
@@ -462,7 +462,7 @@ func (s *Service) RequestBypass(ctx context.Context, studentID, offeringID int64
 		}
 	}
 
-	// رزرو صندلی.
+	// Seat reservation.
 	if !s.claimSeats(ctx, []int64{offeringID})[offeringID] {
 		return actionErr("ظرفیت این درس پر است.")
 	}
@@ -474,7 +474,7 @@ func (s *Service) RequestBypass(ctx context.Context, studentID, offeringID int64
 		managerHours = *rawHours
 	}
 	deadline := time.Now().Add(time.Duration(managerHours) * time.Hour)
-	// دانشگاه: از دانشجو، در نبود آن از ترم.
+	// University: from the student, otherwise from the term.
 	uni := studentUni
 	if uni == nil {
 		_ = s.DB.Pool.QueryRow(ctx, `select "universityId" from academic_terms where id = $1`, termID).Scan(&uni)
@@ -500,7 +500,7 @@ func hasExam(list []scheduleRow) bool {
 	return false
 }
 
-// CancelBypass پورت cancelBypassRequest.
+// CancelBypass ports cancelBypassRequest.
 func (s *Service) CancelBypass(ctx context.Context, studentID, requestID int64) error {
 	var (
 		offeringID   int64

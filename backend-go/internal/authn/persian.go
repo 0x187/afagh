@@ -1,13 +1,13 @@
-// ═══ نرمال‌سازی ارقام — پورت toEnDigits از afagh-next/src/lib/persian-search.ts ═══
+// ═══ Digit normalization — port of toEnDigits from afagh-next/src/lib/persian-search.ts ═══
 //
-// تبدیل ارقام فارسی (۰-۹) و عربی (٠-٩) به انگلیسی (0-9).
-// کاربرد: شناسه‌های ورود (کد ملی/پرسنلی/دانشجویی) و گذرواژه — کاربر گاهی با
-// کیبورد فارسی تایپ می‌کند و بدون این تبدیل، جست‌وجو ۰ ردیف برمی‌گرداند و
-// ورود اول شکست می‌خورد.
+// Converts Persian (0-9) and Arabic (0-9) digits to English (0-9).
+// Usage: login identifiers (national/staff/student code) and passwords — users sometimes type with
+// a Persian keyboard, and without this conversion the search returns 0 rows and
+// the first login fails.
 package authn
 
-// ToEnDigits ارقام فارسی/عربی را درجا به انگلیسی تبدیل می‌کند؛ بقیهٔ کاراکترها
-// دست‌نخورده می‌مانند (مثل دو replace زنجیره‌ای در TS).
+// ToEnDigits converts Persian/Arabic digits to English in place; other characters
+// remain untouched (like the two chained replaces in TS).
 func ToEnDigits(s string) string {
 	need := false
 	for _, r := range s {

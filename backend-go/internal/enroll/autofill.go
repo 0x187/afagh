@@ -1,4 +1,4 @@
-// ═══ چیدمان هوشمند سبد — پورت autoFillCartFromChartAction ═══
+// ═══ Smart cart layout — port of autoFillCartFromChartAction ═══
 package enroll
 
 import (
@@ -10,7 +10,7 @@ import (
 	"backend-go/internal/scope"
 )
 
-// AutoFillResult نتیجهٔ چیدمان.
+// AutoFillResult is the layout result.
 type AutoFillResult struct {
 	OK                bool    `json:"ok"`
 	Count             int     `json:"count"`
@@ -19,7 +19,7 @@ type AutoFillResult struct {
 	ConflictsResolved int     `json:"conflictsResolved"`
 }
 
-// AutoFillCart پورت autoFillCartFromChartAction.
+// AutoFillCart ports autoFillCartFromChartAction.
 func (s *Service) AutoFillCart(ctx context.Context, studentID int64) AutoFillResult {
 	termID, uniID, err := s.currentTermForStudent(ctx, studentID)
 	if err != nil {
@@ -77,7 +77,7 @@ func (s *Service) AutoFillCart(ctx context.Context, studentID int64) AutoFillRes
 		hasOrdinal = true
 	}
 
-	// چارت.
+	// chart.
 	var chartPicks []struct {
 		CourseID int64
 		Code     string
@@ -114,12 +114,12 @@ func (s *Service) AutoFillCart(ctx context.Context, studentID int64) AutoFillRes
 		}
 	}
 
-	// پاکسازی سبد قبلی.
+	// Cleanup of the previous cart.
 	if _, err := s.DB.Pool.Exec(ctx, `delete from cart_items where "studentId" = $1`, studentID); err != nil {
 		return AutoFillResult{Message: "پاک‌سازی سبد ناموفق بود."}
 	}
 
-	// ارائه‌های قابل‌دیدن.
+	// Viewable offerings.
 	rows, err := s.DB.Pool.Query(ctx, `
 		select o.id, o."courseId", c.code, c.title, c.units, coalesce(o."groupNumber",0),
 		       o.capacity, o."enrolledCount", o."targetDegreeLevelId", o."targetMajorId",
@@ -156,7 +156,7 @@ func (s *Service) AutoFillCart(ctx context.Context, studentID int64) AutoFillRes
 	}
 	rows.Close()
 
-	// جلسات.
+	// Sessions.
 	offIDs := []int64{}
 	for _, o := range visible {
 		offIDs = append(offIDs, o.ID)
@@ -311,6 +311,6 @@ func termOrdinalForEntryPtr(entryYear *int, entryTerm *int, targetCode string) *
 	if entryYear == nil {
 		return nil
 	}
-	// از تابع مشترک scope استفاده می‌کنیم تا قانون یکسان بماند.
+	// We use the shared scope function so the rule stays consistent.
 	return scope.TermOrdinalForEntry(entryYear, entryTerm, targetCode)
 }

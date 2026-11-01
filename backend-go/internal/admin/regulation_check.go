@@ -519,7 +519,7 @@ func (s *Service) ScanMismatchedSamaCodes(ctx context.Context, user *session.Use
 	return &SamaScanResult{Rows: out, Scanned: len(all), Truncated: truncated}, nil
 }
 
-// ApplyCorrectedSamaCodes پورت applyCorrectedSamaCodes — سقف ۵۰۰ ردیف.
+// ApplyCorrectedSamaCodes port of applyCorrectedSamaCodes — limit of 500 rows.
 func (s *Service) ApplyCorrectedSamaCodes(ctx context.Context, user *session.User, cookie string, enrollmentIDs []int64) (int, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -586,7 +586,7 @@ func (s *Service) ApplyCorrectedSamaCodes(ctx context.Context, user *session.Use
 	return applied, nil
 }
 
-// ScanGraduatedWithoutGrades پورت scanGraduatedWithoutGrades.
+// ScanGraduatedWithoutGrades port of scanGraduatedWithoutGrades.
 func (s *Service) ScanGraduatedWithoutGrades(ctx context.Context, user *session.User, cookie string, limit int) ([]StatusMismatchRow, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {

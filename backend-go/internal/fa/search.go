@@ -1,7 +1,7 @@
-// ═══ نرمال‌سازی جست‌وجوی فارسی/عربی — پورت persian-search.ts ═══
+// ═══ Persian/Arabic search normalization — port of persian-search.ts ═══
 //
-// حروف دو املایی یکسان می‌شوند: ي↔ی · ك↔ک · ة↔ه · ؤ→و · ئ→ی · أ/إ/آ→ا
-// + حذف تطویل (ـ) و اعراب + نیم‌فاصله→فاصله.
+// Dual-spelling letters are unified: ي↔ی · ك↔ک · ة↔ه · ؤ→و · ئ→ی · أ/إ/آ→ا
+// + remove tatweel (ـ) and diacritics + ZWNJ→space.
 package fa
 
 import "strings"
@@ -19,10 +19,10 @@ var faNormalizer = strings.NewReplacer(
 	"‌", " ",
 )
 
-// NormalizeFa پورت normalizeFa.
+// NormalizeFa port of normalizeFa.
 func NormalizeFa(s string) string {
 	s = faNormalizer.Replace(s)
-	// اعراب: U+064B..U+0656 و U+0670 — حذف
+	// Diacritics: U+064B..U+0656 and U+0670 — removed
 	var b strings.Builder
 	b.Grow(len(s))
 	for _, r := range s {
@@ -31,12 +31,12 @@ func NormalizeFa(s string) string {
 		}
 		b.WriteRune(r)
 	}
-	// فاصله‌های تکراری → یکی و trim
+	// repeated spaces → one and trim
 	fields := strings.Fields(b.String())
 	return strings.Join(fields, " ")
 }
 
-// EscapeLikeChars فرار کاراکترهای ویژهٔ LIKE (\ ٪ _) — الگو باید با ESCAPE '\' استفاده شود.
+// EscapeLikeChars escapes LIKE special characters (\ ٪ _) — the pattern must be used with ESCAPE '\'.
 func EscapeLikeChars(s string) string {
 	var b strings.Builder
 	b.Grow(len(s))
@@ -49,13 +49,13 @@ func EscapeLikeChars(s string) string {
 	return b.String()
 }
 
-// FaLikePattern الگوی LIKE درصدی از عبارت خام (نرمال‌شده و فرارشده).
+// FaLikePattern percent LIKE pattern from the raw term (normalized and escaped).
 func FaLikePattern(raw string) string {
 	return "%" + EscapeLikeChars(NormalizeFa(raw)) + "%"
 }
 
-// FaIncludes تطبیق زیررشته‌ای نرمال‌شده (ارقام فارسی هم به لاتین).
-// سوزن خالی → true (همان faIncludes).
+// FaIncludes normalized substring match (Persian digits also to Latin).
+// empty needle → true (same as faIncludes).
 func FaIncludes(haystack, needle string) bool {
 	n := ToEnDigits(NormalizeFa(needle))
 	if n == "" {

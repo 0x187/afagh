@@ -1,14 +1,14 @@
-// ═══ لبهٔ مسیریابی strangler ═══
+// ═══ Strangler routing edge ═══
 //
-// سرویس Go نقطهٔ ورود ترافیک می‌شود (Caddy → Go):
-//   - مسیرهای مالک‌شده (پیشوند AFAGH_OWNED_PREFIXES: پیش‌فرض /api/v2 و /app)
-//     → پیشوند /api/* : API خود سرویس (gin) + هدرهای امنیتی + CSRF
-//     → بقیه          : SPA — پروکسی به AFAGH_SPA_UPSTREAM (dev/Vite) یا
-//     فایل‌های AFAGH_SPA_DIST با fallback به index.html
-//   - هر چیز دیگر → پروکسی به Next.js (AFAGH_NEXT_UPSTREAM) با حفظ Host
+// The Go service becomes the traffic entry point (Caddy → Go):
+//   - owned routes (AFAGH_OWNED_PREFIXES prefixes: default /api/v2 and /app)
+//     → /api/* prefix: the service's own API (gin) + security headers + CSRF
+//     → the rest         : SPA — proxy to AFAGH_SPA_UPSTREAM (dev/Vite) or
+//     AFAGH_SPA_DIST files with fallback to index.html
+//   - anything else → proxy to Next.js (AFAGH_NEXT_UPSTREAM) preserving Host
 //
-// سوییچ هر ماژول در پروداکشن = افزودن یک پیشوند به AFAGH_OWNED_PREFIXES
-// بدون تغییر Caddy و بدون داون‌تایم.
+// Switching each module in production = adding a prefix to AFAGH_OWNED_PREFIXES
+// with no Caddy change and no downtime.
 package edge
 
 import (
@@ -23,9 +23,9 @@ import (
 	"backend-go/internal/middleware"
 )
 
-// IsOwned طولانی‌ترین پیشوند مالک‌شدهٔ مسیر را برمی‌گرداند.
-// تطبیق سخت‌گیرانه است: مسیر باید دقیقاً پیشوند یا پیشوند+«/» باشد
-// (یعنی «/app» هرگز «/appp» را نمی‌گیرد).
+// IsOwned returns the longest owned prefix of the path.
+// Matching is strict: the path must be exactly the prefix or prefix+"/"
+// (that is, "/app" never matches "/appp").
 func IsOwned(owned []string, p string) (string, bool) {
 	best := ""
 	found := false
@@ -40,23 +40,23 @@ func IsOwned(owned []string, p string) (string, bool) {
 	return best, found
 }
 
-// IsAPIPath آیا مسیر زیر پیشوند API مالک‌شده است؟
+// IsAPIPath reports whether the path is under the owned API prefix.
 func IsAPIPath(owned []string, p string) bool {
 	prefix, ok := IsOwned(owned, p)
 	return ok && strings.HasPrefix(prefix, "/api/")
 }
 
-// Root هندلر ریشهٔ کامل را می‌سازد (مسیریابی + هدرهای امنیتی + CSRF + لاگ).
+// Root builds the full root handler (routing + security headers + CSRF + logging).
 func Root(owned []string, api http.Handler, spa http.Handler, spaDist string, nextUpstream *url.URL, extraOrigins []string) http.Handler {
 	next := httputil.NewSingleHostReverseProxy(nextUpstream)
-	// Host اصلی حفظ شود تا Next مسیرهای نسبی/کوکی‌ها را درست ببیند
+	// The main Host is preserved so Next sees relative paths/cookies correctly
 	origDirector := next.Director
 	next.Director = func(req *http.Request) {
 		origDirector(req)
 		req.Host = nextUpstream.Host
 	}
 
-	// برای هر پیشوند SPA، هندلر مناسب ساخته می‌شود (پروکسی یا استاتیک).
+	// For each SPA prefix, the appropriate handler is built (proxy or static).
 	spaByPrefix := map[string]http.Handler{}
 	for _, prefix := range owned {
 		if strings.HasPrefix(prefix, "/api/") {
@@ -77,11 +77,11 @@ func Root(owned []string, api http.Handler, spa http.Handler, spaDist string, ne
 			return
 		}
 		if strings.HasPrefix(prefix, "/api/") {
-			// CSRF پیش از هر نوشتن پاسخ — پورت assertCsrf
+			// CSRF before any write response — port of assertCsrf
 			if !middleware.AssertSameOrigin(w, req, extraOrigins) {
 				return
 			}
-			// پیشوند API حذف می‌شود تا هندلرهای gin مستقل از محل نصب باشند
+			// The API prefix is stripped so gin handlers are independent of the mount point
 			middleware.SecurityHeaders(http.StripPrefix(prefix, api)).ServeHTTP(w, req)
 			return
 		}
@@ -95,8 +95,8 @@ func Root(owned []string, api http.Handler, spa http.Handler, spaDist string, ne
 	}))
 }
 
-// assetExts پسوندهای دارایی واقعی؛ مسیرهای دیگر (حتی با نقطه — مثل توکن)
-// به index.html می‌افتند تا router داخلی SPA آن را بگیرد.
+// assetExts real asset extensions; other paths (even with a dot — such as a token)
+// fall through to index.html so the SPA's internal router handles them.
 var assetExts = map[string]bool{
 	".js": true, ".mjs": true, ".css": true, ".map": true, ".json": true,
 	".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".svg": true, ".webp": true, ".ico": true,
@@ -104,9 +104,9 @@ var assetExts = map[string]bool{
 	".wasm": true,
 }
 
-// spaStaticHandler فایل‌های dist را زیر «prefix» سرو می‌کند؛ هر مسیر بدون
-// پسوند (مسیر کلاینتی مثل /app/student/enroll) به index.html می‌افتد تا
-// router داخلی SPA آن را بگیرد؛ دارایی گمشده 404 واقعی می‌دهد.
+// spaStaticHandler serves dist files under "prefix"; every path without
+// an extension (a client route like /app/student/enroll) falls through to index.html so the
+// SPA's internal router handles it; a missing asset returns a real 404.
 func spaStaticHandler(prefix, dist string) http.Handler {
 	files := http.StripPrefix(prefix, http.FileServer(http.Dir(dist)))
 	index := http.StripPrefix(prefix, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -126,7 +126,7 @@ func spaStaticHandler(prefix, dist string) http.Handler {
 			http.NotFound(w, r)
 			return
 		}
-		// مسیرهای کلاینتی که «نقطه» دارند (مثل توکن T1.<b64>.<sig>) هم index می‌گیرند
+		// Client routes that have a "dot" (such as the token T1.<b64>.<sig>) also get index
 		index.ServeHTTP(w, r)
 	})
 }

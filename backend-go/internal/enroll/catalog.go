@@ -1,4 +1,4 @@
-// ═══ دادهٔ صفحهٔ انتخاب واحد — پورت student/enroll/page.tsx ═══
+// ═══ Enrollment page data — port of student/enroll/page.tsx ═══
 package enroll
 
 import (
@@ -9,7 +9,7 @@ import (
 	"backend-go/internal/tuition"
 )
 
-// ClassSlot جلسهٔ هفتگی.
+// ClassSlot is a weekly session.
 type ClassSlot struct {
 	DayOfWeek *int   `json:"dayOfWeek"`
 	DayName   string `json:"dayName"`
@@ -19,14 +19,14 @@ type ClassSlot struct {
 	Building  string `json:"building"`
 }
 
-// ExamSlot زمان امتحان.
+// ExamSlot is the exam time.
 type ExamSlot struct {
 	ExamDate  string `json:"examDate"`
 	StartTime string `json:"startTime"`
 	EndTime   string `json:"endTime"`
 }
 
-// OfferingOfferable یک ارائهٔ کاتالوگ.
+// OfferingOfferable is a catalog offering.
 type OfferingOfferable struct {
 	ID               int64       `json:"id"`
 	CourseID         int64       `json:"courseId"`
@@ -49,7 +49,7 @@ type OfferingOfferable struct {
 	TuitionTotal     float64     `json:"tuitionTotal"`
 }
 
-// CartItem ردیف سبد.
+// CartItem is a cart row.
 type CartItem struct {
 	ID             int64       `json:"id"`
 	CourseID       int64       `json:"courseId"`
@@ -61,7 +61,7 @@ type CartItem struct {
 	ExamSchedule   *ExamSlot   `json:"examSchedule"`
 }
 
-// BypassRequest درخواست باز بدون رعایت محدودیت.
+// BypassRequest is an open request without restriction.
 type BypassRequest struct {
 	ID          int64  `json:"id"`
 	OfferingID  int64  `json:"offeringId"`
@@ -70,7 +70,7 @@ type BypassRequest struct {
 	CourseTitle string `json:"courseTitle"`
 }
 
-// TermInfo اطلاعات ترم برای صفحه.
+// TermInfo is term info for the page.
 type TermInfo struct {
 	ID             *int64  `json:"id"`
 	Title          string  `json:"title"`
@@ -81,7 +81,7 @@ type TermInfo struct {
 	EnrollmentOpen bool    `json:"enrollmentFlag"`
 }
 
-// RegulationStatus خلاصهٔ آیین‌نامه برای UI.
+// RegulationStatus is the regulation summary for the UI.
 type RegulationStatus struct {
 	EffectiveMaxUnits float64 `json:"effectiveMaxUnits"`
 	MinAllowedUnits   float64 `json:"minAllowedUnits"`
@@ -94,7 +94,7 @@ type RegulationStatus struct {
 	IsSummer          bool    `json:"isSummer"`
 }
 
-// EnrollPageResponse پاسخ کامل صفحه.
+// EnrollPageResponse is the full page response.
 type EnrollPageResponse struct {
 	Student             StudentLite         `json:"student"`
 	Term                TermInfo            `json:"term"`
@@ -115,7 +115,7 @@ type EnrollPageResponse struct {
 	SajjadPortalURL     string              `json:"sajjadPortalUrl"`
 }
 
-// StudentLite اطلاعات حداقلی دانشجو.
+// StudentLite is minimal student info.
 type StudentLite struct {
 	ID     int64  `json:"id"`
 	Name   string `json:"name"`
@@ -158,7 +158,7 @@ func dayName(d *int) string {
 	return "روز دیگر"
 }
 
-// GetEnrollPage دادهٔ کامل صفحهٔ انتخاب واحد.
+// GetEnrollPage returns complete enrollment page data.
 func (s *Service) GetEnrollPage(ctx context.Context, userID int64, userName string, termCookie *int64) (*EnrollPageResponse, error) {
 	me, err := s.loadStudent(ctx, userID)
 	if err != nil {
@@ -171,7 +171,7 @@ func (s *Service) GetEnrollPage(ctx context.Context, userID int64, userName stri
 		termID = selection.SelectedID
 	}
 
-	// ترم.
+	// term.
 	resp := &EnrollPageResponse{
 		Student:             StudentLite{ID: me.ID, Name: userName, Status: me.Status},
 		Offerings:           []OfferingOfferable{},
@@ -212,7 +212,7 @@ func (s *Service) GetEnrollPage(ctx context.Context, userID int64, userName stri
 		resp.SajjadPortalURL = strings.TrimSpace(v)
 	}
 
-	// مقطع + دانشکده.
+	// level + faculty.
 	if me.DegreeLevelID != nil {
 		_ = s.DB.Pool.QueryRow(ctx, `select title from degree_level_configs where id = $1`, *me.DegreeLevelID).Scan(&resp.DegreeTitle)
 	}
@@ -221,7 +221,7 @@ func (s *Service) GetEnrollPage(ctx context.Context, userID int64, userName stri
 		_ = s.DB.Pool.QueryRow(ctx, `select "facultyId" from majors where id = $1`, *me.MajorID).Scan(&facultyID)
 	}
 
-	// آیین‌نامه.
+	// regulation.
 	if summary, err := EvaluateStudentRegulationStatus(ctx, s.DB.Pool, me.ID, termID); err == nil {
 		resp.Regulation = &RegulationStatus{
 			EffectiveMaxUnits: summary.EffectiveMaxUnits,
@@ -240,7 +240,7 @@ func (s *Service) GetEnrollPage(ctx context.Context, userID int64, userName stri
 		return resp, nil
 	}
 
-	// ── ارائه‌های خام ترم/دانشگاه ──
+	// ── raw offerings of the term/university ──
 	rows, err := s.DB.Pool.Query(ctx, `
 		select o.id, o."courseId", c.code, c.title, c.units, o.capacity, o."enrolledCount",
 		       coalesce(o."groupNumber",0), o."professorId", o."offeringType", coalesce(o."waitlistCapacity",0),
@@ -276,7 +276,7 @@ func (s *Service) GetEnrollPage(ctx context.Context, userID int64, userName stri
 		}
 	}
 
-	// ── چارت تحصیلی ──
+	// ── academic chart ──
 	cscope := s.resolveCurriculumScope(ctx, me.ID)
 	resp.CurriculumScoped = cscope.Resolved
 	resp.CurriculumReason = cscope.Reason
@@ -284,11 +284,11 @@ func (s *Service) GetEnrollPage(ctx context.Context, userID int64, userName stri
 	resp.CurriculumRequired = s.Settings.GetBool(ctx, "ENROLL_REQUIRE_CURRICULUM_CHART")
 	resp.StudentTermOrdinal = scope.TermOrdinalForEntry(&me.EntryYear, me.EntryTerm, termCode)
 
-	// دروس مردودی برای تکرار (از همهٔ سوابق).
+	// Failed courses for retake (from all records).
 	retakeIDs := s.retakeCourseIDs(ctx, me.ID)
 	scoped := scopeOfferingsByCurriculum(visible, cscope, resp.StudentTermOrdinal, retakeIDs, resp.CurriculumRequired)
 
-	// ── جلسات، اساتید، پیش‌نیاز ──
+	// ── sessions, professors, prerequisites ──
 	offeringIDs := []int64{}
 	for _, o := range raw {
 		offeringIDs = append(offeringIDs, o.ID)
@@ -345,7 +345,7 @@ func (s *Service) GetEnrollPage(ctx context.Context, userID int64, userName stri
 	profNames := s.loadProfessorNames(ctx, scoped)
 	prereq, _ := BuildPrereqContext(ctx, s.DB.Pool, me.ID)
 
-	// ── شهریه ──
+	// ── tuition ──
 	tuitionRules, currentFinTerm := s.loadTuitionRules(ctx, me.UniversityID)
 	termTypeStr := "NORMAL"
 	if termType != nil {
@@ -400,7 +400,7 @@ func (s *Service) GetEnrollPage(ctx context.Context, userID int64, userName stri
 		resp.Offerings = append(resp.Offerings, item)
 	}
 
-	// ── سبد ──
+	// ── cart ──
 	resp.Cart = s.loadCart(ctx, me.ID, classMap, examMap)
 	resp.CartStartedAt = s.cartStartedAt(ctx, me.ID)
 	resp.EnrolledOfferingIDs = s.enrolledOfferingIDs(ctx, me.ID, *termID)
@@ -411,7 +411,7 @@ func (s *Service) GetEnrollPage(ctx context.Context, userID int64, userName stri
 
 func strPtr(v string) *string { return &v }
 
-// rawOffering ارائهٔ خام برای فیلتر کاتالوگ.
+// rawOffering raw offering for catalog filtering.
 type rawOffering struct {
 	ID                  int64
 	CourseID            int64

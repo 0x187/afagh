@@ -1,4 +1,4 @@
-// ═══ خط لولهٔ ثبت نهایی — پورت enroll-engine/submit.ts (سند §۱۰۰۸) ═══
+// ═══ Final submission pipeline — port of enroll-engine/submit.ts (document §1008) ═══
 package enroll
 
 import (
@@ -12,20 +12,20 @@ import (
 	"backend-go/internal/finance"
 )
 
-// SoftError خطای نرمِ یک ارائه.
+// SoftError soft error of an offering.
 type SoftError struct {
 	OfferingID int64  `json:"offeringId"`
 	Msg        string `json:"msg"`
 }
 
-// DroppedCart ردیف حذف‌شده از سبد.
+// DroppedCart row removed from the cart.
 type DroppedCart struct {
 	OfferingID int64  `json:"offeringId"`
 	Title      string `json:"title"`
 	Reason     string `json:"reason"`
 }
 
-// SubmitResult نتیجهٔ ثبت.
+// SubmitResult submission result.
 type SubmitResult struct {
 	OK          bool          `json:"ok"`
 	Registered  []string      `json:"registered"`
@@ -79,12 +79,12 @@ func examOverlaps(a, b scheduleRow) bool {
 	return clock5(a.StartTime) < clock5(b.EndTime) && clock5(b.StartTime) < clock5(a.EndTime)
 }
 
-// ProcessQueuedSubmit پورت processQueuedSubmit.
+// ProcessQueuedSubmit port of processQueuedSubmit.
 func (s *Service) ProcessQueuedSubmit(ctx context.Context, userID, studentID int64, acceptSameDayRisk bool) SubmitResult {
 	out := newSubmitResult()
 	pool := s.DB.Pool
 
-	// ── دانشجو و مرز دانشگاه ──
+	// ── Student and university boundary ──
 	var (
 		stuUniversity *int64
 		degreeLevelID *int64
@@ -105,7 +105,7 @@ func (s *Service) ProcessQueuedSubmit(ctx context.Context, userID, studentID int
 		return out
 	}
 
-	// ── ترم جاری همان دانشگاه (fail-closed) ──
+	// ── Current semester of the same university (fail-closed) ──
 	var (
 		termID           int64
 		termCode         string
@@ -126,7 +126,7 @@ func (s *Service) ProcessQueuedSubmit(ctx context.Context, userID, studentID int
 		return out
 	}
 
-	// ── فعال‌سازی ترم (اختیاری) ──
+	// ── Term activation (optional) ──
 	if s.Settings.GetBool(ctx, "ENFORCE_TERM_ACTIVATION") {
 		var statusCode *string
 		_ = pool.QueryRow(ctx, `
@@ -137,7 +137,7 @@ func (s *Service) ProcessQueuedSubmit(ctx context.Context, userID, studentID int
 		}
 	}
 
-	// ── فیلتر ۱: وضعیت دانشجو ──
+	// ── Filter 1: student status ──
 	if stuStatus != "ACTIVE" {
 		if stuStatus == "BLOCKED_COMMISSION" {
 			out.hard("حساب شما توسط کمیسیون موارد خاص مسدود است.")
@@ -146,7 +146,7 @@ func (s *Service) ProcessQueuedSubmit(ctx context.Context, userID, studentID int
 		}
 	}
 
-	// ── فیلتر ۱: تسویهٔ مالی ──
+	// ── Filter 1: financial clearance ──
 	clearanceTermID := termID
 	var finAcademicTermID *int64
 	err = pool.QueryRow(ctx, `
@@ -177,7 +177,7 @@ func (s *Service) ProcessQueuedSubmit(ctx context.Context, userID, studentID int
 			faGroup(balance), faGroup(debtThreshold)))
 	}
 
-	// ── سبد ──
+	// ── Cart ──
 	cartRows, err := pool.Query(ctx, `select "offeringId" from cart_items where "studentId" = $1`, studentID)
 	if err != nil {
 		out.hard("خطای داخلی سرور.")
@@ -202,7 +202,7 @@ func (s *Service) ProcessQueuedSubmit(ctx context.Context, userID, studentID int
 		return out
 	}
 
-	// ── H2: ردیف‌های کهنه حذف می‌شوند، ثبت متوقف نمی‌شود ──
+	// ── H2: stale rows are removed, submission does not stop ──
 	stale := []int64{}
 	for _, id := range ids {
 		found := false
@@ -244,7 +244,7 @@ func (s *Service) ProcessQueuedSubmit(ctx context.Context, userID, studentID int
 		s.dropCartRows(ctx, studentID, stale)
 	}
 
-	// ── فیلتر ۰ب: هدف‌گیری ──
+	// ── Filter 0b: targeting ──
 	scope := StudentScope{DegreeLevelID: degreeLevelID, MajorID: majorID, EntryYear: entryYear}
 	visible := []submitOffering{}
 	offTarget := []submitOffering{}
@@ -274,7 +274,7 @@ func (s *Service) ProcessQueuedSubmit(ctx context.Context, userID, studentID int
 		return out
 	}
 
-	// ── دروس ثبت‌شدهٔ فعلی ──
+	// ── Currently enrolled courses ──
 	type currentRow struct {
 		OfferingID int64
 		CourseID   int64
@@ -306,7 +306,7 @@ func (s *Service) ProcessQueuedSubmit(ctx context.Context, userID, studentID int
 		takenCourseIDs[c.CourseID] = true
 	}
 
-	// ── درخواست‌های باز (صندلی رزرو و واحد) ──
+	// ── Open requests (seat reservation and units) ──
 	pendingBypassUnits := 0.0
 	pendingBypassIDs := map[int64]bool{}
 	if brows, err := pool.Query(ctx, `
@@ -327,7 +327,7 @@ func (s *Service) ProcessQueuedSubmit(ctx context.Context, userID, studentID int
 		brows.Close()
 	}
 
-	// ── فیلتر ۲ب: تکرار درس ──
+	// ── Filter 2b: duplicate course ──
 	for _, o := range activeOffs {
 		if already[o.ID] {
 			continue
@@ -337,7 +337,7 @@ func (s *Service) ProcessQueuedSubmit(ctx context.Context, userID, studentID int
 		}
 	}
 
-	// ── فیلتر ۳: سقف واحد ──
+	// ── Filter 3: unit cap ──
 	allowedMax := float64(MaxUnits)
 	if summary, err := EvaluateStudentRegulationStatus(ctx, pool, studentID, &termID); err == nil {
 		allowedMax = summary.EffectiveMaxUnits
@@ -357,7 +357,7 @@ func (s *Service) ProcessQueuedSubmit(ctx context.Context, userID, studentID int
 			faNum(allowedMax), faNum(currentUnits), faNum(newUnits), faNum(currentUnits+newUnits)))
 	}
 
-	// ── فیلتر ۵: تداخل کلاس/امتحان ──
+	// ── Filter 5: class/exam conflict ──
 	cartSchedules := s.loadSchedules(ctx, ids)
 	regIDs := []int64{}
 	for id := range already {
@@ -441,7 +441,7 @@ func (s *Service) ProcessQueuedSubmit(ctx context.Context, userID, studentID int
 		}
 	}
 
-	// ── فیلتر ۴: پیش‌نیاز ──
+	// ── Filter 4: prerequisite ──
 	prereq, err := BuildPrereqContext(ctx, pool, studentID)
 	if err == nil {
 		for _, o := range activeOffs {
@@ -475,7 +475,7 @@ func (s *Service) ProcessQueuedSubmit(ctx context.Context, userID, studentID int
 		return out
 	}
 
-	// درخواست باز → ثبت دستی انجام نمی‌شود.
+	// open request → no manual submission is performed.
 	for _, o := range activeOffs {
 		if pendingBypassIDs[o.ID] {
 			out.SoftErrors = append(out.SoftErrors, SoftError{
@@ -485,7 +485,7 @@ func (s *Service) ProcessQueuedSubmit(ctx context.Context, userID, studentID int
 		}
 	}
 
-	// ── ظرفیت ──
+	// ── Capacity ──
 	s.WR.WarmupCapacities(ctx, false)
 	softSet := map[int64]bool{}
 	for _, se := range out.SoftErrors {
@@ -549,7 +549,7 @@ func (s *Service) ProcessQueuedSubmit(ctx context.Context, userID, studentID int
 		}
 	}
 
-	// ── تراکنش نهایی با RLS و قفل مشاوره‌ای ──
+	// ── Final transaction with RLS and advisory lock ──
 	var txErr error
 	err = s.DB.WithUserRls(ctx, userID, s.Production, func(tx pgx.Tx) error {
 		if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtext('enroll:' || $1))`, fmt.Sprintf("%d", studentID)); err != nil {
@@ -656,7 +656,7 @@ func (s *Service) ProcessQueuedSubmit(ctx context.Context, userID, studentID int
 		if _, err := tx.Exec(ctx, `
 			insert into notifications ("userId", "eventCode", payload)
 			values ($1, 'ENROLLMENT_DONE', $2)`, userID, payloadJSON); err != nil {
-			// اعلان نباید ثبت را بشکند (در نسخهٔ TS هم خطای آن نادیده گرفته می‌شد).
+			// Notification must not break the submission (its error was ignored in the TS version too).
 			_ = err
 		}
 		return nil
@@ -672,7 +672,7 @@ func (s *Service) ProcessQueuedSubmit(ctx context.Context, userID, studentID int
 			}
 		}
 	}
-	// جبران صندلی‌ها برای شکست‌ها.
+	// Compensate seats for failures.
 	for _, p := range plans {
 		if p.failMessage != "" && !p.excluded && !p.waitlisted {
 			s.compensateSeat(ctx, p.o.ID)

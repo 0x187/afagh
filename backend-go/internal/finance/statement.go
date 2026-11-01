@@ -1,4 +1,4 @@
-// ═══ کارنامهٔ مالی ترم‌به‌ترم — پورت statement.ts ═══
+// ═══ Term-by-term financial transcript — port of statement.ts ═══
 package finance
 
 import (
@@ -8,10 +8,10 @@ import (
 	"backend-go/internal/scheduling"
 )
 
-// ChequeCleared وضعیت چک وصول‌شده.
+// ChequeCleared cleared cheque status.
 const ChequeCleared = "CLEARED"
 
-// ChequeRow ردیف چک.
+// ChequeRow cheque row.
 type ChequeRow struct {
 	ID         int64
 	TermID     *int64
@@ -23,7 +23,7 @@ type ChequeRow struct {
 	RemindedAt any
 }
 
-// LoanRow ردیف وام — فقط ACTIVE بر مانده اثر می‌گذارد.
+// LoanRow loan row — only ACTIVE affects the balance.
 type LoanRow struct {
 	ID        int64
 	TermID    *int64
@@ -33,7 +33,7 @@ type LoanRow struct {
 	CreatedAt any
 }
 
-// LedgerTxn تراکنش دفتر مالی.
+// LedgerTxn financial ledger transaction.
 type LedgerTxn struct {
 	ID              int64
 	TermID          *int64
@@ -43,16 +43,16 @@ type LedgerTxn struct {
 	CreatedAt       any
 }
 
-// StatementEvent رویداد کارنامه.
+// StatementEvent transcript event.
 type StatementEvent struct {
 	Kind   string // CHARGE | DISCOUNT | SPONSOR | PAYMENT | CHEQUE | LOAN
 	Label  string
 	Amount float64
 	DateMs *int64
-	Sign   int // +1 به نفع دانشجو، -1 به زیان او
+	Sign   int // +1 in the student's favor, -1 against them
 }
 
-// TermStatement کارنامهٔ یک ترم.
+// TermStatement transcript of one term.
 type TermStatement struct {
 	TermID         int64
 	TermTitle      string
@@ -70,7 +70,7 @@ type TermStatement struct {
 	Events         []StatementEvent
 }
 
-// TranscriptInput ورودی ساخت کارنامه.
+// TranscriptInput input for building the transcript.
 type TranscriptInput struct {
 	Ledger       []LedgerTxn
 	Discounts    []AppliedAmount
@@ -90,7 +90,7 @@ func termKey(t *int64) int64 {
 	return *t
 }
 
-// BuildTranscript پورت buildTranscript — ترتیب زمانی بر پایهٔ کد ترم (نه id).
+// BuildTranscript port of buildTranscript — chronological order based on term code (not id).
 func BuildTranscript(input TranscriptInput) []TermStatement {
 	termIDs := map[int64]bool{}
 	for _, t := range input.Ledger {
@@ -107,7 +107,7 @@ func BuildTranscript(input TranscriptInput) []TermStatement {
 		ids = append(ids, id)
 	}
 
-	// chronKey: [group, sortKey, termId] — ۰ کد معتبر، ۱ کد ناشناخته، ۲ بدون ترم
+	// chronKey: [group, sortKey, termId] — 0 valid code, 1 unknown code, 2 no term
 	type ck struct {
 		group   int
 		sortKey int
@@ -245,7 +245,7 @@ func BuildTranscript(input TranscriptInput) []TermStatement {
 			events = append(events, StatementEvent{Kind: "LOAN", Label: label, Amount: amount, DateMs: ToMs(l.CreatedAt), Sign: 1})
 		}
 
-		// 🔒 سقف: جمع تخفیف+پوشش هرگز از شهریهٔ ترم بیشتر نمی‌شود.
+		// 🔒 cap: total discount+sponsorship never exceeds the term tuition.
 		cappedDiscounts := discounts
 		if cappedDiscounts > charges {
 			cappedDiscounts = charges
@@ -314,7 +314,7 @@ func chequeLabel(c ChequeRow) string {
 	return strings.TrimSpace(label)
 }
 
-// TranscriptTotals جمع کل کارنامه.
+// TranscriptTotals transcript totals.
 type TranscriptTotals struct {
 	Charges        float64
 	Discounts      float64
@@ -327,7 +327,7 @@ type TranscriptTotals struct {
 	Balance        float64
 }
 
-// TranscriptTotalsOf پورت transcriptTotals.
+// TranscriptTotalsOf port of transcriptTotals.
 func TranscriptTotalsOf(statements []TermStatement) TranscriptTotals {
 	var t TranscriptTotals
 	for _, s := range statements {
@@ -345,7 +345,7 @@ func TranscriptTotalsOf(statements []TermStatement) TranscriptTotals {
 }
 
 func itoa(n int64) string {
-	// معادل String(number) — بدون وابستگی اضافه
+	// equivalent to String(number) — with no extra dependency
 	if n == 0 {
 		return "0"
 	}

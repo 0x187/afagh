@@ -1,4 +1,4 @@
-// ═══ موتور شهریه: قواعد، تعرفهٔ سالانه و سیاست معادل‌سازی — پورت admin/tuition ═══
+// ═══ Tuition engine: rules, annual tariff and equivalence policy — port of admin/tuition ═══
 package admin
 
 import (
@@ -13,7 +13,7 @@ import (
 	"backend-go/internal/tuition"
 )
 
-// TuitionRuleRow قاعدهٔ شهریه.
+// TuitionRuleRow tuition rule.
 type TuitionRuleRow struct {
 	ID                int64   `json:"id"`
 	DegreeLevelID     *int64  `json:"degreeLevelId"`
@@ -26,20 +26,20 @@ type TuitionRuleRow struct {
 	Note              *string `json:"note"`
 }
 
-// TuitionDegree گزینهٔ مقطع.
+// TuitionDegree degree option.
 type TuitionDegree struct {
 	ID    int64  `json:"id"`
 	Title string `json:"title"`
 }
 
-// TuitionRulesData دادهٔ صفحهٔ موتور شهریه.
+// TuitionRulesData tuition engine page data.
 type TuitionRulesData struct {
 	Rules          []TuitionRuleRow `json:"rules"`
 	Degrees        []TuitionDegree  `json:"degrees"`
 	EquivFixedMode string           `json:"equivFixedMode"`
 }
 
-// TuitionRules لیست قواعد + مقاطع + سیاست معادل‌سازی.
+// TuitionRules list of rules + degree levels + equivalence policy.
 func (s *Service) TuitionRules(ctx context.Context, user *session.User, cookie string) (*TuitionRulesData, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	out := &TuitionRulesData{Rules: []TuitionRuleRow{}, Degrees: []TuitionDegree{}, EquivFixedMode: "ONCE"}
@@ -92,7 +92,7 @@ func normalizeEquivMode(v string) string {
 	return "ONCE"
 }
 
-// TuitionRuleInput ورودی ذخیرهٔ قاعده.
+// TuitionRuleInput rule save input.
 type TuitionRuleInput struct {
 	ID                *int64  `json:"id"`
 	DegreeLevelID     *int64  `json:"degreeLevelId"`
@@ -123,7 +123,7 @@ func nonNegRound(v float64) float64 {
 	return float64(int64(v + 0.5))
 }
 
-// SaveTuitionRule ایجاد/ویرایش قاعده.
+// SaveTuitionRule create/edit rule.
 func (s *Service) SaveTuitionRule(ctx context.Context, user *session.User, cookie string, in TuitionRuleInput) error {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -164,7 +164,7 @@ func (s *Service) SaveTuitionRule(ctx context.Context, user *session.User, cooki
 	return err
 }
 
-// DeleteTuitionRule حذف قاعده.
+// DeleteTuitionRule delete rule.
 func (s *Service) DeleteTuitionRule(ctx context.Context, user *session.User, cookie string, id int64) error {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -182,13 +182,13 @@ func (s *Service) DeleteTuitionRule(ctx context.Context, user *session.User, coo
 	return err
 }
 
-// ImportLegacyResult نتیجهٔ درون‌ریزی.
+// ImportLegacyResult import result.
 type ImportLegacyResult struct {
 	Created int `json:"created"`
 	Skipped int `json:"skipped"`
 }
 
-// ImportLegacyFeeRules پورت importLegacyFeeRulesAction.
+// ImportLegacyFeeRules port of importLegacyFeeRulesAction.
 func (s *Service) ImportLegacyFeeRules(ctx context.Context, user *session.User, cookie string) (*ImportLegacyResult, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -221,7 +221,7 @@ func (s *Service) ImportLegacyFeeRules(ctx context.Context, user *session.User, 
 	}
 	rows.Close()
 
-	// گروه‌بندی (مقطع، نوع ترم) — آخرین ترم برنده.
+	// Grouping by (degree, term type) — the last term wins.
 	type key struct {
 		Degree int64
 		Type   string
@@ -301,7 +301,7 @@ func (s *Service) ImportLegacyFeeRules(ctx context.Context, user *session.User, 
 	return res, nil
 }
 
-// SetEquivFixedMode ذخیرهٔ سیاست معادل‌سازی.
+// SetEquivFixedMode save the equivalence policy.
 func (s *Service) SetEquivFixedMode(ctx context.Context, user *session.User, mode string) (string, error) {
 	value := normalizeEquivMode(mode)
 	if s.Store == nil {
@@ -310,16 +310,16 @@ func (s *Service) SetEquivFixedMode(ctx context.Context, user *session.User, mod
 	return value, s.Store.Save(ctx, "EQUIV_FIXED_TUITION_MODE", value)
 }
 
-// ─────────────────── تعرفهٔ سالانه ───────────────────
+// ─────────────────── Annual tariff ───────────────────
 
-// TariffRate نرخ نوع درس.
+// TariffRate course type rate.
 type TariffRate struct {
 	MaliType int     `json:"maliType"`
 	TH       float64 `json:"th"`
 	OP       float64 `json:"op"`
 }
 
-// TariffMajor رشته/ورودی‌های یک گروه.
+// TariffMajor majors/entry cohorts of a group.
 type TariffMajor struct {
 	Code       string `json:"code"`
 	Title      string `json:"title"`
@@ -327,7 +327,7 @@ type TariffMajor struct {
 	EntryYears []int  `json:"entryYears"`
 }
 
-// TariffGroup گروه تعرفه (کد قیمت).
+// TariffGroup tariff group (price code).
 type TariffGroup struct {
 	UPriceCode string        `json:"uPriceCode"`
 	Source     string        `json:"source"`
@@ -335,7 +335,7 @@ type TariffGroup struct {
 	Majors     []TariffMajor `json:"majors"`
 }
 
-// TariffData دادهٔ صفحهٔ تعرفه.
+// TariffData tariff page data.
 type TariffData struct {
 	UniversityTitle string        `json:"universityTitle"`
 	Years           []int         `json:"years"`
@@ -343,7 +343,7 @@ type TariffData struct {
 	Groups          []TariffGroup `json:"groups"`
 }
 
-// Tariff فهرست گروه‌های تعرفهٔ یک سال.
+// Tariff lists the tariff groups for a year.
 func (s *Service) Tariff(ctx context.Context, user *session.User, cookie string, wantYear int) (*TariffData, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	out := &TariffData{Years: []int{}, Groups: []TariffGroup{}}
@@ -467,7 +467,7 @@ func (s *Service) Tariff(ctx context.Context, user *session.User, cookie string,
 	return out, nil
 }
 
-// TariffRateInput ورودی نرخ.
+// TariffRateInput is the rate input.
 type TariffRateInput struct {
 	MaliType int     `json:"maliType"`
 	TH       float64 `json:"th"`
@@ -476,7 +476,7 @@ type TariffRateInput struct {
 
 func tariffYearOK(y int) bool { return y >= 1380 && y <= 1450 }
 
-// SaveTariffGroup ذخیرهٔ نرخ‌های یک گروه تعرفه در یک سال.
+// SaveTariffGroup saves the rates of one tariff group for a year.
 func (s *Service) SaveTariffGroup(ctx context.Context, user *session.User, cookie string, year int, uPriceCode string, rates []TariffRateInput) (int, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -504,7 +504,7 @@ func (s *Service) SaveTariffGroup(ctx context.Context, user *session.User, cooki
 	return updated, nil
 }
 
-// shiftPriceCodeYear پورت shiftPriceCodeYear.
+// shiftPriceCodeYear is a port of shiftPriceCodeYear.
 func shiftPriceCodeYear(code *string, fromYear, toYear int) *string {
 	if code == nil {
 		return nil
@@ -534,7 +534,7 @@ func shiftPriceCodeYear(code *string, fromYear, toYear int) *string {
 	return &out
 }
 
-// CopyTariffYear کپی تعرفهٔ یک سال به سال بعد با بازنویسی رقم سال در کد قیمت.
+// CopyTariffYear copies one year's tariff to the next year, rewriting the year digit in the price code.
 func (s *Service) CopyTariffYear(ctx context.Context, user *session.User, cookie string, fromYear, toYear int, overwrite bool) (int, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {

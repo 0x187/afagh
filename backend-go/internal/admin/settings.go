@@ -1,4 +1,4 @@
-// ═══ تنظیمات سامانه (ادمین) — پورت admin/settings ═══
+// ═══ System settings (admin) — port of admin/settings ═══
 package admin
 
 import (
@@ -9,7 +9,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// SettingView نمای یک تنظیم.
+// SettingView view of a setting.
 type SettingView struct {
 	Key      string `json:"key"`
 	Value    string `json:"value"`
@@ -18,12 +18,12 @@ type SettingView struct {
 	IsSecret bool   `json:"isSecret"`
 }
 
-// SettingsListResponse فهرست تنظیمات.
+// SettingsListResponse list of settings.
 type SettingsListResponse struct {
 	Settings []SettingView `json:"settings"`
 }
 
-// GetSettings فهرست کل تنظیمات با ماسک مقادیر محرمانه.
+// GetSettings list of all settings with secret values masked.
 func (s *Service) GetSettings(ctx context.Context, user *session.User) (*SettingsListResponse, error) {
 	if s.Store == nil {
 		return nil, errors.New("مخزن تنظیمات در دسترس نیست.")
@@ -50,7 +50,7 @@ func (s *Service) GetSettings(ctx context.Context, user *session.User) (*Setting
 	return resp, nil
 }
 
-// SaveSetting ذخیرهٔ یک تنظیم در دیتابیس.
+// SaveSetting saves a setting in the database.
 func (s *Service) SaveSetting(ctx context.Context, user *session.User, key, value string) error {
 	if s.Store == nil {
 		return errors.New("مخزن تنظیمات در دسترس نیست.")
@@ -76,7 +76,7 @@ func (s *Service) SaveSetting(ctx context.Context, user *session.User, key, valu
 	return nil
 }
 
-// ResetSetting بازگشت به پیش‌فرض (حذف ردیف DB).
+// ResetSetting revert to the default (delete the DB row).
 func (s *Service) ResetSetting(ctx context.Context, user *session.User, key string) error {
 	if s.Store == nil {
 		return errors.New("مخزن تنظیمات در دسترس نیست.")

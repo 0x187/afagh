@@ -1,4 +1,4 @@
-// ═══ کمک‌تابع‌های کاتالوگ انتخاب واحد ═══
+// ═══ Enrollment catalog helper functions ═══
 package enroll
 
 import (
@@ -8,7 +8,7 @@ import (
 	"backend-go/internal/tuition"
 )
 
-// curriculumScope دامنهٔ چارت دانشجو.
+// curriculumScope scope of the student's chart.
 type curriculumScope struct {
 	Resolved    bool
 	Reason      string
@@ -70,7 +70,7 @@ func (s *Service) resolveCurriculumScope(ctx context.Context, studentID int64) c
 	return out
 }
 
-// scopeOfferingsByCurriculum پورت scopeOfferingsByCurriculum.
+// scopeOfferingsByCurriculum ports scopeOfferingsByCurriculum.
 func scopeOfferingsByCurriculum(offerings []rawOffering, scope curriculumScope, termOrdinal *int, retake map[int64]bool, requireChart bool) []rawOffering {
 	if !scope.Resolved {
 		if requireChart {
@@ -108,7 +108,7 @@ func scopeOfferingsByCurriculum(offerings []rawOffering, scope curriculumScope, 
 	return out
 }
 
-// retakeCourseIDs دروس مردودی که هنوز پاس نشده و در جریان نیستند.
+// retakeCourseIDs failed courses that have not been passed yet and are not in progress.
 func (s *Service) retakeCourseIDs(ctx context.Context, studentID int64) map[int64]bool {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select c.id, e."gradeValue", e.status, c."gradingType", c."affectsGpa", c."minPassedMark"
@@ -167,7 +167,7 @@ func (s *Service) retakeCourseIDs(ctx context.Context, studentID int64) map[int6
 	return out
 }
 
-// loadProfessorNames نام استادهای ارائه‌های خام.
+// loadProfessorNames names of professors of the raw offerings.
 func (s *Service) loadProfessorNames(ctx context.Context, list []rawOffering) map[int64]string {
 	out := map[int64]string{}
 	ids := []int64{}
@@ -210,7 +210,7 @@ func stringsTrim(v string) string {
 	return v[start:end]
 }
 
-// loadTuitionRules قواعد فعال دانشگاه + ترم مالی جاری.
+// loadTuitionRules active university rules + current financial term.
 func (s *Service) loadTuitionRules(ctx context.Context, universityID *int64) ([]tuition.RuleLike, *int64) {
 	rules := []tuition.RuleLike{}
 	var currentFin *int64
@@ -243,7 +243,7 @@ func (s *Service) loadTuitionRules(ctx context.Context, universityID *int64) ([]
 	return rules, currentFin
 }
 
-// loadCart سبد دانشجو با زمان‌بندی.
+// loadCart the student's cart with scheduling.
 func (s *Service) loadCart(ctx context.Context, studentID int64, classMap map[int64][]ClassSlot, examMap map[int64]*ExamSlot) []CartItem {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select o.id, o."courseId", c.code, c.title, c.units,
@@ -276,7 +276,7 @@ func (s *Service) loadCart(ctx context.Context, studentID int64, classMap map[in
 	return out
 }
 
-// enrolledOfferingIDs ارائه‌های ثبت‌شدهٔ ترم (وضعیت‌های فعال).
+// enrolledOfferingIDs offerings registered for the term (active statuses).
 func (s *Service) enrolledOfferingIDs(ctx context.Context, studentID, termID int64) []int64 {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select e."offeringId" from enrollments e
@@ -330,5 +330,5 @@ func (s *Service) loadBypassRequests(ctx context.Context, studentID int64) []Byp
 	return out
 }
 
-// nowDateString تاریخ امروز میلادی yyyy-mm-dd.
+// nowDateString today's Gregorian date as yyyy-mm-dd.
 func nowDateString() string { return time.Now().Format("2006-01-02") }

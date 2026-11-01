@@ -1,4 +1,4 @@
-// ═══ درون‌ریزی رشتهٔ قبلی از فایل ثابت‌عرض سنجش — پورت admin/sanjesh-import ═══
+// ═══ Importing the previous field from the Sanjesh fixed-width file — port of admin/sanjesh-import ═══
 package admin
 
 import (
@@ -10,7 +10,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// SanjeshColumn تعریف یک ستون فایل ثابت‌عرض.
+// SanjeshColumn definition of one fixed-width file column.
 type SanjeshColumn struct {
 	Name   string `json:"name"`
 	Start  int    `json:"start"`
@@ -18,7 +18,7 @@ type SanjeshColumn struct {
 	Target string `json:"target"`
 }
 
-// ParseSanjeshColumns ساختار JSON را اعتبارسنجی می‌کند.
+// ParseSanjeshColumns validates the JSON structure.
 func ParseSanjeshColumns(raw string) ([]SanjeshColumn, error) {
 	raw = strings.TrimSpace(raw)
 	if raw == "" {
@@ -44,10 +44,10 @@ func ParseSanjeshColumns(raw string) ([]SanjeshColumn, error) {
 	return cols, nil
 }
 
-// SanjeshRow یک رکورد پارس‌شده.
+// SanjeshRow one parsed record.
 type SanjeshRow map[string]string
 
-// ParseFixedWidthText پورت parseFixedWidthText.
+// ParseFixedWidthText port of parseFixedWidthText.
 func ParseFixedWidthText(text string, cols []SanjeshColumn) []SanjeshRow {
 	out := []SanjeshRow{}
 	for _, line := range strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n") {
@@ -93,7 +93,7 @@ func isSeparatorLine(s string) bool {
 	return true
 }
 
-// NormalizeNationalCode فقط ارقام ASCII و ۱۰ رقم آخر.
+// NormalizeNationalCode ASCII digits only and the last 10 digits.
 func NormalizeNationalCode(v string) *string {
 	var b strings.Builder
 	for _, r := range v {
@@ -112,7 +112,7 @@ func NormalizeNationalCode(v string) *string {
 	return nil
 }
 
-// SuggestRelation پیشنهاد نسبت رشتهٔ قبلی با رشتهٔ جدید.
+// SuggestRelation suggests the relation of the previous field to the new field.
 func SuggestRelation(prevCode, newMajorCode *string) *string {
 	if prevCode == nil {
 		return nil
@@ -126,14 +126,14 @@ func SuggestRelation(prevCode, newMajorCode *string) *string {
 	return &rel
 }
 
-// SanjeshCommitResult نتیجهٔ ثبت.
+// SanjeshCommitResult commit result.
 type SanjeshCommitResult struct {
 	Updated  int `json:"updated"`
 	NotFound int `json:"notFound"`
 	Total    int `json:"total"`
 }
 
-// CommitSanjesh پورت commitSanjeshAction — به‌روزرسانی رشتهٔ قبلی دانشجویان.
+// CommitSanjesh port of commitSanjeshAction — updating students' previous field.
 func (s *Service) CommitSanjesh(ctx context.Context, user *session.User, rows []SanjeshRow) (*SanjeshCommitResult, error) {
 	type majorRef struct {
 		ID   int64
@@ -201,5 +201,5 @@ func (s *Service) CommitSanjesh(ctx context.Context, user *session.User, rows []
 	return res, nil
 }
 
-// SanjeshFileLimit حداکثر اندازهٔ فایل ورودی (بایت).
+// SanjeshFileLimit maximum input file size (bytes).
 const SanjeshFileLimit = 20 << 20

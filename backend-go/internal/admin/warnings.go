@@ -1,4 +1,4 @@
-// ═══ هشدارهای زمان‌بندی‌شدهٔ دانشجو — پورت api/admin/warnings ═══
+// ═══ Student scheduled warnings — port of api/admin/warnings ═══
 package admin
 
 import (
@@ -13,16 +13,16 @@ import (
 	"backend-go/internal/session"
 )
 
-// WarningStatuses وضعیت‌های مجاز.
+// WarningStatuses lists the allowed statuses.
 var WarningStatuses = []string{"pending", "sent", "cancelled"}
 
-// WarningTypes انواع مجاز هشدار.
+// WarningTypes lists the allowed warning types.
 var WarningTypes = []string{
 	"TUITION_DEADLINE", "LOW_ATTENDANCE", "MISSING_DOCS",
 	"EXAM_REMINDER", "ENROLL_DEADLINE", "CUSTOM",
 }
 
-// WarningTypeLabel برچسب فارسی نوع.
+// WarningTypeLabel is the Persian label for a type.
 var WarningTypeLabel = map[string]string{
 	"TUITION_DEADLINE": "یادآوری شهریه",
 	"LOW_ATTENDANCE":   "هشدار غیبت",
@@ -32,7 +32,7 @@ var WarningTypeLabel = map[string]string{
 	"CUSTOM":           "دلخواه",
 }
 
-// WarningTypeLabelOf برچسب امن (نوع ناشناخته → خودش).
+// WarningTypeLabelOf is a safe label (unknown type → itself).
 func WarningTypeLabelOf(t string) string {
 	if v, ok := WarningTypeLabel[strings.ToUpper(strings.TrimSpace(t))]; ok {
 		return v
@@ -43,7 +43,7 @@ func WarningTypeLabelOf(t string) string {
 	return t
 }
 
-// IsWarningType اعتبار نوع.
+// IsWarningType validates the type.
 func IsWarningType(v string) bool {
 	v = strings.ToUpper(strings.TrimSpace(v))
 	for _, t := range WarningTypes {
@@ -54,7 +54,7 @@ func IsWarningType(v string) bool {
 	return false
 }
 
-// IsWarningStatus اعتبار وضعیت.
+// IsWarningStatus validates the status.
 func IsWarningStatus(v string) bool {
 	for _, s := range WarningStatuses {
 		if s == v {
@@ -64,7 +64,7 @@ func IsWarningStatus(v string) bool {
 	return false
 }
 
-// WarningRow ردیف هشدار.
+// WarningRow is a warning row.
 type WarningRow struct {
 	ID          int64      `json:"id"`
 	StudentID   int64      `json:"studentId"`
@@ -79,7 +79,7 @@ type WarningRow struct {
 	CreatedAt   *time.Time `json:"createdAt"`
 }
 
-// WarningListResult پاسخ فهرست.
+// WarningListResult is the list response.
 type WarningListResult struct {
 	Rows     []WarningRow `json:"rows"`
 	Total    int          `json:"total"`
@@ -87,7 +87,7 @@ type WarningListResult struct {
 	PageSize int          `json:"pageSize"`
 }
 
-// WarningFilters فیلترهای فهرست.
+// WarningFilters holds the list filters.
 type WarningFilters struct {
 	Q         string
 	Status    string
@@ -98,7 +98,7 @@ type WarningFilters struct {
 	Page      int
 }
 
-// WarningStudentHit نتیجهٔ جست‌وجوی دانشجو.
+// WarningStudentHit is a student search hit.
 type WarningStudentHit struct {
 	StudentID   int64  `json:"studentId"`
 	StudentCode string `json:"studentCode"`
@@ -106,7 +106,7 @@ type WarningStudentHit struct {
 	EntryYear   *int   `json:"entryYear"`
 }
 
-// WarningCreateInput ورودی ثبت.
+// WarningCreateInput is the create input.
 type WarningCreateInput struct {
 	StudentID   int64   `json:"studentId"`
 	WarningType string  `json:"warningType"`
@@ -115,7 +115,7 @@ type WarningCreateInput struct {
 	SendAt      string  `json:"sendAt"`
 }
 
-// WarningPatchInput ورودی ویرایش/لغو/ارسال فوری.
+// WarningPatchInput is the edit/cancel/send-now input.
 type WarningPatchInput struct {
 	Title       *string `json:"title"`
 	Message     *string `json:"message"`
@@ -127,7 +127,7 @@ type WarningPatchInput struct {
 
 const warningPageSize = 50
 
-// warningUni گارد دانشگاه فعال.
+// warningUni guards the active university.
 func (s *Service) warningUni(ctx context.Context, user *session.User, cookie string) (*int64, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
@@ -147,7 +147,7 @@ func (s *Service) warningStudentInUni(ctx context.Context, studentID, uniID int6
 	return code, nil
 }
 
-// ListWarnings پورت GET api/admin/warnings.
+// ListWarnings is a port of GET api/admin/warnings.
 func (s *Service) ListWarnings(ctx context.Context, user *session.User, cookie string, f WarningFilters) (*WarningListResult, error) {
 	uniID, err := s.warningUni(ctx, user, cookie)
 	if err != nil {
@@ -240,7 +240,7 @@ func (s *Service) ListWarnings(ctx context.Context, user *session.User, cookie s
 	return &WarningListResult{Rows: out, Total: total, Page: page, PageSize: warningPageSize}, nil
 }
 
-// SearchWarningStudents جست‌وجوی دانشجو برای انتخاب‌گر (حداقل ۲ حرف).
+// SearchWarningStudents searches students for the picker (at least 2 characters).
 func (s *Service) SearchWarningStudents(ctx context.Context, user *session.User, cookie, q string) ([]WarningStudentHit, error) {
 	uniID, err := s.warningUni(ctx, user, cookie)
 	if err != nil {
@@ -272,7 +272,7 @@ func (s *Service) SearchWarningStudents(ctx context.Context, user *session.User,
 	return out, nil
 }
 
-// CreateWarning ثبت هشدار جدید.
+// CreateWarning creates a new warning.
 func (s *Service) CreateWarning(ctx context.Context, user *session.User, cookie string, in WarningCreateInput) (int64, error) {
 	uniID, err := s.warningUni(ctx, user, cookie)
 	if err != nil {
@@ -295,8 +295,8 @@ func (s *Service) CreateWarning(ctx context.Context, user *session.User, cookie 
 			return 0, errors.New("زمان ارسال نامعتبر است.")
 		}
 	}
-	// ستون timestamp بدون منطقه‌زمان است؛ برای هم‌خوانی با now() دیتابیس
-	// (UTC) همیشه دیوارهٔ ساعت UTC ذخیره می‌شود.
+	// The timestamp column is timezone-naive; to match the database now()
+	// (UTC), the UTC wall clock is always stored.
 	sendAt = sendAt.UTC()
 	var id int64
 	err = s.DB.Pool.QueryRow(ctx, `
@@ -313,7 +313,7 @@ func (s *Service) CreateWarning(ctx context.Context, user *session.User, cookie 
 	return id, nil
 }
 
-// UpdateWarning ویرایش/لغو/ارسال فوری.
+// UpdateWarning edits/cancels/sends immediately.
 func (s *Service) UpdateWarning(ctx context.Context, user *session.User, cookie string, id int64, in WarningPatchInput) error {
 	uniID, err := s.warningUni(ctx, user, cookie)
 	if err != nil {
@@ -396,7 +396,7 @@ func (s *Service) UpdateWarning(ctx context.Context, user *session.User, cookie 
 	return tx.Commit(ctx)
 }
 
-// DeleteWarning حذف هشدار (فقط ADMIN — در لایهٔ HTTP هم گیت شده است).
+// DeleteWarning deletes a warning (ADMIN only — also gated at the HTTP layer).
 func (s *Service) DeleteWarning(ctx context.Context, user *session.User, cookie string, id int64) error {
 	uniID, err := s.warningUni(ctx, user, cookie)
 	if err != nil {
@@ -452,7 +452,7 @@ func patchKeys(sets []string) string {
 	return strings.Join(keys, ",")
 }
 
-// jsonQuote نقل‌قول امن رشته برای جزئیات ممیزی.
+// jsonQuote safely quotes a string for audit details.
 func jsonQuote(v string) string {
 	var b strings.Builder
 	b.WriteByte('"')

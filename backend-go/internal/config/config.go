@@ -1,10 +1,10 @@
-// ═══ پیکربندی سرویس Go (بازنویسی بکند آفاق) ═══
+// ═══ Go service configuration (Afagh backend rewrite) ═══
 //
-// قرارداد متغیرهای محیطی عمداً همان قرارداد afagh-next است تا یک کانتینر
-// compose بتواند هر دو سرویس را تغذیه کند. در production متغیرهای حیاتی
-// (DATABASE_URL) اجباری‌اند — همان سیاست fail-closed «requireEnvInProd» در
-// afagh-next/src/db/index.ts: مقدار خالی یا فقط-فاصله «تنظیم‌نشده» شمرده
-// می‌شود و سرویس بالا نمی‌آید.
+// The environment variable contract is deliberately the same as afagh-next so that one
+// compose container can feed both services. In production the critical variables
+// (DATABASE_URL) are mandatory — the same fail-closed "requireEnvInProd" policy as in
+// afagh-next/src/db/index.ts: an empty or whitespace-only value counts as "unset"
+// and the service does not start.
 package config
 
 import (
@@ -13,35 +13,35 @@ import (
 	"strings"
 )
 
-// Config همهٔ تنظیمات لازم سرویس را نگه می‌دارد.
+// Config holds all the configuration the service needs.
 type Config struct {
-	// زیرساخت (مشترک با afagh-next)
-	DatabaseURL    string // استخر مالک اسکیما (نقش afagh)
-	DatabaseURLApp string // استخر محدود afagh_app با RLS — در فاز ۰ فقط ساخته می‌شود
-	RedisURL       string // خالی = بررسی redis در health «skipped»
-	S3Endpoint     string // خالی = بررسی minio در health «skipped»
+	// Infrastructure (shared with afagh-next)
+	DatabaseURL    string // Schema owner pool (role afagh)
+	DatabaseURLApp string // Restricted afagh_app pool with RLS — only created in phase 0
+	RedisURL       string // empty = redis check in health is "skipped"
+	S3Endpoint     string // empty = minio check in health is "skipped"
 	S3Bucket       string
 	S3AccessKey    string
 	S3SecretKey    string
 
-	// رفتار سرویس
-	Port    string // PORT (پیش‌فرض 8090)
-	Env     string // NODE_ENV سازگاری: production | development
+	// Service behavior
+	Port    string // PORT (default 8090)
+	Env     string // NODE_ENV compatibility: production | development
 	Version string // AFAGH_VERSION | APP_VERSION | dev
 
-	// لبهٔ مسیریابی (strangler)
-	NextUpstream  string   // آدرس سرویس Next.js — هر مسیرِ «مالک‌نشده» به این‌جا پروکسی می‌شود
-	SpaUpstream   string   // اگر ست باشد، SPA از این آدرس پروکسی می‌شود (dev: Vite)
-	SpaDist       string   // وگرنه مسیر پوشهٔ dist ساخته‌شدهٔ SPA (production)
-	OwnedPrefixes []string // پیشوندهایی که سرویس Go خودش پاسخ می‌دهد؛ بقیه → Next
+	// Routing edge (strangler)
+	NextUpstream  string   // Next.js service address — every "unowned" route is proxied here
+	SpaUpstream   string   // If set, the SPA is proxied from this address (dev: Vite)
+	SpaDist       string   // otherwise the path to the SPA's built dist folder (production)
+	OwnedPrefixes []string // Prefixes the Go service answers itself; the rest → Next
 
-	// امنیت (همان ENVهای afagh-next)
-	AllowedExtraOrigins []string // ALLOWED_EXTRA_ORIGINS — لیست سفید CSRF
-	SessionCookiePrefix string   // AFAGH_SESSION_COOKIE_PREFIX: «host» = dual-read با __Host-afagh_session
+	// Security (the same ENVs as afagh-next)
+	AllowedExtraOrigins []string // ALLOWED_EXTRA_ORIGINS — CSRF allowlist
+	SessionCookiePrefix string   // AFAGH_SESSION_COOKIE_PREFIX: "host" = dual-read with __Host-afagh_session
 
-	// لاگ
+	// Logging
 	LogLevel  string
-	LogFormat string // json | pretty (پیش‌فرض: pretty در غیر production)
+	LogFormat string // json | pretty (default: pretty outside production)
 	LogApp    string
 }
 
@@ -54,7 +54,7 @@ func env(key, def string) string {
 
 func isProduction(env string) bool { return env == "production" }
 
-// Load پیکربندی را از محیط می‌خواند؛ در production نبودِ DATABASE_URL خطای مرگبار می‌دهد.
+// Load reads the configuration from the environment; in production a missing DATABASE_URL is a fatal error.
 func Load() (*Config, error) {
 	cfg := &Config{
 		Env:                 env("NODE_ENV", "development"),
@@ -69,7 +69,7 @@ func Load() (*Config, error) {
 		LogApp:              env("LOG_APP_NAME", "afagh"),
 	}
 
-	// ── requireEnvInProd — پورت وفادار از src/db/index.ts ──
+	// ── requireEnvInProd — faithful port from src/db/index.ts ──
 	cfg.DatabaseURL = strings.TrimSpace(os.Getenv("DATABASE_URL"))
 	if cfg.DatabaseURL == "" {
 		if isProduction(cfg.Env) {
@@ -77,8 +77,8 @@ func Load() (*Config, error) {
 		}
 		cfg.DatabaseURL = "postgres://afagh:afagh@localhost:5432/afagh_db"
 	}
-	// استخر RLS: در production نبودنش خطا نیست (تنها زمانی لازم است که مسیرهای
-	// دانشکیت RLS فعال شوند)؛ در فازهای بعدی مصرف‌کننده‌هایش fail-closed خودشان را دارند.
+	// RLS pool: in production its absence is not an error (it is needed only when the
+	// RLS knowledge-kit routes are enabled); in later phases its consumers have their own fail-closed handling.
 	cfg.DatabaseURLApp = strings.TrimSpace(os.Getenv("DATABASE_URL_APP"))
 	if cfg.DatabaseURLApp == "" && !isProduction(cfg.Env) {
 		cfg.DatabaseURLApp = "postgres://afagh_app:afagh_app@127.0.0.1:5432/afagh_db"
@@ -109,5 +109,5 @@ func Load() (*Config, error) {
 	return cfg, nil
 }
 
-// IsProduction گزارش می‌دهد که سرویس در حالت production اجرا می‌شود.
+// IsProduction reports whether the service is running in production mode.
 func (c *Config) IsProduction() bool { return isProduction(c.Env) }

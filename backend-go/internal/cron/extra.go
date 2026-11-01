@@ -1,9 +1,9 @@
-// ═══ کرون‌های افزوده — پورت api/cron/{greetings, graduation-scan, ═══
-// ═══ messenger-link-purge, bi-refresh} به‌صورت متد روی cron.Engine ═══
+// ═══ Added crons — port of api/cron/{greetings, graduation-scan, ═══
+// ═══ messenger-link-purge, bi-refresh} as methods on cron.Engine ═══
 //
-//	هر جاب همان شرط‌ها/پیام‌های Next را دارد؛ مسیر HTTP و راز از
-//	internal/httpapi/cron_extra.go می‌آید (x-cron-secret، fail-closed).
-//	GET فقط وضعیت است (بدون اثر جانبی)؛ اجرای واقعی فقط با POST.
+//	Each job has the same conditions/messages as Next; the HTTP route and secret come from
+//	internal/httpapi/cron_extra.go (x-cron-secret, fail-closed).
+//	GET is status-only (no side effects); actual execution only via POST.
 package cron
 
 import (
@@ -18,31 +18,31 @@ import (
 	"backend-go/internal/messaging"
 )
 
-// collectRows حداقل اینترفیس ردیف‌های pgx برای جمع‌کردن گیرندگان.
+// collectRows is the minimal pgx rows interface for collecting recipients.
 type collectRows interface {
 	Next() bool
 	Scan(dest ...any) error
 	Close()
 }
 
-// سرویس فارغ‌التحصیلی — چون Engine فیلد ندارد و cron.go اشتراکی است،
-// main.go یک‌بار cron.SetGraduationService(adminAPI.Graduation) می‌دهد.
+// Graduation service — since Engine has no field for it and cron.go is shared,
+// main.go calls cron.SetGraduationService(adminAPI.Graduation) once.
 var auxGrad *graduation.Service
 
-// SetGraduationService سرویس فارغ‌التحصیلی را به کرون پویش می‌دهد (از main).
+// SetGraduationService passes the graduation service to the scan cron (from main).
 func SetGraduationService(g *graduation.Service) { auxGrad = g }
 
 var extraLog = logger.For("cron.extra")
 
-// settingRaw خواندن کلیدهایی که هنوز در PhaseOneDefs نیستند —
-// ۱) جدول system_settings  ۲) ENV  ۳) پیش‌فرض (سرویس messaging این خواننده را می‌دهد).
+// settingRaw reads keys that are not yet in PhaseOneDefs —
+// 1) system_settings table  2) ENV  3) default (the messaging service provides this reader).
 func (e *Engine) settingRaw(ctx context.Context, key, env, fallback string) string {
 	return messaging.SettingRaw(ctx, messaging.New(e.Pool, e.Settings), key, env, fallback)
 }
 
-// ─────────────────── greetings — تبریک‌های خودکار ───────────────────
+// ─────────────────── greetings — automatic congratulations ───────────────────
 
-// greetingText متن یک پیام کلی از تنظیمات؛ جای‌نگهدارها با مقدار واقعی پر می‌شوند.
+// greetingText is the text of a generic message from settings; placeholders are filled with actual values.
 func (e *Engine) greetingText(ctx context.Context, key, env, fallback string, vars map[string]string) string {
 	t := strings.TrimSpace(e.settingRaw(ctx, key, env, fallback))
 	if t == "" {
@@ -54,8 +54,8 @@ func (e *Engine) greetingText(ctx context.Context, key, env, fallback string, va
 	return t
 }
 
-// runBirthdayGreetings تبریک تولد روزانه: کاربران فعال که ماه/روز تولدشان
-// (میلادی) با امروز می‌خواند. ضدتکرار: هر کاربر هر روز فقط یک‌بار (BIRTHDAY).
+// runBirthdayGreetings daily birthday greetings: active users whose birthday month/day
+// (Gregorian) matches today. Deduplication: each user only once per day (BIRTHDAY).
 func (e *Engine) runBirthdayGreetings(ctx context.Context) (map[string]any, error) {
 	done := map[int64]bool{}
 	rows, err := e.Pool.Query(ctx, `
@@ -111,11 +111,11 @@ func (e *Engine) runBirthdayGreetings(ctx context.Context) (map[string]any, erro
 	return map[string]any{"found": len(cands), "sent": sent, "skipped": skipped}, nil
 }
 
-// runTermStartGreetings تبریک شروع ترم انبوه: ترم‌هایی که تاریخ شروع کلاس‌شان
-// امروز است. گیرندگان فقط دو گروه: دانشجویانِ در حال تحصیلِ همین ترم
-// (انتخاب واحد کرده و status=ACTIVE) و استادانِ مدرسِ همین ترم.
-// کانال‌ها از GREET_TERM_CHANNELS (پیش‌فرض فقط INAPP تا هزینهٔ پیامک نتراشد).
-// ضدتکرار به‌ازای هر کاربر+ترم (eventCode=TERM_START_<termId>).
+// runTermStartGreetings bulk term-start greetings: terms whose class start date
+// is today. Recipients are only two groups: students currently studying in this term
+// (registered for courses and status=ACTIVE) and professors teaching in this term.
+// Channels come from GREET_TERM_CHANNELS (default only INAPP so no SMS cost is incurred).
+// Deduplication per user+term (eventCode=TERM_START_<termId>).
 func (e *Engine) runTermStartGreetings(ctx context.Context) (map[string]any, error) {
 	raw := strings.ToUpper(strings.TrimSpace(e.settingRaw(ctx, "GREET_TERM_CHANNELS", "GREET_TERM_CHANNELS", "INAPP")))
 	channels := []string{}
@@ -167,7 +167,7 @@ func (e *Engine) runTermStartGreetings(ctx context.Context) (map[string]any, err
 		}
 		drows.Close()
 
-		// ── گیرندگان: دانشجویانِ در حال تحصیلِ ترم + استادانِ مدرسِ همان ترم ──
+		// ── Recipients: students studying in the term + professors teaching the same term ──
 		stuRows, err := e.Pool.Query(ctx, `
 			select distinct users.id from students
 			  join enrollments on enrollments."studentId" = students.id
@@ -213,7 +213,7 @@ func (e *Engine) runTermStartGreetings(ctx context.Context) (map[string]any, err
 				skipped++
 				continue
 			}
-			done[id] = true // یک نفر اگر هم دانشجو و هم استادِ ترم باشد، یک‌بار پیام بگیرد
+			done[id] = true // A person who is both a student and a professor of the term should receive the message once
 			e.notifyUserChannels(ctx, id, code, tpl, channels)
 			sent++
 		}
@@ -222,8 +222,8 @@ func (e *Engine) runTermStartGreetings(ctx context.Context) (map[string]any, err
 	return map[string]any{"terms": len(terms), "sent": sent, "skipped": skipped}, nil
 }
 
-// RunGreetingsCron پورت runGreetingScans — شکست هر زیرپویش نتیجهٔ صفر همان
-// بخش را می‌دهد (همان catch در TS) و هرگز کل جاب را نمی‌خواباند.
+// RunGreetingsCron ports runGreetingScans — failure of each sub-scan yields a zero result for that
+// section (the same catch as in TS) and never brings down the whole job.
 func (e *Engine) RunGreetingsCron(ctx context.Context) (map[string]any, error) {
 	birthdays := map[string]any{"found": 0, "sent": 0, "skipped": 0}
 	if b, err := e.runBirthdayGreetings(ctx); err != nil {
@@ -240,10 +240,10 @@ func (e *Engine) RunGreetingsCron(ctx context.Context) (map[string]any, error) {
 	return map[string]any{"birthdays": birthdays, "termStarts": termStarts}, nil
 }
 
-// ─────────────────── graduation-scan — پویش فارغ‌التحصیلی ───────────────────
+// ─────────────────── graduation-scan — graduation scan ───────────────────
 
-// RunGraduationScanCron پویش زمان‌بندی‌شدهٔ فارغ‌التحصیلی — سرویس موجود را
-// صدا می‌زند (backend-go/internal/graduation — Scan با GRAD_AUTO_SCAN/force).
+// RunGraduationScanCron is the scheduled graduation scan — it calls the existing service
+// (backend-go/internal/graduation — Scan with GRAD_AUTO_SCAN/force).
 func (e *Engine) RunGraduationScanCron(ctx context.Context, force bool) (map[string]any, error) {
 	if auxGrad == nil {
 		return nil, errors.New("سرویس فارغ‌التحصیلی به موتور کرون متصل نیست (cron.SetGraduationService در main.go).")
@@ -261,10 +261,10 @@ func (e *Engine) RunGraduationScanCron(ctx context.Context, force bool) (map[str
 	}, nil
 }
 
-// ─────────────────── messenger-link-purge — پاکسازی توکن‌ها ───────────────────
+// ─────────────────── messenger-link-purge — token cleanup ───────────────────
 
-// RunLinkPurgeCron پاکسازی روزانهٔ توکن‌های اتصال پیام‌رسان
-// (مصرف‌شده یا منقضی بیش از یک روز).
+// RunLinkPurgeCron daily cleanup of messenger connection tokens
+// (used or expired more than one day ago).
 func (e *Engine) RunLinkPurgeCron(ctx context.Context) (map[string]any, error) {
 	svc := messaging.New(e.Pool, e.Settings)
 	deleted, err := svc.PurgeExpiredLinkTokens(ctx)
@@ -274,11 +274,11 @@ func (e *Engine) RunLinkPurgeCron(ctx context.Context) (map[string]any, error) {
 	return map[string]any{"deleted": deleted}, nil
 }
 
-// ─────────────────── bi-refresh — تازه‌سازی کش‌های BI ───────────────────
+// ─────────────────── bi-refresh — BI cache refresh ───────────────────
 
-// RunBiRefreshCron تازه‌سازی آفلاین گزارش‌های هوش تجاری — سرویس bi موجود را
-// صدا می‌زند (backend-go/internal/bi — RefreshAllCaches: داشبورد مدیریتی،
-// تحلیل امکانات و ابر کلمات همهٔ اساتید).
+// RunBiRefreshCron offline refresh of business intelligence reports — calls the existing bi service
+// (backend-go/internal/bi — RefreshAllCaches: management dashboard,
+// facilities analysis and the word cloud of all professors).
 func (e *Engine) RunBiRefreshCron(ctx context.Context, termID *int64) (map[string]any, error) {
 	svc := bi.New(e.Pool, e.Settings)
 	res, err := svc.RefreshAllCaches(ctx, termID)
@@ -294,7 +294,7 @@ func (e *Engine) RunBiRefreshCron(ctx context.Context, termID *int64) (map[strin
 	}, nil
 }
 
-// BiCacheStatus وضعیت کش‌های BI برای GET فقط-وضعیت.
+// BiCacheStatus BI cache status for the status-only GET.
 func (e *Engine) BiCacheStatus(ctx context.Context) (any, error) {
 	return bi.New(e.Pool, e.Settings).CacheStatus(ctx)
 }

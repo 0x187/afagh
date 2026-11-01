@@ -1,8 +1,8 @@
-// ═══ آیین‌نامه و سقف واحد — پورت بخشی از regulations-engine.ts ═══
+// ═══ Regulations and unit cap — port of part of regulations-engine.ts ═══
 //
-// فقط بخش‌های لازم برای انتخاب واحد (سقف/کف واحد، ترم آخر، ممتازی، مشروطی،
-// سهمیه، واحدهای جبرانی) پورت شده‌اند؛ تجمیع معدل از بستهٔ gpa می‌آید تا
-// دقیقاً همان ریاضی کارنامه باشد.
+// Only the parts needed for enrollment (unit cap/floor, final semester, honors, probation,
+// quota, compensatory units) are ported; GPA aggregation comes from the gpa package so
+// the transcript math is exactly the same.
 package enroll
 
 import (
@@ -18,7 +18,7 @@ import (
 	"backend-go/internal/gpa"
 )
 
-// TermRules قواعد ترم عادی.
+// TermRules normal-semester rules.
 type TermRules struct {
 	MinUnits          float64
 	MaxUnits          float64
@@ -27,19 +27,19 @@ type TermRules struct {
 	HonorsMaxUnits    float64
 }
 
-// SummerRules قواعد تابستان.
+// SummerRules summer rules.
 type SummerRules struct {
 	DefaultMaxUnits    float64
 	GraduatingMaxUnits float64
 }
 
-// GraduatingRules قواعد ترم آخر.
+// GraduatingRules final-semester rules.
 type GraduatingRules struct {
 	CanTakeWithProbation bool
 	MaxUnits             float64
 }
 
-// RuleConfig پیکربندی مؤثر آیین‌نامه.
+// RuleConfig effective regulations configuration.
 type RuleConfig struct {
 	Regular         TermRules
 	Summer          SummerRules
@@ -50,7 +50,7 @@ type RuleConfig struct {
 	Policy          string
 	DedupeRepeated  bool
 	RegulationLabel string
-	// quota_overrides — فقط سقف تابستان سهمیه‌ها لازم است
+	// quota_overrides — only the summer cap for quotas is needed
 	QuotaSummerMax map[string]float64
 }
 
@@ -97,12 +97,12 @@ func mapAny(v any) (map[string]any, bool) {
 	return m, ok
 }
 
-// applyRulesConfig پورت normalizeLegacyRegulationConfig + ادغام با پیش‌فرض.
+// applyRulesConfig port of normalizeLegacyRegulationConfig + merge with defaults.
 func applyRulesConfig(cfg *RuleConfig, parsed map[string]any) {
 	if parsed == nil {
 		return
 	}
-	// نگاشت کلیدهای تخت قدیمی به grading_and_gpa
+	// mapping legacy flat keys to grading_and_gpa
 	if _, ok := parsed["grading_and_gpa"]; !ok {
 		gpaMap := map[string]any{}
 		if v, ok := parsed["failed_course_gpa_policy"].(string); ok {
@@ -191,7 +191,7 @@ func applyRulesConfig(cfg *RuleConfig, parsed map[string]any) {
 	}
 }
 
-// LoadRegulationConfig پورت getRegulationConfig با اولویت آیین‌نامهٔ اختصاصی.
+// LoadRegulationConfig port of getRegulationConfig with dedicated-regulation priority.
 func LoadRegulationConfig(ctx context.Context, pool *pgxpool.Pool, regulationID, degreeLevelID *int64) RuleConfig {
 	cfg := defaultBachelor()
 	if regulationID == nil && degreeLevelID == nil {
@@ -245,7 +245,7 @@ func LoadRegulationConfig(ctx context.Context, pool *pgxpool.Pool, regulationID,
 			continue
 		}
 		if _, ok := parsed["grading_and_gpa"]; !ok {
-			// کلیدهای تخت را first-class نمی‌پذیریم مگر همان مسیر normalize
+			// flat keys are not accepted as first-class except through the same normalize path
 			applyRulesConfig(&cfg, parsed)
 			continue
 		}
@@ -255,7 +255,7 @@ func LoadRegulationConfig(ctx context.Context, pool *pgxpool.Pool, regulationID,
 	return cfg
 }
 
-// AcademicSummary خلاصهٔ وضعیت تحصیلی.
+// AcademicSummary academic status summary.
 type AcademicSummary struct {
 	StudentID            int64
 	TotalRequiredUnits   float64
@@ -279,7 +279,7 @@ type AcademicSummary struct {
 	BaseMaxUnits         float64
 }
 
-// EvaluateStudentRegulationStatus پورت evaluateStudentRegulationStatus.
+// EvaluateStudentRegulationStatus port of evaluateStudentRegulationStatus.
 func EvaluateStudentRegulationStatus(ctx context.Context, pool *pgxpool.Pool, studentID int64, termID *int64) (*AcademicSummary, error) {
 	var (
 		regulationID, degreeLevelID, majorID, universityID *int64
@@ -331,7 +331,7 @@ func EvaluateStudentRegulationStatus(ctx context.Context, pool *pgxpool.Pool, st
 		}
 	}
 
-	// نسخهٔ حل‌شدهٔ چارت برای مجموع واحد لازم.
+	// Resolved chart version for the required total units.
 	totalRequired := 140.0
 	if degreeLevelID != nil {
 		var degCode, degTitle string
@@ -344,7 +344,7 @@ func EvaluateStudentRegulationStatus(ctx context.Context, pool *pgxpool.Pool, st
 		totalRequired = float64(ver.TotalRequiredUID)
 	}
 
-	// سوابق دروس.
+	// Course records.
 	rows, err := pool.Query(ctx, `
 		select e.id, e."gradeValue", e."gradeStatus", e.status,
 		       o."termId", coalesce(t."termCode",''), coalesce(t."isSummer",0), coalesce(t.title,''),
@@ -424,7 +424,7 @@ func EvaluateStudentRegulationStatus(ctx context.Context, pool *pgxpool.Pool, st
 		isGraduating = remaining <= cfg.Summer.GraduatingMaxUnits
 	}
 
-	// مرتب‌سازی شناسهٔ ترم‌ها نزولی (مثل TS).
+	// Sort term ids descending (as in TS).
 	termIDs := make([]int64, 0, len(termMap))
 	for id := range termMap {
 		termIDs = append(termIDs, id)

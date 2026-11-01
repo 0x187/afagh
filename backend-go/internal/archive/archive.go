@@ -1,4 +1,4 @@
-// ═══ آرشیو شیء (MinIO/S3) — برای پیوست درخواست‌ها و اسناد ═══
+// ═══ Object archive (MinIO/S3) — for request attachments and documents ═══
 package archive
 
 import (
@@ -12,13 +12,13 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
-// Store دسترسی به باکت آرشیو.
+// Store provides access to the archive bucket.
 type Store struct {
 	Client *minio.Client
 	Bucket string
 }
 
-// New ساخت اتصال از پیکربندی S3.
+// New creates a connection from the S3 configuration.
 func New(endpoint, access, secret, bucket string) (*Store, error) {
 	endpoint = strings.TrimSpace(endpoint)
 	bucket = strings.TrimSpace(bucket)
@@ -41,7 +41,7 @@ func New(endpoint, access, secret, bucket string) (*Store, error) {
 	return &Store{Client: client, Bucket: bucket}, nil
 }
 
-// Put ذخیرهٔ شیء با نوع محتوا.
+// Put stores an object with its content type.
 func (s *Store) Put(ctx context.Context, key, mime string, data []byte) error {
 	if s == nil || s.Client == nil {
 		return errors.New("آرشیو پیکربندی نشده است.")
@@ -51,7 +51,7 @@ func (s *Store) Put(ctx context.Context, key, mime string, data []byte) error {
 	return err
 }
 
-// Get خواندن شیء (کلید) از باکت.
+// Get reads an object (key) from the bucket.
 func (s *Store) Get(ctx context.Context, key string) ([]byte, string, error) {
 	if s == nil || s.Client == nil {
 		return nil, "", errors.New("آرشیو پیکربندی نشده است.")

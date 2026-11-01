@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-// پارتی با Node crypto.scryptSync — بردار از خود Node تولید شده است:
+// Parity with Node crypto.scryptSync — the test vector was generated from Node itself:
 // docker run --rm node:22-bookworm-slim node -e "..." (N=16384,r=8,p=1,keylen=32)
 func TestScryptNodeParity(t *testing.T) {
 	stored := "73512fe1f252c406c5ad0a5989074761:7164a70cf14d283f6cbeceedb7038608a7aca5305c7b90cc119d8fc88620f996"
@@ -16,8 +16,8 @@ func TestScryptNodeParity(t *testing.T) {
 	}
 }
 
-// هش‌های Go باید با سمت Node (همان الگوریتم) سازگار باشند: ساخت هش و
-// تأیید دوباره با پارامترهای پیش‌فرض.
+// Go hashes must be compatible with the Node side (same algorithm): build the hash and
+// verify it again with the default parameters.
 func TestHashAndVerifyRoundTrip(t *testing.T) {
 	h, err := HashPassword("Secret12345")
 	if err != nil {
@@ -37,7 +37,7 @@ func TestHashAndVerifyRoundTrip(t *testing.T) {
 	}
 }
 
-// ماتریس انتقال کوکی — پورت sessionTransport (proxy-trust.ts).
+// Cookie transport matrix — port of sessionTransport (proxy-trust.ts).
 func TestSessionTransportMatrix(t *testing.T) {
 	cases := []struct {
 		name       string
@@ -45,17 +45,17 @@ func TestSessionTransportMatrix(t *testing.T) {
 		wantSecure bool
 		wantSame   string
 	}{
-		// production همیشه Secure — حتی با AFAGH_COOKIE_SECURE=false
+		// production is always Secure — even with AFAGH_COOKIE_SECURE=false
 		{"prod forces secure", transportEnv{NodeEnv: "production", CookieSecure: "false"}, true, "lax"},
-		// none بدون Secure به lax برمی‌گردد (fail-safe)
+		// none without Secure falls back to lax (fail-safe)
 		{"none without secure", transportEnv{NodeEnv: "development", CookieSecure: "false", CookieSameSite: "none"}, false, "lax"},
-		// none با Secure مجاز است
+		// none is allowed with Secure
 		{"none with secure", transportEnv{NodeEnv: "production", CookieSameSite: "none"}, true, "none"},
 		{"strict", transportEnv{NodeEnv: "development", CookieSameSite: "strict"}, false, "strict"},
-		// auto + https در URL
+		// auto + https in the URL
 		{"auto https", transportEnv{NodeEnv: "development", PublicBaseURL: "https://edu.example.ac.ir"}, true, "lax"},
 		{"auto http", transportEnv{NodeEnv: "development", PublicBaseURL: "http://localhost:8091"}, false, "lax"},
-		// secure=true صریح در dev
+		// explicit secure=true in dev
 		{"explicit true", transportEnv{NodeEnv: "development", CookieSecure: "true"}, true, "lax"},
 	}
 	for _, tc := range cases {
@@ -68,7 +68,7 @@ func TestSessionTransportMatrix(t *testing.T) {
 	}
 }
 
-// سقف مطلق نشست — پورت SESSION_MAX_HOURS (پیش‌فرض ۴، بازهٔ ۱..۲۴).
+// Absolute session limit — port of SESSION_MAX_HOURS (default 4, range 1..24).
 func TestSessionMaxHours(t *testing.T) {
 	cases := map[string]int{"": 4, "1": 1, "4": 4, "24": 24, "0": 4, "25": 4, "abc": 4, "4.9": 4}
 	for raw, want := range cases {
@@ -78,7 +78,7 @@ func TestSessionMaxHours(t *testing.T) {
 	}
 }
 
-// نرمال‌سازی ارقام فارسی/عربی — پورت toEnDigits.
+// Persian/Arabic digit normalization — port of toEnDigits.
 func TestToEnDigits(t *testing.T) {
 	if got := ToEnDigits("۱۲۳۴۵۶ ٠١٢٣"); got != "123456 0123" {
 		t.Fatalf("got %q", got)

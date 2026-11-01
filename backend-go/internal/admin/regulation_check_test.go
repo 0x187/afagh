@@ -10,13 +10,13 @@ func TestTermChronologicalValue(t *testing.T) {
 		sort *int
 		want int
 	}{
-		{nil, ptr(7), 7},                // sortOrder مقدم است
-		{ptr("992"), nil, 13992},        // سه‌رقمی → ۱۳+
-		{ptr("4001"), nil, 14001},       // چهاررقمی 4/0 → ۱+
-		{ptr("14032"), nil, 14032},      // چهاررقمی عادی
-		{ptr("۱۴۰۳۲"), nil, 0},          // غیررقمی → ۰
-		{nil, nil, 0},                   // بدون داده
-		{ptr(" 1403-2 "), ptr(0), 1403}, // parseInt تا اولین غیررقمی
+		{nil, ptr(7), 7},                // sortOrder takes precedence
+		{ptr("992"), nil, 13992},        // Three-digit → 13+
+		{ptr("4001"), nil, 14001},       // Four-digit 4/0 → 1+
+		{ptr("14032"), nil, 14032},      // Regular four-digit
+		{ptr("۱۴۰۳۲"), nil, 0},          // Non-numeric → 0
+		{nil, nil, 0},                   // No data
+		{ptr(" 1403-2 "), ptr(0), 1403}, // parseInt up to the first non-digit
 	}
 	for _, c := range cases {
 		if got := termChronologicalValue(c.code, c.sort); got != c.want {

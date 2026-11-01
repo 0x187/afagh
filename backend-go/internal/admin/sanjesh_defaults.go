@@ -1,9 +1,9 @@
 package admin
 
-// SanjeshDefaultMapping نگاشت پیش‌فرض سازمان سنجش.
+// SanjeshDefaultMapping default Sanjesh organization mapping.
 type SanjeshDefaultMapping struct{ Code, MajorName, MajorCode, Quota string }
 
-// DefaultSanjeshMappings همان آرایهٔ DEFAULT_SANJESH_MAPPINGS در admissions-engine.ts.
+// DefaultSanjeshMappings the same DEFAULT_SANJESH_MAPPINGS array in admissions-engine.ts.
 var DefaultSanjeshMappings = []SanjeshDefaultMapping{
 	{Code: "11204", MajorName: "مهندسی کامپیوتر - نرم‌افزار", MajorCode: "412", Quota: "منطقه ۱"},
 	{Code: "11205", MajorName: "مهندسی کامپیوتر - هوش مصنوعی", MajorCode: "414", Quota: "منطقه ۲"},

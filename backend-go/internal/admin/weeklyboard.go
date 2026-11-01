@@ -1,4 +1,4 @@
-// ═══ تختهٔ هفتگی — پورت admin/weekly-board (نمای خواندنی) ═══
+// ═══ Weekly board — port of admin/weekly-board (read-only view) ═══
 package admin
 
 import (
@@ -8,7 +8,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// BoardRow یک جلسهٔ هفتگی.
+// BoardRow is a weekly session.
 type BoardRow struct {
 	OfferingID    int64   `json:"offeringId"`
 	Group         int     `json:"groupNumber"`
@@ -27,7 +27,7 @@ type BoardRow struct {
 	Capacity      int     `json:"capacity"`
 }
 
-// WeeklyBoardData پاسخ تخته.
+// WeeklyBoardData is the board response.
 type WeeklyBoardData struct {
 	Term        AdminTerm  `json:"term"`
 	Rows        []BoardRow `json:"rows"`
@@ -36,7 +36,7 @@ type WeeklyBoardData struct {
 	Professors  []Option   `json:"professors"`
 }
 
-// GetWeeklyBoard فهرست جلسات هفتگی ترم جاری با گزینه‌های فیلتر.
+// GetWeeklyBoard lists the current term's weekly sessions with filter options.
 func (s *Service) GetWeeklyBoard(ctx context.Context, user *session.User, uniCookie string) (*WeeklyBoardData, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	resp := &WeeklyBoardData{Rows: []BoardRow{}, Rooms: []Option{}, Departments: []Option{}, Professors: []Option{}}

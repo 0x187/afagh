@@ -1,8 +1,8 @@
-// ═══ هش گذرواژه — پورت scrypt از afagh-next/src/lib/auth.ts ═══
+// ═══ Password hashing — scrypt port from afagh-next/src/lib/auth.ts ═══
 //
-// فرمت ذخیره (فاز صفر): «salt:hash» هگز — salt ۱۶ بایت تصادفی، keyLen ۳۲،
-// r=8، p=1 — پارامترهای سازگار با crypto.scrypt نود. مقایسهٔ زمان‌ثابت و
-// هش ساختگی «۰۰۰…:۰۰۰…» برای پدینگ زمان‌ثابت مسیر «کاربر یافت نشد».
+// Storage format (phase zero): «salt:hash» hex — 16-byte random salt, keyLen 32,
+// r=8, p=1 — parameters compatible with Node crypto.scrypt. Constant-time comparison and
+// a dummy «000…:000…» hash for constant-time padding on the «کاربر یافت نشد» path.
 package authn
 
 import (
@@ -19,20 +19,20 @@ import (
 	"golang.org/x/crypto/scrypt"
 )
 
-// scryptParams پارامترهای جاری — با sync.OnceValue از ENV یک‌بار حل می‌شود.
+// scryptParams holds the current parameters — resolved once from ENV with sync.OnceValue.
 var scryptParams = sync.OnceValues(func() (n int, err error) {
 	return resolveScryptN(os.Getenv("AFAGH_SCRYPT_N"), ConfigFromEnv().Production)
 })
 
-// scryptNFloor کف مجاز N — کمتر از آن یعنی هش ضعیف‌تر = کرک سریع‌تر.
+// scryptNFloor is the allowed N floor — below it means a weaker hash = faster cracking.
 const scryptNFloor = 16384
 
-// resolveScryptN پورت منطق SCRYPT_N_RAW در auth.ts:
-//   - مقدار نامعتبر (غیرعدد/غیرصحیح/زیر کف) در production ⇒ خطای fail-closed
-//     («سامانه بالا نمی‌آید») — در TS این خطا هنگام لود ماژول پرتاب می‌شود و
-//     سرویس بالا نمی‌آید؛ در Go که نمی‌توان از داخل پکیج process را کشت، خطا
-//     در اولین مصرفِ هش/verify برمی‌گردد و مسیرهای احراز هویت بسته می‌مانند.
-//   - همان مقدار نامعتبر در غیر production ⇒ هشدار و بازگشت به کف ۱۶۳۸۴.
+// resolveScryptN is a port of the SCRYPT_N_RAW logic in auth.ts:
+//   - an invalid value (non-numeric/non-integer/below floor) in production ⇒ fail-closed error
+//     («سامانه بالا نمی‌آید») — in TS this error is thrown at module load and
+//     the service does not come up; in Go, where a package cannot kill the process, the error
+//     is returned on the first hash/verify use and auth paths stay closed.
+//   - the same invalid value in non-production ⇒ warning and fallback to the floor 16384.
 func resolveScryptN(raw string, production bool) (int, error) {
 	if strings.TrimSpace(raw) == "" {
 		return scryptNFloor, nil
@@ -48,31 +48,31 @@ func resolveScryptN(raw string, production bool) (int, error) {
 	return int(f), nil
 }
 
-// scryptKey مشتق‌سازی با پارامترهای مشترک — salt به‌صورت «رشتهٔ هگز» مصرف
-// می‌شود (نه بایت‌های decodeشده) تا با scryptSync نود هم‌ارز باشد.
+// scryptKey derives with the shared parameters — salt is consumed as a "hex string"
+// (not decoded bytes) to be equivalent to Node scryptSync.
 //
-// ⚠ ترتیب آرگومان‌های x/crypto/scrypt: Key(password, salt, N, r, p, keyLen)
+// ⚠ Argument order for x/crypto/scrypt: Key(password, salt, N, r, p, keyLen)
 func scryptKey(password, saltHex string) ([]byte, error) {
 	n, err := scryptParams()
 	if err != nil {
 		return nil, err
 	}
-	// N از ENV/پیش‌فرض، r=8، p=1، keyLen=32 — همان SCRYPT_OPTS در auth.ts
+	// N from ENV/default, r=8, p=1, keyLen=32 — same as SCRYPT_OPTS in auth.ts
 	return scrypt.Key([]byte(password), []byte(saltHex), n, 8, 1, scryptKeyLen)
 }
 
-// scryptKeyLen طول کلید خروجی — ۳۲ بایت (۶۴ کاراکتر هگز).
+// scryptKeyLen is the output key length — 32 bytes (64 hex characters).
 const scryptKeyLen = 32
 
-// DUMMY_PASSWORD_HASH هش ساختگی با فرمت معتبر (۳۲ صفر : ۶۴ صفر) — فقط برای
-// پدینگ زمان‌ثابت در مسیر «کاربر یافت نشد»؛ هرگز با آن هش واقعی نمی‌سازیم.
+// DUMMY_PASSWORD_HASH is a dummy hash with a valid format (32 zeros : 64 zeros) — only for
+// constant-time padding on the «کاربر یافت نشد» path; we never build a real hash with it.
 const DUMMY_PASSWORD_HASH = "00000000000000000000000000000000:0000000000000000000000000000000000000000000000000000000000000000"
 
-// VerifyPassword پورت خط‌به‌خط verifyPassword:
-//   - فرمت بد (نبودِ salt/hash) ⇒ false بدون خطا
-//   - hash هگز نامعتبر ⇒ false بدون خطا (معادل Buffer نیمه‌باز نود که طولش
-//     با مشتق ۳۲ بایتی نمی‌خواند)
-//   - مقایسهٔ طول + timing-safe
+// VerifyPassword is a line-by-line port of verifyPassword:
+//   - bad format (missing salt/hash) ⇒ false without error
+//   - invalid hex hash ⇒ false without error (equivalent to Node's half-open Buffer whose length
+//     does not match the 32-byte derivation)
+//   - length comparison + timing-safe
 func VerifyPassword(password, stored string) (bool, error) {
 	salt, hash, ok := strings.Cut(stored, ":")
 	if !ok || salt == "" || hash == "" {
@@ -89,14 +89,14 @@ func VerifyPassword(password, stored string) (bool, error) {
 	return len(calc) == len(known) && subtle.ConstantTimeCompare(calc, known) == 1, nil
 }
 
-// VerifyPasswordIgnoreErr برای مسیرهای پدینگ زمان‌ثابت که در TS با
-// .catch(() => false) صدا زده می‌شوند — خطای پیکربندی هم «ناموفق» شمرده می‌شود.
+// VerifyPasswordIgnoreErr is for constant-time padding paths that in TS are called with
+// .catch(() => false) — a configuration error also counts as a failure.
 func VerifyPasswordIgnoreErr(password, stored string) bool {
 	ok, err := VerifyPassword(password, stored)
 	return err == nil && ok
 }
 
-// HashPassword پورت hashPassword — خروجی «salt:hash» هگز با salt تصادفی ۱۶ بایتی.
+// HashPassword is a port of hashPassword — output is «salt:hash» hex with a 16-byte random salt.
 func HashPassword(password string) (string, error) {
 	salt := make([]byte, 16)
 	if _, err := rand.Read(salt); err != nil {

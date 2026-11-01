@@ -1,4 +1,4 @@
-// ═══ اتاق انتظار Redis — پورت lib/waitingRoom.ts (وفادار به کلیدها و Lua) ═══
+// ═══ Redis waiting room — port of lib/waitingRoom.ts (faithful to the keys and Lua) ═══
 package enroll
 
 import (
@@ -14,7 +14,7 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-// Keys کلیدهای مشترک با سیستم فعلی — تغییرشان صف/ظرفیت را بین دو سیستم می‌شکند.
+// Keys keys shared with the current system — changing them breaks the queue/capacity between the two systems.
 const (
 	KeyCaps   = "afagh:caps"
 	KeyQueue  = "afagh:wr:queue"
@@ -23,7 +23,7 @@ const (
 	rlKeyPfx  = "afagh:rl:submit:"
 )
 
-// SeatLua همان اسکریپت atomic seat — ۱=صندلی، ۰=تکمیل، -۲=گرم‌نشده.
+// SeatLua the same atomic seat script — 1=seat, 0=full, -2=not warmed up.
 const SeatLua = `
 local v = redis.call('HGET', KEYS[1], ARGV[1])
 if not v then return -2 end
@@ -35,7 +35,7 @@ if e < c then
 end
 return 0`
 
-// QueueTicket بلیت صف.
+// QueueTicket queue ticket.
 type QueueTicket struct {
 	ID                string `json:"id"`
 	UserID            int64  `json:"userId"`
@@ -44,14 +44,14 @@ type QueueTicket struct {
 	AcceptSameDayRisk bool   `json:"acceptSameDayRisk,omitempty"`
 }
 
-// WrStatus وضعیت صف کاربر.
+// WrStatus user queue status.
 type WrStatus struct {
 	State    string `json:"state"`
 	Position int    `json:"position,omitempty"`
 	Result   any    `json:"result,omitempty"`
 }
 
-// WaitingRoom سرویس اتاق انتظار.
+// WaitingRoom waiting room service.
 type WaitingRoom struct {
 	Pool *Pool
 	RDB  *redis.Client
@@ -60,7 +60,7 @@ type WaitingRoom struct {
 	stop       chan struct{}
 }
 
-// NewWaitingRoom ساخت سرویس.
+// NewWaitingRoom service constructor.
 func NewWaitingRoom(pool *Pool, rdb *redis.Client) *WaitingRoom {
 	return &WaitingRoom{Pool: pool, RDB: rdb, stop: make(chan struct{})}
 }
@@ -77,7 +77,7 @@ func rlKey(userID int64) string     { return rlKeyPfx + strconv.FormatInt(userID
 
 func (w *WaitingRoom) available() bool { return w != nil && w.RDB != nil }
 
-// WarmupCapacities پورت warmupCapacities — انتقال ظرفیت ترم جاری به Redis.
+// WarmupCapacities port of warmupCapacities — transfer current-term capacity to Redis.
 func (w *WaitingRoom) WarmupCapacities(ctx context.Context, force bool) int {
 	if !w.available() {
 		return 0
@@ -125,7 +125,7 @@ func (w *WaitingRoom) WarmupCapacities(ctx context.Context, force bool) int {
 	return len(list)
 }
 
-// AtomicSeat پورت atomicSeat.
+// AtomicSeat port of atomicSeat.
 func (w *WaitingRoom) AtomicSeat(ctx context.Context, offeringID int64) int {
 	if !w.available() {
 		return -2
@@ -144,7 +144,7 @@ func (w *WaitingRoom) AtomicSeat(ctx context.Context, offeringID int64) int {
 	return -2
 }
 
-// ReleaseSeat پورت releaseSeat (کف صفر).
+// ReleaseSeat port of releaseSeat (floor zero).
 func (w *WaitingRoom) ReleaseSeat(ctx context.Context, offeringID int64) {
 	if !w.available() {
 		return
@@ -167,7 +167,7 @@ func (w *WaitingRoom) ReleaseSeat(ctx context.Context, offeringID int64) {
 		strconv.Itoa(c)+","+strconv.Itoa(e)+","+wc).Err()
 }
 
-// TakeSeat پورت takeSeat.
+// TakeSeat port of takeSeat.
 func (w *WaitingRoom) TakeSeat(ctx context.Context, offeringID int64) {
 	if !w.available() {
 		return
@@ -191,7 +191,7 @@ func (w *WaitingRoom) TakeSeat(ctx context.Context, offeringID int64) {
 		strconv.Itoa(c)+","+strconv.Itoa(e)+","+parts[2]).Err()
 }
 
-// NextWaitlistPosition پورت nextWaitlistPosition.
+// NextWaitlistPosition port of nextWaitlistPosition.
 func (w *WaitingRoom) NextWaitlistPosition(ctx context.Context, offeringID int64) *int {
 	if !w.available() {
 		return nil
@@ -204,7 +204,7 @@ func (w *WaitingRoom) NextWaitlistPosition(ctx context.Context, offeringID int64
 	return &v
 }
 
-// Available پورت redisAvailable.
+// Available port of redisAvailable.
 func (w *WaitingRoom) Available(ctx context.Context) bool {
 	if !w.available() {
 		return false
@@ -215,7 +215,7 @@ func (w *WaitingRoom) Available(ctx context.Context) bool {
 	return err == nil && pong == "PONG"
 }
 
-// EnqueueSubmit پورت enqueueSubmit (ZADD + ZRANK).
+// EnqueueSubmit port of enqueueSubmit (ZADD + ZRANK).
 func (w *WaitingRoom) EnqueueSubmit(ctx context.Context, userID, studentID int64, acceptSameDayRisk bool) (*QueueTicket, int, error) {
 	ticket := QueueTicket{
 		ID: randomTicketID(), UserID: userID, StudentID: studentID,
@@ -238,7 +238,7 @@ func (w *WaitingRoom) EnqueueSubmit(ctx context.Context, userID, studentID int64
 	return &ticket, position, nil
 }
 
-// QueuePosition پورت queuePosition.
+// QueuePosition port of queuePosition.
 func (w *WaitingRoom) QueuePosition(ctx context.Context, item string) int {
 	if !w.available() {
 		return -1
@@ -250,7 +250,7 @@ func (w *WaitingRoom) QueuePosition(ctx context.Context, item string) int {
 	return int(idx) + 1
 }
 
-// FinishTicket پورت finishTicket.
+// FinishTicket port of finishTicket.
 func (w *WaitingRoom) FinishTicket(ctx context.Context, userID int64, ticketID string, result any) {
 	if !w.available() {
 		return
@@ -259,7 +259,7 @@ func (w *WaitingRoom) FinishTicket(ctx context.Context, userID int64, ticketID s
 	_ = w.RDB.Set(ctx, latestKey(userID), latest, 30*time.Minute).Err()
 }
 
-// MarkProcessing پورت markProcessing.
+// MarkProcessing port of markProcessing.
 func (w *WaitingRoom) MarkProcessing(ctx context.Context, userID int64, ticketID string) {
 	if !w.available() {
 		return
@@ -268,7 +268,7 @@ func (w *WaitingRoom) MarkProcessing(ctx context.Context, userID int64, ticketID
 	_ = w.RDB.Set(ctx, latestKey(userID), latest, 30*time.Minute).Err()
 }
 
-// MyStatus پورت myStatus.
+// MyStatus port of myStatus.
 func (w *WaitingRoom) MyStatus(ctx context.Context, userID int64) WrStatus {
 	if !w.available() {
 		return WrStatus{State: "IDLE"}
@@ -299,7 +299,7 @@ func (w *WaitingRoom) MyStatus(ctx context.Context, userID int64) WrStatus {
 	return WrStatus{State: "PROCESSING"}
 }
 
-// RateLimitSubmit پورت rateLimitSubmit — ۵ درخواست در ثانیه؛ Redis پایین = باز.
+// RateLimitSubmit port of rateLimitSubmit — 5 requests per second; Redis down = open.
 func (w *WaitingRoom) RateLimitSubmit(ctx context.Context, userID int64) bool {
 	if !w.available() {
 		return true
@@ -314,7 +314,7 @@ func (w *WaitingRoom) RateLimitSubmit(ctx context.Context, userID int64) bool {
 	return n <= 5
 }
 
-// EnsureWorker کارگر صف را یک‌بار در پروسه اجرا می‌کند (۲۵۰ms / ۱۰ آیتم).
+// EnsureWorker runs the queue worker once per process (250ms / 10 items).
 func (w *WaitingRoom) EnsureWorker(process func(ctx context.Context, userID, studentID int64, acceptSameDayRisk bool) any) {
 	if !w.available() {
 		return
@@ -356,7 +356,7 @@ func (w *WaitingRoom) EnsureWorker(process func(ctx context.Context, userID, stu
 	})
 }
 
-// StopWorker پایان کارگر (برای تست/خاموشی).
+// StopWorker stops the worker (for tests/shutdown).
 func (w *WaitingRoom) StopWorker() {
 	select {
 	case <-w.stop:
@@ -365,14 +365,14 @@ func (w *WaitingRoom) StopWorker() {
 	}
 }
 
-// CapacityInfo نمای زندهٔ ظرفیت یک ارائه.
+// CapacityInfo live capacity view of one offering.
 type CapacityInfo struct {
 	Cap       int `json:"cap"`
 	Enrolled  int `json:"enrolled"`
 	Remaining int `json:"remaining"`
 }
 
-// PeekCapacities پورت peekCapacities.
+// PeekCapacities port of peekCapacities.
 func (w *WaitingRoom) PeekCapacities(ctx context.Context, offeringIDs []int64) map[int64]CapacityInfo {
 	out := map[int64]CapacityInfo{}
 	if !w.available() || len(offeringIDs) == 0 {

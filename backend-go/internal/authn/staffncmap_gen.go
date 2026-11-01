@@ -1,15 +1,15 @@
-// ═══ نگاشت کد استاد → کدملی — generated ═══
+// ═══ Staff code → national ID map — generated ═══
 //
-// تولیدشده از afagh-next/src/lib/staff-nc-map.generated.ts
-// (خودِ فایل TS هم AUTO-GENERATED است — scripts/generate-staff-nc-map.mjs؛
-// پس از به‌روزرسانی آن، این فایل را با ژنراتور فاز ۱ دوباره تولید کنید).
-// حجم مبدأ ~۲۸KB (کمتر از آستانهٔ ۲MB) ⇒ پورت مستقیم به مپ Go، بدون embed.
+// Generated from afagh-next/src/lib/staff-nc-map.generated.ts
+// (the TS file itself is also AUTO-GENERATED — scripts/generate-staff-nc-map.mjs;
+// after updating it, regenerate this file with the phase 1 generator).
+// Source size is ~28KB (below the 2MB threshold) ⇒ direct port to a Go map, without embed.
 //
-// کاربرد: گسترش هم‌شخصی در ورود (login) و جابه‌جایی حساب (switch-account) —
-// کدملیِ مشترک میان کدهای پرسنلی یک نفر، کاندیداها/حساب‌های مجاز را می‌سازد.
+// Usage: same-person expansion in login and account switch (switch-account) —
+// The national ID shared across a person's personnel codes forms the candidates/allowed accounts.
 package authn
 
-// staffNCMap نگاشت کد استاد → کدملی — همان STAFF_NC_MAP (به ترتیب فایل مبدأ).
+// staffNCMap maps staff code → national ID — the same STAFF_NC_MAP (in source file order).
 var staffNCMap = map[string]string{
 	"101": "2741232636", "103": "2751514308", "104": "1381645331",
 	"105": "1234567899", "106": "2754410376", "107": "2740011555",
@@ -445,7 +445,7 @@ var staffNCMap = map[string]string{
 	"4051001": "1501447157", "40210304": "1689582448",
 }
 
-// ncToCodes وارون نگاشت — کدملی → کدهای پرسنلی همان کدملی (همان NC_TO_CODES در auth.ts).
+// ncToCodes is the inverse mapping — national ID → the personnel codes of that national ID (the same NC_TO_CODES as in auth.ts).
 var ncToCodes = map[string][]string{
 	"2741232636": {"101", "4032202"}, "2751514308": {"103"},
 	"1381645331": {"104", "4020903"}, "1234567899": {"105"},

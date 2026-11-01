@@ -1,12 +1,12 @@
-// ═══ موتور انتخاب واحد (فاز ۳) — پورت src/lib/enroll-engine و صفحهٔ enroll ═══
+// ═══ Course enrollment engine (phase 3) — port of src/lib/enroll-engine and the enroll page ═══
 //
-// خط لولهٔ اعتبارسنجی عیناً همان پنج فیلتر سند §۱۰۰۸ است:
+// The validation pipeline is exactly the five filters from document §1008:
 //
-//	۱) مالی + وضعیت دانشجو
-//	۲) ظرفیت اتمیک (Redis با fallback دیتابیس) + تکرار درس
-//	۳) سقف واحد بر اساس آیین‌نامه
-//	۴) پیش‌نیاز/هم‌نیاز (خطای نرم)
-//	۵) تداخل کلاس (نرم) و امتحان (HARD/SOFT)
+//	1) Financial + student status
+//	2) Atomic capacity (Redis with DB fallback) + duplicate course
+//	3) Unit cap per regulations
+//	4) Prerequisite/corequisite (soft error)
+//	5) Class conflict (soft) and exam conflict (HARD/SOFT)
 package enroll
 
 import (
@@ -14,13 +14,13 @@ import (
 	"time"
 )
 
-// MaxUnits سقف پیش‌فرض وقتی موتور آیین‌نامه در دسترس نیست.
+// MaxUnits default cap when the regulations engine is unavailable.
 const MaxUnits = 20
 
-// EquivSemesterUnits هر ۲۰ واحد معادل‌سازی = یک ترم کسر از سنوات.
+// EquivSemesterUnits every 20 equivalent units = one semester deducted from study years.
 const EquivSemesterUnits = 20
 
-// Targeting هدف‌گیری ارائه (مقطع/رشته/بازهٔ ورود).
+// Targeting offering targeting (level/major/entry range).
 type Targeting struct {
 	TargetDegreeLevelID *int64
 	TargetMajorID       *int64
@@ -28,14 +28,14 @@ type Targeting struct {
 	EntryYearEnd        *int
 }
 
-// StudentScope دامنهٔ دانشجو برای تطبیق هدف‌گیری.
+// StudentScope student scope for targeting matching.
 type StudentScope struct {
 	DegreeLevelID *int64
 	MajorID       *int64
 	EntryYear     int
 }
 
-// OfferingVisible پورت offeringVisible: NULL یعنی «بدون محدودیت».
+// OfferingVisible port of offeringVisible: NULL means «بدون محدودیت».
 func OfferingVisible(o Targeting, s StudentScope) bool {
 	if o.TargetDegreeLevelID != nil && (s.DegreeLevelID == nil || *o.TargetDegreeLevelID != *s.DegreeLevelID) {
 		return false
@@ -52,7 +52,7 @@ func OfferingVisible(o Targeting, s StudentScope) bool {
 	return true
 }
 
-// clock5 پورت slice(0,5) روی ساعت.
+// clock5 port of slice(0,5) on the time.
 func clock5(v string) string {
 	if len(v) >= 5 {
 		return v[:5]
@@ -60,12 +60,12 @@ func clock5(v string) string {
 	return v
 }
 
-// timeOverlap پورت timeOverlap (مقایسهٔ رشته‌ای HH:MM).
+// timeOverlap port of timeOverlap (string comparison of HH:MM).
 func timeOverlap(s1, e1, s2, e2 string) bool {
 	return clock5(s1) < clock5(e2) && clock5(s2) < clock5(e1)
 }
 
-// ParseTermTypeOf پورت termTypeOf — پیشوند 00EQ مقدم بر ستون termType.
+// ParseTermTypeOf port of termTypeOf — the 00EQ prefix takes precedence over the termType column.
 func TermTypeOf(termCode string, termType *string, isSummer bool) string {
 	if strings.HasPrefix(strings.ToLower(strings.TrimSpace(termCode)), "00eq") {
 		return "EQUIVALENCE"

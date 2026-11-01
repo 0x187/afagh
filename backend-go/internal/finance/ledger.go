@@ -1,18 +1,18 @@
-// ═══ تراز کانونی دفتر مالی — پورت ledger-balance.ts ═══
+// ═══ Canonical financial ledger balance — port of ledger-balance.ts ═══
 //
-// قرارداد علامت: مثبت = بدهی دانشجو. انواع ناشناخته نادیده گرفته می‌شوند
-// (fail-closed: در گیت‌ها اثر ندارند).
+// Sign convention: positive = student debt. Unknown types are ignored
+// (fail-closed: they have no effect in gates).
 package finance
 
 import "strings"
 
-// DebtLedgerTypes انواعی که بدهی می‌سازند.
+// DebtLedgerTypes types that create debt.
 var DebtLedgerTypes = []string{
 	"TUITION_FIXED", "TUITION_VARIABLE", "TUITION_CHARGE", "CHARGE",
 	"SUBJECT_ADDITIVE", "POS_REFUND", "TUITION_ADJUST_DEC",
 }
 
-// CreditLedgerTypes انواعی که اعتبار می‌سازند.
+// CreditLedgerTypes types that create credit.
 var CreditLedgerTypes = []string{
 	"PAYMENT", "POS_PAYMENT", "DISCOUNT_FIXED", "DISCOUNT_VARIABLE",
 	"SUBJECT_DEDUCTIVE", "SPONSORSHIP", "LOAN", "CREDIT",
@@ -30,13 +30,13 @@ func toSet(list []string) map[string]bool {
 	return m
 }
 
-// LedgerBalanceRow ردیف حداقلی تراز.
+// LedgerBalanceRow minimal balance row.
 type LedgerBalanceRow struct {
 	TransactionType *string
 	Amount          any
 }
 
-// LedgerBalance پورت ledgerBalance: جمع بدهی‌ها − جمع اعتبارها.
+// LedgerBalance port of ledgerBalance: total debts − total credits.
 func LedgerBalance(rows []LedgerBalanceRow) float64 {
 	var debt, credit float64
 	for _, r := range rows {
@@ -57,12 +57,12 @@ func LedgerBalance(rows []LedgerBalanceRow) float64 {
 	return debt - credit
 }
 
-// IsChargeType آیا نوع تراکنش بدهی است؟
+// IsChargeType whether the transaction type is debt.
 func IsChargeType(typ string) bool {
 	return debtSet[strings.ToUpper(strings.TrimSpace(typ))]
 }
 
-// IsPaymentType آیا نوع تراکنش اعتبار است؟
+// IsPaymentType whether the transaction type is credit.
 func IsPaymentType(typ string) bool {
 	return creditSet[strings.ToUpper(strings.TrimSpace(typ))]
 }

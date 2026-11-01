@@ -1,4 +1,4 @@
-// ═══ قالب‌های اعلان + پیام آزمایشی — پورت admin/templates ═══
+// ═══ Notification templates + test message — port of admin/templates ═══
 package admin
 
 import (
@@ -15,14 +15,14 @@ import (
 	"backend-go/internal/session"
 )
 
-// TemplateVars متغیر یک قالب.
+// TemplateVars a template variable.
 type TemplateVars struct {
 	Tag         string `json:"tag"`
 	Label       string `json:"label"`
 	SampleValue string `json:"sampleValue"`
 }
 
-// SavedTemplateRow یک قالب ذخیره‌شده.
+// SavedTemplateRow a saved template.
 type SavedTemplateRow struct {
 	EventCode    string         `json:"eventCode"`
 	Title        string         `json:"title"`
@@ -52,7 +52,7 @@ func toAsciiDigits(s string) string {
 	})
 }
 
-// ListNotificationTemplates فهرست قالب‌ها (پورت listNotificationTemplates).
+// ListNotificationTemplates list of templates (port of listNotificationTemplates).
 func (s *Service) ListNotificationTemplates(ctx context.Context) ([]SavedTemplateRow, error) {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select "eventCode", coalesce(title,''), "templateText", coalesce(variables,'[]'),
@@ -91,7 +91,7 @@ func (s *Service) ListNotificationTemplates(ctx context.Context) ([]SavedTemplat
 	return out, rows.Err()
 }
 
-// SaveNotificationTemplate ذخیرهٔ قالب (پورت saveNotificationTemplate).
+// SaveNotificationTemplate save template (port of saveNotificationTemplate).
 func (s *Service) SaveNotificationTemplate(ctx context.Context, in SavedTemplateRow) error {
 	eventCode := strings.TrimSpace(in.EventCode)
 	if len([]rune(eventCode)) > 60 {
@@ -152,7 +152,7 @@ func (s *Service) SaveNotificationTemplate(ctx context.Context, in SavedTemplate
 	return err
 }
 
-// SendTemplateTestMessage تست زندهٔ یک کانال با شناسهٔ کاربر (پورت sendTemplateTestMessage).
+// SendTemplateTestMessage live test of a channel with a user ID (port of sendTemplateTestMessage).
 func (s *Service) SendTemplateTestMessage(ctx context.Context, pool *pgxpool.Pool, user *session.User, msgSvc *messaging.Service, channel, identifier string) (string, error) {
 	_ = user
 	if !testableChannels[channel] {
@@ -206,7 +206,7 @@ func (s *Service) SendTemplateTestMessage(ctx context.Context, pool *pgxpool.Poo
 		return "", nil
 	}
 
-	// ① کد پرسنلی
+	// ① personnel code
 	if msg, err := tryUsers(func() ([][]any, error) {
 		rows, err := pool.Query(ctx, `select u.id, u."firstName", u."lastName", st."staffCode"
 			from staff st join users u on u.id = st."userId" where st."staffCode" = $1 order by u.id`, raw)
@@ -227,7 +227,7 @@ func (s *Service) SendTemplateTestMessage(ctx context.Context, pool *pgxpool.Poo
 		return msg, err
 	}
 
-	// ② شمارهٔ دانشجویی
+	// ② student number
 	if msg, err := tryUsers(func() ([][]any, error) {
 		rows, err := pool.Query(ctx, `select u.id, u."firstName", u."lastName", st."studentCode"
 			from students st join users u on u.id = st."userId" where st."studentCode" = $1 order by u.id`, raw)
@@ -248,7 +248,7 @@ func (s *Service) SendTemplateTestMessage(ctx context.Context, pool *pgxpool.Poo
 		return msg, err
 	}
 
-	// ③ موبایل
+	// ③ mobile
 	if len(raw) == 11 && strings.HasPrefix(raw, "09") {
 		if msg, err := tryUsers(func() ([][]any, error) {
 			rows, err := pool.Query(ctx, `select id, "firstName", "lastName", mobile from users where mobile = $1 order by id`, raw)
@@ -270,7 +270,7 @@ func (s *Service) SendTemplateTestMessage(ctx context.Context, pool *pgxpool.Poo
 		}
 	}
 
-	// ④ کد ملی
+	// ④ national code
 	if len(raw) == 10 {
 		if msg, err := tryUsers(func() ([][]any, error) {
 			rows, err := pool.Query(ctx, `select id, "firstName", "lastName", "nationalCode" from users where "nationalCode" = $1 order by id`, raw)
@@ -292,7 +292,7 @@ func (s *Service) SendTemplateTestMessage(ctx context.Context, pool *pgxpool.Poo
 		}
 	}
 
-	// ⑤ chatId مستقیم — فقط برای پیام‌رسان‌ها؛ SMS چت مستقیم ندارد
+	// ⑤ direct chatId — only for messengers; SMS has no direct chat
 	if channel != "SMS" && len(raw) >= 3 && len(raw) <= 15 {
 		res := msgSvc.SendMessengerDirect(ctx, channel, raw)
 		if res.Status == "SENT" {

@@ -2,7 +2,7 @@ package fa
 
 import "testing"
 
-// پورت تست‌های escape-like/persian-search (afagh-next/tests/).
+// Port of the escape-like/persian-search tests (afagh-next/tests/).
 func TestEscapeLikeChars(t *testing.T) {
 	cases := map[string]string{
 		"100%": "100\\%", "a_b": "a\\_b", "a\\b": "a\\\\b",

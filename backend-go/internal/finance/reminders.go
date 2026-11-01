@@ -1,4 +1,4 @@
-// ═══ یادآوری چک — پورت cheque-reminders.ts ═══
+// ═══ Cheque reminders — port of cheque-reminders.ts ═══
 package finance
 
 import (
@@ -10,7 +10,7 @@ import (
 
 const dayMs = 86_400_000
 
-// ChequeReminderRow ردیف چک برای تصمیم یادآوری.
+// ChequeReminderRow cheque row for the reminder decision.
 type ChequeReminderRow struct {
 	ID         int64
 	ChequeNo   *string
@@ -20,14 +20,14 @@ type ChequeReminderRow struct {
 	RemindedAt any
 }
 
-// ChequeReminderDecision نتیجهٔ تصمیم.
+// ChequeReminderDecision decision result.
 type ChequeReminderDecision struct {
 	Remind   bool
 	DaysLeft *int
 	Overdue  bool
 }
 
-// ChequeNeedsReminder پورت chequeNeedsReminder.
+// ChequeNeedsReminder port of chequeNeedsReminder.
 func ChequeNeedsReminder(c ChequeReminderRow, nowMs int64, remindDays float64) ChequeReminderDecision {
 	none := ChequeReminderDecision{Remind: false, DaysLeft: nil, Overdue: false}
 	status := ""
@@ -51,7 +51,7 @@ func ChequeNeedsReminder(c ChequeReminderRow, nowMs int64, remindDays float64) C
 	return ChequeReminderDecision{Remind: remind, DaysLeft: &daysLeft, Overdue: overdue}
 }
 
-// ReminderTextInput ورودی متن یادآوری.
+// ReminderTextInput reminder text input.
 type ReminderTextInput struct {
 	ChequeNo *string
 	Amount   any
@@ -59,7 +59,7 @@ type ReminderTextInput struct {
 	BankName *string
 }
 
-// BuildChequeReminderText پورت buildChequeReminderText — فارسی با مبلغ و روزها.
+// BuildChequeReminderText port of buildChequeReminderText — Persian with amount and days.
 func BuildChequeReminderText(c ReminderTextInput, daysLeft *int, overdue bool) string {
 	no := ""
 	if c.ChequeNo != nil && *c.ChequeNo != "" {

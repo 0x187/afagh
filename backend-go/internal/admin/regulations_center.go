@@ -1,15 +1,15 @@
-// ═══ مرکز مدیریت و کنترل آیین‌نامه‌های آموزشی — پورت admin/regulations در Next ═══
+// ═══ Center for Management and Control of Educational Regulations — port of admin/regulations in Next ═══
 //
-// پورت وفادار afagh-next/src/app/admin/regulations/{page.tsx,actions.ts} و
-// afagh-next/src/lib/regulations-types.ts (پریست‌ها).
+// Faithful port of afagh-next/src/app/admin/regulations/{page.tsx,actions.ts} and
+// afagh-next/src/lib/regulations-types.ts (presets).
 //
-// منبع داده: educational_regulations (rulesConfig = JSON متنی) و
-// degree_level_configs. آیین‌نامه‌ها با universityId=null سراسری‌اند و
-// با universityId=دانشگاهِ فعال اختصاصی؛ هر دو در فهرست می‌آیند.
+// Data source: educational_regulations (rulesConfig = textual JSON) and
+// degree_level_configs. Regulations with universityId=null are global and
+// those with universityId=<active university> are university-specific; both appear in the list.
 //
-// «فعال‌سازی»: در مرجع Next عملیات جداگانه‌ای به نام فعال‌سازی وجود ندارد؛
-// نسخهٔ فعال هر ورودی با بازهٔ سال اعتبار (effectiveFromYear/effectiveToYear)
-// تعیین می‌شود — همان رفتار اینجا حفظ شده است.
+// «فعال‌سازی»: in the Next reference there is no separate operation named activation;
+// the active version of each item is determined by its validity year range (effectiveFromYear/effectiveToYear)
+// — the same behavior is preserved here.
 package admin
 
 import (
@@ -23,9 +23,9 @@ import (
 	"backend-go/internal/session"
 )
 
-// ── انواع پیکربندی (پورت RegulationConfig از regulations-types.ts) ──
+// ── Configuration types (port of RegulationConfig from regulations-types.ts) ──
 
-// RegulationLevelOverride تفاوت‌های مقطعی نیمسال/سنوات (SHORT/LONG).
+// RegulationLevelOverride semester/yearly (SHORT/LONG) level differences.
 type RegulationLevelOverride struct {
 	MinUnits                 *float64 `json:"min_units,omitempty"`
 	MaxConsecutiveProbations *float64 `json:"max_consecutive_probations,omitempty"`
@@ -33,7 +33,7 @@ type RegulationLevelOverride struct {
 	MaxStudySemesters        *float64 `json:"max_study_semesters,omitempty"`
 }
 
-// RegulationRegularTermRules قواعد نیمسال عادی.
+// RegulationRegularTermRules regular semester rules.
 type RegulationRegularTermRules struct {
 	MinUnits          float64 `json:"min_units"`
 	MaxUnits          float64 `json:"max_units"`
@@ -42,20 +42,20 @@ type RegulationRegularTermRules struct {
 	HonorsMaxUnits    float64 `json:"honors_max_units"`
 }
 
-// RegulationSummerTermRules قواعد نیمسال تابستان.
+// RegulationSummerTermRules summer semester rules.
 type RegulationSummerTermRules struct {
 	DefaultMaxUnits    float64 `json:"default_max_units"`
 	GraduatingMaxUnits float64 `json:"graduating_max_units"`
 }
 
-// RegulationGraduatingTermRules تسهیلات ترم آخر.
+// RegulationGraduatingTermRules final-semester facilities.
 type RegulationGraduatingTermRules struct {
 	CanTakeWithProbation   bool    `json:"can_take_with_probation"`
 	MaxUnits               float64 `json:"max_units"`
 	AutoCorequisiteAllowed bool    `json:"auto_corequisite_allowed"`
 }
 
-// RegulationProbationAndTenure مشروطی و سنوات.
+// RegulationProbationAndTenure probation and tenure.
 type RegulationProbationAndTenure struct {
 	ProbationGpaThreshold    float64 `json:"probation_gpa_threshold"`
 	MaxConsecutiveProbations float64 `json:"max_consecutive_probations"`
@@ -63,7 +63,7 @@ type RegulationProbationAndTenure struct {
 	MaxStudySemesters        float64 `json:"max_study_semesters"`
 }
 
-// RegulationGradingAndGpa سیاست نمرات و حذف نمرهٔ ردی پس از قبولی.
+// RegulationGradingAndGpa grading policy and dropping a failed grade after passing.
 type RegulationGradingAndGpa struct {
 	FailedCourseGpaPolicy string   `json:"failed_course_gpa_policy"` // EXCLUDE_IF_PASSED | EXCLUDE_IF_PASSED_1391 | KEEP_ALWAYS
 	DefaultPassingGrade   float64  `json:"default_passing_grade"`
@@ -73,7 +73,7 @@ type RegulationGradingAndGpa struct {
 	DedupeRepeatedCourses *bool    `json:"dedupeRepeatedCourses,omitempty"`
 }
 
-// RegulationQuotaOverride اورراید سهمیه‌های خاص (SHAHED_ISARGAR و …).
+// RegulationQuotaOverride overrides for special quotas (SHAHED_ISARGAR and …).
 type RegulationQuotaOverride struct {
 	SummerTermRules *struct {
 		DefaultMaxUnits *float64 `json:"default_max_units,omitempty"`
@@ -82,7 +82,7 @@ type RegulationQuotaOverride struct {
 	ExtraAllowedSemesters *float64 `json:"extra_allowed_semesters,omitempty"`
 }
 
-// RegulationConfig پیکربندی کامل یک آیین‌نامه — ساختار JSON rulesConfig.
+// RegulationConfig full configuration of a regulation — rulesConfig JSON structure.
 type RegulationConfig struct {
 	Levels              map[string]RegulationLevelOverride `json:"levels,omitempty"`
 	RegularTermRules    RegulationRegularTermRules         `json:"regular_term_rules"`
@@ -95,7 +95,7 @@ type RegulationConfig struct {
 
 func regFloat(v float64) *float64 { return &v }
 
-// ── پریست‌ها (پورت DEFAULT_* و REGULATION_PRESETS از regulations-types.ts) ──
+// ── Presets (port of DEFAULT_* and REGULATION_PRESETS from regulations-types.ts) ──
 
 func regulationPresetBachelor1403() RegulationConfig {
 	return RegulationConfig{
@@ -148,7 +148,7 @@ func regulationPresetMaster1403() RegulationConfig {
 	}
 }
 
-// regulationPreset1402 آیین‌نامه آموزشی ۱۴۰۲ و به بعد (کاردانی/کارشناسی).
+// regulationPreset1402 educational regulations of 1402 and later (associate/bachelor).
 func regulationPreset1402() RegulationConfig {
 	return RegulationConfig{
 		Levels: map[string]RegulationLevelOverride{
@@ -163,7 +163,7 @@ func regulationPreset1402() RegulationConfig {
 	}
 }
 
-// regulationPreset1393 آیین‌نامه مصوب ۹۳/۷/۲۸ (کدهای سما ۹۳/۹۴/۹۱۴/۹۱۵).
+// regulationPreset1393 regulations approved on 93/7/28 (Sama codes 93/94/914/915).
 func regulationPreset1393() RegulationConfig {
 	return RegulationConfig{
 		Levels: map[string]RegulationLevelOverride{
@@ -178,7 +178,7 @@ func regulationPreset1393() RegulationConfig {
 	}
 }
 
-// regulationPreset1391 نامه ۱۳۸۷۱۵ مورخ ۹۱/۷/۲۲ — تبصرهٔ ۱۳۹۱ (حذف با ۱۴+).
+// regulationPreset1391 letter 138715 dated 91/7/22 — 1391 note (drop with 14+).
 func regulationPreset1391() RegulationConfig {
 	return RegulationConfig{
 		Levels: map[string]RegulationLevelOverride{
@@ -193,7 +193,7 @@ func regulationPreset1391() RegulationConfig {
 	}
 }
 
-// regulationPresetPre1391 ماقبل ۱۳۹۱ — KEEP_ALWAYS (ابقای نمرهٔ ردی).
+// regulationPresetPre1391 before 1391 — KEEP_ALWAYS (keep the failed grade).
 func regulationPresetPre1391() RegulationConfig {
 	return RegulationConfig{
 		RegularTermRules:    RegulationRegularTermRules{MinUnits: 12, MaxUnits: 20, ProbationMaxUnits: 14, HonorsMinGPA: 17.0, HonorsMaxUnits: 24},
@@ -204,7 +204,7 @@ func regulationPresetPre1391() RegulationConfig {
 	}
 }
 
-// regulationPreset1394Master آیین‌نامه ارشد مصوب ۱۳۹۴ (کف ۱۲، مرز ۱۴).
+// regulationPreset1394Master master's regulations approved in 1394 (floor 12, boundary 14).
 func regulationPreset1394Master() RegulationConfig {
 	return RegulationConfig{
 		RegularTermRules:    RegulationRegularTermRules{MinUnits: 8, MaxUnits: 14, ProbationMaxUnits: 10, HonorsMinGPA: 17.0, HonorsMaxUnits: 16},
@@ -215,7 +215,7 @@ func regulationPreset1394Master() RegulationConfig {
 	}
 }
 
-// regulationPreset1394Phd آیین‌نامه دکتری مصوب ۱۳۹۴ (کف ۱۴، مرز ۱۶).
+// regulationPreset1394Phd doctoral regulations approved in 1394 (floor 14, boundary 16).
 func regulationPreset1394Phd() RegulationConfig {
 	return RegulationConfig{
 		RegularTermRules:    RegulationRegularTermRules{MinUnits: 6, MaxUnits: 12, ProbationMaxUnits: 8, HonorsMinGPA: 17.0, HonorsMaxUnits: 12},
@@ -226,7 +226,7 @@ func regulationPreset1394Phd() RegulationConfig {
 	}
 }
 
-// EducationalRegulationPresets همهٔ پریست‌های آماده — کلیدها همان نام‌های مرجع.
+// EducationalRegulationPresets all built-in presets — keys are the same as the reference names.
 func EducationalRegulationPresets() map[string]RegulationConfig {
 	return map[string]RegulationConfig{
 		"defaultBachelor1403": regulationPresetBachelor1403(),
@@ -241,9 +241,9 @@ func EducationalRegulationPresets() map[string]RegulationConfig {
 	}
 }
 
-// ── انواع پاسخ ──
+// ── Response types ──
 
-// RegulationDegreeLevel مقطع تحصیلی برای انتخاب‌گر فرم (پورت DegreeLevelItem).
+// RegulationDegreeLevel degree level for the form selector (port of DegreeLevelItem).
 type RegulationDegreeLevel struct {
 	ID                      int64   `json:"id"`
 	LevelName               string  `json:"levelName"`
@@ -253,7 +253,7 @@ type RegulationDegreeLevel struct {
 	MaxUnitsPerTerm         *int64  `json:"maxUnitsPerTerm"`
 }
 
-// RegulationItem یک نسخهٔ آیین‌نامه (پورت RegulationItem).
+// RegulationItem one regulation version (port of RegulationItem).
 type RegulationItem struct {
 	ID                int64           `json:"id"`
 	Title             string          `json:"title"`
@@ -265,14 +265,14 @@ type RegulationItem struct {
 	CreatedAt         *string         `json:"createdAt"`
 }
 
-// RegulationCenterData پاسخ کامل صفحهٔ مرکز آیین‌نامه‌ها.
+// RegulationCenterData full response of the regulations center page.
 type RegulationCenterData struct {
 	Regulations  []RegulationItem            `json:"regulations"`
 	DegreeLevels []RegulationDegreeLevel     `json:"degreeLevels"`
 	Presets      map[string]RegulationConfig `json:"presets"`
 }
 
-// RegulationSaveInput ورودی ذخیره (ساخت/ویرایش).
+// RegulationSaveInput save input (create/edit).
 type RegulationSaveInput struct {
 	ID                *int64          `json:"id"`
 	Title             string          `json:"title"`
@@ -282,7 +282,7 @@ type RegulationSaveInput struct {
 	RulesConfig       json.RawMessage `json:"rulesConfig"`
 }
 
-// ListEducationalRegulations پورت page.tsx — فهرست آیین‌نامه‌ها + مقاطع + پریست‌ها.
+// ListEducationalRegulations port of page.tsx — list of regulations + degree levels + presets.
 func (s *Service) ListEducationalRegulations(ctx context.Context, user *session.User, cookie string) (*RegulationCenterData, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	resp := &RegulationCenterData{
@@ -291,7 +291,7 @@ func (s *Service) ListEducationalRegulations(ctx context.Context, user *session.
 		Presets:      EducationalRegulationPresets(),
 	}
 
-	// مقاطع: همین دانشگاه + رکوردهای سراسری (universityId=null)
+	// Degree levels: this university + global records (universityId=null)
 	if uniID != nil {
 		rows, err := s.DB.Pool.Query(ctx, `
 			select id, code, coalesce(nullif(title,''), code),
@@ -315,7 +315,7 @@ func (s *Service) ListEducationalRegulations(ctx context.Context, user *session.
 		}
 	}
 
-	// آیین‌نامه‌ها: همین دانشگاه + سراسری
+	// Regulations: this university + global
 	if uniID != nil {
 		rows, err := s.DB.Pool.Query(ctx, `
 			select r.id, r.title, r."degreeLevelId", coalesce(d.title, 'کارشناسی پیوسته'),
@@ -343,8 +343,8 @@ func (s *Service) ListEducationalRegulations(ctx context.Context, user *session.
 		}
 	}
 
-	// اگر هیچ رکوردی در DB نیست، سه آیین‌نامهٔ پیش‌فرض در حافظه ساخته می‌شود
-	// (خارج از DB — دقیقاً مثل page.tsx) تا کاربر با صفحهٔ خالی روبه‌رو نشود.
+	// If there are no records in the DB, three default regulations are built in memory
+	// (outside the DB — exactly like page.tsx) so the user is not faced with an empty page.
 	if len(resp.Regulations) == 0 && len(resp.DegreeLevels) > 0 {
 		bachelorDeg := resp.DegreeLevels[0].ID
 		masterDeg := bachelorDeg
@@ -363,7 +363,7 @@ func (s *Service) ListEducationalRegulations(ctx context.Context, user *session.
 	return resp, nil
 }
 
-// regulationNormalizeRawConfig پارس rulesConfig متنی؛ خراب بودن → پریست کارشناسی.
+// regulationNormalizeRawConfig parses the textual rulesConfig; if corrupt → bachelor preset.
 func regulationNormalizeRawConfig(raw string) json.RawMessage {
 	if raw != "" && json.Valid([]byte(raw)) {
 		return json.RawMessage(raw)
@@ -374,14 +374,14 @@ func regulationNormalizeRawConfig(raw string) json.RawMessage {
 
 func intPtr(v int) *int { return &v }
 
-// SaveEducationalRegulation پورت saveRegulationAction — ساخت/ویرایش با گارد سال شمسی.
+// SaveEducationalRegulation port of saveRegulationAction — create/edit with a Jalali year guard.
 func (s *Service) SaveEducationalRegulation(ctx context.Context, user *session.User, cookie string, in RegulationSaveInput) error {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {
 		return errors.New("دانشگاه فعال نامشخص است.")
 	}
 
-	// گارد سال شمسی معتبر: جلوگیری از ورود کدهای سما (مثل ۱۲۳۰/۱۳۳۰) به‌جای سال
+	// Valid Jalali year guard: prevents Sama codes (such as 1230/1330) from being entered instead of a year
 	from := in.EffectiveFromYear
 	if from < 1350 || from > 1500 {
 		return fmt.Errorf("سال شروع اعتبار باید سال شمسی معتبر (۱۳۵۰ تا ۱۵۰۰) باشد؛ مقدار «%d» پذیرفته نیست.", from)
@@ -455,7 +455,7 @@ func (s *Service) SaveEducationalRegulation(ctx context.Context, user *session.U
 	return err
 }
 
-// DeleteEducationalRegulation پورت deleteRegulationAction — حذف با گارد دانشگاه.
+// DeleteEducationalRegulation port of deleteRegulationAction — delete with a university guard.
 func (s *Service) DeleteEducationalRegulation(ctx context.Context, user *session.User, cookie string, id int64) error {
 	uniID := s.UniversityID(ctx, user, cookie)
 	if uniID == nil {

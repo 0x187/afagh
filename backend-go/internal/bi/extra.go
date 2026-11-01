@@ -1,4 +1,4 @@
-// ═══ افزوده‌های BI: وضعیت کش، ابر کلمات، پنل استاد و بازسازی کامل — پورت bi-engine ═══
+// ═══ BI additions: cache status, word cloud, professor panel and full rebuild — port of bi-engine ═══
 package bi
 
 import (
@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// CacheEntry یک ردیف وضعیت کش.
+// CacheEntry is a cache status row.
 type CacheEntry struct {
 	Key        string `json:"key"`
 	Type       string `json:"type"`
@@ -20,7 +20,7 @@ type CacheEntry struct {
 	Fresh      bool   `json:"fresh"`
 }
 
-// InvalidateBiCache پاک‌کردن کش یک گزارش (یا همه) — پورت invalidateBiCache.
+// InvalidateBiCache clears the cache of one report (or all) — port of invalidateBiCache.
 func (s *Service) InvalidateBiCache(ctx context.Context, prefix string) error {
 	if prefix == "" {
 		_, err := s.Pool.Exec(ctx, `delete from analytics_snapshots`)
@@ -30,7 +30,7 @@ func (s *Service) InvalidateBiCache(ctx context.Context, prefix string) error {
 	return err
 }
 
-// CacheStatus وضعیت کش‌ها — پورت cacheStatus.
+// CacheStatus reports cache status — port of cacheStatus.
 func (s *Service) CacheStatus(ctx context.Context) ([]CacheEntry, error) {
 	ttl := s.cacheTTL(ctx)
 	rows, err := s.Pool.Query(ctx, `
@@ -56,13 +56,13 @@ func (s *Service) CacheStatus(ctx context.Context) ([]CacheEntry, error) {
 	return out, rows.Err()
 }
 
-// WordItem یک واژه در ابر کلمات.
+// WordItem is a word in the word cloud.
 type WordItem struct {
 	W string `json:"w"`
 	C int    `json:"c"`
 }
 
-// WordCloudResult نتیجهٔ ابر کلمات.
+// WordCloudResult is the word cloud result.
 type WordCloudResult struct {
 	Words    []WordItem `json:"words"`
 	Comments int        `json:"comments"`
@@ -80,7 +80,7 @@ func (s *Service) settingStr(ctx context.Context, key string) string {
 	return ""
 }
 
-// WordCloud پورت wordCloud — همهٔ تحلیل متن در PostgreSQL.
+// WordCloud ports wordCloud — all text analysis in PostgreSQL.
 func (s *Service) WordCloud(ctx context.Context, staffID int64, force bool) (*WordCloudResult, error) {
 	key := "bi:wordcloud:staff:" + itoa(staffID)
 	var cached struct {
@@ -176,7 +176,7 @@ func derefInt(v *int) int {
 	return *v
 }
 
-// RadarAxis یک محور رادار پنل استاد.
+// RadarAxis is an axis of the professor panel radar.
 type RadarAxis struct {
 	Label     string   `json:"label"`
 	Mine      *float64 `json:"mine"`
@@ -184,7 +184,7 @@ type RadarAxis struct {
 	Responses int      `json:"responses"`
 }
 
-// ProfessorPanel پنل اختصاصی استاد.
+// ProfessorPanel is the professor's dedicated panel.
 type ProfessorPanel struct {
 	StaffID     int64        `json:"staffId"`
 	Name        string       `json:"name"`
@@ -202,7 +202,7 @@ type ProfessorPanel struct {
 	Flagged     bool         `json:"flagged"`
 }
 
-// ProfessorPanel پورت professorPanel.
+// ProfessorPanel ports professorPanel.
 func (s *Service) ProfessorPanel(ctx context.Context, staffID int64) (*ProfessorPanel, error) {
 	term := s.currentTerm(ctx)
 	if term == nil {
@@ -339,7 +339,7 @@ func (s *Service) ProfessorPanel(ctx context.Context, staffID int64) (*Professor
 	}, nil
 }
 
-// BiSummary خلاصهٔ سراسری برای کارت‌های داشبورد.
+// BiSummary is the global summary for dashboard cards.
 type BiSummary struct {
 	Term             string         `json:"term"`
 	Period           *string        `json:"period"`
@@ -354,7 +354,7 @@ type BiSummary struct {
 	CachedAt         *string        `json:"cachedAt"`
 }
 
-// Summary پورت biSummary.
+// Summary ports biSummary.
 func (s *Service) Summary(ctx context.Context) *BiSummary {
 	ov := s.ManagementOverview(ctx)
 	fac := s.FacilitiesReport(ctx)
@@ -373,7 +373,7 @@ func (s *Service) Summary(ctx context.Context) *BiSummary {
 	return out
 }
 
-// RefreshResult نتیجهٔ بازسازی کامل.
+// RefreshResult is the result of a full rebuild.
 type RefreshResult struct {
 	TermID     int64 `json:"termId"`
 	Staff      int   `json:"staff"`
@@ -382,7 +382,7 @@ type RefreshResult struct {
 	DurationMs int64 `json:"durationMs"`
 }
 
-// RefreshAllCaches پورت refreshAllBiCaches — بازسازی داشبوردها + ابر کلمات همهٔ اساتید.
+// RefreshAllCaches ports refreshAllBiCaches — rebuilds dashboards + the word cloud of all professors.
 func (s *Service) RefreshAllCaches(ctx context.Context, termID *int64) (*RefreshResult, error) {
 	var term *termRow
 	if termID != nil {

@@ -1,12 +1,12 @@
-// ═══ هستهٔ خالص معدل — پورت gpa-aggregation.ts ═══
+// ═══ Pure GPA core — port of gpa-aggregation.ts ═══
 //
-// یک نقطهٔ حقیقت برای هر دو موتور: «معدل رسمی» (آیین‌نامه) و «معدل دروازهٔ
-// فارغ‌التحصیلی». جمع‌ها روی اعداد صحیح مقیاس‌شده انجام می‌شود:
+// a single source of truth for both engines: «معدل رسمی» (regulations) and the
+// «معدل دروازهٔ فارغ‌التحصیلی». Sums are performed on scaled integers:
 //
-//	weighted = Σ (نمره×۱۰۰) × (واحد×۱۰)
-//	units    = Σ (واحد×۱۰)
+//	weighted = Σ (grade×100) × (units×10)
+//	units    = Σ (units×10)
 //
-// قاعدهٔ «نمرهٔ ردیف به معدل می‌آید یا نه» از gradestatus.RowCountsTowardGpa.
+// the «نمرهٔ ردیف به معدل می‌آید یا نه» rule comes from gradestatus.RowCountsTowardGpa.
 package gpa
 
 import (
@@ -18,11 +18,11 @@ import (
 )
 
 const (
-	gradeScale = 100 // نمره: دو رقم اعشار
-	unitScale  = 10  // واحد: یک رقم اعشار
+	gradeScale = 100 // grade: two decimal places
+	unitScale  = 10  // units: one decimal place
 )
 
-// ParseGrade پورت parseGrade: خالی/غیرعددی → nil (یعنی «نمره‌ای ثبت نشده»).
+// ParseGrade port of parseGrade: empty/non-numeric → nil (meaning «نمره‌ای ثبت نشده»).
 func ParseGrade(value any) *float64 {
 	if value == nil {
 		return nil
@@ -70,7 +70,7 @@ func toString(v any) string {
 	}
 }
 
-// ParseUnits پورت parseUnits: نامعتبر/منفی → ۰.
+// ParseUnits port of parseUnits: invalid/negative → 0.
 func ParseUnits(value any) float64 {
 	n := ParseGrade(value)
 	if n == nil || *n < 0 {
@@ -79,18 +79,18 @@ func ParseUnits(value any) float64 {
 	return *n
 }
 
-// Round2 پورت round2 — گرد نیم‌بالا روی دو رقم اعشار.
+// Round2 port of round2 — round half up to two decimal places.
 func Round2(value float64) float64 {
 	return math.Round((value+2.220446049250313e-16)*100) / 100
 }
 
-// Accumulator انباشتگر معدل با حساب صحیح.
+// Accumulator GPA accumulator with integer arithmetic.
 type Accumulator struct {
 	weighted    float64
 	unitsScaled float64
 }
 
-// Add افزودن یک ردیف مؤثر.
+// Add adds one effective row.
 func (a *Accumulator) Add(grade, units float64) {
 	g := math.Round(grade * gradeScale)
 	u := math.Round(units * unitScale)
@@ -101,13 +101,13 @@ func (a *Accumulator) Add(grade, units float64) {
 	a.unitsScaled += u
 }
 
-// HasUnits آیا واحدی تجمیع شده است؟
+// HasUnits whether any units have been aggregated.
 func (a *Accumulator) HasUnits() bool { return a.unitsScaled > 0 }
 
-// Units واحدهای تجمیع‌شده (مقیاس‌نشده).
+// Units aggregated units (unscaled).
 func (a *Accumulator) Units() float64 { return a.unitsScaled / unitScale }
 
-// Exact معدل دقیق (بدون گرد) — برای مقایسه‌های آیین‌نامه‌ای.
+// Exact exact GPA (unrounded) — for regulation comparisons.
 func (a *Accumulator) Exact() *float64 {
 	if a.unitsScaled <= 0 {
 		return nil
@@ -116,7 +116,7 @@ func (a *Accumulator) Exact() *float64 {
 	return &v
 }
 
-// Rounded معدل گردشده روی دو رقم اعشار (نمایش/ذخیره).
+// Rounded GPA rounded to two decimal places (display/storage).
 func (a *Accumulator) Rounded() *float64 {
 	if a.unitsScaled <= 0 {
 		return nil
@@ -125,7 +125,7 @@ func (a *Accumulator) Rounded() *float64 {
 	return &v
 }
 
-// Row ردیف کارنامه برای تجمیع (ساختاری و شل).
+// Row transcript row for aggregation (structural and permissive).
 type Row struct {
 	CourseID            *int64
 	Code                string
@@ -163,7 +163,7 @@ func isPassedRow(r Row, grade *float64, bar float64) bool {
 
 func codeOf(r Row) string { return r.Code }
 
-// OfficialInput ورودی معدل رسمی.
+// OfficialInput official GPA input.
 type OfficialInput struct {
 	PassingGrade   float64
 	RetakeMinGrade float64
@@ -171,7 +171,7 @@ type OfficialInput struct {
 	DedupeRepeated bool
 }
 
-// OfficialCore خروجی معدل رسمی.
+// OfficialCore official GPA output.
 type OfficialCore struct {
 	GPA           float64
 	TotalUnits    float64
@@ -179,7 +179,7 @@ type OfficialCore struct {
 	ExcludedCount int
 }
 
-// AggregateOfficialGpaRows پورت aggregateOfficialGpaRows.
+// AggregateOfficialGpaRows port of aggregateOfficialGpaRows.
 func AggregateOfficialGpaRows(rows []Row, input OfficialInput) OfficialCore {
 	thresholdOf := thresholdFactory(input.PassingGrade)
 	is1391 := input.Policy == "EXCLUDE_IF_PASSED_1391"
@@ -265,14 +265,14 @@ func strOrEmpty(p *string) string {
 	return *p
 }
 
-// AuditCore خروجی معدل دروازهٔ فارغ‌التحصیلی.
+// AuditCore graduation-gate GPA output.
 type AuditCore struct {
 	PassedUnits float64
 	GPA         *float64
 	PassedIDs   map[int64]bool
 }
 
-// AggregateAuditTranscript پورت aggregateAuditTranscript: سیاست حذف مردودی و
+// AggregateAuditTranscript port of aggregateAuditTranscript: policy for dropping failed courses and
 // dedupe ندارد؛ نمرهٔ ردیف مردود را وارد معدل نمی‌کند.
 func AggregateAuditTranscript(rows []Row, passing float64) AuditCore {
 	thresholdOf := thresholdFactory(passing)

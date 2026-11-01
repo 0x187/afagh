@@ -1,4 +1,4 @@
-// ═══ ابزارهای ثبت/ظرفیت ═══
+// ═══ Submission/capacity helpers ═══
 package enroll
 
 import (
@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// loadSubmitOfferings واکشی ارائه‌های سبد با قید ترم/دانشگاه/فعال.
+// loadSubmitOfferings fetches cart offerings constrained by term/university/active.
 func (s *Service) loadSubmitOfferings(ctx context.Context, ids []int64, termID, universityID int64) ([]submitOffering, error) {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select o.id, o."courseId", c.code, c.title, c.units, o.capacity,
@@ -37,7 +37,7 @@ func (s *Service) loadSubmitOfferings(ctx context.Context, ids []int64, termID, 
 	return out, rows.Err()
 }
 
-// loadSchedules جلسات کلاس/امتحان ارائه‌ها.
+// loadSchedules class/exam sessions of the offerings.
 func (s *Service) loadSchedules(ctx context.Context, offeringIDs []int64) []scheduleRow {
 	if len(offeringIDs) == 0 {
 		return nil
@@ -60,7 +60,7 @@ func (s *Service) loadSchedules(ctx context.Context, offeringIDs []int64) []sche
 	return out
 }
 
-// dropCartRows حذف best-effort ردیف‌های کهنه/خارج از هدف.
+// dropCartRows best-effort removal of stale/out-of-target rows.
 func (s *Service) dropCartRows(ctx context.Context, studentID int64, offeringIDs []int64) {
 	if len(offeringIDs) == 0 {
 		return
@@ -94,7 +94,7 @@ func (s *Service) readFreshCapacities(ctx context.Context, ids []int64) map[int6
 	return out
 }
 
-// claimSeats پورت claimSeatsBatch: افزایش اتمیک ظرفیت با شرط جا داشتن.
+// claimSeats port of claimSeatsBatch: atomic capacity increment conditioned on available space.
 func (s *Service) claimSeats(ctx context.Context, ids []int64) map[int64]bool {
 	out := map[int64]bool{}
 	if len(ids) == 0 {
@@ -117,7 +117,7 @@ func (s *Service) claimSeats(ctx context.Context, ids []int64) map[int64]bool {
 	return out
 }
 
-// compensateSeat پورت compensateSeatDb.
+// compensateSeat port of compensateSeatDb.
 func (s *Service) compensateSeat(ctx context.Context, id int64) {
 	_, _ = s.DB.Pool.Exec(ctx, `update course_offerings set "enrolledCount" = greatest("enrolledCount" - 1, 0) where id = $1`, id)
 }
@@ -129,7 +129,7 @@ func jsonMarshal(v any) (string, error) {
 	return string(raw), err
 }
 
-// faNum عدد فارسی ساده (بدون جداکننده) — برای پیام‌های خطا.
+// faNum simple Persian number (no separators) — for error messages.
 func faNum(v float64) string {
 	if v == math.Trunc(v) {
 		return faGroup(v)
@@ -137,7 +137,7 @@ func faNum(v float64) string {
 	return faGroup(v)
 }
 
-// faGroup جداکنندهٔ هزارگان با ارقام فارسی.
+// faGroup thousands separator with Persian digits.
 func faGroup(v float64) string {
 	neg := v < 0
 	if neg {
@@ -162,7 +162,7 @@ func faGroup(v float64) string {
 	return string(out)
 }
 
-// titleList برای payload اعلان.
+// titleList for the notification payload.
 func titleList(plans []*submitPlan, waitlisted bool) []string {
 	out := []string{}
 	for _, p := range plans {
@@ -176,7 +176,7 @@ func titleList(plans []*submitPlan, waitlisted bool) []string {
 	return out
 }
 
-// submitPlan برنامهٔ یک ارائه در ثبت.
+// submitPlan an offering's schedule in the submission.
 type submitPlan struct {
 	o              submitOffering
 	gotSeat        bool

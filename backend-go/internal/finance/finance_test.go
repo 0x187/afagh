@@ -37,11 +37,11 @@ func TestLedgerBalance(t *testing.T) {
 		{TransactionType: sp("UNKNOWN_TYPE"), Amount: 9999},
 		{TransactionType: sp("TUITION_ADJUST_DEC"), Amount: 50},
 	}
-	// بدهی: 1000+500+50 = 1550، اعتبار: 700+100 = 800
+	// debt: 1000+500+50 = 1550, credit: 700+100 = 800
 	if got := LedgerBalance(rows); got != 750 {
 		t.Fatalf("تراز=%v want 750", got)
 	}
-	// ردیف برگشتی (مبلغ منفی) اعتبار همان نوع را کم می‌کند
+	// a returned row (negative amount) reduces credit of the same type
 	if got := LedgerBalance([]LedgerBalanceRow{{TransactionType: sp("POS_PAYMENT"), Amount: -200}}); got != 200 {
 		t.Fatalf("برگشت POS=%v", got)
 	}
@@ -60,12 +60,12 @@ func TestDiscounts(t *testing.T) {
 		t.Fatalf("خطوط تخفیف: %+v", out.Applied)
 	}
 
-	// سقف درصد نوع تخفیف
+	// cap of the discount type's percent
 	capped := EffectivePercent(DiscountLike{Kind: "PERCENT", Percent: 50, MaxPercent: 20})
 	if capped != 20 {
 		t.Fatalf("سقف درصد: %v", capped)
 	}
-	// جمع تخفیف از کل شهریه بیشتر نمی‌شود
+	// total discount does not exceed total tuition
 	over := ApplyDiscounts([]DiscountLike{
 		{ID: 1, Kind: "FIXED", Amount: 8000},
 		{ID: 2, Kind: "FIXED", Amount: 5000},
@@ -86,7 +86,7 @@ func TestSponsorships(t *testing.T) {
 	if out.Applied[0].Amount != 5000 || out.Applied[1].Amount != 1000 {
 		t.Fatalf("خطوط پوشش: %+v", out.Applied)
 	}
-	// پوشش روی خالص، نه ناخالص
+	// sponsorship on the net, not the gross
 	disc := ApplyDiscounts([]DiscountLike{{ID: 1, Kind: "FIXED", Amount: 2000}}, 10000, 0)
 	spon := ApplySponsorships([]SponsorshipLike{{ID: 2, CoverageKind: "PERCENT", Percent: 50}}, disc.Net)
 	if spon.Total != 4000 || spon.StudentShare != 4000 {
@@ -99,18 +99,18 @@ func TestTermAdjustments(t *testing.T) {
 		[]TermCharge{{TermID: 1, Charges: 10000}, {TermID: 2, Charges: 5000}},
 		[]DiscountRowLike{
 			{ID: 1, TermID: i64p(1), Kind: "FIXED", Amount: 1000},
-			{ID: 2, TermID: nil, Kind: "PERCENT", Percent: 10}, // روی همهٔ ترم‌ها
+			{ID: 2, TermID: nil, Kind: "PERCENT", Percent: 10}, // on all terms
 		},
 		[]SponsorRowLike{{ID: 3, TermID: nil, CoverageKind: "FIXED", Amount: 500}},
 	)
 	if len(adj) != 2 {
 		t.Fatalf("تعدیلات: %+v", adj)
 	}
-	// ترم ۱: تخفیف ۱۰۰۰ + ۱۰٪(۱۰۰۰) = ۲۰۰۰، پوشش ۵۰۰ → سهم ۷۵۰۰
+	// term 1: discount 1000 + 10%(1000) = 2000, sponsorship 500 → share 7500
 	if adj[0].Discounts != 2000 || adj[0].Sponsorships != 500 || adj[0].StudentShare != 7500 {
 		t.Fatalf("ترم ۱: %+v", adj[0])
 	}
-	// ترم ۲: تخفیف ۱۰٪ = ۵۰۰، پوشش ۵۰۰ → سهم ۴۰۰۰
+	// term 2: discount 10% = 500, sponsorship 500 → share 4000
 	if adj[1].Discounts != 500 || adj[1].Sponsorships != 500 || adj[1].StudentShare != 4000 {
 		t.Fatalf("ترم ۲: %+v", adj[1])
 	}
@@ -141,12 +141,12 @@ func TestBuildTranscript(t *testing.T) {
 	if len(stmts) != 3 {
 		t.Fatalf("تعداد سطرها: %d", len(stmts))
 	}
-	// ترتیب زمانی: 14031 → 14032 → بدون ترم
+	// chronological order: 14031 → 14032 → no term
 	if stmts[0].TermID != 1 || stmts[1].TermID != 2 || stmts[2].TermID != 0 {
 		t.Fatalf("ترتیب ترم‌ها: %d,%d,%d", stmts[0].TermID, stmts[1].TermID, stmts[2].TermID)
 	}
-	// ترم ۲: شارژ ۱۰۰۰۰، پرداخت ۳۰۰۰، چک وصول ۲۰۰۰، وام ۱۵۰۰
-	// (پوشش ۱۰۰۰ بدون ترم روی هر ترم اعمال می‌شود)
+	// term 2: charge 10000, payment 3000, cleared cheque 2000, loan 1500
+	// (a 1000 sponsorship without a term applies to every term)
 	s2 := stmts[1]
 	if s2.Charges != 10000 || s2.Payments != 3000 || s2.ChequesCleared != 2000 ||
 		s2.ChequesPending != 1000 || s2.ChequesBounced != 500 || s2.Loans != 1500 {
@@ -155,12 +155,12 @@ func TestBuildTranscript(t *testing.T) {
 	if s2.Sponsorships != 1000 || s2.NetPayable != 9000 || s2.Balance != 9000-3000-2000-1500 {
 		t.Fatalf("مانده ترم ۲: %+v", s2)
 	}
-	// ترم ۱: شارژ ۸۰۰۰، تخفیف ۲۵۰۰، پوشش ۱۰۰۰ → خالص ۴۵۰۰
+	// term 1: charge 8000, discount 2500, sponsorship 1000 → net 4500
 	s1 := stmts[0]
 	if s1.Discounts != 2500 || s1.Sponsorships != 1000 || s1.NetPayable != 4500 || s1.Balance != 4500 {
 		t.Fatalf("ترم ۱: %+v", s1)
 	}
-	// بدون ترم: ۵۰۰ شارژ − ۱۰۰۰ پوشش → سقف پوشش ۵۰۰، خالص ۰
+	// no term: 500 charge − 1000 sponsorship → sponsorship cap 500, net 0
 	s0 := stmts[2]
 	if s0.TermTitle != "بدون ترم" || s0.NetPayable != 0 || s0.Balance != 0 {
 		t.Fatalf("بدون ترم: %+v", s0)
@@ -171,7 +171,7 @@ func TestBuildTranscript(t *testing.T) {
 		t.Fatalf("جمع: %+v", tot)
 	}
 
-	// رویدادها بر اساس تاریخ مرتب‌اند (nil اول) و sign درست است
+	// events are sorted by date (nil first) and the sign is correct
 	for _, ev := range s2.Events {
 		if ev.Kind == "CHARGE" && ev.Sign != -1 {
 			t.Fatalf("sign شارژ: %+v", ev)
@@ -240,7 +240,7 @@ func TestFormulas(t *testing.T) {
 }
 
 func TestBucketsAndAllocation(t *testing.T) {
-	// عمومی با املای عربی «عمومي» باید عمومی تشخیص داده شود
+	// general with the Arabic spelling «عمومي» must be recognized as general
 	general := BucketCourseUnits(3, 3, 0, sp("عمومي"))
 	if general.General != 3 || general.Theory != 0 || general.Practical != 0 {
 		t.Fatalf("درس عمومی: %+v", general)
@@ -249,7 +249,7 @@ func TestBucketsAndAllocation(t *testing.T) {
 	if split.Practical != 1 || split.Theory != 2 || split.General != 0 {
 		t.Fatalf("تفکیک واحد: %+v", split)
 	}
-	// بدون ستون‌های تفکیک: همه به نظری
+	// without breakdown columns: all counted as theoretical
 	all := BucketCourseUnits(3, nil, nil, nil)
 	if all.Theory != 3 {
 		t.Fatalf("بدون تفکیک: %+v", all)

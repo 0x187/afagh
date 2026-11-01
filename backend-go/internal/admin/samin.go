@@ -1,12 +1,12 @@
-// ═══ هاب «ثمین» — ارسال دادهٔ دانشجویان به سازمان امور دانشجویان ═══
+// ═══ «ثمین» hub — sending student data to the Organization for Student Affairs ═══
 //
-//	پورت admin/samin + lib/samin/*:
-//	  • crypto.ts → رمزنگاری AES-256-GCM با پاکت v1:iv:tag:data (مثل pii)؛
-//	    رمزگشایی پاکت قدیمی بدون نسخه (iv:tag:data) هم پذیرفته می‌شود
-//	  • client.ts → توکن OAuth (grant_type=password) با کش حافظه + bulk_import_data
+//	Port of admin/samin + lib/samin/*:
+//	  • crypto.ts → AES-256-GCM encryption with the v1:iv:tag:data envelope (like pii);
+//	    decryption of the old unversioned envelope (iv:tag:data) is also accepted
+//	  • client.ts → OAuth token (grant_type=password) with in-memory cache + bulk_import_data
 //	    + trace_bulk_import_data + get_changeslog
-//	  • samin-mapper.ts → ساخت payload entity 1000 از students+users
-//	  • actions.ts → enqueue از students، send صف، trace، ارسال نمونهٔ فارغ‌التحصیل
+//	  • samin-mapper.ts → building the entity 1000 payload from students+users
+//	  • actions.ts → enqueue from students, queue send, trace, sample graduate submission
 package admin
 
 import (
@@ -34,7 +34,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// ═══════════════ رمزنگاری (پورت lib/samin/crypto.ts) ═══════════════
+// ═══════════════ Encryption (port of lib/samin/crypto.ts) ═══════════════
 
 const (
 	SaminKeyEnv         = "SAMIN_MASTER_KEY"
@@ -46,7 +46,7 @@ const (
 
 var saminHex64 = regexp.MustCompile(`^[0-9a-fA-F]{64}$`)
 
-// saminKeyBuf کلید ۳۲ بایتی: hex64 → خام؛ وگرنه SHA-256 روی رشته (پورت keyBuf).
+// saminKeyBuf 32-byte key: hex64 → raw; otherwise SHA-256 of the string (port of keyBuf).
 func saminKeyBuf() ([]byte, error) {
 	raw := strings.TrimSpace(os.Getenv(SaminKeyEnv))
 	if raw == "" {
@@ -59,7 +59,7 @@ func saminKeyBuf() ([]byte, error) {
 	return sum[:], nil
 }
 
-// SaminEncryptSecret رمزگذاری با پاکت v1:iv:tag:data.
+// SaminEncryptSecret encryption with the v1:iv:tag:data envelope.
 func SaminEncryptSecret(plain string) (string, error) {
 	if plain == "" {
 		return "", nil
@@ -87,7 +87,7 @@ func SaminEncryptSecret(plain string) (string, error) {
 		hex.EncodeToString(tag), hex.EncodeToString(data)), nil
 }
 
-// SaminDecryptSecret رمزگشایی — پاکت v1:iv:tag:data و شکل قدیمی iv:tag:data.
+// SaminDecryptSecret decryption — v1:iv:tag:data envelope and the old iv:tag:data form.
 func SaminDecryptSecret(enc string) string {
 	if enc == "" || !strings.Contains(enc, ":") {
 		return enc
@@ -97,7 +97,7 @@ func SaminDecryptSecret(enc string) string {
 	switch len(parts) {
 	case 4: // v1:iv:tag:data
 		ivHex, tagHex, dataHex = parts[1], parts[2], parts[3]
-	case 3: // iv:tag:data (پاکت نسخهٔ Next)
+	case 3: // iv:tag:data (the Next version's envelope)
 		ivHex, tagHex, dataHex = parts[0], parts[1], parts[2]
 	default:
 		return enc
@@ -127,7 +127,7 @@ func SaminDecryptSecret(enc string) string {
 	return string(dec)
 }
 
-// ═══════════════ کلاینت ثمین (پورت lib/samin/client.ts) ═══════════════
+// ═══════════════ Samin client (port of lib/samin/client.ts) ═══════════════
 
 type saminConn struct {
 	APIBaseURL      string
@@ -153,7 +153,7 @@ func (s *Service) saminConnection(ctx context.Context, universityID int64) (*sam
 	return &c, nil
 }
 
-// saminHostsAllowed میزبان‌های مجاز رسمی سامان + اعلام صریح از ENV (ضد SSRF).
+// saminHostsAllowed official Samin allowed hosts + explicit declaration from ENV (anti-SSRF).
 func saminHostsAllowed() map[string]bool {
 	hosts := map[string]bool{
 		"apim.saorg.ir": true, "apiauth.saorg.ir": true, "saorg.ir": true,
@@ -166,7 +166,7 @@ func saminHostsAllowed() map[string]bool {
 	return hosts
 }
 
-// saminGuardURL اعتبارسنجی نشانی مقصد — پیش‌فرض فقط میزبان‌های رسمی سامان.
+// saminGuardURL validates the destination address — by default only official Samin hosts.
 func saminGuardURL(raw string) (string, error) {
 	u, err := url.Parse(strings.TrimSpace(raw))
 	if err != nil || (u.Scheme != "https" && u.Scheme != "http") || u.Host == "" {
@@ -181,7 +181,7 @@ func saminGuardURL(raw string) (string, error) {
 
 var saminHTTPClient = &http.Client{Timeout: 45 * time.Second}
 
-// saminTokenCache کش توکن ۵ دقیقه‌ای در حافظهٔ پروسه.
+// saminTokenCache 5-minute token cache in process memory.
 var (
 	saminTokenMu    sync.Mutex
 	saminTokenCache = map[int64]saminTokenEntry{}
@@ -192,7 +192,7 @@ type saminTokenEntry struct {
 	exp   time.Time
 }
 
-// SaminGetToken توکن per-university (پورت getSaminToken).
+// SaminGetToken per-university token (port of getSaminToken).
 func (s *Service) SaminGetToken(ctx context.Context, universityID int64) (string, error) {
 	saminTokenMu.Lock()
 	if c, ok := saminTokenCache[universityID]; ok && c.exp.After(time.Now().Add(time.Minute)) {
@@ -205,7 +205,7 @@ func (s *Service) SaminGetToken(ctx context.Context, universityID int64) (string
 	if err != nil {
 		return "", err
 	}
-	// اگر توکن رمز شده و هنوز معتبر است، همان را برگردان
+	// If the token is encrypted and still valid, return it as is
 	if conn.TokenEnc != nil && *conn.TokenEnc != "" && conn.TokenExpiresAt != nil &&
 		conn.TokenExpiresAt.After(time.Now().Add(time.Minute)) {
 		tok := SaminDecryptSecret(*conn.TokenEnc)
@@ -222,7 +222,7 @@ func (s *Service) SaminGetToken(ctx context.Context, universityID int64) (string
 	secret := SaminDecryptSecret(orStr(conn.ClientSecretEnc))
 	pwd := SaminDecryptSecret(orStr(conn.PasswordEnc))
 
-	// احراز هویت ثمین: Basic(clientId:secret) + grant_type=password
+	// Samin authentication: Basic(clientId:secret) + grant_type=password
 	authURL, err := saminGuardURL(conn.AuthBaseURL)
 	if err != nil {
 		return "", err
@@ -266,7 +266,7 @@ func (s *Service) SaminGetToken(ctx context.Context, universityID int64) (string
 		expiresIn = 3600
 	}
 	exp := time.Now().Add(time.Duration(expiresIn) * time.Second)
-	// ذخیرهٔ رمز شده
+	// Store the encrypted value
 	encTok, err := SaminEncryptSecret(access)
 	if err == nil && encTok != "" {
 		_, _ = s.DB.Pool.Exec(ctx, `
@@ -286,7 +286,7 @@ func orStr(p *string) string {
 	return *p
 }
 
-// saminDerefStr نسخهٔ امن dereference برای فیلدهای nullable.
+// saminDerefStr safe dereference version for nullable fields.
 func saminDerefStr(p *string) string {
 	if p == nil {
 		return ""
@@ -315,7 +315,7 @@ func jsonUnmarshal(data []byte, v any) error {
 	return json.Unmarshal(data, v)
 }
 
-// SaminBulkImport ارسال دسته‌ای (پورت saminBulkImport).
+// SaminBulkImport bulk submission (port of saminBulkImport).
 func (s *Service) SaminBulkImport(ctx context.Context, universityID int64, entityCode string, dataObject []map[string]any) (map[string]any, error) {
 	conn, err := s.saminConnection(ctx, universityID)
 	if err != nil {
@@ -357,7 +357,7 @@ func (s *Service) SaminBulkImport(ctx context.Context, universityID int64, entit
 	if res.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("bulk_import_data %d: %.500s", res.StatusCode, string(raw))
 	}
-	// لاگ محلی
+	// Local log
 	traceID := saminTraceID(j)
 	status := saminStrOf(j["import_data_status"], j["status"], "PENDING")
 	_, _ = s.DB.Pool.Exec(ctx, `
@@ -366,7 +366,7 @@ func (s *Service) SaminBulkImport(ctx context.Context, universityID int64, entit
 	return j, nil
 }
 
-// SaminTrace رهگیری ارسال (پورت saminTrace).
+// SaminTrace submission tracing (port of saminTrace).
 func (s *Service) SaminTrace(ctx context.Context, universityID, traceID int64) (map[string]any, error) {
 	conn, err := s.saminConnection(ctx, universityID)
 	if err != nil {
@@ -420,9 +420,9 @@ func saminStrOf(vals ...any) string {
 	return ""
 }
 
-// ═══════════════ ساخت payload (پورت samin-mapper.ts) ═══════════════
+// ═══════════════ Building the payload (port of samin-mapper.ts) ═══════════════
 
-// saminJalaliDay تاریخ میلادی دیتابیس → شمسی YYYY/MM/DD (پورت toJalaliDay).
+// saminJalaliDay database Gregorian date → Jalali YYYY/MM/DD (port of toJalaliDay).
 func saminJalaliDay(v *time.Time) string {
 	if v == nil || v.IsZero() {
 		return ""
@@ -431,7 +431,7 @@ func saminJalaliDay(v *time.Time) string {
 	return fmt.Sprintf("%04d/%02d/%02d", j.Y, j.M, j.D)
 }
 
-// saminEduYear سال ورودی عددی → بازهٔ سال تحصیلی «1398-1399».
+// saminEduYear numeric entry year → academic year range «1398-1399».
 func saminEduYear(v any) string {
 	s := strings.TrimSpace(fmt.Sprint(v))
 	if regexp.MustCompile(`^\d{4}$`).MatchString(s) {
@@ -442,7 +442,7 @@ func saminEduYear(v any) string {
 	return s
 }
 
-// saminMapNationality کد ملیت ثمین — خالی/0 → ایران (120001).
+// saminMapNationality Samin nationality code — empty/0 → Iran (120001).
 func saminMapNationality(v any) string {
 	s := strings.TrimSpace(fmt.Sprint(v))
 	if s == "" || s == "0" || s == "<nil>" {
@@ -471,7 +471,7 @@ func saminMapGender(g any) string {
 	return "1"
 }
 
-// saminResolveCityMinistryByCode کد وزارت شهر ۶ رقمی → (شهر، استان) (پورت resolveCityMinistryByCode).
+// saminResolveCityMinistryByCode 6-digit ministry city code → (city, province) (port of resolveCityMinistryByCode).
 func (s *Service) saminResolveCityMinistryByCode(ctx context.Context, code any) (cityCode, provinceCode string) {
 	c := strings.TrimSpace(fmt.Sprint(code))
 	if c == "" || c == "<nil>" {
@@ -499,7 +499,7 @@ func (s *Service) saminResolveCityMinistryByCode(ctx context.Context, code any) 
 	return cities[0], provinces[0]
 }
 
-// saminResolveCityMinistry عنوان شهر → (شهر، استان) — فقط تطابق یگانه (پورت resolveCityMinistry).
+// saminResolveCityMinistry city title → (city, province) — unique match only (port of resolveCityMinistry).
 func (s *Service) saminResolveCityMinistry(ctx context.Context, title any) (cityCode, provinceCode string) {
 	t := saminNormalizeFaTitle(title)
 	if t == "" {
@@ -541,8 +541,8 @@ func saminNormalizeFaTitle(v any) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
-// SaminBuildStudentPayload ساخت payload ثمین entity 1000 (پورت buildSaminPayloadForStudent).
-// توجه: ستون militaryStatus در دیتابیس فعلی وجود ندارد → مقدار خالی می‌ماند.
+// SaminBuildStudentPayload builds the Samin entity 1000 payload (port of buildSaminPayloadForStudent).
+// Note: the militaryStatus column does not exist in the current database → the value stays empty.
 func (s *Service) SaminBuildStudentPayload(ctx context.Context, studentID int64) (map[string]any, error) {
 	var (
 		uNationalCode, uPassport, uFirstName, uLastName, uFirstNameEn, uLastNameEn *string
@@ -595,7 +595,7 @@ func (s *Service) SaminBuildStudentPayload(ctx context.Context, studentID int64)
 		return nil, err
 	}
 
-	// محل‌ها از geo حل می‌شوند: اول کد ثبت‌شده، بعد عنوان
+	// Locations are resolved from geo: first the registered code, then the title
 	birthCity, _ := s.saminResolveCityMinistryByCode(ctx, uBirthPlaceCode)
 	if birthCity == "" {
 		birthCity, _ = s.saminResolveCityMinistry(ctx, uPlaceOfBirth)
@@ -606,7 +606,7 @@ func (s *Service) SaminBuildStudentPayload(ctx context.Context, studentID int64)
 	}
 	addrCity, addrProv := s.saminResolveCityMinistry(ctx, uAddress)
 
-	// کد استاندارد مقطع + کد ثمین دانشگاه
+	// standard degree-level code + Samin university code
 	levelCode := ""
 	if sDegreeLevelID != nil && *sDegreeLevelID > 0 {
 		var sc *string
@@ -714,7 +714,7 @@ func (s *Service) SaminBuildStudentPayload(ctx context.Context, studentID int64)
 	}, nil
 }
 
-// fallbackPk اگر کلید مبدأ خالی بود، شناسهٔ داخلی.
+// fallbackPk if the source key is empty, the internal identifier.
 func fallbackPk(pk string, id int64) string {
 	if pk != "" {
 		return ""
@@ -736,9 +736,9 @@ func int64OrEmpty(v *int64) string {
 	return strconv.FormatInt(*v, 10)
 }
 
-// ═══════════════ کنش‌ها (پورت actions.ts) ═══════════════
+// ═══════════════ Actions (port of actions.ts) ═══════════════
 
-// SaminEnqueue ساخت صف ثمین از دانشجویان یک دانشگاه (پورت enqueueForSamin).
+// SaminEnqueue builds the Samin queue from the students of one university (port of enqueueForSamin).
 func (s *Service) SaminEnqueue(ctx context.Context, universityID int64) (inserted, skipped int, err error) {
 	rows, err := s.DB.Pool.Query(ctx, `select id from students where "universityId" = $1 limit 5000`, universityID)
 	if err != nil {
@@ -785,7 +785,7 @@ func (s *Service) SaminEnqueue(ctx context.Context, universityID int64) (inserte
 	return inserted, skipped, nil
 }
 
-// SaminSendRows ارسال صف PENDING به ثمین و علامت SENT (پورت sendToSamin).
+// SaminSendRows sends the PENDING queue to Samin and marks it SENT (port of sendToSamin).
 func (s *Service) SaminSendRows(ctx context.Context, universityID int64, entityCode string) (map[string]any, error) {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select id, payload::text from samin_staging
@@ -846,7 +846,7 @@ func traceAsInt64(res map[string]any) any {
 	return nil
 }
 
-// SaminSendSampleGraduates ارسال «نمونه» — چند فارغ‌التحصیل مشخص (پورت sendSampleGraduatesToSamin).
+// SaminSendSampleGraduates sends a «نمونه» — a few specific graduates (port of sendSampleGraduatesToSamin).
 func (s *Service) SaminSendSampleGraduates(ctx context.Context, universityID int64, count int) (map[string]any, error) {
 	if count < 1 {
 		count = 2
@@ -898,7 +898,7 @@ func (s *Service) SaminSendSampleGraduates(ctx context.Context, universityID int
 	if len(batch) == 0 {
 		return nil, errors.New("ساخت payload برای نمونه‌ها ناموفق بود (دادهٔ دانشجو ناقص است).")
 	}
-	// ثبت در همان صف تا در صفحه قابل رصد باشد (تکراری‌ها بی‌اثر)
+	// Registered in the same queue so it can be tracked on the page (duplicates have no effect)
 	for _, b := range batch {
 		raw, _ := jsonMarshal(b.payload)
 		_, _ = s.DB.Pool.Exec(ctx, `
@@ -927,7 +927,7 @@ func (s *Service) SaminSendSampleGraduates(ctx context.Context, universityID int
 	return out, nil
 }
 
-// SaminOverview دادهٔ صفحهٔ هاب ثمین.
+// SaminOverview data for the Samin hub page.
 func (s *Service) SaminOverview(ctx context.Context, user *session.User, uniCookie, uniCode string) (map[string]any, error) {
 	out := map[string]any{}
 
@@ -946,7 +946,7 @@ func (s *Service) SaminOverview(ctx context.Context, user *session.User, uniCook
 	ur.Close()
 	out["universities"] = unis
 
-	// دانشگاه فعال: پارامتر uni، بعد کوکی، بعد اولین دانشگاه
+	// Active university: the uni parameter, then the cookie, then the first university
 	var active map[string]any
 	if activeID := s.UniversityID(ctx, user, uniCookie); activeID != nil && uniCode == "" {
 		for _, u := range unis {

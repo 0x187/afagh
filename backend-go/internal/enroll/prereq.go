@@ -1,4 +1,4 @@
-// ═══ پیش‌نیاز/هم‌نیاز — پورت enroll-engine/prereqs.ts + equivalence-expand.ts ═══
+// ═══ Prerequisite/corequisite — port of enroll-engine/prereqs.ts + equivalence-expand.ts ═══
 package enroll
 
 import (
@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// LogicCondition یک شرط در درخت منطقی.
+// LogicCondition one condition in the logic tree.
 type LogicCondition struct {
 	Course     *string          `json:"course,omitempty"`
 	MinGrade   *float64         `json:"minGrade,omitempty"`
@@ -16,7 +16,7 @@ type LogicCondition struct {
 	Conditions []LogicCondition `json:"conditions,omitempty"`
 }
 
-// EvaluateLogicTree پورت evaluateLogicTree — AND/OR تودرتو.
+// EvaluateLogicTree port of evaluateLogicTree — nested AND/OR.
 func EvaluateLogicTree(node *LogicCondition, passed map[string]float64) (bool, []string) {
 	if node == nil {
 		return true, nil
@@ -81,7 +81,7 @@ func EvaluateLogicTree(node *LogicCondition, passed map[string]float64) (bool, [
 	return all, missing
 }
 
-// FormatPrereq پورت formatPrereq — برچسب خوانا برای UI.
+// FormatPrereq port of formatPrereq — human-readable label for the UI.
 func FormatPrereq(node *LogicCondition, titles map[string]string) string {
 	if node == nil || len(node.Conditions) == 0 {
 		return ""
@@ -117,7 +117,7 @@ func FormatPrereq(node *LogicCondition, titles map[string]string) string {
 	return out
 }
 
-// PrereqContext بافت پیش‌نیاز دانشجو.
+// PrereqContext student prerequisite context.
 type PrereqContext struct {
 	Passed         map[string]float64
 	RuleByCourse   map[int64]*LogicCondition
@@ -125,7 +125,7 @@ type PrereqContext struct {
 	DefaultPassing float64
 }
 
-// BuildPrereqContext پورت buildPrereqContext.
+// BuildPrereqContext port of buildPrereqContext.
 func BuildPrereqContext(ctx context.Context, pool *pgxpool.Pool, studentID int64) (*PrereqContext, error) {
 	var degreeLevelID *int64
 	_ = pool.QueryRow(ctx, `select "degreeLevelId" from students where id = $1`, studentID).Scan(&degreeLevelID)
@@ -137,7 +137,7 @@ func BuildPrereqContext(ctx context.Context, pool *pgxpool.Pool, studentID int64
 		}
 	}
 
-	// قواعد: اورراید نمرهٔ قبولی + درخت منطقی.
+	// Rules: passing-grade override + logic tree.
 	rows, err := pool.Query(ctx, `
 		select "courseId", "syllabusId", "ruleType", coalesce("logicTree",''),
 		       "customPassingGrade"
@@ -213,7 +213,7 @@ func BuildPrereqContext(ctx context.Context, pool *pgxpool.Pool, studentID int64
 		ruleByCourse[k] = v
 	}
 
-	// دروس پاس‌شده.
+	// Passed courses.
 	prows, err := pool.Query(ctx, `
 		select c.code, c.id, e."gradeValue", e."gradeStatus", c."gradingType"
 		  from enrollments e
@@ -254,7 +254,7 @@ func BuildPrereqContext(ctx context.Context, pool *pgxpool.Pool, studentID int64
 		return nil, err
 	}
 
-	// عنوان‌ها + اعضای خوشهٔ هم‌ارز.
+	// Titles + equivalent-cluster members.
 	crows, err := pool.Query(ctx, `select coalesce(code,''), coalesce(title,''), "clusterId" from courses`)
 	if err != nil {
 		return nil, err
@@ -290,7 +290,7 @@ func hasKey(m map[string]float64, k string) bool {
 	return ok
 }
 
-// expandPassedWithEquivalents پورت equivalence-expand.ts.
+// expandPassedWithEquivalents port of equivalence-expand.ts.
 type equivalenceMember struct {
 	clusterCode int64
 	code        string

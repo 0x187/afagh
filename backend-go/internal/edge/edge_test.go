@@ -19,8 +19,8 @@ func handler(tag string) http.Handler {
 	})
 }
 
-// TestRootDispatch مسیریابی لبه را با سرور Next جعلی ایزوله می‌کند
-// (هرگز به پورت واقعی ۸۰۸۰ میزبان وصل نمی‌شود).
+// TestRootDispatch isolates the edge routing with a fake Next server
+// (it never connects to the host's real port 8080).
 func TestRootDispatch(t *testing.T) {
 	nextSrv := httptest.NewServer(handler(tagNext))
 	defer nextSrv.Close()
@@ -37,7 +37,7 @@ func TestRootDispatch(t *testing.T) {
 		{"/app/student/enroll", tagSPA},
 		{"/login", tagNext},
 		{"/student", tagNext},
-		{"/api/health", tagNext}, // health قدیمی هنوز مال Next است
+		{"/api/health", tagNext}, // the old health still belongs to Next
 		{"/", tagNext},
 	}
 	for _, tc := range cases {
@@ -62,25 +62,25 @@ func TestSPAFallback(t *testing.T) {
 	nextURL, _ := url.Parse(nextSrv.URL)
 	h := Root([]string{"/app"}, nil, nil, dir, nextURL, nil)
 
-	// مسیر کلاینتی → index.html
+	// client route → index.html
 	w := httptest.NewRecorder()
 	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "http://x/app/student/enroll", nil))
 	if w.Body.String() != "INDEX" {
 		t.Fatalf("مسیر کلاینتی باید index.html بدهد، داد: %q", w.Body.String())
 	}
-	// دارایی موجود
+	// existing asset
 	w = httptest.NewRecorder()
 	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "http://x/app/assets/app.js", nil))
 	if w.Body.String() != "JS" {
 		t.Fatalf("دارایی موجود باید سرو شود، داد: %q", w.Body.String())
 	}
-	// دارایی گمشده → 404 واقعی نه index.html
+	// missing asset → real 404, not index.html
 	w = httptest.NewRecorder()
 	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "http://x/app/assets/missing.js", nil))
 	if w.Code != http.StatusNotFound {
 		t.Fatalf("دارایی گمشده باید 404 بدهد، داد %d", w.Code)
 	}
-	// ریشهٔ SPA
+	// SPA root
 	w = httptest.NewRecorder()
 	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "http://x/app", nil))
 	if w.Body.String() != "INDEX" {

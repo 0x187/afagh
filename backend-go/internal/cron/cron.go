@@ -1,7 +1,7 @@
-// ═══ کرون‌جاب‌های پس‌زمینه — پورت api/cron/* ═══
+// ═══ Background cron jobs — port of api/cron/* ═══
 //
-//  هر جاب با هدر x-cron-secret و کلید تنظیمی خودش (fail-closed) اجرا می‌شود،
-//  ممیزی زنجیره‌هش می‌نویسد و GET فقط وضعیت است (بدون اثر جانبی).
+//  Each job runs with the x-cron-secret header and its own configured key (fail-closed),
+//  writes hash-chain audit entries, and GET is status-only (no side effects).
 package cron
 
 import (
@@ -25,7 +25,7 @@ import (
 	"backend-go/internal/messaging"
 )
 
-// Engine موتور کرون.
+// Engine is the cron engine.
 type Engine struct {
 	Pool      *pgxpool.Pool
 	Settings  *settings.Store
@@ -33,24 +33,24 @@ type Engine struct {
 	mu        sync.Mutex
 }
 
-// New ساخت موتور.
+// New constructs the engine.
 func New(pool *pgxpool.Pool, settingsStore *settings.Store, wf *workflow.Engine) *Engine {
 	return &Engine{Pool: pool, Settings: settingsStore, Workflow: wf}
 }
 
-// JobFunc اجزای یک جاب.
+// JobFunc holds the parts of a job.
 type JobFunc func(ctx context.Context) (map[string]any, error)
 
-// Job تعریف جاب.
+// Job is a job definition.
 type Job struct {
-	Name        string // slug مسیر
-	SecretKey   string // تنظیم حاوی راز
-	RateKey     string // پیشوند محدودیت نرخ
+	Name        string // slug route
+	SecretKey   string // setting containing the secret
+	RateKey     string // rate limit prefix
 	Description string
 	Run         JobFunc
 }
 
-// Jobs فهرست جاب‌ها.
+// Jobs lists the jobs.
 func (e *Engine) Jobs() []Job {
 	return []Job{
 		{Name: "bypass-deadlines", SecretKey: "BYPASS_CRON_SECRET", RateKey: "cron:bypass",
@@ -68,7 +68,7 @@ func (e *Engine) Jobs() []Job {
 	}
 }
 
-// Find جاب با نام.
+// Find finds a job by name.
 func (e *Engine) Find(name string) *Job {
 	for _, j := range e.Jobs() {
 		if j.Name == name {
@@ -79,7 +79,7 @@ func (e *Engine) Find(name string) *Job {
 	return nil
 }
 
-// SecretMatches مقایسهٔ زمان‌ثابت راز.
+// SecretMatches constant-time secret comparison.
 func SecretMatches(provided, expected string) bool {
 	provided = strings.TrimSpace(provided)
 	expected = strings.TrimSpace(expected)
@@ -97,7 +97,7 @@ func subtleEqual(a, b []byte) bool {
 	return v == 0
 }
 
-// Audit ثبت ممیزی جاب (بهترین تلاش).
+// Audit records a job audit entry (best effort).
 func (e *Engine) Audit(ctx context.Context, action string, details map[string]any) {
 	dj, _ := json.Marshal(details)
 	tx, err := e.Pool.Begin(ctx)
@@ -141,7 +141,7 @@ func (e *Engine) notifyUsers(ctx context.Context, userIDs []int64, eventCode, te
 
 // ─────────────────── cheque-reminders ───────────────────
 
-// runChequeReminders پورت runChequeReminderScan.
+// runChequeReminders ports runChequeReminderScan.
 func (e *Engine) runChequeReminders(ctx context.Context) (map[string]any, error) {
 	remindDays := math.Max(0, math.Round(e.Settings.GetNumber(ctx, "CHEQUE_REMIND_DAYS", 0)))
 	enabledRaw, _ := e.Settings.Get(ctx, "CHEQUE_REMIND_ENABLED")
@@ -211,7 +211,7 @@ func (e *Engine) runChequeReminders(ctx context.Context) (map[string]any, error)
 
 // ─────────────────── workflow-events ───────────────────
 
-// runWorkflowEvents اجرای دوبارهٔ رویدادهای FAILED/SKIPPED با قفل مشورتی.
+// runWorkflowEvents reruns FAILED/SKIPPED events under an advisory lock.
 func (e *Engine) runWorkflowEvents(ctx context.Context) (map[string]any, error) {
 	if e.Workflow == nil {
 		return map[string]any{"retried": 0, "ok": 0, "failed": 0}, nil
@@ -248,7 +248,7 @@ var bypassKindLabel = map[string]string{
 	"TIME_CONFLICT": "تداخل زمانی", "CAPACITY": "ظرفیت", "OTHER": "محدودیت",
 }
 
-// runBypassDeadlines پورت runBypassDeadlines (یادآوری/ارجاع/رد خودکار + آزادسازی صندلی).
+// runBypassDeadlines ports runBypassDeadlines (reminder/referral/auto-reject + seat release).
 func (e *Engine) runBypassDeadlines(ctx context.Context) (map[string]any, error) {
 	now := time.Now()
 	stats := map[string]any{"reminders": 0, "escalated": 0, "studentWarnings": 0, "expired": 0}
@@ -391,7 +391,7 @@ func (e *Engine) runBypassDeadlines(ctx context.Context) (map[string]any, error)
 	return stats, nil
 }
 
-// managerUserIDsForCourse مدیر گروه درس (از headStaffId گروه).
+// managerUserIDsForCourse course department manager (from the group's headStaffId).
 func (e *Engine) managerUserIDsForCourse(ctx context.Context, courseID int64) []int64 {
 	var deptID *int64
 	_ = e.Pool.QueryRow(ctx, `select "departmentId" from courses where id = $1`, courseID).Scan(&deptID)
@@ -410,7 +410,7 @@ func (e *Engine) managerUserIDsForCourse(ctx context.Context, courseID int64) []
 	return []int64{userID}
 }
 
-// expertUserIDsForMajor کارشناسان آموزش مسئول رشته (expert_scopes).
+// expertUserIDsForMajor education experts responsible for the major (expert_scopes).
 func (e *Engine) expertUserIDsForMajor(ctx context.Context, majorID int64, deptID, facultyID *int64) []int64 {
 	if majorID <= 0 {
 		return nil
@@ -441,7 +441,7 @@ func (e *Engine) expertUserIDsForMajor(ctx context.Context, majorID int64, deptI
 	return out
 }
 
-// viceEducationUserIDs کاربران با نقش VICE_EDU.
+// viceEducationUserIDs users with the VICE_EDU role.
 func (e *Engine) viceEducationUserIDs(ctx context.Context) []int64 {
 	rows, err := e.Pool.Query(ctx, `
 		select distinct ur."userId" from user_roles ur

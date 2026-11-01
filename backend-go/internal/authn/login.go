@@ -1,4 +1,4 @@
-// ═══ ورود / انتخاب حساب / خروج — پورت خط‌به‌خط از src/lib/auth.ts ═══
+// ═══ Login / account selection / logout — line-by-line port of src/lib/auth.ts ═══
 package authn
 
 import (
@@ -18,7 +18,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// userRow ردیف کاربر برای مسیرهای احراز هویت — فیلدهای لازم login/change/switch.
+// userRow is the user row for auth paths — fields needed by login/change/switch.
 type userRow struct {
 	ID                 int64
 	FirstName          string
@@ -45,18 +45,18 @@ func scanUserRow(row pgx.Row) (*userRow, error) {
 	return &u, nil
 }
 
-// sha256Hex همان sha256() در auth.ts — هش توکن پیش از ذخیره/مقایسه.
+// sha256Hex is the same sha256() as in auth.ts — hashes the token before storing/comparing.
 func sha256Hex(t string) string {
 	sum := sha256.Sum256([]byte(t))
 	return hex.EncodeToString(sum[:])
 }
 
-// IssueSessionFor تنها محل ساخت sessions — پورت issueSessionFor:
-//  1. خواندن mustChangePassword
-//  2. توکن ۳۲ بایت تصادفی (۶۴ hex)
-//  3. حذف نشست‌های منقضی + همهٔ نشست‌های قبلی همین کاربر (ضد fixation)
-//  4. درج نشست تازه با هش توکن
-//  5. DUAL-WRITE کوکی + پاک‌کردن قفل بیکاری
+// IssueSessionFor is the only place sessions are created — port of issueSessionFor:
+//  1. read mustChangePassword
+//  2. 32-byte random token (64 hex)
+//  3. delete expired sessions + all previous sessions of this user (anti-fixation)
+//  4. insert a fresh session with the token hash
+//  5. DUAL-WRITE the cookie + clear the idle lock
 func (s *Service) IssueSessionFor(ctx context.Context, w http.ResponseWriter, userID int64) (bool, error) {
 	u, err := scanUserRow(s.Pool.QueryRow(ctx, `select `+userSelectColumns+` from users where id = $1`, userID))
 	if err != nil {
@@ -91,7 +91,7 @@ func (s *Service) IssueSessionFor(ctx context.Context, w http.ResponseWriter, us
 	return u.MustChangePassword == 1, nil
 }
 
-// candidateSummaries خلاصهٔ نمایشی حساب‌ها برای صفحهٔ «انتخاب حساب».
+// candidateSummaries holds display summaries for the «انتخاب حساب» page.
 func (s *Service) candidateSummaries(ctx context.Context, ids []int64) ([]LoginCandidate, error) {
 	out := make([]LoginCandidate, 0, len(ids))
 	for _, id := range ids {
@@ -163,8 +163,8 @@ func (s *Service) candidateSummaries(ctx context.Context, ids []int64) ([]LoginC
 	return out, nil
 }
 
-// loginUserIDs کاندیداهای ورود را به همان ترتیب auth.ts برمی‌گرداند:
-// staff.staffCode → students.studentCode → گسترش هم‌شخصی (کدهای linked).
+// loginUserIDs returns login candidates in the same order as auth.ts:
+// staff.staffCode → students.studentCode → same-person expansion (linked codes).
 func (s *Service) loginUserIDs(ctx context.Context, clean string) ([]*userRow, error) {
 	var cands []*userRow
 	seen := map[int64]bool{}
@@ -210,8 +210,8 @@ func (s *Service) loginUserIDs(ctx context.Context, clean string) ([]*userRow, e
 		}
 	}
 
-	// ── گسترش هم‌شخصی: کدهای linked همان کدملی هم کاندیدا می‌شوند؛
-	//    ورود به هر حساب فقط با رمز همان حساب. (STAFF_NC_MAP)
+	// ── Same-person expansion: linked codes of the same national ID also become candidates;
+	//    login to each account works only with that account's password. (STAFF_NC_MAP)
 	linked := map[string]bool{}
 	if nc, ok := staffNCMap[clean]; ok {
 		for _, c := range ncToCodes[nc] {
@@ -240,21 +240,21 @@ func (s *Service) loginUserIDs(ctx context.Context, clean string) ([]*userRow, e
 	return cands, nil
 }
 
-// userSelectColumnsSuffix ستون‌های users با پیشوند u. — برای joinهایی که
-// ستون‌های هم‌نام (universityId/id/…) دارند و بدون qualify مبهم می‌شوند.
+// userSelectColumnsSuffix lists users columns with the u. prefix — for joins that
+// have same-named columns (universityId/id/…) and would be ambiguous without qualification.
 func userSelectColumnsSuffix() string {
 	return `u.id, u."firstName", u."lastName", u."nationalCode", u."passwordHash", u."isActive", u."mustChangePassword", u."universityId"`
 }
 
-// Login پورت login(): نرمال‌سازی ارقام، محدودیت دو لایه (IP/حساب با رزرو پیش
-// از scrypt)، تأخیر تصاعدی، پدینگ زمان‌ثابت، واریانت رمز نرمال‌شده، و
-// حالت چند-حساب با توکن امضاشدهٔ ۵دقیقه‌ای.
+// Login is a port of login(): digit normalization, two-layer limiting (IP/account with reservation before
+// scrypt), exponential backoff, constant-time padding, a normalized password variant, and
+// a multi-account mode with a signed 5-minute token.
 func (s *Service) Login(ctx context.Context, w http.ResponseWriter, identifier, password, clientIP string) (*LoginResult, error) {
 	clean := ToEnDigits(strings.TrimSpace(identifier))
 	if clientIP == "" {
 		clientIP = UNKNOWN_CLIENT_IP
 	}
-	// کلید IP هش می‌شود چون IP ممکن است از هدر پروکسی آمده باشد.
+	// The IP key is hashed because the IP may come from a proxy header.
 	ipKey := "login:ip:" + sha256Hex(clientIP)[:24]
 	accKey := "login:acc:" + sha256Hex(clean)[:24]
 
@@ -286,7 +286,7 @@ func (s *Service) Login(ctx context.Context, w http.ResponseWriter, identifier, 
 		}
 	}
 	if !accAllowed {
-		// پدینگ زمان‌ثابت: مسیر «محدودشده» هم هزینهٔ scrypt بدهد.
+		// Constant-time padding: the "rate-limited" path also pays the scrypt cost.
 		VerifyPasswordIgnoreErr(password, DUMMY_PASSWORD_HASH)
 		return &LoginResult{OK: false, Error: msgLoginFailed}, nil
 	}
@@ -296,13 +296,13 @@ func (s *Service) Login(ctx context.Context, w http.ResponseWriter, identifier, 
 		return nil, err
 	}
 
-	// واریانت رمز: عیناً + ارقام نرمال‌شده (فقط پذیرش بیشتر، بدون تغییر هش‌ها).
+	// Password variant: exact + normalized digits (only more acceptance, no hash changes).
 	variants := []string{password}
 	if norm := ToEnDigits(password); norm != password {
 		variants = append(variants, norm)
 	}
 
-	// پدینگ زمان‌ثابت وقتی کاندیدای فعالی نیست.
+	// Constant-time padding when there is no active candidate.
 	hasActive := false
 	for _, c := range cands {
 		if c.IsActive == 1 {
@@ -340,7 +340,7 @@ func (s *Service) Login(ctx context.Context, w http.ResponseWriter, identifier, 
 		return &LoginResult{OK: true, MustChange: mustChange}, nil
 	}
 
-	// یک شناسه، چند حسابِ هم‌رمز → انتخاب حساب توسط کاربر.
+	// One identifier, multiple accounts with the same password → the user chooses the account.
 	uids := make([]string, 0, len(matched))
 	for _, m := range matched {
 		uids = append(uids, fmt.Sprintf("%d", m.ID))
@@ -361,7 +361,7 @@ func (s *Service) Login(ctx context.Context, w http.ResponseWriter, identifier, 
 	return &LoginResult{OK: false, NeedChoice: true, Token: token, Candidates: candidates}, nil
 }
 
-// ChooseLoginAccount پورت chooseLoginAccount — توکن امضاشدهٔ ۵دقیقه‌ای.
+// ChooseLoginAccount is a port of chooseLoginAccount — signed 5-minute token.
 func (s *Service) ChooseLoginAccount(ctx context.Context, w http.ResponseWriter, token string, userID int64, clientIP string) (*SimpleResult, error) {
 	if clientIP == "" {
 		clientIP = UNKNOWN_CLIENT_IP
@@ -376,7 +376,7 @@ func (s *Service) ChooseLoginAccount(ctx context.Context, w http.ResponseWriter,
 
 	payload, ok, verr := s.Signer.Verify(ctx, token)
 	if !ok || verr != nil {
-		// هر خطای امضا/انقضا = «نشست انتخاب حساب منقضی شده» (همان رفتار TS)
+		// Any signature/expiry error = «نشست انتخاب حساب منقضی شده» (same TS behavior)
 		return &SimpleResult{OK: false, Error: msgChooseSignedOut}, nil
 	}
 	uids := map[int64]bool{}
@@ -406,14 +406,14 @@ func (s *Service) ChooseLoginAccount(ctx context.Context, w http.ResponseWriter,
 	return &SimpleResult{OK: true, MustChange: mustChange}, nil
 }
 
-// ErrMalformedSentinel نگه‌داشتن import errors — خطای امضا در Verify با error
-// برمی‌گردد (MALFORMED/BAD_SIGNATURE/EXPIRED) و همه به یک پیام UI تبدیل می‌شوند.
+// ErrMalformedSentinel keeps the errors import — a signature error in Verify is returned as an error
+// (MALFORMED/BAD_SIGNATURE/EXPIRED) and all become one UI message.
 var ErrMalformedSentinel = errors.New("verify")
 
 var _ = ErrMalformedSentinel
 
-// Logout پورت logout(): حذف همهٔ نشست‌های کاربر (خروج از همه‌جا)، حذف
-// fallback با توکن، پاک‌کردن قفل بیکاری، و حذف هر دو نام کوکی.
+// Logout is a port of logout(): delete all user sessions (log out everywhere), delete
+// the token fallback, clear the idle lock, and remove both cookie names.
 func (s *Service) Logout(ctx context.Context, w http.ResponseWriter, token string) error {
 	var me *session.User
 	if token != "" {
