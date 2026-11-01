@@ -60,6 +60,7 @@ export default async function AdminAdmissionsPage() {
 
     return {
       id: s.id,
+      fileId: s.fileId,
       nationalCode: s.nationalCode,
       fullName: s.fullName,
       mappedMajorId: s.mappedMajorId,

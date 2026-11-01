@@ -8,15 +8,20 @@ import {
   importStagedStudentsAction,
   listExistingForStagingAction,
   setStagingDecisionAction,
+  revertImportedToResolvedAction,
+  revertResolvedToPendingAction,
+  revertStagedToFieldsReadyAction,
+  deleteSanjeshFileAction,
   registerManualStudentAction,
   saveSanjeshMappingAction,
   saveStudentIdFormulaAction,
   stageSanjeshDataAction,
   testIrandocCheckAction,
 } from './actions';
-
+import { revertImportedToResolvedAction, revertResolvedToPendingAction, revertStagedToFieldsReadyAction, deleteSanjeshFileAction } from './revert';
 interface StagingItem {
   id: number;
+  fileId: number | null;
   nationalCode: string;
   fullName: string | null;
   mappedMajorId: number | null;
@@ -144,6 +149,40 @@ export default function AdmissionsClient({
     }
     await loadExisting();
     router.refresh();
+  };
+
+  const [reverting, setReverting] = useState(false);
+  const handleRevertImported = async (ids: number[]) => {
+    if (!confirm(`برگشت ${ids.length} ردیف از IMPORTED به RESOLVED؟ (پرونده دانشجویی و ثبت‌نام‌ها دست‌نخورده می‌مانند)`)) return;
+    setReverting(true);
+    const res = await revertImportedToResolvedAction(ids);
+    setReverting(false);
+    setFeedback({ text: res.ok ? (res.message || 'انجام شد') : (res.error || 'خطا'), type: res.ok ? 'success' : 'error' });
+    if (res.ok) { await loadExisting(); router.refresh(); }
+  };
+  const handleRevertResolved = async (ids: number[]) => {
+    if (!confirm(`برگشت ${ids.length} ردیف از RESOLVED به PENDING_MAPPING؟ (نگاشت رشته و تصمیم پاک می‌شود)`)) return;
+    setReverting(true);
+    const res = await revertResolvedToPendingAction(ids);
+    setReverting(false);
+    setFeedback({ text: res.ok ? (res.message || 'انجام شد') : (res.error || 'خطا'), type: res.ok ? 'success' : 'error' });
+    if (res.ok) { await loadExisting(); router.refresh(); }
+  };
+  const handleRevertStaged = async (fileId: number) => {
+    if (!confirm(`برگشت فایل ${fileId} از STAGED به FIELDS_READY؟ (ردیف‌های پذیرش این فایل حذف می‌شوند)`)) return;
+    setReverting(true);
+    const res = await revertStagedToFieldsReadyAction(fileId);
+    setReverting(false);
+    setFeedback({ text: res.ok ? (res.message || 'انجام شد') : (res.error || 'خطا'), type: res.ok ? 'success' : 'error' });
+    if (res.ok) { await loadExisting(); router.refresh(); }
+  };
+  const handleDeleteFile = async (fileId: number) => {
+    if (!confirm(`حذف کامل فایل ${fileId} و تمام ردیف‌های آن؟ (غیرقابل بازگشت)`)) return;
+    setReverting(true);
+    const res = await deleteSanjeshFileAction(fileId);
+    setReverting(false);
+    setFeedback({ text: res.ok ? (res.message || 'انجام شد') : (res.error || 'خطا'), type: res.ok ? 'success' : 'error' });
+    if (res.ok) { await loadExisting(); router.refresh(); }
   };
 
   // ── نگاشت «کد رشتهٔ سنجش» → «رشتهٔ دانشگاه» ─────────────────────────────
@@ -530,6 +569,45 @@ export default function AdmissionsClient({
           )}
 
           <div className="card p-6 bg-white border border-slate-200 rounded-2xl space-y-4 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
+              <div>
+                <h2 className="text-sm font-black text-slate-900">
+                  📥 بارگذاری و پردازش خطوط فایل متنی سنجش (TXT / CSV Data Staging)
+                </h2>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <span className="text-xs font-bold text-slate-600">برگشت مرحله:</span>
+              <button
+                onClick={() => handleRevertImported(stagingList.filter(s => s.status === 'IMPORTED').map(s => s.id))}
+                disabled={reverting || stagingList.filter(s => s.status === 'IMPORTED').length === 0}
+                className="px-3 py-1.5 rounded-xl border border-sky-300 bg-sky-50 text-sky-800 font-bold text-[11px] hover:bg-sky-100 disabled:opacity-50"
+              >
+                ↩ IMPORTED → RESOLVED
+              </button>
+              <button
+                onClick={() => handleRevertResolved(stagingList.filter(s => s.status === 'RESOLVED').map(s => s.id))}
+                disabled={reverting || stagingList.filter(s => s.status === 'RESOLVED').length === 0}
+                className="px-3 py-1.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-800 font-bold text-[11px] hover:bg-amber-100 disabled:opacity-50"
+              >
+                ↩ RESOLVED → PENDING_MAPPING
+              </button>
+              <button
+                onClick={() => handleRevertStaged(stagingList[0]?.fileId || 5)}
+                disabled={reverting || stagingList.length === 0}
+                className="px-3 py-1.5 rounded-xl border border-rose-300 bg-rose-50 text-rose-800 font-bold text-[11px] hover:bg-rose-100 disabled:opacity-50"
+              >
+                ↩ STAGED → FIELDS_READY
+              </button>
+              <button
+                onClick={() => handleDeleteFile(stagingList[0]?.fileId || 5)}
+                disabled={reverting || stagingList.length === 0}
+                className="px-3 py-1.5 rounded-xl border border-red-300 bg-red-50 text-red-800 font-bold text-[11px] hover:bg-red-100 disabled:opacity-50"
+              >
+                🗑 حذف کامل فایل
+              </button>
+            </div>
+
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
               <div>
                 <h2 className="text-sm font-black text-slate-900">
