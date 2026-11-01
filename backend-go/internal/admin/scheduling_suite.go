@@ -34,14 +34,14 @@ import (
 
 // ─────────────────────────── helpers ───────────────────────────
 
-// schedAuditValues محاسبهٔ details/هش سطر حسابرسی (الگوی curriculum_ops.go).
+// schedAuditValues computes the audit row details/hash (curriculum_ops.go pattern).
 func schedAuditValues(action string, entityID int64, details any) (string, string) {
 	raw, _ := json.Marshal(details)
 	h := sha256.Sum256([]byte("|" + action + "|" + strconv.FormatInt(entityID, 10) + "|" + string(raw)))
 	return string(raw), hex.EncodeToString(h[:])
 }
 
-// schedAuditTx نوشتن حسابرسی داخل تراکنش.
+// schedAuditTx writes an audit row inside the transaction.
 func schedAuditTx(ctx context.Context, tx pgx.Tx, userID *int64, action, entityType string, entityID int64, details any) {
 	raw, hash := schedAuditValues(action, entityID, details)
 	var prev string
@@ -50,7 +50,7 @@ func schedAuditTx(ctx context.Context, tx pgx.Tx, userID *int64, action, entityT
 		values ($1,$2,$3,$4,$5,$6,$7)`, userID, action, entityType, entityID, raw, prev, hash)
 }
 
-// schedAudit نوشتن حسابرسی بیرون تراکنش.
+// schedAudit writes an audit row outside the transaction.
 func schedAudit(ctx context.Context, s *Service, userID *int64, action, entityType string, entityID int64, details any) {
 	raw, hash := schedAuditValues(action, entityID, details)
 	var prev string
@@ -59,15 +59,15 @@ func schedAudit(ctx context.Context, s *Service, userID *int64, action, entityTy
 		values ($1,$2,$3,$4,$5,$6,$7)`, userID, action, entityType, entityID, raw, prev, hash)
 }
 
-// schedAdvisoryLock قفل توافقی سطح تراکنش (هم‌الگوی hashtextextended موتور Next).
+// schedAdvisoryLock transaction-scoped advisory lock (same hashtextextended pattern as the Next engine).
 func schedAdvisoryLock(ctx context.Context, tx pgx.Tx, ns string, a, b int64) error {
 	_, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended($1, 0))`,
 		fmt.Sprintf("%s:%d:%d", ns, a, b))
 	return err
 }
 
-// schedScopeCond شرط «همین دانشگاه یا ردیف‌های عمومی (NULL)» — uniOrGlobal.
-// شناسهٔ نامعتبر ⇒ `1 = 0` (هرگز شرط حذف نمی‌شود).
+// schedScopeCond condition for "this university or global (NULL) rows" — uniOrGlobal.
+// Invalid identifier ⇒ `1 = 0` (the condition is never dropped).
 func schedScopeCond(col string, uniID *int64) string {
 	if uniID != nil && *uniID > 0 {
 		return fmt.Sprintf(`(%s = %d or %s is null)`, col, *uniID, col)
@@ -75,7 +75,7 @@ func schedScopeCond(col string, uniID *int64) string {
 	return `1 = 0`
 }
 
-// schedEqCond شرط «همین دانشگاه» — universityEq.
+// schedEqCond condition for "this university" — universityEq.
 func schedEqCond(col string, uniID *int64) string {
 	if uniID != nil && *uniID > 0 {
 		return fmt.Sprintf(`%s = %d`, col, *uniID)
@@ -102,7 +102,7 @@ func (s *Service) AssertSchedTermInUni(ctx context.Context, termID int64, uniID 
 	return nil
 }
 
-// schedHM نرمال‌سازی زمان به HH:MM (ورودی از to_char یا رشتهٔ خام).
+// schedHM normalizes a time to HH:MM (input from to_char or a raw string).
 func schedHM(t *string) string {
 	if t == nil {
 		return ""
@@ -122,12 +122,12 @@ func schedHhmmss(t string) string {
 	return t
 }
 
-// schedToHHMM دقیقه از نیمه‌شب → "HH:MM".
+// schedToHHMM minutes since midnight → "HH:MM".
 func schedToHHMM(minutes int) string {
 	return fmt.Sprintf("%02d:%02d", minutes/60, minutes%60)
 }
 
-// schedResolveStaffID تبدیل userId → staffId برای ستون‌های *ByStaffId.
+// schedResolveStaffID converts userId → staffId for *ByStaffId columns.
 func schedResolveStaffID(ctx context.Context, q interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }, userID *int64) *int64 {
@@ -141,7 +141,7 @@ func schedResolveStaffID(ctx context.Context, q interface {
 	return &id
 }
 
-// schedStateOfTerm فاز فعلی ترم (پیش‌فرض SUPPLY).
+// schedStateOfTerm current phase of the term (default SUPPLY).
 func schedStateOfTerm(ctx context.Context, q interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }, termID int64) (id int64, phase string) {
@@ -153,9 +153,9 @@ func schedStateOfTerm(ctx context.Context, q interface {
 	return id, phase
 }
 
-// ─────────────────────────── انواع خروجی کارتابل ───────────────────────────
+// ─────────────────────────── workspace output types ───────────────────────────
 
-// SchedTermOption نیمسال برای انتخاب‌گر.
+// SchedTermOption term for the picker.
 type SchedTermOption struct {
 	ID        int64  `json:"id"`
 	Code      string `json:"code"`
@@ -163,7 +163,7 @@ type SchedTermOption struct {
 	IsCurrent bool   `json:"isCurrent"`
 }
 
-// SchedProgramOption رشته/مقطع/دانشکده.
+// SchedProgramOption major/degree/faculty.
 type SchedProgramOption struct {
 	ID          int64  `json:"id"`
 	Code        string `json:"code"`
@@ -173,13 +173,13 @@ type SchedProgramOption struct {
 	FacultyID   *int64 `json:"facultyId"`
 }
 
-// SchedCohort ورودی تحصیلی.
+// SchedCohort academic entry cohort.
 type SchedCohort struct {
 	EntryYear        int `json:"entryYear"`
 	ExpectedStudents int `json:"expectedStudents"`
 }
 
-// SchedClassroomOption سالن.
+// SchedClassroomOption classroom.
 type SchedClassroomOption struct {
 	ID           int64  `json:"id"`
 	Name         string `json:"name"`
@@ -188,7 +188,7 @@ type SchedClassroomOption struct {
 	RoomType     string `json:"roomType"`
 }
 
-// SchedProfessorOption استاد.
+// SchedProfessorOption professor.
 type SchedProfessorOption struct {
 	ID             int64   `json:"id"`
 	Name           string  `json:"name"`
@@ -197,7 +197,7 @@ type SchedProfessorOption struct {
 	DepartmentName *string `json:"departmentName"`
 }
 
-// SchedAvailabilityRow سطر درٔ دسترس بودن استاد.
+// SchedAvailabilityRow professor availability row.
 type SchedAvailabilityRow struct {
 	StaffID   int64   `json:"staffId"`
 	DayOfWeek *int    `json:"dayOfWeek"`
@@ -206,7 +206,7 @@ type SchedAvailabilityRow struct {
 	Status    string  `json:"status"`
 }
 
-// SchedDemand تقاضای درس (یک گروه از یک ارائه).
+// SchedDemand course demand (one group of one offering).
 type SchedDemand struct {
 	OfferingID      int64  `json:"offeringId"`
 	CourseID        int64  `json:"courseId"`
@@ -228,7 +228,7 @@ type SchedDemand struct {
 	OfferingScope   string `json:"offeringScope"`
 }
 
-// SchedApprovedOffering کلاس مصوب (سطر schedules).
+// SchedApprovedOffering approved class (schedules row).
 type SchedApprovedOffering struct {
 	OfferingID    int64  `json:"offeringId"`
 	Code          string `json:"code"`
@@ -249,7 +249,7 @@ type SchedApprovedOffering struct {
 	BuildingName  string `json:"buildingName"`
 }
 
-// SchedMakeupSession جلسهٔ جبرانی.
+// SchedMakeupSession makeup session.
 type SchedMakeupSession struct {
 	ID                int64  `json:"id"`
 	CourseCode        string `json:"courseCode"`
@@ -261,7 +261,7 @@ type SchedMakeupSession struct {
 	ReplacedSessionID *int64 `json:"replacedSessionId"`
 }
 
-// SchedTermCalendar تقویم ترم از ردیف academic_terms.
+// SchedTermCalendar term calendar from the academic_terms row.
 type SchedTermCalendar struct {
 	ID          int64   `json:"id"`
 	StartJalali *string `json:"startJalali"`
@@ -269,14 +269,14 @@ type SchedTermCalendar struct {
 	StartDate   *string `json:"startDate"`
 }
 
-// SchedOfferingSessionSummary خلاصهٔ جلسات هر ارائه.
+// SchedOfferingSessionSummary summary of sessions per offering.
 type SchedOfferingSessionSummary struct {
 	Total     int     `json:"total"`
 	Makeup    int     `json:"makeup"`
 	FirstDate *string `json:"firstDate"`
 }
 
-// SchedulingWorkspace خروجی کامل کارتابل (پورت getSchedulingWorkspaceAction).
+// SchedulingWorkspace full workspace output (port of getSchedulingWorkspaceAction).
 type SchedulingWorkspace struct {
 	Terms              []SchedTermOption                     `json:"terms"`
 	SelectedTermID     *int64                                `json:"selectedTermId"`
@@ -306,9 +306,9 @@ func schedDayName(d *int) string {
 	return schedDayNames[*d]
 }
 
-// ─────────────────────────── کوئری‌های خام کارتابل ───────────────────────────
+// ─────────────────────────── raw workspace queries ───────────────────────────
 
-// schedListTerms نیمسال‌های واقعی.
+// schedListTerms real terms.
 func (s *Service) schedListTerms(ctx context.Context, uniID *int64) []SchedTermOption {
 	out := []SchedTermOption{}
 	rows, err := s.DB.Pool.Query(ctx, `
@@ -330,7 +330,7 @@ func (s *Service) schedListTerms(ctx context.Context, uniID *int64) []SchedTermO
 	return out
 }
 
-// schedListPrograms رشته‌ها = majors + دانشکده (فقط فعال).
+// schedListPrograms programs = majors + faculty (active only).
 func (s *Service) schedListPrograms(ctx context.Context, uniID *int64) []SchedProgramOption {
 	out := []SchedProgramOption{}
 	rows, err := s.DB.Pool.Query(ctx, `
@@ -356,7 +356,7 @@ func (s *Service) schedListPrograms(ctx context.Context, uniID *int64) []SchedPr
 	return out
 }
 
-// schedListCohorts ورودی‌های واقعی دانشجویان.
+// schedListCohorts real student entry cohorts.
 func (s *Service) schedListCohorts(ctx context.Context, uniID *int64) []SchedCohort {
 	out := []SchedCohort{}
 	rows, err := s.DB.Pool.Query(ctx, `
@@ -377,7 +377,7 @@ func (s *Service) schedListCohorts(ctx context.Context, uniID *int64) []SchedCoh
 	return out
 }
 
-// schedListClassrooms سالن‌های واقعی.
+// schedListClassrooms real classrooms.
 func (s *Service) schedListClassrooms(ctx context.Context, uniID *int64) []SchedClassroomOption {
 	out := []SchedClassroomOption{}
 	rows, err := s.DB.Pool.Query(ctx, `
@@ -396,7 +396,7 @@ func (s *Service) schedListClassrooms(ctx context.Context, uniID *int64) []Sched
 	return out
 }
 
-// schedListProfessors استادان واقعی (staff + users + گروه).
+// schedListProfessors real professors (staff + users + department).
 func (s *Service) schedListProfessors(ctx context.Context, uniID *int64) []SchedProfessorOption {
 	out := []SchedProfessorOption{}
 	rows, err := s.DB.Pool.Query(ctx, `
@@ -421,7 +421,7 @@ func (s *Service) schedListProfessors(ctx context.Context, uniID *int64) []Sched
 	return out
 }
 
-// schedListDemands تقاضای واقعی: درس‌های دارای offering در این ترم.
+// schedListDemands real demand: courses with an offering in this term.
 func (s *Service) schedListDemands(ctx context.Context, termID int64, uniID *int64) []SchedDemand {
 	out := []SchedDemand{}
 	rows, err := s.DB.Pool.Query(ctx, `
@@ -486,7 +486,7 @@ func (s *Service) schedListDemands(ctx context.Context, termID int64, uniID *int
 	return out
 }
 
-// schedCurriculumVersionID نسخهٔ برنامهٔ درسی منتشرشده/بایگانی‌شده برای رشته+سال ورودی ترم.
+// schedCurriculumVersionID published/archived curriculum version for the major + term entry year.
 func (s *Service) schedCurriculumVersionID(ctx context.Context, uniID *int64, termID, programID int64) (*int64, int, error) {
 	var termYear *int
 	var isSummer, sortOrder *int
@@ -527,7 +527,7 @@ func (s *Service) schedCurriculumVersionID(ctx context.Context, uniID *int64, te
 	return &cvID, currentSemester, nil
 }
 
-// schedDemandRaw ردیف خام کوئری تقاضا — قبل از تزئین coTaught/cohort/برنامه.
+// schedDemandRaw raw demand query row — before coTaught/cohort/program decoration.
 type schedDemandRaw struct {
 	SchedDemand
 	targetMajorID *int64
@@ -537,7 +537,7 @@ type schedDemandRaw struct {
 	shared        int
 }
 
-// schedListCurriculumDemands تقاضای مبتنی بر چارت درسی برای یک رشته.
+// schedListCurriculumDemands curriculum-based demand for a major.
 func (s *Service) schedListCurriculumDemands(ctx context.Context, termID, programID int64, uniID *int64) []SchedDemand {
 	cvID, currentSemester, _ := s.schedCurriculumVersionID(ctx, uniID, termID, programID)
 	if cvID == nil {
@@ -576,7 +576,7 @@ func (s *Service) schedListCurriculumDemands(ctx context.Context, termID, progra
 	return s.schedDecorateDemands(ctx, raws)
 }
 
-// schedDecorateDemands نگاشت مشترک ردیف خام تقاضا (coTaught/cohort/برنامه).
+// schedDecorateDemands shared mapping of a raw demand row (coTaught/cohort/program).
 func (s *Service) schedDecorateDemands(ctx context.Context, raws []schedDemandRaw) []SchedDemand {
 	out := []SchedDemand{}
 	ids := make([]int64, 0, len(raws))
@@ -622,7 +622,7 @@ func (s *Service) schedDecorateDemands(ctx context.Context, raws []schedDemandRa
 	return out
 }
 
-// schedListApprovedOfferings برنامهٔ مصوب واقعی (schedules با scheduleType='CLASS').
+// schedListApprovedOfferings real approved schedule (schedules with scheduleType='CLASS').
 func (s *Service) schedListApprovedOfferings(ctx context.Context, termID int64, uniID *int64) []SchedApprovedOffering {
 	out := []SchedApprovedOffering{}
 	rows, err := s.DB.Pool.Query(ctx, `
@@ -673,7 +673,7 @@ func (s *Service) schedListApprovedOfferings(ctx context.Context, termID int64, 
 	return out
 }
 
-// schedListMakeupSessions جلسات جبرانی واقعی (class_sessions.isMakeUpSession=1).
+// schedListMakeupSessions real makeup sessions (class_sessions.isMakeUpSession=1).
 func (s *Service) schedListMakeupSessions(ctx context.Context, termID int64, uniID *int64) []SchedMakeupSession {
 	out := []SchedMakeupSession{}
 	rows, err := s.DB.Pool.Query(ctx, `
@@ -711,7 +711,7 @@ func (s *Service) schedListMakeupSessions(ctx context.Context, termID int64, uni
 	return out
 }
 
-// schedListAllocatedRoomIDs سالن‌های دارای سهمیهٔ ALLOCATED در این ترم.
+// schedListAllocatedRoomIDs classrooms with an ALLOCATED quota in this term.
 func (s *Service) schedListAllocatedRoomIDs(ctx context.Context, termID int64, uniID *int64) []int64 {
 	out := []int64{}
 	rows, err := s.DB.Pool.Query(ctx, `
@@ -732,7 +732,7 @@ func (s *Service) schedListAllocatedRoomIDs(ctx context.Context, termID int64, u
 	return out
 }
 
-// schedSessionsSummary خلاصهٔ جلسات تولیدشدهٔ ترم (getTermSessionsSummary).
+// schedSessionsSummary summary of the term's generated sessions (getTermSessionsSummary).
 func (s *Service) schedSessionsSummary(ctx context.Context, termID int64) (int, map[int64]SchedOfferingSessionSummary) {
 	total := 0
 	by := map[int64]SchedOfferingSessionSummary{}
@@ -759,7 +759,7 @@ func (s *Service) schedSessionsSummary(ctx context.Context, termID int64) (int, 
 	return total, by
 }
 
-// schedLoadTermSchedules خواندن زمان‌بندی کلاسی واقعی یک ترم (loadTermSchedules).
+// schedLoadTermSchedules reads the real class schedule of a term (loadTermSchedules).
 type schedTermScheduleRow struct {
 	OfferingID    int64
 	DayOfWeek     int
@@ -811,7 +811,7 @@ func (s *Service) schedLoadTermSchedules(ctx context.Context, q interface {
 	return out
 }
 
-// schedProfessorsByOffering استادان (اصلی + دومِ Co-Teaching) به تفکیک ارائه.
+// schedProfessorsByOffering professors (main + secondary Co-Teaching) per offering.
 func (s *Service) schedProfessorsByOffering(ctx context.Context, termID int64) map[int64][]int64 {
 	out := map[int64][]int64{}
 	rows, err := s.DB.Pool.Query(ctx, `
@@ -831,7 +831,7 @@ func (s *Service) schedProfessorsByOffering(ctx context.Context, termID int64) m
 	return out
 }
 
-// schedRoomCapacities ظرفیت سالن‌ها.
+// schedRoomCapacities classroom capacities.
 func (s *Service) schedRoomCapacities(ctx context.Context) map[int64]int {
 	out := map[int64]int{}
 	rows, err := s.DB.Pool.Query(ctx, `select id, coalesce(capacity,0) from classrooms`)
@@ -849,7 +849,7 @@ func (s *Service) schedRoomCapacities(ctx context.Context) map[int64]int {
 	return out
 }
 
-// schedConflictEntries ساخت ورودی‌های قیود سخت از زمان‌بندی واقعی.
+// schedConflictEntries builds hard-constraint inputs from the real schedule.
 func schedConflictEntries(schedRows []schedTermScheduleRow, profByOffering map[int64][]int64, roomCap map[int64]int) []scheduling.HardConflictEntry {
 	entries := make([]scheduling.HardConflictEntry, 0, len(schedRows))
 	for _, sr := range schedRows {
@@ -891,7 +891,7 @@ func schedConflictEntries(schedRows []schedTermScheduleRow, profByOffering map[i
 	return entries
 }
 
-// InspectSchedulingHardConflicts تشخیص قیود سخت روی زمان‌بندی واقعی یک ترم.
+// InspectSchedulingHardConflicts detects hard constraints on a term's real schedule.
 func (s *Service) InspectSchedulingHardConflicts(ctx context.Context, termID int64) (scheduling.HardConflictReport, int) {
 	schedRows := s.schedLoadTermSchedules(ctx, s.DB.Pool, termID)
 	profByOffering := s.schedProfessorsByOffering(ctx, termID)
@@ -902,7 +902,7 @@ func (s *Service) InspectSchedulingHardConflicts(ctx context.Context, termID int
 
 // ─────────────────────────── GetSchedulingWorkspace ───────────────────────────
 
-// GetSchedulingWorkspace پورت getSchedulingWorkspaceAction — دادهٔ اولیهٔ همهٔ تب‌ها.
+// GetSchedulingWorkspace port of getSchedulingWorkspaceAction — initial data for all tabs.
 func (s *Service) GetSchedulingWorkspace(ctx context.Context, user *session.User, cookie string, termID *int64) (*SchedulingWorkspace, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	w := &SchedulingWorkspace{
@@ -933,7 +933,7 @@ func (s *Service) GetSchedulingWorkspace(ctx context.Context, user *session.User
 		drows.Close()
 	}
 
-	// نیمسال هدف: ورودی کلاینت فقط اگر عضو نیمسال‌های همین دانشگاه باشد (fail-closed).
+	// Target term: the client input is accepted only if it is one of this university's terms (fail-closed).
 	var resolved *int64
 	if termID != nil {
 		for _, t := range w.Terms {
@@ -963,7 +963,7 @@ func (s *Service) GetSchedulingWorkspace(ctx context.Context, user *session.User
 	}
 	termID2 := *resolved
 
-	// فازها
+	// Phases
 	_ = deptNames
 	prows, err := s.DB.Pool.Query(ctx, `
 		select "termId", phase from term_scheduling_states where `+schedScopeCond(`"universityId"`, uniID))
@@ -980,7 +980,7 @@ func (s *Service) GetSchedulingWorkspace(ctx context.Context, user *session.User
 
 	w.Cohorts = s.schedListCohorts(ctx, uniID)
 
-	// درٔ دسترس بودن اساتید
+	// Professor availability
 	arows, err := s.DB.Pool.Query(ctx, `
 		select "staffId", "dayOfWeek",
 		       to_char("startTime",'HH24:MI'), to_char("endTime",'HH24:MI'),
@@ -1007,7 +1007,7 @@ func (s *Service) GetSchedulingWorkspace(ctx context.Context, user *session.User
 		arows.Close()
 	}
 
-	// قیود سخت + تقویم ترم + برنامهٔ مصوب + جبرانی‌ها + سهمیه‌ها
+	// Hard constraints + term calendar + approved schedule + makeup sessions + quotas
 	report, _ := s.InspectSchedulingHardConflicts(ctx, termID2)
 	w.HardConflictCount = report.Total
 
@@ -1036,22 +1036,22 @@ func (s *Service) GetSchedulingWorkspace(ctx context.Context, user *session.User
 
 // ─────────────────────────── GetCurriculumDemands ───────────────────────────
 
-// GetCurriculumDemands پورت getCurriculumDemandsAction — دروس چارت درسی رشته.
+// GetCurriculumDemands port of getCurriculumDemandsAction — courses of a major's curriculum.
 func (s *Service) GetCurriculumDemands(ctx context.Context, user *session.User, cookie string, termID, programID int64) ([]SchedDemand, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	return s.schedListCurriculumDemands(ctx, termID, programID, uniID), nil
 }
 
-// ─────────────────────────── گذار فاز ───────────────────────────
+// ─────────────────────────── phase transition ───────────────────────────
 
-// SchedPhaseResult نتیجهٔ گذار فاز.
+// SchedPhaseResult phase transition result.
 type SchedPhaseResult struct {
 	Phase string `json:"phase"`
 	From  string `json:"from"`
 }
 
-// TransitionSchedulingPhase پورت transitionSchedulingPhaseAction —
-// SUPPLY→ALLOCATION→REVIEW→PUBLISHED پله‌ای؛ انتشار فقط بدون قید سخت.
+// TransitionSchedulingPhase port of transitionSchedulingPhaseAction —
+// SUPPLY→ALLOCATION→REVIEW→PUBLISHED step by step; publish only without hard constraints.
 func (s *Service) TransitionSchedulingPhase(ctx context.Context, user *session.User, cookie string, termID int64, to string) (*SchedPhaseResult, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	var termExists int
@@ -1113,9 +1113,9 @@ func (s *Service) TransitionSchedulingPhase(ctx context.Context, user *session.U
 	return &SchedPhaseResult{Phase: to, From: fromPhase}, nil
 }
 
-// ─────────────────────────── تأمین گروه درسی ───────────────────────────
+// ─────────────────────────── course group supply ───────────────────────────
 
-// SchedSupplyDraft یک گروه درسی برای تأمین.
+// SchedSupplyDraft one course group to supply.
 type SchedSupplyDraft struct {
 	GroupNumber int    `json:"groupNumber"`
 	Capacity    int    `json:"capacity"`
@@ -1127,7 +1127,7 @@ type SchedSupplyDraft struct {
 	EndTime     string `json:"endTime"`
 }
 
-// SchedSupplyInput ورودی تأمین گروه.
+// SchedSupplyInput group supply input.
 type SchedSupplyInput struct {
 	TermID            int64              `json:"termId"`
 	CourseID          int64              `json:"courseId"`
@@ -1136,14 +1136,14 @@ type SchedSupplyInput struct {
 	Drafts            []SchedSupplyDraft `json:"drafts"`
 }
 
-// SchedSupplyResult نتیجهٔ تأمین.
+// SchedSupplyResult supply result.
 type SchedSupplyResult struct {
 	Created     int64   `json:"created"`
 	OfferingIDs []int64 `json:"offeringIds"`
 }
 
-// SupplyGroupDrafts پورت supplyGroupDraftsAction — درج واقعی offering + schedule +
-// offering_professors در یک تراکنش با قفل توافقی و حسابرسی.
+// SupplyGroupDrafts port of supplyGroupDraftsAction — real insertion of offering + schedule +
+// offering_professors in one transaction with an advisory lock and audit.
 func (s *Service) SupplyGroupDrafts(ctx context.Context, user *session.User, cookie string, px SchedSupplyInput) (*SchedSupplyResult, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	actorID := user.ID
@@ -1159,7 +1159,7 @@ func (s *Service) SupplyGroupDrafts(ctx context.Context, user *session.User, coo
 		return nil, errors.New("این درس در کاتالوگ به‌عنوان درس خدماتی سراسری تعریف نشده است.")
 	}
 
-	// اساتید باید متعلق به گروه سازنده باشند (قلمرو)
+	// Professors must belong to the owning department (domain)
 	profIDs := make([]int64, 0, len(px.Drafts))
 	for _, d := range px.Drafts {
 		profIDs = append(profIDs, d.ProfessorID)
@@ -1206,7 +1206,7 @@ func (s *Service) SupplyGroupDrafts(ctx context.Context, user *session.User, coo
 		return nil, fmt.Errorf("در فاز «%s» امکان ساخت گروه درسی نیست.", phase)
 	}
 
-	// ۱) گروه تکراری در همین ترم؟
+	// 1) Duplicate group in this term?
 	existing := map[int]bool{}
 	erows, err := tx.Query(ctx, `
 		select "groupNumber" from course_offerings where "termId" = $1 and "courseId" = $2`, px.TermID, px.CourseID)
@@ -1226,7 +1226,7 @@ func (s *Service) SupplyGroupDrafts(ctx context.Context, user *session.User, coo
 		}
 	}
 
-	// ۲) تداخل استاد/مکان در لحظهٔ ثبت (دفاع در عمق)
+	// 2) Professor/room conflict at insert time (defense in depth)
 	brows, err := tx.Query(ctx, `
 		select s."dayOfWeek", to_char(s."startTime",'HH24:MI'), to_char(s."endTime",'HH24:MI'), s."roomId", o."professorId"
 		  from schedules s join course_offerings o on o.id = s."offeringId"
@@ -1267,7 +1267,7 @@ func (s *Service) SupplyGroupDrafts(ctx context.Context, user *session.User, coo
 		}
 	}
 
-	// ۳) ظرفیت فیزیکی کلاس
+	// 3) Physical classroom capacity
 	roomIDs := make([]int64, 0, len(valid))
 	for _, d := range valid {
 		roomIDs = append(roomIDs, d.ClassroomID)
@@ -1297,7 +1297,7 @@ func (s *Service) SupplyGroupDrafts(ctx context.Context, user *session.User, coo
 		}
 	}
 
-	// ۴) درج دسته‌ای: offering + schedule + offering_professors
+	// 4) Batch insert: offering + schedule + offering_professors
 	offeringIDs := []int64{}
 	offeringByGroup := map[int]int64{}
 	for _, d := range valid {
@@ -1335,9 +1335,9 @@ func (s *Service) SupplyGroupDrafts(ctx context.Context, user *session.User, coo
 	return &SchedSupplyResult{Created: int64(len(offeringIDs)), OfferingIDs: offeringIDs}, nil
 }
 
-// ─────────────────────────── تخصیص کلاس‌های مشترک ───────────────────────────
+// ─────────────────────────── shared class allocation ───────────────────────────
 
-// AllocateSections پورت allocateSectionsAction — تخصیص استخر خدمات به یک گروه.
+// AllocateSections port of allocateSectionsAction — allocate the service pool to a group.
 func (s *Service) AllocateSections(ctx context.Context, user *session.User, cookie string, termID, departmentID int64, offeringIDs []int64) (int, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	actorID := user.ID
@@ -1390,7 +1390,7 @@ func (s *Service) AllocateSections(ctx context.Context, user *session.User, cook
 		}
 	}
 
-	// برنامهٔ هفتگی فعلی گروه (کلاس‌های خودش + تخصیص‌های قبلی)
+	// Current weekly schedule of the group (its own classes + previous allocations)
 	type mineRow struct {
 		day        int
 		start, end string
@@ -1460,7 +1460,7 @@ func (s *Service) AllocateSections(ctx context.Context, user *session.User, cook
 		return 0, errors.New(strings.Join(conflicts, " | "))
 	}
 
-	// درج تخصیص‌ها (unique — تخصیص دوباره ناممکن)
+	// Insert allocations (unique — re-allocation is impossible)
 	done := 0
 	staffID := schedResolveStaffID(ctx, tx, &actorID)
 	for _, o := range offers {
@@ -1482,17 +1482,17 @@ func (s *Service) AllocateSections(ctx context.Context, user *session.User, cook
 	return done, nil
 }
 
-// ─────────────────────────── سهمیهٔ سالن‌ها ───────────────────────────
+// ─────────────────────────── classroom quotas ───────────────────────────
 
-// AllocateRoomQuotas پورت allocateRoomQuotasAction — تخصیص اولیهٔ سهمیهٔ
-// (سالن، شیفت) گروه‌های هر دانشکده بر اساس جمعیت دانشجویان فعال.
+// AllocateRoomQuotas port of allocateRoomQuotasAction — initial allocation of the
+// (classroom, shift) quota for each faculty's groups based on the active student population.
 func (s *Service) AllocateRoomQuotas(ctx context.Context, user *session.User, cookie string, termID int64) (int, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	actorID := user.ID
 
-	// انحراف آگاهانه از Next: دانشکده‌ها/سالن‌ها به دانشگاه فعال محدود می‌شوند
-	// و ردیف‌های گرنت با "universityId" درج می‌شوند (نسخهٔ Next بدون scope و
-	// با NULL درج می‌کرد — با کوئری‌های strict همین ماژول ناسازگار بود).
+	// Intentional deviation from Next: faculties/classrooms are restricted to the active university
+	// and grant rows are inserted with "universityId" (the Next version inserted without scope and
+	// with NULL — which was incompatible with this module's strict queries).
 	facArgs := []any{}
 	facCond := "1=1"
 	if uniID != nil {
@@ -1548,7 +1548,7 @@ func (s *Service) AllocateRoomQuotas(ctx context.Context, user *session.User, co
 			}
 			drows.Close()
 		}
-		// گروه‌های خدماتی (بدون دانشجوی چارت‌محور) سهمیه نمی‌گیرند
+		// Service groups (without curriculum-based students) do not receive a quota
 		filtered := []scheduling.DeptShareInput{}
 		for _, d := range depts {
 			if d.ActiveStudents > 0 {
@@ -1589,9 +1589,9 @@ func (s *Service) AllocateRoomQuotas(ctx context.Context, user *session.User, co
 	return n, nil
 }
 
-// ─────────────────────────── پیشنهاد هوشمند ───────────────────────────
+// ─────────────────────────── smart suggestions ───────────────────────────
 
-// SchedSmartSlot اسلات پیشنهادی موتور (SmartSlot).
+// SchedSmartSlot engine-suggested slot (SmartSlot).
 type SchedSmartSlot struct {
 	DayOfWeek         int      `json:"dayOfWeek"`
 	StartTime         string   `json:"startTime"`
@@ -1603,7 +1603,7 @@ type SchedSmartSlot struct {
 	Reasons           []string `json:"reasons"`
 }
 
-// SchedSuggestInput ورودی پیشنهاد هوشمند.
+// SchedSuggestInput smart suggestion input.
 type SchedSuggestInput struct {
 	TermID          int64  `json:"termId"`
 	ProfessorID     int64  `json:"professorId"`
@@ -1804,9 +1804,9 @@ func (s *Service) GetSmartSuggestions(ctx context.Context, uniID *int64, px Sche
 	return suggested, nil
 }
 
-// ─────────────────────────── عارضه‌یابی (سلامت برنامه) ───────────────────────────
+// ─────────────────────────── diagnostics (schedule health) ───────────────────────────
 
-// SchedForecast پیش‌بینی تقاضای درس (forecastCourseDemand).
+// SchedForecast course demand forecast (forecastCourseDemand).
 type SchedForecast struct {
 	CourseID            int64                      `json:"courseId"`
 	ClusterID           *int64                     `json:"clusterId"`
@@ -1818,8 +1818,8 @@ type SchedForecast struct {
 	ByFaculty           []scheduling.FacultyGroups `json:"byFaculty"`
 }
 
-// schedForecastCourseDemand پورت forecastCourseDemand — متقاضیان واقعی درس
-// (یا کل خوشهٔ هم‌ارز) منهای پاس‌شده‌ها.
+// schedForecastCourseDemand port of forecastCourseDemand — real course demand
+// (or the whole equivalence cluster) minus those already passed.
 func (s *Service) schedForecastCourseDemand(ctx context.Context, courseID int64, standardCapacity float64) (*SchedForecast, error) {
 	var clusterID *int64
 	if err := s.DB.Pool.QueryRow(ctx, `select "clusterId" from courses where id = $1`, courseID).Scan(&clusterID); err != nil {
@@ -1942,7 +1942,7 @@ func (s *Service) schedForecastCourseDemand(ctx context.Context, courseID int64,
 	}, nil
 }
 
-// SchedHiddenConflict تداخل پنهان استاد/مکان.
+// SchedHiddenConflict hidden professor/room conflict.
 type SchedHiddenConflict struct {
 	Kind      string `json:"kind"`
 	DayOfWeek int    `json:"dayOfWeek"`
@@ -1952,7 +1952,7 @@ type SchedHiddenConflict struct {
 	B         int64  `json:"b"`
 }
 
-// SchedSupplyDemand عرضه در برابر تقاضا.
+// SchedSupplyDemand supply versus demand.
 type SchedSupplyDemand struct {
 	CourseID         int64  `json:"courseId"`
 	Title            string `json:"title"`
@@ -1962,14 +1962,14 @@ type SchedSupplyDemand struct {
 	EligibleStudents int    `json:"eligibleStudents"`
 }
 
-// SchedUnallocatedShared کلاس مشترک بدون تخصیص.
+// SchedUnallocatedShared shared class without allocation.
 type SchedUnallocatedShared struct {
 	OfferingID  int64 `json:"offeringId"`
 	CourseID    int64 `json:"courseId"`
 	GroupNumber int   `json:"groupNumber"`
 }
 
-// SchedRoomShiftUsage بهره‌وری (سالن، شیفت).
+// SchedRoomShiftUsage utilization (classroom, shift).
 type SchedRoomShiftUsage struct {
 	ClassroomID     int64   `json:"classroomId"`
 	ClassroomName   string  `json:"classroomName"`
@@ -1979,13 +1979,13 @@ type SchedRoomShiftUsage struct {
 	Utilization     float64 `json:"utilization"`
 }
 
-// SchedReleasedUnused شیفت آزادشده در استخر شناور.
+// SchedReleasedUnused shift released to the floating pool.
 type SchedReleasedUnused struct {
 	ClassroomID int64  `json:"classroomId"`
 	Shift       string `json:"shift"`
 }
 
-// SchedHealthReport گزارش سلامت برنامه (HealthReport).
+// SchedHealthReport schedule health report (HealthReport).
 type SchedHealthReport struct {
 	TermID            int64                    `json:"termId"`
 	HiddenConflicts   []SchedHiddenConflict    `json:"hiddenConflicts"`
@@ -2008,7 +2008,7 @@ func (s *Service) GetSchedulingHealth(ctx context.Context, uniID *int64, termID 
 		RoomShiftUsage: []SchedRoomShiftUsage{}, ReleasedUnused: []SchedReleasedUnused{}, Lines: []string{},
 	}
 
-	// ۱) تداخل‌های پنهان (استاد/مکان)
+	// 1) Hidden conflicts (professor/room)
 	type schedRow struct {
 		id         int64
 		day        int
@@ -2063,7 +2063,7 @@ func (s *Service) GetSchedulingHealth(ctx context.Context, uniID *int64, termID 
 		report.Lines = append(report.Lines, "✅ تداخل پنهان استاد/مکان: صفر.")
 	}
 
-	// ۲) کلاس‌های مشترک بدون تخصیص
+	// 2) Shared classes without allocation
 	urows, err := s.DB.Pool.Query(ctx, `
 		select o.id, o."courseId", o."groupNumber"
 		  from course_offerings o
@@ -2085,7 +2085,7 @@ func (s *Service) GetSchedulingHealth(ctx context.Context, uniID *int64, termID 
 		report.Lines = append(report.Lines, "✅ همهٔ کلاس‌های مشترک تخصیص یافته‌اند.")
 	}
 
-	// ۳) عرضه در برابر تقاضا
+	// 3) Supply versus demand
 	scrows, err := s.DB.Pool.Query(ctx, `
 		select o."courseId", count(*)::int from course_offerings o
 		 where o."termId" = $1 and o."isSharedService" = 1
@@ -2106,7 +2106,7 @@ func (s *Service) GetSchedulingHealth(ctx context.Context, uniID *int64, termID 
 		for _, sc := range shared {
 			demand, err := s.schedForecastCourseDemand(ctx, sc.courseID, 40)
 			if err != nil {
-				continue // درس بدون syllabus → رد شدن در پیش‌بینی بی‌خطر است
+				continue // course without syllabus → skipping it in the forecast is safe
 			}
 			var title string
 			_ = s.DB.Pool.QueryRow(ctx, `select title from courses where id = $1`, sc.courseID).Scan(&title)
@@ -2126,7 +2126,7 @@ func (s *Service) GetSchedulingHealth(ctx context.Context, uniID *int64, termID 
 		}
 	}
 
-	// ۴) بهره‌وری (سالن، شیفت)
+	// 4) Utilization (classroom, shift)
 	type usageRow struct {
 		roomID     int64
 		roomName   string
@@ -2190,7 +2190,7 @@ func (s *Service) GetSchedulingHealth(ctx context.Context, uniID *int64, termID 
 	}
 	report.Lines = append(report.Lines, fmt.Sprintf("🏛️ بهره‌وری سالن‌ها: %d شیفت کاملاً خالی از %d شیفتِ برنامه‌دار.", idle, len(report.RoomShiftUsage)))
 
-	// ۵) استخر شناور استفاده‌نشده
+	// 5) Unused floating pool
 	rrows, err := s.DB.Pool.Query(ctx, `
 		select g."classroomId", g.shift from scheduling_room_grants g
 		 where g."termId" = $1 and g.status = 'RELEASED'`, termID)
@@ -2211,9 +2211,9 @@ func (s *Service) GetSchedulingHealth(ctx context.Context, uniID *int64, termID 
 	return report, nil
 }
 
-// ─────────────────────────── تولید جلسات واقعی ───────────────────────────
+// ─────────────────────────── real session generation ───────────────────────────
 
-// SchedGenerateInput ورودی تولید جلسات.
+// SchedGenerateInput session generation input.
 type SchedGenerateInput struct {
 	TermID        int64    `json:"termId"`
 	SessionsCount int      `json:"sessionsCount"`
@@ -2221,7 +2221,7 @@ type SchedGenerateInput struct {
 	DryRun        bool     `json:"dryRun"`
 }
 
-// SchedGenerateResult نتیجهٔ تولید جلسات.
+// SchedGenerateResult session generation result.
 type SchedGenerateResult struct {
 	OK                  bool                      `json:"ok"`
 	Generated           int                       `json:"generated"`
@@ -2234,8 +2234,8 @@ type SchedGenerateResult struct {
 	TermStart           *string                   `json:"termStart"`
 }
 
-// GenerateClassSessions پورت generateClassSessionsAction / generateClassSessionsForTerm —
-// تولید/بازتولید جلسات واقعی یک ترم از روی schedules (تراکنشی + idempotent + گیت قیود سخت).
+// GenerateClassSessions port of generateClassSessionsAction / generateClassSessionsForTerm —
+// generate/regenerate a term's real sessions from schedules (transactional + idempotent + hard-constraint gate).
 func (s *Service) GenerateClassSessions(ctx context.Context, user *session.User, cookie string, px SchedGenerateInput) (*SchedGenerateResult, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	actorID := user.ID
@@ -2301,7 +2301,7 @@ func (s *Service) GenerateClassSessions(ctx context.Context, user *session.User,
 		offeringIDs = append(offeringIDs, id)
 	}
 
-	// Idempotency: جلسات موجود (offeringId + sessionNo) هرگز دوباره ساخته نمی‌شوند.
+	// Idempotency: existing sessions (offeringId + sessionNo) are never created again.
 	existing := map[int64]map[int]bool{}
 	if len(offeringIDs) > 0 {
 		erows, err := tx.Query(ctx, `
@@ -2392,7 +2392,7 @@ func (s *Service) GenerateClassSessions(ctx context.Context, user *session.User,
 		}
 		generated = len(values)
 	}
-	_ = skipped // در خروجی گزارش می‌شود
+	_ = skipped // reported in the output
 
 	termStartStr := classStart.Format("2006-01-02")
 	schedAuditTx(ctx, tx, &actorID, "SCHEDULING_SESSIONS_GENERATED", "academic_term", px.TermID, map[string]any{
@@ -2410,15 +2410,15 @@ func (s *Service) GenerateClassSessions(ctx context.Context, user *session.User,
 	}, nil
 }
 
-// ─────────────────────────── تشخیص تداخل‌های V1 ───────────────────────────
+// ─────────────────────────── V1 conflict detection ───────────────────────────
 
-// SchedConflictCheckResult خروجی checkScheduleConflictsAction.
+// SchedConflictCheckResult output of checkScheduleConflictsAction.
 type SchedConflictCheckResult struct {
 	Conflicts    []scheduling.ScheduleConflict `json:"conflicts"`
 	HasConflicts bool                          `json:"hasConflicts"`
 }
 
-// CheckScheduleConflicts پورت checkScheduleConflictsAction.
+// CheckScheduleConflicts port of checkScheduleConflictsAction.
 func (s *Service) CheckScheduleConflicts(ctx context.Context, user *session.User, cookie string, termID int64) (*SchedConflictCheckResult, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	var termExists int
@@ -2464,7 +2464,7 @@ func (s *Service) CheckScheduleConflicts(ctx context.Context, user *session.User
 			profIDs = append(profIDs, &v)
 		}
 		if len(profIDs) == 0 {
-			profIDs = append(profIDs, nil) // همان [null] در Next
+			profIDs = append(profIDs, nil) // same [null] as in Next
 		}
 		title := r.courseTitle
 		if r.groupNumber > 1 {
@@ -2492,9 +2492,9 @@ func (s *Service) CheckScheduleConflicts(ctx context.Context, user *session.User
 	return &SchedConflictCheckResult{Conflicts: conflicts, HasConflicts: len(conflicts) > 0}, nil
 }
 
-// ─────────────────────────── داشبورد زمان‌بندی ───────────────────────────
+// ─────────────────────────── scheduling dashboard ───────────────────────────
 
-// SchedDashboardBundle خروجی getSchedulingDashboardAction.
+// SchedDashboardBundle output of getSchedulingDashboardAction.
 type SchedDashboardBundle struct {
 	Terms                 []map[string]any `json:"terms"`
 	Rooms                 []map[string]any `json:"rooms"`
@@ -2508,7 +2508,7 @@ type SchedDashboardBundle struct {
 	Phase                 string           `json:"phase"`
 }
 
-// GetSchedulingDashboard پورت getSchedulingDashboardAction.
+// GetSchedulingDashboard port of getSchedulingDashboardAction.
 func (s *Service) GetSchedulingDashboard(ctx context.Context, user *session.User, cookie string, termID *int64) (*SchedDashboardBundle, error) {
 	uniID := s.UniversityID(ctx, user, cookie)
 	out := &SchedDashboardBundle{
@@ -2592,7 +2592,7 @@ func (s *Service) GetSchedulingDashboard(ctx context.Context, user *session.User
 		phrows.Close()
 	}
 
-	// ترم هدف
+	// Target term
 	var currentID *int64
 	_ = s.DB.Pool.QueryRow(ctx, `
 		select id from academic_terms where coalesce("isCurrent",0) = 1 and `+schedScopeCond(`"universityId"`, uniID)+` limit 1`).Scan(&currentID)

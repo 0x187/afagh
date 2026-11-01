@@ -1,10 +1,10 @@
-// ═══ شش صفحهٔ باقی‌ماندهٔ ادمین — پیام همگانی، تأیید bypass، جلسات کلاس،
-// زنجیرهٔ تحویل امتحان، ویرایشگر ارائه، رفع تداخل برنامه ═══
+// ═══ Six remaining admin pages — broadcast message, bypass approval, class sessions,
+// exam handover chain, offering editor, schedule conflict resolution ═══
 //
-// پورت شش ماژول afagh-next/src/app/admin/{broadcast,bypass,class-sessions,
-// exams/handover,offering-editor,schedule-conflicts} به‌همراه کتابخانه‌های
-// سرورشان (bypass-requests.ts، schedule-conflicts.ts، exam-actions.ts).
-// قرارداد پاسخ: {"ok":true,"data":...} / {"ok":false,"error":"فارسی"}.
+// Port of six modules afagh-next/src/app/admin/{broadcast,bypass,class-sessions,
+// exams/handover,offering-editor,schedule-conflicts} along with their server
+// libraries (bypass-requests.ts, schedule-conflicts.ts, exam-actions.ts).
+// Response contract: {"ok":true,"data":...} / {"ok":false,"error":"فارسی"}.
 package admin
 
 import (
@@ -25,9 +25,9 @@ import (
 	"backend-go/internal/verification"
 )
 
-// ─────────────────────────── ابزارهای مشترک ───────────────────────────
+// ─────────────────────────── Shared helpers ───────────────────────────
 
-// lpNotify نتیجهٔ یک ارسال بیرونی برای گزارش.
+// lpNotify result of one external send for reporting.
 type lpNotify struct {
 	Channel string
 	Status  string // SENT | SKIPPED | FAILED
@@ -37,7 +37,7 @@ var lpValidChannels = map[string]bool{
 	"INAPP": true, "SMS": true, "SOROUSH": true, "BALE": true, "EITAA": true,
 }
 
-// lpActiveChannels فهرست کانال‌های فعال از NOTIFY_CHANNELS (پورت activeChannels).
+// lpActiveChannels list of active channels from NOTIFY_CHANNELS (port of activeChannels).
 func (s *Service) lpActiveChannels(ctx context.Context) []string {
 	raw := ""
 	if s.Store != nil {
@@ -61,9 +61,9 @@ func (s *Service) lpActiveChannels(ctx context.Context) []string {
 	return out
 }
 
-// lpNotifyMultichannel پورت notifyUserMultichannel: پیام داخل پورتال همیشه
-// درج می‌شود؛ کانال‌های بیرونی فقط اگر NOTIFY_ENABLED روشن باشد ارسال و در
-// notification_deliveries ثبت می‌شوند.
+// lpNotifyMultichannel port of notifyUserMultichannel: the in-portal message is always
+// inserted; external channels are sent only if NOTIFY_ENABLED is on and are recorded
+// in notification_deliveries.
 func (s *Service) lpNotifyMultichannel(ctx context.Context, userID int64, eventCode, text string, channels []string) ([]lpNotify, error) {
 	if userID <= 0 {
 		return nil, errors.New("کاربر نامعتبر است.")
@@ -165,7 +165,7 @@ func truncStr(v string, n int) string {
 	return v[:n]
 }
 
-// lpStatsAdd جمع زدن آمار کانال‌ها.
+// lpStatsAdd aggregates channel statistics.
 func lpStatsAdd(stats map[string]*BroadcastChannelStat, channel, status string) {
 	st, ok := stats[channel]
 	if !ok {
@@ -195,7 +195,7 @@ func lpStatsList(stats map[string]*BroadcastChannelStat) []BroadcastChannelStat 
 	return out
 }
 
-// lpTermPick انتخاب ترم: درخواستی ← ترم مؤثر ← آخرین فهرست.
+// lpTermPick term selection: requested ← effective term ← last in list.
 func lpTermPick(terms []LPTermOption, wanted int64) LPTermOption {
 	for _, t := range terms {
 		if t.ID == wanted {
@@ -213,7 +213,7 @@ func lpTermPick(terms []LPTermOption, wanted int64) LPTermOption {
 	return LPTermOption{}
 }
 
-// lpTermsList ترم‌های دانشگاه برای انتخاب‌گر (جدیدترین اول).
+// lpTermsList university terms for the selector (newest first).
 func (s *Service) lpTermsList(ctx context.Context, uniID *int64) []LPTermOption {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select id, coalesce(title, "termCode"), coalesce("isCurrent",0)
@@ -234,7 +234,7 @@ func (s *Service) lpTermsList(ctx context.Context, uniID *int64) []LPTermOption 
 	return out
 }
 
-// lpScopeTerms ترم‌های دانشگاه با کد برای صفحات جلسات/تحویل (پورت termsFor).
+// lpScopeTerms university terms with code for the sessions/handover pages (port of termsFor).
 func (s *Service) lpScopeTerms(ctx context.Context, uniID *int64) []LPTermOption {
 	if uniID == nil || *uniID <= 0 {
 		return []LPTermOption{}
@@ -256,36 +256,36 @@ func (s *Service) lpScopeTerms(ctx context.Context, uniID *int64) []LPTermOption
 	return out
 }
 
-// ─────────────────────────── ۱) پیام همگانی (broadcast) ───────────────────────────
+// ─────────────────────────── 1) Broadcast message (broadcast) ───────────────────────────
 
-// LPTermOption گزینهٔ ترم.
+// LPTermOption term option.
 type LPTermOption struct {
 	ID        int64  `json:"id"`
 	Title     string `json:"title"`
 	IsCurrent int    `json:"isCurrent"`
 }
 
-// LPIdName شناسه + نام.
+// LPIdName ID + name.
 type LPIdName struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
 }
 
-// LPDepartment گروه آموزشی.
+// LPDepartment academic department.
 type LPDepartment struct {
 	ID        int64  `json:"id"`
 	Name      string `json:"name"`
 	FacultyID int64  `json:"facultyId"`
 }
 
-// LPMajor رشته.
+// LPMajor major.
 type LPMajor struct {
 	ID           int64  `json:"id"`
 	Name         string `json:"name"`
 	DepartmentID *int64 `json:"departmentId"`
 }
 
-// BroadcastFiltersResp فیلترهای صفحهٔ پیام همگانی.
+// BroadcastFiltersResp filters for the broadcast message page.
 type BroadcastFiltersResp struct {
 	Faculties   []LPIdName     `json:"faculties"`
 	Departments []LPDepartment `json:"departments"`
@@ -294,7 +294,7 @@ type BroadcastFiltersResp struct {
 	Terms       []LPTermOption `json:"terms"`
 }
 
-// ListBroadcastFilters پورت getBroadcastFilters.
+// ListBroadcastFilters port of getBroadcastFilters.
 func (s *Service) ListBroadcastFilters(ctx context.Context, user *session.User, uniCookie string) (*BroadcastFiltersResp, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	resp := &BroadcastFiltersResp{
@@ -350,14 +350,14 @@ func (s *Service) ListBroadcastFilters(ctx context.Context, user *session.User, 
 	return resp, nil
 }
 
-// BroadcastTermOffering کلاس یک ترم برای فیلتر «دانشجویان یک کلاس».
+// BroadcastTermOffering class in a term for the "students of one class" filter.
 type BroadcastTermOffering struct {
 	ID       int64  `json:"id"`
 	Label    string `json:"label"`
 	Enrolled int    `json:"enrolled"`
 }
 
-// ListTermOfferings پورت getTermOfferings — فقط ارائه‌های فعال با برچسب درس/گروه/استاد.
+// ListTermOfferings port of getTermOfferings — only active offerings labeled with course/group/professor.
 func (s *Service) ListTermOfferings(ctx context.Context, user *session.User, uniCookie string, termID int64) ([]BroadcastTermOffering, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	out := []BroadcastTermOffering{}
@@ -434,7 +434,7 @@ func (s *Service) ListTermOfferings(ctx context.Context, user *session.User, uni
 	return out, nil
 }
 
-// BroadcastAudience مخاطبان پیام همگانی.
+// BroadcastAudience broadcast message audience.
 type BroadcastAudience struct {
 	Role         string `json:"role"` // student | staff | both
 	FacultyID    *int64 `json:"facultyId"`
@@ -446,7 +446,7 @@ type BroadcastAudience struct {
 	ActiveOnly   bool   `json:"activeOnly"`
 }
 
-// PreviewBroadcastCount پورت previewBroadcastCount — شمارش مخاطبان (سقف ۵۰۰۰).
+// PreviewBroadcastCount port of previewBroadcastCount — audience count (cap 5000).
 func (s *Service) PreviewBroadcastCount(ctx context.Context, user *session.User, uniCookie string, a BroadcastAudience) (int, bool, error) {
 	ids, capped, err := s.lpAudienceUserIDs(ctx, s.UniversityID(ctx, user, uniCookie), a)
 	if err != nil {
@@ -455,7 +455,7 @@ func (s *Service) PreviewBroadcastCount(ctx context.Context, user *session.User,
 	return len(ids), capped, nil
 }
 
-// lpAudienceUserIDs پورت audienceUserIds — حداکثر ۵۰۰۰ نفر در هر ارسال.
+// lpAudienceUserIDs port of audienceUserIds — at most 5000 people per send.
 func (s *Service) lpAudienceUserIDs(ctx context.Context, uniID *int64, a BroadcastAudience) ([]int64, bool, error) {
 	const cap = 5000
 	out := map[int64]bool{}
@@ -509,7 +509,7 @@ func (s *Service) lpAudienceUserIDs(ctx context.Context, uniID *int64, a Broadca
 				args = append(args, *a.EntryYear)
 				idx++
 			}
-			// سلسله‌مراتب: رشتهٔ دقیق‌تر، سطح بالاتر را بی‌اثر می‌کند.
+			// Hierarchy: the more specific major overrides the higher level.
 			switch {
 			case a.MajorID != nil && *a.MajorID > 0:
 				conds = append(conds, fmt.Sprintf(`st."majorId" = $%d`, idx))
@@ -591,7 +591,7 @@ func (s *Service) lpAudienceUserIDs(ctx context.Context, uniID *int64, a Broadca
 			if a.ActiveOnly {
 				conds = append(conds, `st."isActive" = 1`)
 			}
-			// گروه دقیق‌تر از دانشکده است؛ اگر هر دو انتخاب شده باشند فقط گروه اعمال می‌شود.
+			// Department is more specific than faculty; if both are selected only the department applies.
 			if a.DepartmentID != nil && *a.DepartmentID > 0 {
 				conds = append(conds, fmt.Sprintf(`st."departmentId" = $%d`, idx))
 				args = append(args, *a.DepartmentID)
@@ -619,7 +619,7 @@ func (s *Service) lpAudienceUserIDs(ctx context.Context, uniID *int64, a Broadca
 	return order, len(order) >= cap, nil
 }
 
-// BroadcastChannelStat آمار یک کانال.
+// BroadcastChannelStat statistics for one channel.
 type BroadcastChannelStat struct {
 	Channel string `json:"channel"`
 	Sent    int    `json:"sent"`
@@ -627,7 +627,7 @@ type BroadcastChannelStat struct {
 	Failed  int    `json:"failed"`
 }
 
-// BroadcastSendReport گزارش ارسال همگانی.
+// BroadcastSendReport broadcast send report.
 type BroadcastSendReport struct {
 	Total          int                    `json:"total"`
 	Inbox          int                    `json:"inbox"`
@@ -635,7 +635,7 @@ type BroadcastSendReport struct {
 	Channels       []BroadcastChannelStat `json:"channels"`
 }
 
-// SendBroadcast پورت sendBroadcast — بسته‌های ۱۰تایی موازی، کد رهگیری با فرستنده.
+// SendBroadcast port of sendBroadcast — parallel batches of 10, tracking code includes the sender.
 func (s *Service) SendBroadcast(ctx context.Context, user *session.User, uniCookie string, a BroadcastAudience, channels []string, text string) (*BroadcastSendReport, error) {
 	body := strings.TrimSpace(text)
 	if len([]rune(body)) < 3 {
@@ -665,7 +665,7 @@ func (s *Service) SendBroadcast(ctx context.Context, user *session.User, uniCook
 		return nil, errors.New("هیچ مخاطبی با این فیلترها پیدا نشد.")
 	}
 
-	// کد رهگیری شامل فرستنده است تا در تاریخچه معلوم باشد کی فرستاده.
+	// The tracking code includes the sender so the history shows who sent it.
 	eventCode := fmt.Sprintf("BROADCAST_%d_%d", user.ID, time.Now().UnixMilli())
 	stats := map[string]*BroadcastChannelStat{}
 	report := &BroadcastSendReport{Total: len(ids), Channels: []BroadcastChannelStat{}}
@@ -708,7 +708,7 @@ func (s *Service) SendBroadcast(ctx context.Context, user *session.User, uniCook
 	return report, nil
 }
 
-// BroadcastHistoryRecord یک رکورد تاریخچه.
+// BroadcastHistoryRecord one history record.
 type BroadcastHistoryRecord struct {
 	EventCode string                 `json:"eventCode"`
 	Sender    string                 `json:"sender"`
@@ -719,7 +719,7 @@ type BroadcastHistoryRecord struct {
 	Channels  []BroadcastChannelStat `json:"channels"`
 }
 
-// lpParseBroadcastSender قالب BROADCAST_<adminId>_<ts>؛ قدیمی‌ها nil.
+// lpParseBroadcastSender format BROADCAST_<adminId>_<ts>; older ones return nil.
 func lpParseBroadcastSender(eventCode string) *int64 {
 	parts := strings.Split(eventCode, "_")
 	if len(parts) >= 3 && parts[0] == "BROADCAST" {
@@ -731,7 +731,7 @@ func lpParseBroadcastSender(eventCode string) *int64 {
 	return nil
 }
 
-// ListBroadcastHistory پورت listBroadcastHistory — جدیدترین اول.
+// ListBroadcastHistory port of listBroadcastHistory — newest first.
 func (s *Service) ListBroadcastHistory(ctx context.Context, user *session.User, uniCookie string, limit int) ([]BroadcastHistoryRecord, error) {
 	if limit < 1 {
 		limit = 20
@@ -887,9 +887,9 @@ func (s *Service) ListBroadcastHistory(ctx context.Context, user *session.User, 
 	return out, nil
 }
 
-// ─────────────────────────── ۲) تأیید bypass مدیر گروه ───────────────────────────
+// ─────────────────────────── 2) Department manager bypass approval ───────────────────────────
 
-// BypassRequestJSON ردیف کارتابل bypass.
+// BypassRequestJSON bypass inbox row.
 type BypassRequestJSON struct {
 	ID                int64   `json:"id"`
 	StudentID         int64   `json:"studentId"`
@@ -944,7 +944,7 @@ func lpScanBypassRow(rows pgx.Rows) (BypassRequestJSON, error) {
 	return r, err
 }
 
-// BypassBoardData دادهٔ صفحهٔ bypass بر پایهٔ نقش‌ها.
+// BypassBoardData bypass page data based on roles.
 type BypassBoardData struct {
 	ExpertRows   []BypassRequestJSON `json:"expertRows"`
 	ViceRows     []BypassRequestJSON `json:"viceRows"`
@@ -954,7 +954,7 @@ type BypassBoardData struct {
 	CurrentTerms []BypassTermRow     `json:"currentTerms"`
 }
 
-// BypassTermRow نیمسال جاری با مهلت‌های تصمیم‌گیری.
+// BypassTermRow current semester with decision deadlines.
 type BypassTermRow struct {
 	ID                  int64  `json:"id"`
 	Title               string `json:"title"`
@@ -964,7 +964,7 @@ type BypassTermRow struct {
 	BypassReminderHours *int   `json:"bypassReminderHours"`
 }
 
-// BypassBoard پورت bypassInboxForExpert + bypassOverviewForVice + ترم جاری.
+// BypassBoard port of bypassInboxForExpert + bypassOverviewForVice + current term.
 func (s *Service) BypassBoard(ctx context.Context, user *session.User) (*BypassBoardData, error) {
 	resp := &BypassBoardData{ExpertRows: []BypassRequestJSON{}, ViceRows: []BypassRequestJSON{}, CurrentTerms: []BypassTermRow{}}
 	for _, r := range user.Roles {
@@ -1028,7 +1028,7 @@ func (s *Service) BypassBoard(ctx context.Context, user *session.User) (*BypassB
 	return resp, nil
 }
 
-// lpBypassGuard نقشِ مجازِ تصمیم‌گیرنده — معاون/مدیر روی همه؛ کارشناس فقط صندوقش.
+// lpBypassGuard allowed decider role — vice/admin on everything; expert only on their inbox.
 func (s *Service) lpBypassGuard(ctx context.Context, user *session.User, requestID int64) (int64, string, error) {
 	isVice := false
 	isExpert := false
@@ -1066,7 +1066,7 @@ func (s *Service) lpBypassGuard(ctx context.Context, user *session.User, request
 	return user.ID, "EXPERT", nil
 }
 
-// lpBypassLoad درخواست باز از جدول.
+// lpBypassLoad open request from the table.
 type lpBypassReq struct {
 	ID           int64
 	StudentID    int64
@@ -1111,12 +1111,12 @@ func (s *Service) lpBypassCourseTitle(ctx context.Context, offeringID int64) str
 	return title
 }
 
-// lpBypassReleaseSeat آزادسازی صندلی رزروشده (هرگز منفی نمی‌شود).
+// lpBypassReleaseSeat frees the reserved seat (never goes negative).
 func (s *Service) lpBypassReleaseSeat(ctx context.Context, offeringID int64) {
 	_, _ = s.DB.Pool.Exec(ctx, `update course_offerings set "enrolledCount" = greatest("enrolledCount" - 1, 0) where id = $1`, offeringID)
 }
 
-// lpBypassManagers شناسهٔ کاربری مدیر گروهِ درس (سرگروهی گروه آموزشی).
+// lpBypassManagers user ID of the course group manager (head of the academic department).
 func (s *Service) lpBypassManagers(ctx context.Context, courseID int64) []int64 {
 	out := []int64{}
 	var headStaffID *int64
@@ -1132,7 +1132,7 @@ func (s *Service) lpBypassManagers(ctx context.Context, courseID int64) []int64 
 	return out
 }
 
-// lpBypassExpertsForMajor کارشناسان آموزشِ مسئول رشته (از expert_scopes).
+// lpBypassExpertsForMajor education experts responsible for the major (from expert_scopes).
 func (s *Service) lpBypassExpertsForMajor(ctx context.Context, majorID *int64) []int64 {
 	out := []int64{}
 	seen := map[int64]bool{}
@@ -1180,7 +1180,7 @@ func lpFaDateTime(t time.Time) string {
 	return t.Format("2006-01-02 15:04")
 }
 
-// BypassApprove پورت approveBypassRequest — ثبت خودکار درس + پیام به دانشجو.
+// BypassApprove port of approveBypassRequest — auto-enrolls the course + message to the student.
 func (s *Service) BypassApprove(ctx context.Context, user *session.User, requestID int64) error {
 	actorID, actorRole, err := s.lpBypassGuard(ctx, user, requestID)
 	if err != nil {
@@ -1240,7 +1240,7 @@ func (s *Service) BypassApprove(ctx context.Context, user *session.User, request
 	return nil
 }
 
-// BypassReject پورت rejectBypassRequest — دلیل الزامی، صندلی آزاد، اطلاع دانشجو.
+// BypassReject port of rejectBypassRequest — reason required, seat freed, student notified.
 func (s *Service) BypassReject(ctx context.Context, user *session.User, requestID int64, reasonCode, reasonText string) error {
 	if reasonCode == "" {
 		return errors.New("دلیل رد الزامی است.")
@@ -1299,7 +1299,7 @@ func (s *Service) BypassReject(ctx context.Context, user *session.User, requestI
 	return nil
 }
 
-// lpBypassHoursOf مقدار مهلت با fallback (پورت hoursOf).
+// lpBypassHoursOf deadline value with fallback (port of hoursOf).
 func lpBypassHoursOf(v *int, fallback int) int {
 	if v != nil && *v > 0 && *v <= 720 {
 		return *v
@@ -1307,7 +1307,7 @@ func lpBypassHoursOf(v *int, fallback int) int {
 	return fallback
 }
 
-// BypassReturn پورت returnBypassRequest — بازگرداندن توسط معاون آموزش.
+// BypassReturn port of returnBypassRequest — returned by the education vice.
 func (s *Service) BypassReturn(ctx context.Context, user *session.User, requestID int64, target string) error {
 	if target != "MANAGER" && target != "EXPERT" {
 		return errors.New("مقصد بازگشت نامعتبر است.")
@@ -1406,7 +1406,7 @@ func lpStr(p *string) string {
 	return *p
 }
 
-// BypassSaveSettings پورت saveBypassSettingsAction — مهلت‌های تصمیم‌گیری نیمسال جاری.
+// BypassSaveSettings port of saveBypassSettingsAction — decision deadlines for the current semester.
 func (s *Service) BypassSaveSettings(ctx context.Context, user *session.User, termID int64, managerHours, expertHours, reminderHours int) error {
 	isAdmin := false
 	for _, r := range user.Roles {
@@ -1433,9 +1433,9 @@ func (s *Service) BypassSaveSettings(ctx context.Context, user *session.User, te
 	return err
 }
 
-// ─────────────────────────── ۳) مدیریت جلسات کلاس ───────────────────────────
+// ─────────────────────────── 3) Class sessions management ───────────────────────────
 
-// ClassSessionOffering ردیف درس با شمار جلسات.
+// ClassSessionOffering course row with session count.
 type ClassSessionOffering struct {
 	ID            int64   `json:"id"`
 	Code          string  `json:"code"`
@@ -1447,7 +1447,7 @@ type ClassSessionOffering struct {
 	HolidayCount  int     `json:"holidayCount"`
 }
 
-// ClassSessionItem یک جلسهٔ کلاس.
+// ClassSessionItem one class session.
 type ClassSessionItem struct {
 	ID                int64   `json:"id"`
 	SessionNo         *int    `json:"sessionNo"`
@@ -1466,7 +1466,7 @@ type ClassSessionItem struct {
 	Topic             *string `json:"topic"`
 }
 
-// ClassSessionsBoardData دادهٔ صفحهٔ مدیریت جلسات.
+// ClassSessionsBoardData data for the class sessions management page.
 type ClassSessionsBoardData struct {
 	Terms              []LPTermOption         `json:"terms"`
 	TermID             int64                  `json:"termId"`
@@ -1477,7 +1477,7 @@ type ClassSessionsBoardData struct {
 	Sessions           []ClassSessionItem     `json:"sessions"`
 }
 
-// ClassSessionsBoard پورت صفحهٔ admin/class-sessions.
+// ClassSessionsBoard port of the admin/class-sessions page.
 func (s *Service) ClassSessionsBoard(ctx context.Context, user *session.User, uniCookie string, termID int64, q string, offeringID int64) (*ClassSessionsBoardData, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	resp := &ClassSessionsBoardData{Terms: s.lpScopeTerms(ctx, uniID), Offerings: []ClassSessionOffering{}, Sessions: []ClassSessionItem{}}
@@ -1563,7 +1563,7 @@ func (s *Service) ClassSessionsBoard(ctx context.Context, user *session.User, un
 	return resp, nil
 }
 
-// ClassSessionToggleFlag پورت toggleSessionFlagAction — تعطیل/فوق‌برنامه/فعال.
+// ClassSessionToggleFlag port of toggleSessionFlagAction — holiday/extra session/active.
 func (s *Service) ClassSessionToggleFlag(ctx context.Context, user *session.User, uniCookie string, sessionID int64, flag string) (int, error) {
 	if sessionID <= 0 {
 		return 0, errors.New("جلسه نامعتبر است.")
@@ -1601,9 +1601,9 @@ func (s *Service) ClassSessionToggleFlag(ctx context.Context, user *session.User
 	return next, nil
 }
 
-// ─────────────────────────── ۴) زنجیرهٔ تحویل اوراق امتحان ───────────────────────────
+// ─────────────────────────── 4) Exam paper handover chain ───────────────────────────
 
-// ExamHandoverSession ردیف جلسهٔ امتحان در زنجیره.
+// ExamHandoverSession exam session row in the chain.
 type ExamHandoverSession struct {
 	SessionID     int64  `json:"sessionId"`
 	ExamDate      string `json:"examDate"`
@@ -1617,7 +1617,7 @@ type ExamHandoverSession struct {
 	Packets       int    `json:"packets"`
 }
 
-// ExamHandoverDelivery ردیف تحویل به استاد.
+// ExamHandoverDelivery delivery row to the professor.
 type ExamHandoverDelivery struct {
 	DeliveryID        int64   `json:"deliveryId"`
 	OfferingID        int64   `json:"offeringId"`
@@ -1630,7 +1630,7 @@ type ExamHandoverDelivery struct {
 	ProfessorName     string  `json:"professorName"`
 }
 
-// ExamHandoverBoardData دادهٔ صفحهٔ زنجیرهٔ تحویل.
+// ExamHandoverBoardData data for the handover chain page.
 type ExamHandoverBoardData struct {
 	Terms      []LPTermOption         `json:"terms"`
 	TermID     int64                  `json:"termId"`
@@ -1639,7 +1639,7 @@ type ExamHandoverBoardData struct {
 	Deliveries []ExamHandoverDelivery `json:"deliveries"`
 }
 
-// ExamHandoverBoard پورت صفحهٔ admin/exams/handover.
+// ExamHandoverBoard port of the admin/exams/handover page.
 func (s *Service) ExamHandoverBoard(ctx context.Context, user *session.User, uniCookie string, termID int64) (*ExamHandoverBoardData, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	resp := &ExamHandoverBoardData{Terms: s.lpScopeTerms(ctx, uniID), Sessions: []ExamHandoverSession{}, Deliveries: []ExamHandoverDelivery{}}
@@ -1716,7 +1716,7 @@ func (s *Service) ExamHandoverBoard(ctx context.Context, user *session.User, uni
 	return resp, nil
 }
 
-// ExamHandoverQRData پاسخ ساخت QR تحویل.
+// ExamHandoverQRData handover QR generation response.
 type ExamHandoverQRData struct {
 	URL       string `json:"url"`
 	QR        string `json:"qr"`
@@ -1724,7 +1724,7 @@ type ExamHandoverQRData struct {
 	Step      string `json:"step"`
 }
 
-// ExamHandoverQR پورت GET /api/admin/exams/handover-qr — توکن امضاشدهٔ ۳ ساعته.
+// ExamHandoverQR port of GET /api/admin/exams/handover-qr — 3-hour signed token.
 func (s *Service) ExamHandoverQR(ctx context.Context, user *session.User, uniCookie string, signer *verification.Signer, step string, sessionID, hallID, offeringID int64) (*ExamHandoverQRData, error) {
 	step = strings.ToUpper(strings.TrimSpace(step))
 	switch step {
@@ -1738,7 +1738,7 @@ func (s *Service) ExamHandoverQR(ctx context.Context, user *session.User, uniCoo
 	if step != "INSTRUCTOR" && step != "ARCHIVE" && sessionID <= 0 {
 		return nil, errors.New("جلسهٔ امتحان الزامی است")
 	}
-	// بررسی دامنهٔ دانشگاه برای جلسه/ارائهٔ هدف.
+	// Check the university scope for the target session/offering.
 	if sessionID > 0 {
 		var uniID *int64
 		var termUni *int64
@@ -1795,7 +1795,7 @@ func (s *Service) ExamHandoverQR(ctx context.Context, user *session.User, uniCoo
 	}, nil
 }
 
-// ExamHandoverFinalize پورت examFinalizeHandoverAction + engine.finalizeVaultHandover.
+// ExamHandoverFinalize port of examFinalizeHandoverAction + engine.finalizeVaultHandover.
 func (s *Service) ExamHandoverFinalize(ctx context.Context, user *session.User, uniCookie string, sessionID int64) (map[string]any, error) {
 	var uniID, termUni *int64
 	if err := s.DB.Pool.QueryRow(ctx, `
@@ -1816,7 +1816,7 @@ func (s *Service) ExamHandoverFinalize(ctx context.Context, user *session.User, 
 		return nil, errors.New("پروندهٔ پرسنلی یافت نشد.")
 	}
 
-	// برگهٔ واقعی هر بسته = تعداد حاضرِ همان درس در کل جلسه.
+	// Actual sheet count per packet = number present for that course in the whole session.
 	type cntRow struct {
 		cid    int64
 		sheets int
@@ -1853,7 +1853,7 @@ func (s *Service) ExamHandoverFinalize(ctx context.Context, user *session.User, 
 		return nil, err
 	}
 	defer tx.Rollback(ctx)
-	// قفل توافقی — نهایی‌سازی همزمان با تحویل سالن‌ها تداخل ندارد.
+	// Advisory lock — finalization does not conflict with concurrent hall handover.
 	if _, err := tx.Exec(ctx, `select pg_advisory_xact_lock(hashtextextended($1, 0))`,
 		fmt.Sprintf("exam_finalize:%d:0", sessionID)); err != nil {
 		return nil, err
@@ -1906,9 +1906,9 @@ func (s *Service) ExamHandoverFinalize(ctx context.Context, user *session.User, 
 	}, nil
 }
 
-// ─────────────────────────── ۵) ویرایشگر ارائه ───────────────────────────
+// ─────────────────────────── 5) Offering editor ───────────────────────────
 
-// OfferingEditorClassRow یک ردیف برنامهٔ کلاس.
+// OfferingEditorClassRow one class schedule row.
 type OfferingEditorClassRow struct {
 	ID     int64   `json:"id"`
 	Day    *int    `json:"day"`
@@ -1917,7 +1917,7 @@ type OfferingEditorClassRow struct {
 	RoomID *int64  `json:"roomId"`
 }
 
-// OfferingEditorExamRow ردیف امتحان.
+// OfferingEditorExamRow exam row.
 type OfferingEditorExamRow struct {
 	ID    int64   `json:"id"`
 	Date  *string `json:"date"`
@@ -1925,7 +1925,7 @@ type OfferingEditorExamRow struct {
 	End   *string `json:"end"`
 }
 
-// OfferingEditorRow ردیف ارائه برای ویرایش.
+// OfferingEditorRow offering row for editing.
 type OfferingEditorRow struct {
 	OfferingID        int64                    `json:"offeringId"`
 	Code              string                   `json:"code"`
@@ -1943,7 +1943,7 @@ type OfferingEditorRow struct {
 	Exam              *OfferingEditorExamRow   `json:"exam"`
 }
 
-// lpExpertScopeForUser دامنهٔ کارشناس آموزش (پورت currentExpertFilters).
+// lpExpertScopeForUser education expert scope (port of currentExpertFilters).
 func (s *Service) lpExpertScopeForUser(ctx context.Context, user *session.User) (departmentIDs, facultyIDs []int64, hasScope bool) {
 	isExpert := false
 	for _, r := range user.Roles {
@@ -1980,14 +1980,14 @@ func (s *Service) lpExpertScopeForUser(ctx context.Context, user *session.User) 
 		}
 	}
 	if !any || (len(depts) == 0 && len(facs) == 0) {
-		// دامنه فقط رشته/دانشگاه — در سطح درس محدودسازی رشته‌ای اعمال نمی‌کنیم
-		// (هم‌رفتار scopeOffConds که فقط department/faculty را می‌بندد).
+		// Scope is major/university only — we do not restrict by major at the course level
+		// (consistent with scopeOffConds, which only constrains department/faculty).
 		return nil, nil, false
 	}
 	return depts, facs, true
 }
 
-// ListOfferingsForEditor پورت listOfferingsForEditor — کارشناس فقط دامنهٔ خودش.
+// ListOfferingsForEditor port of listOfferingsForEditor — an expert sees only their own scope.
 func (s *Service) ListOfferingsForEditor(ctx context.Context, user *session.User, uniCookie string, termID int64) ([]OfferingEditorRow, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	out := []OfferingEditorRow{}
@@ -2043,7 +2043,7 @@ func (s *Service) ListOfferingsForEditor(ctx context.Context, user *session.User
 	}
 	rows.Close()
 
-	// برنامهٔ هفتگی + امتحان
+	// Weekly schedule + exam
 	type schedRow struct {
 		id         int64
 		offeringID int64
@@ -2075,7 +2075,7 @@ func (s *Service) ListOfferingsForEditor(ctx context.Context, user *session.User
 		}
 	}
 
-	// نام استادها
+	// Professor names
 	profNames := map[int64]string{}
 	profIDs := []int64{}
 	profSeen := map[int64]bool{}
@@ -2101,7 +2101,7 @@ func (s *Service) ListOfferingsForEditor(ctx context.Context, user *session.User
 		}
 	}
 
-	// کارشناسانِ سطح کلاس (چندبه‌چند)
+	// Class-level experts (many-to-many)
 	expertsByOff := map[int64][]int64{}
 	if len(offIDs) > 0 {
 		if erows, err := s.DB.Pool.Query(ctx, `
@@ -2125,7 +2125,7 @@ func (s *Service) ListOfferingsForEditor(ctx context.Context, user *session.User
 		}
 	}
 
-	// کارشناسانِ سطح اتاق (ارث‌بری از اتاقِ سانس‌ها)
+	// Room-level experts (inherited from the session rooms)
 	expertsByRoom := map[int64][]int64{}
 	if len(roomIDs) > 0 {
 		if rrows, err := s.DB.Pool.Query(ctx, `
@@ -2194,7 +2194,7 @@ func (s *Service) ListOfferingsForEditor(ctx context.Context, user *session.User
 	return out, nil
 }
 
-// ListRoomsForEditor پورت getRoomsForEditor — سالن‌های دانشگاه (یا مشترک).
+// ListRoomsForEditor port of getRoomsForEditor — university rooms (or shared).
 func (s *Service) ListRoomsForEditor(ctx context.Context, user *session.User, uniCookie string) ([]LPIdName, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	out := []LPIdName{}
@@ -2218,17 +2218,17 @@ func (s *Service) ListRoomsForEditor(ctx context.Context, user *session.User, un
 	return out, nil
 }
 
-// ListTermsForEditor پورت listTermsForEditor.
+// ListTermsForEditor port of listTermsForEditor.
 func (s *Service) ListTermsForEditor(ctx context.Context, user *session.User, uniCookie string) ([]LPTermOption, error) {
 	return s.lpTermsList(ctx, s.UniversityID(ctx, user, uniCookie)), nil
 }
 
-// ListEduExpertsForEditor پورت listEduExpertsForEditor.
+// ListEduExpertsForEditor port of listEduExpertsForEditor.
 func (s *Service) ListEduExpertsForEditor(ctx context.Context, user *session.User, uniCookie string) ([]EduExpertCandidate, error) {
 	return s.listEduExpertCandidates(ctx, s.UniversityID(ctx, user, uniCookie))
 }
 
-// OfferingEditorSaveInput ورودی ذخیرهٔ ویرایشگر ارائه.
+// OfferingEditorSaveInput input for saving the offering editor.
 type OfferingEditorSaveInput struct {
 	OfferingID     int64                    `json:"offeringId"`
 	Capacity       int                      `json:"capacity"`
@@ -2237,7 +2237,7 @@ type OfferingEditorSaveInput struct {
 	OverrideReason string                   `json:"overrideReason"`
 }
 
-// lpEditorToMin «HH:MM» → دقیقه.
+// lpEditorToMin «HH:MM» → minutes.
 func lpEditorToMin(s string) int {
 	var h, m int
 	if _, err := fmt.Sscanf(s, "%d:%d", &h, &m); err != nil {
@@ -2246,7 +2246,7 @@ func lpEditorToMin(s string) int {
 	return h*60 + m
 }
 
-// SaveOfferingEditor پورت saveOfferingEditorAction — ظرفیت + زمان کلاس/امتحان با گارد تداخل.
+// SaveOfferingEditor port of saveOfferingEditorAction — capacity + class/exam times with conflict guard.
 func (s *Service) SaveOfferingEditor(ctx context.Context, user *session.User, uniCookie string, in OfferingEditorSaveInput) error {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	var offID, courseID, termID int64
@@ -2266,7 +2266,7 @@ func (s *Service) SaveOfferingEditor(ctx context.Context, user *session.User, un
 		return errors.New("دانشگاه ارائه نامشخص است.")
 	}
 
-	// IDOR: هر شناسهٔ برنامه/امتحانِ ارسالی باید متعلق به همین ارائه باشد.
+	// IDOR: every submitted schedule/exam ID must belong to this same offering.
 	supplied := []int64{}
 	seenSup := map[int64]bool{}
 	for _, c := range in.ClassRows {
@@ -2288,7 +2288,7 @@ func (s *Service) SaveOfferingEditor(ctx context.Context, user *session.User, un
 		}
 	}
 
-	// سالن‌ها باید متعلق به همین دانشگاه باشند.
+	// Rooms must belong to this same university.
 	roomIDs := []int64{}
 	roomSeen := map[int64]bool{}
 	for _, c := range in.ClassRows {
@@ -2322,7 +2322,7 @@ func (s *Service) SaveOfferingEditor(ctx context.Context, user *session.User, un
 		}
 	}
 
-	// دامنهٔ کارشناس آموزش روی گروه/دانشکدهٔ درس.
+	// Education expert scope over the course's department/faculty.
 	if depts, facs, hasScope := s.lpExpertScopeForUser(ctx, user); hasScope {
 		var courseDept *int64
 		_ = s.DB.Pool.QueryRow(ctx, `select "departmentId" from courses where id = $1`, courseID).Scan(&courseDept)
@@ -2353,7 +2353,7 @@ func (s *Service) SaveOfferingEditor(ctx context.Context, user *session.User, un
 		}
 	}
 
-	// گارد تداخل: جلسات/امتحاناتِ دیگرِ همین ترم.
+	// Conflict guard: other class sessions/exams in the same term.
 	type otherRow struct {
 		offeringID int64
 		day        *int
@@ -2422,7 +2422,7 @@ func (s *Service) SaveOfferingEditor(ctx context.Context, user *session.User, un
 		return fmt.Errorf("تداخل: %s — برای ذخیره با وجود تداخل، دلیل (حکم/مجوز) را وارد کن.", conflicts[0])
 	}
 
-	// ظرفیت
+	// Capacity
 	if in.Capacity >= 0 {
 		if uniID != nil {
 			_, _ = s.DB.Pool.Exec(ctx, `update course_offerings set "capacity" = $2 where id = $1 and "universityId" = $3`,
@@ -2432,7 +2432,7 @@ func (s *Service) SaveOfferingEditor(ctx context.Context, user *session.User, un
 		}
 	}
 
-	// جلسات کلاس + امتحان در یک تراکنش
+	// Class sessions + exam in one transaction
 	tx, err := s.DB.Pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -2500,9 +2500,9 @@ func lpNilIfEmpty(s string) *string {
 	return &s
 }
 
-// ─────────────────────────── ۶) رفع تداخل برنامهٔ هفتگی ───────────────────────────
+// ─────────────────────────── 6) Weekly schedule conflict resolution ───────────────────────────
 
-// ConflictsReviewRow وضعیت «بررسی شد» یک اثرانگشت.
+// ConflictsReviewRow "reviewed" status of a fingerprint.
 type ConflictsReviewRow struct {
 	Fingerprint    string  `json:"fingerprint"`
 	Status         string  `json:"status"`
@@ -2512,7 +2512,7 @@ type ConflictsReviewRow struct {
 	ReviewedAt     *string `json:"reviewedAt"`
 }
 
-// ConflictsReportData گزارش تداخل‌ها (پورت ScheduleConflictReport).
+// ConflictsReportData conflicts report (port of ScheduleConflictReport).
 type ConflictsReportData struct {
 	TermID             int64                         `json:"termId"`
 	Pairs              []ConflictsPairJSON           `json:"pairs"`
@@ -2529,7 +2529,7 @@ type ConflictsReportData struct {
 	LikelyMergedIssues int                           `json:"likelyMergedIssues"`
 }
 
-// ConflictsSlotJSON ردیف برنامه در گزارش.
+// ConflictsSlotJSON schedule row in the report.
 type ConflictsSlotJSON struct {
 	ScheduleID             int64   `json:"scheduleId"`
 	OfferingID             int64   `json:"offeringId"`
@@ -2547,7 +2547,7 @@ type ConflictsSlotJSON struct {
 	SharedScheduleGroupKey *string `json:"sharedScheduleGroupKey"`
 }
 
-// ConflictsPairJSON جفت تداخل.
+// ConflictsPairJSON conflict pair.
 type ConflictsPairJSON struct {
 	Kind           string            `json:"kind"`
 	EntityID       int64             `json:"entityId"`
@@ -2563,14 +2563,14 @@ type ConflictsPairJSON struct {
 	Fingerprint    string            `json:"fingerprint"`
 }
 
-// ConflictsEntityJSON موجودیت درگیر.
+// ConflictsEntityJSON involved entity.
 type ConflictsEntityJSON struct {
 	Kind string `json:"kind"`
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
 }
 
-// ConflictsGroupJSON یک «مسئله».
+// ConflictsGroupJSON one "issue".
 type ConflictsGroupJSON struct {
 	Key            string                `json:"key"`
 	Kind           string                `json:"kind"`
@@ -2591,7 +2591,7 @@ type ConflictsGroupJSON struct {
 	Reviewed       bool                  `json:"reviewed"`
 }
 
-// ConflictsSummaryJSON خلاصهٔ بالای صفحه.
+// ConflictsSummaryJSON summary at the top of the page.
 type ConflictsSummaryJSON struct {
 	Professor           int `json:"professor"`
 	Room                int `json:"room"`
@@ -2622,7 +2622,7 @@ func lpPairJSON(p scheduleconflicts.ConflictPair) ConflictsPairJSON {
 	}
 }
 
-// LoadScheduleConflicts پورت loadScheduleConflicts — خواندن از DB + هستهٔ تشخیص.
+// LoadScheduleConflicts port of loadScheduleConflicts — read from DB + detection core.
 func (s *Service) LoadScheduleConflicts(ctx context.Context, user *session.User, uniCookie string, termID int64) (*ConflictsReportData, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil || *uniID <= 0 {
@@ -2742,7 +2742,7 @@ func (s *Service) LoadScheduleConflicts(ctx context.Context, user *session.User,
 	}, nil
 }
 
-// ListTermsForConflicts پورت listTermsForConflicts — جدیدترین اول.
+// ListTermsForConflicts port of listTermsForConflicts — newest first.
 func (s *Service) ListTermsForConflicts(ctx context.Context, user *session.User, uniCookie string) ([]LPIdName, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	out := []LPIdName{}
@@ -2765,7 +2765,7 @@ func (s *Service) ListTermsForConflicts(ctx context.Context, user *session.User,
 	return out, nil
 }
 
-// ConflictsMarkInput ورودی «بررسی شد» تک‌جفتی.
+// ConflictsMarkInput single-pair "reviewed" input.
 type ConflictsMarkInput struct {
 	TermID      int64  `json:"termId"`
 	Fingerprint string `json:"fingerprint"`
@@ -2778,7 +2778,7 @@ type ConflictsMarkInput struct {
 	ReasonText  string `json:"reasonText"`
 }
 
-// MarkConflictReviewed پورت markConflictReviewedAction — پذیرش یک جفت با دلیل.
+// MarkConflictReviewed port of markConflictReviewedAction — accepts one pair with a reason.
 func (s *Service) MarkConflictReviewed(ctx context.Context, user *session.User, uniCookie string, in ConflictsMarkInput) (string, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil || *uniID <= 0 {
@@ -2837,7 +2837,7 @@ func (s *Service) MarkConflictReviewed(ctx context.Context, user *session.User, 
 	return "بررسی شد.", nil
 }
 
-// ConflictsGroupReviewItem یک جفت برای ثبت گروهی.
+// ConflictsGroupReviewItem one pair for bulk review.
 type ConflictsGroupReviewItem struct {
 	Fingerprint string `json:"fingerprint"`
 	Kind        string `json:"kind"`
@@ -2847,7 +2847,7 @@ type ConflictsGroupReviewItem struct {
 	ScheduleBID int64  `json:"scheduleBId"`
 }
 
-// MarkConflictGroupReviewed پورت markConflictGroupReviewedAction — پذیرش کلِ یک مسئله.
+// MarkConflictGroupReviewed port of markConflictGroupReviewedAction — accepts an entire issue.
 func (s *Service) MarkConflictGroupReviewed(ctx context.Context, user *session.User, uniCookie string, termID int64, reasonCode, reasonText string, items []ConflictsGroupReviewItem) (string, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil || *uniID <= 0 {
@@ -2915,7 +2915,7 @@ func (s *Service) MarkConflictGroupReviewed(ctx context.Context, user *session.U
 	return fmt.Sprintf("%d جفت تداخل پذیرفته شد.", len(clean)), nil
 }
 
-// UndoConflictReview پورت undoConflictReviewAction — لغو پذیرش یک جفت.
+// UndoConflictReview port of undoConflictReviewAction — undoes acceptance of one pair.
 func (s *Service) UndoConflictReview(ctx context.Context, user *session.User, uniCookie string, termID int64, fingerprint string) (string, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil || *uniID <= 0 {
@@ -2943,7 +2943,7 @@ func (s *Service) UndoConflictReview(ctx context.Context, user *session.User, un
 	return "به فهرستِ باز برگشت.", nil
 }
 
-// UndoConflictGroup پورت undoConflictGroupAction — بازگرداندن همهٔ جفت‌های یک مسئله.
+// UndoConflictGroup port of undoConflictGroupAction — returns all pairs of an issue.
 func (s *Service) UndoConflictGroup(ctx context.Context, user *session.User, uniCookie string, termID int64, fingerprints []string) (string, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil || *uniID <= 0 {
@@ -2979,7 +2979,7 @@ func (s *Service) UndoConflictGroup(ctx context.Context, user *session.User, uni
 	return fmt.Sprintf("%d جفت به فهرستِ باز برگشت.", len(fps)), nil
 }
 
-// MarkOfferingsMerged پورت markOfferingsMergedAction — کلید ادغام MC- برای جفت/گروه.
+// MarkOfferingsMerged port of markOfferingsMergedAction — MC- merge key for a pair/group.
 func (s *Service) MarkOfferingsMerged(ctx context.Context, user *session.User, uniCookie string, termID int64, offeringIDs []int64) (string, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil || *uniID <= 0 {
@@ -3022,7 +3022,7 @@ func (s *Service) MarkOfferingsMerged(ctx context.Context, user *session.User, u
 	return fmt.Sprintf("%d کلاس با کلید «%s» ادغام شد.", len(ids), key), nil
 }
 
-// MarkOfferingsMergedBulk پورت markOfferingsMergedBulkAction — ادغام گروهی مسائل.
+// MarkOfferingsMergedBulk port of markOfferingsMergedBulkAction — bulk merge of issues.
 func (s *Service) MarkOfferingsMergedBulk(ctx context.Context, user *session.User, uniCookie string, termID int64, groups [][]int64) (string, error) {
 	uniID := s.UniversityID(ctx, user, uniCookie)
 	if uniID == nil || *uniID <= 0 {
@@ -3113,12 +3113,12 @@ func (s *Service) lpCountOfferingsInTerm(ctx context.Context, ids []int64, termI
 	return n, err
 }
 
-// pgxQuerier رابط مشترک استخر برای helpers (فقط QueryRow لازم است).
+// pgxQuerier common pool interface for helpers (only QueryRow is needed).
 type pgxQuerier interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
-// VerifyExamHandover عمومی: توکن را می‌سنجد و شرح تحویل را از DB می‌خواند.
+// VerifyExamHandover public: validates the token and reads the handover details from the DB.
 func (s *Service) VerifyExamHandover(ctx context.Context, rawToken string, signer *verification.Signer) (map[string]any, error) {
 	if signer == nil {
 		return nil, errors.New("امضای توکن پیکربندی نشده است.")
@@ -3178,7 +3178,7 @@ func (s *Service) VerifyExamHandover(ctx context.Context, rawToken string, signe
 	return map[string]any{"ok": true, "step": step, "title": title, "details": details, "sessionId": sid, "hallId": hid, "offeringId": oid}, nil
 }
 
-// ConfirmExamHandover تأیید تحویل با هویتِ کاربر از نشست.
+// ConfirmExamHandover confirms the handover with the user identity from the session.
 func (s *Service) ConfirmExamHandover(ctx context.Context, user *session.User, rawToken string, signer *verification.Signer) (map[string]any, error) {
 	res, err := s.VerifyExamHandover(ctx, rawToken, signer)
 	if err != nil {
