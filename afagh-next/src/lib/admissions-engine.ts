@@ -528,7 +528,18 @@ export async function importStagedToStudents(
 
         // ۲. هر پذیرش یک پروندهٔ تازه با شماره دانشجویی جدید می‌گیرد؛ پرونده‌های قبلی دست‌نخورده می‌مانند.
         //    پروندهٔ فعال با همان رشته و ورودی فقط با تصمیم صریح ادمین روی همان ردیف (ALLOW_DUPLICATE) ثبت می‌شود.
-        if (row.decisionNote !== 'ALLOW_DUPLICATE') {
+        if (row.decisionNote === 'REPLACED') {
+          // جایگزین: پروندهٔ فعال قبلی را غیرفعال می‌کنیم، ثبت‌نام‌های قبلی دست‌نخورده می‌مانند
+          await tx
+            .update(students)
+            .set({ status: 'REPLACED' })
+            .where(and(
+              eq(students.userId, user.id),
+              eq(students.majorId, mappedMajorId),
+              eq(students.entryYear, entryYear),
+              eq(students.status, 'ACTIVE'),
+            ));
+        } else if (row.decisionNote !== 'ALLOW_DUPLICATE') {
           const [dup] = await tx
             .select({ studentCode: students.studentCode })
             .from(students)

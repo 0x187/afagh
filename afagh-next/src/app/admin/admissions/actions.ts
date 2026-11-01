@@ -43,7 +43,7 @@ export async function listExistingForStagingAction() {
 
 export async function setStagingDecisionAction(
   stagingId: number,
-  decision: 'ALLOW_DUPLICATE' | 'REJECT' | 'CLEAR',
+  decision: 'ALLOW_DUPLICATE' | 'REJECT' | 'CLEAR' | 'REPLACE',
 ) {
   await requireRole(['ADMIN', 'EDU_EXPERT']);
   try {
@@ -54,6 +54,10 @@ export async function setStagingDecisionAction(
     } else if (decision === 'ALLOW_DUPLICATE') {
       await db.update(admissions_staging)
         .set({ status: 'RESOLVED', decisionNote: 'ALLOW_DUPLICATE' })
+        .where(eq(admissions_staging.id, stagingId));
+    } else if (decision === 'REPLACE') {
+      await db.update(admissions_staging)
+        .set({ status: 'RESOLVED', decisionNote: 'REPLACED' })
         .where(eq(admissions_staging.id, stagingId));
     } else {
       await db.update(admissions_staging)

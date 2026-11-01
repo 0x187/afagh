@@ -454,13 +454,24 @@ export default function AdmissionsClient({
                         )}
                         {it.decision === 'ALLOW_DUPLICATE' ? (
                           <span className="px-2 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-[11px] font-bold">✓ ثبت پرونده جدید</span>
-                        ) : it.decision !== 'REJECT' && (
+                        ) : (
                           <button
                             onClick={() => decide(it.stagingId, 'ALLOW_DUPLICATE')}
                             disabled={decisionBusy === it.stagingId}
                             className="px-2 py-1 rounded-lg border border-emerald-300 bg-white text-[11px] font-bold text-emerald-800 hover:bg-emerald-50 disabled:opacity-50"
                           >
                             ثبت پرونده جدید
+                          </button>
+                        )}
+                        {it.decision === 'REPLACED' ? (
+                          <span className="px-2 py-1 rounded-lg bg-violet-100 text-violet-800 text-[11px] font-bold">↻ جایگزین شد</span>
+                        ) : (
+                          <button
+                            onClick={() => decide(it.stagingId, 'REPLACE')}
+                            disabled={decisionBusy === it.stagingId}
+                            className="px-2 py-1 rounded-lg border border-violet-300 bg-white text-[11px] font-bold text-violet-800 hover:bg-violet-50 disabled:opacity-50"
+                          >
+                            جایگزین (قدیمی غیرفعال)
                           </button>
                         )}
                         {it.decision !== 'REJECT' && (
