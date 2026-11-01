@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { ClientTh, useClientTable, type ColumnDef } from '@/components/DataTable';
 import {
   importStagedStudentsAction,
@@ -119,6 +120,74 @@ export default function AdmissionsClient({
   const [mappingsList, setMappingsList] = useState<SanjeshMappingItem[]>(initialMappings);
   const [isStaging, setIsStaging] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+
+  // ── نگاشت «کد رشتهٔ سنجش» → «رشتهٔ دانشگاه» ─────────────────────────────
+  // هر ردیفِ «نیازمند نگاشت» یک کد رشتهٔ سنجش دارد؛ نگاشت یک کد، همهٔ
+  // ردیف‌های همان کد را به RESOLVED می‌برد (اکشن خودش این کار را می‌کند).
+  const router = useRouter();
+  const [mapSel, setMapSel] = useState<Record<string, string>>({});
+  const [mappingBusy, setMappingBusy] = useState<string | null>(null);
+
+  /** کدهای رشتهٔ سنجشِ موجود در صف، با تعداد و عنوان گروه رشته */
+  const sanjeshCodeGroups = useMemo(() => {
+    const map = new Map<string, { code: string; group: string; degree: string; count: number }>();
+    for (const st of stagingList) {
+      const code = (st.rawSanjeshData?.sanjeshCode ?? '').trim();
+      if (!code) continue;
+      const cur = map.get(code);
+      if (cur) cur.count++;
+      else
+        map.set(code, {
+          code,
+          group: st.rawSanjeshData?.majorGroup ?? '',
+          degree: st.rawSanjeshData?.degreeLevel ?? '',
+          count: 1,
+        });
+    }
+    return [...map.values()].sort((a, b) => b.count - a.count || a.code.localeCompare(b.code));
+  }, [stagingList]);
+
+  /** رشته‌های متناسب با مقطعِ ردیف (اگر مقطع شناسا نبود، همهٔ رشته‌ها) */
+  const majorsFor = (degreeTitle: string): MajorOption[] => {
+    const dl = degreeLevels.find(d => d.title.trim() === degreeTitle.trim() || d.code === degreeTitle.trim());
+    if (!dl) return majors;
+    const filtered = majors.filter(m => m.degreeLevelId === dl.id);
+    return filtered.length > 0 ? filtered : majors;
+  };
+
+  const handleMapMajor = async (sanjeshCode: string, majorIdRaw: string) => {
+    const majorId = Number(majorIdRaw);
+    if (!Number.isFinite(majorId) || majorId <= 0) return;
+    const majorName = majors.find(m => m.id === majorId)?.name ?? '';
+    setMappingBusy(sanjeshCode);
+    const res = await saveSanjeshMappingAction(sanjeshCode, majorId);
+    setMappingBusy(null);
+    if (!res.ok) {
+      setFeedback({ text: res.error || 'خطا در ذخیرهٔ نگاشت.', type: 'error' });
+      return;
+    }
+    // بازخورد فوری + همگام‌سازی با دادهٔ سرور
+    setStagingList(prev =>
+      prev.map(s =>
+        s.status === 'PENDING_MAPPING' && (s.rawSanjeshData?.sanjeshCode ?? '').trim() === sanjeshCode
+          ? { ...s, status: 'RESOLVED', mappedMajorId: majorId, mappedMajorName: majorName }
+          : s,
+      ),
+    );
+    setMappingsList(prev => {
+      const rest = prev.filter(m => m.sanjeshCode !== sanjeshCode);
+      return [...rest, { id: prev.find(m => m.sanjeshCode === sanjeshCode)?.id ?? -1, sanjeshCode, internalMajorId: majorId, majorName, sanjeshQuota: 'سهمیه عادی' }];
+    });
+    setMapSel(p => ({ ...p, [sanjeshCode]: majorIdRaw }));
+    setFeedback({ text: `نگاشت «${majorName}» برای کد رشتهٔ ${sanjeshCode} ثبت شد.`, type: 'success' });
+    router.refresh();
+  };
+
+  // همگام‌سازی state با دادهٔ تازهٔ سرور (پس از router.refresh یا ناوبری)
+  useEffect(() => {
+    setStagingList(initialStaging);
+    setMappingsList(initialMappings);
+  }, [initialStaging, initialMappings]);
 
   // Tab 2: Formula Builder
   const [selectedDegreeId, setSelectedDegreeId] = useState<number>(degreeLevels[0]?.id || 1);
@@ -369,6 +438,85 @@ export default function AdmissionsClient({
             </details>
           </div>
 
+          {/* ── نگاشت رشته: کد رشتهٔ سنجش → رشتهٔ دانشگاه ── */}
+          <div className="card p-6 bg-white border border-slate-200 rounded-2xl shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
+              <div>
+                <h2 className="text-sm font-black text-slate-900">
+                  🧭 نگاشت رشته‌ها (کد رشتهٔ سنجش ← رشتهٔ دانشگاه)
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  هر ردیفِ «نیازمند نگاشت» یک کد رشتهٔ سنجش دارد؛ نگاشت یک کد، همهٔ ردیف‌های همان کد را همزمان
+                  «آماده ثبت‌نام» می‌کند. بعد از نگاشت، دکمهٔ «🚀 صدور شماره دانشجویی و ثبت قطعی» را بزنید.
+                </p>
+              </div>
+              <span className="text-[11px] text-slate-500">
+                {sanjeshCodeGroups.filter(g => !mappingsList.some(m => m.sanjeshCode === g.code)).length} کد بدون نگاشت
+              </span>
+            </div>
+
+            {sanjeshCodeGroups.length === 0 ? (
+              <p className="py-4 text-center text-xs text-slate-400">هنوز رکوردی در صف نیست.</p>
+            ) : (
+              <div className="mt-3 overflow-x-auto">
+                <table className="w-full text-right text-xs">
+                  <thead className="bg-slate-50 text-slate-600">
+                    <tr>
+                      <th className="p-2 font-bold">کد رشتهٔ سنجش</th>
+                      <th className="p-2 font-bold">گروه رشته</th>
+                      <th className="p-2 font-bold">مقطع</th>
+                      <th className="p-2 font-bold">تعداد</th>
+                      <th className="p-2 font-bold">رشتهٔ دانشگاه</th>
+                      <th className="p-2 font-bold">وضعیت</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sanjeshCodeGroups.map(g => {
+                      const mapping = mappingsList.find(m => m.sanjeshCode === g.code);
+                      const selected = mapSel[g.code] ?? (mapping?.internalMajorId ? String(mapping.internalMajorId) : '');
+                      const options = majorsFor(g.degree);
+                      return (
+                        <tr key={g.code} className="border-t border-slate-100">
+                          <td className="p-2 font-mono font-bold text-indigo-900" dir="ltr">{g.code}</td>
+                          <td className="p-2 text-slate-700">{g.group || '—'}</td>
+                          <td className="p-2 text-slate-600">{g.degree || '—'}</td>
+                          <td className="p-2 tabular-nums text-slate-700">{g.count.toLocaleString('fa-IR')}</td>
+                          <td className="p-2">
+                            <select
+                              value={selected}
+                              onChange={e => {
+                                const v = e.target.value;
+                                setMapSel(p => ({ ...p, [g.code]: v }));
+                                if (v) void handleMapMajor(g.code, v);
+                              }}
+                              className="w-full rounded-lg border border-slate-300 px-2 py-1 text-[11px] min-w-0"
+                            >
+                              <option value="">— انتخاب رشتهٔ دانشگاه —</option>
+                              {options.map(m => (
+                                <option key={m.id} value={m.id}>
+                                  {m.name}{m.majorCode ? ` (${m.majorCode})` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          </td>
+                          <td className="p-2">
+                            {mapping?.majorName ? (
+                              <span className="font-bold text-emerald-700">✓ {mapping.majorName}</span>
+                            ) : mappingBusy === g.code ? (
+                              <span className="text-slate-400">در حال ثبت…</span>
+                            ) : (
+                              <span className="text-red-600">نیازمند نگاشت</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
           {/* جدول رکوردهای در صف Staging */}
           <div className="card overflow-x-auto bg-white border border-slate-200 rounded-2xl shadow-sm">
             <div className="p-4 border-b border-slate-100 flex items-center justify-between">
@@ -430,9 +578,26 @@ export default function AdmissionsClient({
                         {isResolved ? (
                           <span className="font-bold text-emerald-800">{st.mappedMajorName || '—'}</span>
                         ) : (
-                          <span className="text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded border border-red-200 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
-                            ⚠️ تعریف‌نشده (نیاز به نگاشت)
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <select
+                              value={mapSel[st.rawSanjeshData?.sanjeshCode ?? ''] ?? ''}
+                              onChange={e => {
+                                const v = e.target.value;
+                                const code = (st.rawSanjeshData?.sanjeshCode ?? '').trim();
+                                if (!code) return;
+                                setMapSel(p => ({ ...p, [code]: v }));
+                                if (v) void handleMapMajor(code, v);
+                              }}
+                              className="w-full rounded-lg border border-red-200 bg-red-50 px-1.5 py-1 text-[10px] min-w-0"
+                            >
+                              <option value="">⚠️ انتخاب رشته…</option>
+                              {majorsFor(st.rawSanjeshData?.degreeLevel ?? '').map(m => (
+                                <option key={m.id} value={m.id}>
+                                  {m.name}{m.majorCode ? ` (${m.majorCode})` : ''}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
                         )}
                       </td>
                       <td className="p-3 text-slate-600">{st.rawSanjeshData?.quota || st.quotaType || 'سهمیه عادی'}</td>
