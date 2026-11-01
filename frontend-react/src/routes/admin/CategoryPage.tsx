@@ -1,7 +1,7 @@
 import { Link, useParams } from 'react-router-dom';
 
 import { Card, CardContent } from '@/components/ui/card';
-import { MODULES } from '@/routes/admin/DashboardPage';
+import { MODULES } from '@/routes/admin/admin-modules';
 
 // ═══ Tiles of one category — port of /admin/c/[group] (React version) ═══
 //

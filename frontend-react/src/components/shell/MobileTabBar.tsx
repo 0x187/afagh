@@ -31,7 +31,7 @@ import {
   Wallet,
 } from 'lucide-react';
 
-import { MODULES } from '@/routes/admin/DashboardPage';
+import { MODULES, type AdminModule } from '@/routes/admin/admin-modules';
 import { cn } from '@/lib/utils';
 
 // Mobile bottom navigation for student/professor/admin shells, ported from
@@ -125,7 +125,7 @@ const ADMIN_MENU: Tab[] = (() => {
   ];
   const seen = new Set<string>();
   const out: Tab[] = [];
-  for (const item of [...extra, ...MODULES.map((m) => ({ to: m.to, label: m.label, icon: m.icon }))]) {
+  for (const item of [...extra, ...MODULES.map((m: AdminModule) => ({ to: m.to, label: m.label, icon: m.icon }))]) {
     if (seen.has(item.to)) continue;
     seen.add(item.to);
     out.push(item);
