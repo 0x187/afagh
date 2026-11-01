@@ -18,6 +18,17 @@ export default function AdminError({
 }) {
   useEffect(() => {
     console.error('[admin-error-boundary]', error);
+    // استک را به لاگ سرور می‌فرستیم تا عیب‌یابی بدون اسکرین‌شات کاربر ممکن باشد
+    void fetch('/api/client-error', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        where: 'admin/error.tsx',
+        url: window.location.href,
+        message: error?.message,
+        stack: error?.stack,
+      }),
+    }).catch(() => {});
   }, [error]);
 
   const msg = String(error?.message ?? '');

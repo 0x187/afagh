@@ -10,6 +10,17 @@ import { useEffect } from 'react';
 export default function GlobalError({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {
     console.error('[global error]', error);
+    // استک به لاگ سرور می‌رود تا عیب‌یابی بدون اسکرین‌شات کاربر ممکن باشد
+    void fetch('/api/client-error', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        where: 'global-error.tsx',
+        url: typeof window !== 'undefined' ? window.location.href : '',
+        message: error?.message,
+        stack: error?.stack,
+      }),
+    }).catch(() => {});
   }, [error]);
 
   return (
