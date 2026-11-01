@@ -1,4 +1,4 @@
-// ═══ داشبورد دانشجو — پورت student/page.tsx (بخش داده) ═══
+// ═══ Student dashboard — port of student/page.tsx (data part) ═══
 package student
 
 import (
@@ -8,7 +8,7 @@ import (
 	"backend-go/internal/finance"
 )
 
-// VirtualClass جلسهٔ کلاس مجازی دانشجو.
+// VirtualClass is a student virtual-class session.
 type VirtualClass struct {
 	ID                     int64  `json:"id"`
 	CourseTitle            string `json:"courseTitle"`
@@ -18,7 +18,7 @@ type VirtualClass struct {
 	Professor              string `json:"professor"`
 }
 
-// UpcomingExam آزمون پیش‌رو با شمارهٔ صندلی.
+// UpcomingExam is an upcoming exam with a seat number.
 type UpcomingExam struct {
 	Code       string  `json:"code"`
 	Title      string  `json:"title"`
@@ -31,7 +31,7 @@ type UpcomingExam struct {
 	SeatNumber *int    `json:"seatNumber"`
 }
 
-// DashboardResponse دادهٔ کامل داشبورد.
+// DashboardResponse is the full dashboard data.
 type DashboardResponse struct {
 	Student            StudentInfo    `json:"student"`
 	Term               TermInfo       `json:"term"`
@@ -43,10 +43,10 @@ type DashboardResponse struct {
 	TermHasEnrollment  bool           `json:"termHasEnrollment"`
 }
 
-// GetDashboard پورت تابع StudentDashboardPage (بدون بخش‌های دمو/پیام‌رسان).
+// GetDashboard ports the StudentDashboardPage function (without demo/messenger parts).
 //
-// ترتیب ترم عیناً مثل صفحهٔ اصلی: ترمِ انتخابیِ کوکی، وگرنه ترم مؤثر جاری؛
-// در حالت «همهٔ نیمسال‌ها» خودِ ترم مؤثر مبنا است (نه ستون isCurrent).
+// Term order is exactly like the home page: the cookie-selected term, otherwise the current effective term;
+// in "all terms" mode the effective term itself is the basis (not the isCurrent column).
 func (s *Service) GetDashboard(ctx context.Context, userID int64, userName string, termCookie *int64) (*DashboardResponse, error) {
 	me, err := s.Resolve(ctx, userID)
 	if err != nil {
@@ -75,7 +75,7 @@ func (s *Service) GetDashboard(ctx context.Context, userID int64, userName strin
 		resp.Term.TermCode = "—"
 	}
 
-	// بدهی مالی از دفتر کانونی — هر نوع تراکنش شناخته‌شده.
+	// Financial debt from the canonical ledger — every known transaction type.
 	ledgerRows, err := s.Pool.Query(ctx, `
 		select "transactionType", amount::float8 from student_ledger where "studentId" = $1`, me.ID)
 	if err != nil {
@@ -105,14 +105,14 @@ func (s *Service) GetDashboard(ctx context.Context, userID int64, userName strin
 		return resp, nil
 	}
 
-	// دروس ثبت‌نام‌شدهٔ ترم (شامل حذف‌شده‌ها — برای آمار و صندلی).
+	// Term enrollments (including dropped ones — for stats and seats).
 	enrollments, err := s.loadTermEnrollments(ctx, me.ID, *termID)
 	if err != nil {
 		return nil, err
 	}
 	resp.TermHasEnrollment = len(enrollments) > 0
 
-	// شمارهٔ صندلی از تخصیص‌های آزمون (اگر تخصیصی باشد).
+	// Seat number from exam allocations (if any).
 	seats := map[int64]int{}
 	seatRows, err := s.Pool.Query(ctx, `
 		select sa."enrollmentId", sa."seatNumber"
@@ -130,7 +130,7 @@ func (s *Service) GetDashboard(ctx context.Context, userID int64, userName strin
 		seatRows.Close()
 	}
 
-	// جلسات کلاس/امتحان از schedules.
+	// Class/exam sessions from schedules.
 	offeringIDs := make([]int64, 0, len(enrollments))
 	for _, e := range enrollments {
 		offeringIDs = append(offeringIDs, e.OfferingID)
@@ -202,7 +202,7 @@ func (s *Service) GetDashboard(ctx context.Context, userID int64, userName strin
 		}
 	}
 
-	// کلاس‌های مجازی ترم.
+	// Term virtual classes.
 	vcRows, err := s.Pool.Query(ctx, `
 		select vc.id, c.title, coalesce(vc."bbbMeetingId", ''), coalesce(vc."isRunning", 0),
 		       coalesce(vc."currentAttendanceCount", 0), o."professorId"
@@ -235,7 +235,7 @@ func (s *Service) GetDashboard(ctx context.Context, userID int64, userName strin
 	return resp, nil
 }
 
-// termEnrollment ردیف ثبت‌نام ترم.
+// termEnrollment is the term-enrollment row.
 type termEnrollment struct {
 	EnrollmentID int64
 	OfferingID   int64

@@ -1,4 +1,4 @@
-// ═══ کلاس مجازی، مدارک و طرح درس دانشجو (فاز ۳) ═══
+// ═══ Virtual classes, documents, and lesson plan (phase 3) ═══
 package student
 
 import (
@@ -12,7 +12,7 @@ import (
 	"strings"
 )
 
-// VirtualSession جلسهٔ کلاس مجازی.
+// VirtualSession is a virtual-class session.
 type VirtualSession struct {
 	CourseID                int64  `json:"courseId"`
 	CourseCode              string `json:"courseCode"`
@@ -26,7 +26,7 @@ type VirtualSession struct {
 	RecordingsCount         int    `json:"recordingsCount"`
 }
 
-// ListVirtualClasses پورت listTermVirtualClasses.
+// ListVirtualClasses ports listTermVirtualClasses.
 func (s *Service) ListVirtualClasses(ctx context.Context, studentID int64, termID *int64) ([]VirtualSession, error) {
 	rows, err := s.Pool.Query(ctx, `
 		select c.id, coalesce(c.code,''), coalesce(c.title,''),
@@ -88,8 +88,8 @@ func maxInt(a, b int) int {
 	return b
 }
 
-// JoinVirtualClass پورت joinVirtualClassAction + getBigBlueButtonJoinUrl.
-// نقش از سمت سرور تعیین می‌شود: استادِ همان ارائه یا نقش‌های پشتیبان = MODERATOR.
+// JoinVirtualClass ports joinVirtualClassAction + getBigBlueButtonJoinUrl.
+// The role is decided server-side: professor of the same offering or fallback roles = MODERATOR.
 func (s *Service) JoinVirtualClass(ctx context.Context, userID int64, roles []string, meetingID string) (string, error) {
 	meetingID = strings.TrimSpace(meetingID)
 	if meetingID == "" {
@@ -107,7 +107,7 @@ func (s *Service) JoinVirtualClass(ctx context.Context, userID int64, roles []st
 	}
 
 	role := "ATTENDEE"
-	// استاد همان ارائه یا نقش پشتیبان؟
+	// Professor of the same offering or a fallback role?
 	var staffID *int64
 	_ = s.Pool.QueryRow(ctx, `select id from staff where "userId" = $1 limit 1`, userID).Scan(&staffID)
 	if staffID != nil {
@@ -144,7 +144,7 @@ func (s *Service) JoinVirtualClass(ctx context.Context, userID int64, roles []st
 	if role == "MODERATOR" {
 		password = modPW
 	}
-	// ترتیب کلیدها عیناً مثل URLSearchParams سیستم فعلی تا checksum سازگار بماند.
+	// Key order is exactly like the current system's URLSearchParams so the checksum stays compatible.
 	pairs := [][2]string{
 		{"fullName", userName},
 		{"meetingID", meetingID},
@@ -165,7 +165,7 @@ func (s *Service) JoinVirtualClass(ctx context.Context, userID int64, roles []st
 	return strings.TrimRight(bbbURL, "/") + "/join?" + queryString + "&checksum=" + checksum, nil
 }
 
-// Document ردیف مدرک دانشجو.
+// Document is a student document row.
 type Document struct {
 	ID         int64   `json:"id"`
 	FileName   *string `json:"fileName"`
@@ -176,7 +176,7 @@ type Document struct {
 	Type       *string `json:"type"`
 }
 
-// ListDocuments پورت صفحهٔ مدارک.
+// ListDocuments ports the documents page.
 func (s *Service) ListDocuments(ctx context.Context, userID int64) ([]Document, error) {
 	rows, err := s.Pool.Query(ctx, `
 		select d.id, d."fileName", coalesce(d."verificationStatus",'PENDING'),
@@ -202,7 +202,7 @@ func (s *Service) ListDocuments(ctx context.Context, userID int64) ([]Document, 
 	return out, rows.Err()
 }
 
-// LessonPlanSession جلسهٔ طرح درس.
+// LessonPlanSession is a lesson-plan session.
 type LessonPlanSession struct {
 	ID          int64   `json:"id"`
 	SessionNo   int     `json:"sessionNo"`
@@ -211,14 +211,14 @@ type LessonPlanSession struct {
 	Details     *string `json:"details"`
 }
 
-// LessonPlanWeight وزن ارزشیابی.
+// LessonPlanWeight is an evaluation weight.
 type LessonPlanWeight struct {
 	ID      int64   `json:"id"`
 	Title   string  `json:"title"`
 	Percent float64 `json:"percent"`
 }
 
-// LessonPlanView پاسخ طرح درس.
+// LessonPlanView is the lesson-plan response.
 type LessonPlanView struct {
 	Published   bool                `json:"published"`
 	CourseTitle string              `json:"courseTitle"`
@@ -227,7 +227,7 @@ type LessonPlanView struct {
 	Weights     []LessonPlanWeight  `json:"weights"`
 }
 
-// LessonPlanInfo خلاصهٔ طرح.
+// LessonPlanInfo is the plan summary.
 type LessonPlanInfo struct {
 	ID            int64   `json:"id"`
 	CourseMode    string  `json:"courseMode"`
@@ -238,7 +238,7 @@ type LessonPlanInfo struct {
 	SubmittedAt   *string `json:"submittedAt"`
 }
 
-// GetLessonPlan پورت getPlanForStudent با گیت ثبت‌نام دانشجو.
+// GetLessonPlan ports getPlanForStudent with the student-enrollment gate.
 func (s *Service) GetLessonPlan(ctx context.Context, userID, offeringID int64) (*LessonPlanView, error) {
 	me, err := s.Resolve(ctx, userID)
 	if err != nil {

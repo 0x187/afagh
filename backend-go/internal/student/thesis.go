@@ -1,4 +1,4 @@
-// ═══ پایان‌نامه و پروپوزال دانشجو — پورت student/thesis-proposal ═══
+// ═══ Student thesis and proposal — port of student/thesis-proposal ═══
 package student
 
 import (
@@ -12,7 +12,7 @@ import (
 	"backend-go/internal/safeinput"
 )
 
-// ThesisProgressData پیشرفت پایان‌نامه.
+// ThesisProgressData is the thesis progress.
 type ThesisProgressData struct {
 	ID                     int64    `json:"id"`
 	SupervisorID           *int64   `json:"supervisorId"`
@@ -42,7 +42,7 @@ type ThesisProgressData struct {
 	NextProgressReportDue  *string  `json:"nextProgressReportDue"`
 }
 
-// IRandocLog لاگ همانندجویی.
+// IRandocLog is a similarity-check log.
 type IRandocLog struct {
 	ID                   int64    `json:"id"`
 	CheckType            string   `json:"checkType"`
@@ -52,20 +52,20 @@ type IRandocLog struct {
 	CheckedAt            *string  `json:"checkedAt"`
 }
 
-// StaffOption گزینهٔ استاد.
+// StaffOption is a professor option.
 type StaffOption struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
 	Rank string `json:"rank"`
 }
 
-// ThesisStudent اطلاعات دانشجو.
+// ThesisStudent is the student info.
 type ThesisStudent struct {
 	Name        string `json:"name"`
 	StudentCode string `json:"studentCode"`
 }
 
-// ThesisResponse پاسخ صفحهٔ پایان‌نامه.
+// ThesisResponse is the thesis page response.
 type ThesisResponse struct {
 	Open           bool                `json:"open"`
 	ThesisDegree   bool                `json:"thesisDegree"`
@@ -90,7 +90,7 @@ func isThesisDegreeCode(code *string) bool {
 	return m == "3" || m == "MS" || m == "4" || m == "6" || m == "7" || m == "8" || m == "PHD"
 }
 
-// GetThesis پورت صفحهٔ thesis-proposal.
+// GetThesis ports the thesis-proposal page.
 func (s *Service) GetThesis(ctx context.Context, userID int64, userName string) (*ThesisResponse, error) {
 	me, err := s.Resolve(ctx, userID)
 	if err != nil {
@@ -148,7 +148,7 @@ func (s *Service) GetThesis(ctx context.Context, userID int64, userName string) 
 	resp.WorkflowStatus = &workflowStatus
 	resp.InTrack = true
 
-	// ایجاد/دریافت رکورد پیشرفت.
+	// Create/get the progress record.
 	if progressID == 0 {
 		_ = s.Pool.QueryRow(ctx, `
 			insert into thesis_progress ("auditId","studentId","proposalStatus","defenseRequestStatus")
@@ -177,7 +177,7 @@ func (s *Service) GetThesis(ctx context.Context, userID int64, userName string) 
 			&p.NextProgressReportDue)
 	resp.Progress = p
 
-	// لاگ‌های ایرانداک.
+	// Irandoc logs.
 	lrows, err := s.Pool.Query(ctx, `
 		select id, coalesce("checkType",'—'), "trackingCode", "similarityPercentage", decision, "checkedAt"::text
 		  from irandoc_logs where "studentId" = $1 order by id desc limit 20`, me.ID)
@@ -191,7 +191,7 @@ func (s *Service) GetThesis(ctx context.Context, userID int64, userName string) 
 		lrows.Close()
 	}
 
-	// استادها.
+	// Professors.
 	srows, err := s.Pool.Query(ctx, `
 		select st.id, (u."firstName" || ' ' || u."lastName"),
 		       coalesce(st."academicRank", st."staffType", '')
@@ -210,7 +210,7 @@ func (s *Service) GetThesis(ctx context.Context, userID int64, userName string) 
 	return resp, nil
 }
 
-// getOrCreateThesisProgress کمک.
+// getOrCreateThesisProgress helper.
 func (s *Service) getOrCreateThesisProgress(ctx context.Context, auditID, studentID int64) (int64, error) {
 	var id int64
 	err := s.Pool.QueryRow(ctx, `select id from thesis_progress where "auditId" = $1 limit 1`, auditID).Scan(&id)
@@ -231,7 +231,7 @@ func (s *Service) ownAudit(ctx context.Context, studentID, auditID int64) error 
 	return nil
 }
 
-// uploadStudentDocument ذخیرهٔ فایل در آرشیو + ردیف مدرک.
+// uploadStudentDocument stores the file in the archive + a document row.
 func (s *Service) uploadStudentDocument(ctx context.Context, userID, studentID int64, categoryTitle, fileName, mime string, data []byte) (int64, error) {
 	if len(data) == 0 || len(data) > MaxUploadBytes {
 		return 0, errors.New("حجم فایل باید بیش از صفر و حداکثر ۱۰ مگابایت باشد.")
@@ -262,7 +262,7 @@ func (s *Service) uploadStudentDocument(ctx context.Context, userID, studentID i
 	return docID, nil
 }
 
-// SubmitThesisTitle فاز ۱: ثبت استاد راهنما و عنوان.
+// SubmitThesisTitle is phase 1: register the supervisor and title.
 func (s *Service) SubmitThesisTitle(ctx context.Context, userID, studentID, auditID int64, supervisorID int64, titleFa, titleEn, keywords, abstract string) error {
 	if err := s.ownAudit(ctx, studentID, auditID); err != nil {
 		return err
@@ -291,7 +291,7 @@ func (s *Service) SubmitThesisTitle(ctx context.Context, userID, studentID, audi
 	return err
 }
 
-// SubmitThesisProposal فاز ۲: بارگذاری پروپوزال.
+// SubmitThesisProposal is phase 2: upload the proposal.
 func (s *Service) SubmitThesisProposal(ctx context.Context, userID, studentID, auditID int64, fileName, mime string, data []byte) error {
 	if err := s.ownAudit(ctx, studentID, auditID); err != nil {
 		return err
@@ -322,7 +322,7 @@ func (s *Service) SubmitThesisProposal(ctx context.Context, userID, studentID, a
 	return err
 }
 
-// RequestThesisDefense فاز ۳: درخواست دفاع (پس از تأیید پروپوزال توسط کارشناس).
+// RequestThesisDefense is phase 3: request the defense (after expert approval of the proposal).
 func (s *Service) RequestThesisDefense(ctx context.Context, studentID, auditID int64) error {
 	if err := s.ownAudit(ctx, studentID, auditID); err != nil {
 		return err
@@ -348,7 +348,7 @@ func (s *Service) RequestThesisDefense(ctx context.Context, studentID, auditID i
 	return err
 }
 
-// SubmitFinalThesis بارگذاری پایان‌نامهٔ نهایی (پس از دفاع موفق).
+// SubmitFinalThesis uploads the final thesis (after a successful defense).
 func (s *Service) SubmitFinalThesis(ctx context.Context, userID, studentID, auditID int64, fileName, mime string, data []byte) error {
 	if err := s.ownAudit(ctx, studentID, auditID); err != nil {
 		return err

@@ -1,4 +1,4 @@
-// ═══ صورت‌حساب/کارنامهٔ مالی دانشجو — پورت api/admin/finance/reports/student-statement ═══
+// ═══ Student statement/finance transcript — port of api/admin/finance/reports/student-statement ═══
 package student
 
 import (
@@ -9,7 +9,7 @@ import (
 	"backend-go/internal/finance"
 )
 
-// StatementCourse ریز شهریهٔ متغیر یک درس در سند رسمی.
+// StatementCourse is one course's variable-tuition detail in the official document.
 type StatementCourse struct {
 	CourseCode  *string `json:"courseCode"`
 	CourseTitle *string `json:"courseTitle"`
@@ -18,7 +18,7 @@ type StatementCourse struct {
 	Amount      float64 `json:"amount"`
 }
 
-// StatementRow سطر ترم در صورت‌حساب: تفکیک نمایشی سما + اعداد کانونی.
+// StatementRow is a term row in the statement: the SAMA display split + canonical numbers.
 type StatementRow struct {
 	TermID    int64  `json:"termId"`
 	TermCode  string `json:"termCode"`
@@ -50,13 +50,13 @@ type StatementRow struct {
 	CoursesBasis string            `json:"coursesBasis"`
 }
 
-// StatementStudent هویت سند.
+// StatementStudent is the document identity.
 type StatementStudent struct {
 	Name string `json:"name"`
 	Code string `json:"code"`
 }
 
-// StudentStatement پاسخ کامل صورت‌حساب.
+// StudentStatement is the full statement response.
 type StudentStatement struct {
 	Rows    []StatementRow   `json:"rows"`
 	Totals  FinanceTotals    `json:"totals"`
@@ -64,18 +64,18 @@ type StudentStatement struct {
 	Student StatementStudent `json:"student"`
 }
 
-// GetStudentStatement ساخت صورت‌حساب رسمی از مسیر کانونی:
-//   - سطرها و جمع‌ها از buildFinance (همان موتور کارنامهٔ مالی).
-//   - ماندهٔ کلی از finance.LedgerBalance روی کل دفتر (همهٔ ترم‌ها).
-//   - تفکیک ستون‌های سما فقط نمایشی است (نگاشت ۱:۱ از نوع خام تراکنش).
-//   - ریز دروس: وزن از تعرفهٔ رسمی سال، جمع از «شهریهٔ متغیر» دفتر کل.
+// GetStudentStatement builds the official statement from the canonical path:
+//   - rows and totals come from buildFinance (the same finance-statement engine).
+//   - the overall balance comes from finance.LedgerBalance over the whole ledger (all terms).
+//   - the SAMA column split is display-only (a 1:1 mapping from the raw transaction type).
+//   - course details: weights from the official yearly tariff, totals from the ledger's "variable tuition".
 func (s *Service) GetStudentStatement(ctx context.Context, studentID int64) (*StudentStatement, error) {
 	fin, err := s.GetFinanceByStudentID(ctx, studentID, nil)
 	if err != nil {
 		return nil, err
 	}
 
-	// دفتر کل (همهٔ ترم‌ها) — سقف ۵۰۰۰ ردیف سپر فرسودگی است.
+	// The whole ledger (all terms) — the 5000-row cap is an exhaustion guard.
 	type ledgerRow struct {
 		TermID *int64
 		Type   *string
@@ -118,7 +118,7 @@ func (s *Service) GetStudentStatement(ctx context.Context, studentID int64) (*St
 	}
 	balance := finance.LedgerBalance(balanceRows)
 
-	// ریز دروس — همان مسیر buildTranscriptCourses.
+	// Course details — the same path as buildTranscriptCourses.
 	termIDs := make([]int64, 0, len(fin.Terms))
 	for _, t := range fin.Terms {
 		termIDs = append(termIDs, t.TermID)
@@ -200,8 +200,8 @@ type tuitionCourseLine struct {
 	Amount float64
 }
 
-// allocateStatementCourses مبلغ «شهریهٔ متغیر» دفتر کل را به نسبت وزن‌ها
-// (مبلغ تعرفه/موتور، و اگر همه صفر باشند واحدها) بین دروس پخش می‌کند.
+// allocateStatementCourses distributes the ledger's "variable tuition" amount across courses
+// proportionally to the weights (tariff/engine amount, or units when all are zero).
 func allocateStatementCourses[T interface {
 	courseFields() (string, string, float64, float64)
 }](lines []T, target float64) []StatementCourse {

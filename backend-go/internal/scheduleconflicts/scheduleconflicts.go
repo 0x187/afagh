@@ -91,7 +91,7 @@ func OverlapMinutes(aStart, aEnd, bStart, bEnd int) int {
 	return 0
 }
 
-// SharedMergeKey کلید ادغام معتبر — SOLO- یعنی عمداً جدا.
+// SharedMergeKey valid merge key — SOLO- means intentionally split.
 func SharedMergeKey(v *string) *string {
 	if v == nil {
 		return nil
@@ -103,12 +103,12 @@ func SharedMergeKey(v *string) *string {
 	return &k
 }
 
-// IsExplicitlySplit آیا ارائه عمداً جدا شده است؟
+// IsExplicitlySplit was the offering intentionally split?
 func IsExplicitlySplit(v *string) bool {
 	return v != nil && strings.HasPrefix(strings.TrimSpace(*v), "SOLO-")
 }
 
-// IsMergedPair آیا دو اسلات «یک جلسهٔ ادغامی» هستند؟ (تداخل نیستند)
+// IsMergedPair are the two slots one merged session? (not conflicts)
 func IsMergedPair(a, b ConflictSlot) bool {
 	ka := SharedMergeKey(a.SharedScheduleGroupKey)
 	kb := SharedMergeKey(b.SharedScheduleGroupKey)
@@ -121,14 +121,14 @@ func IsMergedPair(a, b ConflictSlot) bool {
 	if a.StartTime != b.StartTime || a.EndTime != b.EndTime {
 		return false
 	}
-	// سالن NULL یعنی «نامشخص» و مانع ادغام نیست.
+	// NULL room means unknown and does not block merging.
 	if a.RoomID == nil || b.RoomID == nil {
 		return true
 	}
 	return *a.RoomID == *b.RoomID
 }
 
-// IsNearMergedPair آیا «به‌احتمال زیاد یک جلسه» هستند؟ (پیشنهاد ادغام)
+// IsNearMergedPair are they probably one session? (merge suggestion)
 func IsNearMergedPair(a, b ConflictSlot) bool {
 	if IsExplicitlySplit(a.SharedScheduleGroupKey) || IsExplicitlySplit(b.SharedScheduleGroupKey) {
 		return false
@@ -160,7 +160,7 @@ func abs(n int) int {
 	return n
 }
 
-// ConflictFingerprint اثرانگشت پایدار یک تداخل.
+// ConflictFingerprint stable fingerprint of a conflict.
 func ConflictFingerprint(kind string, entityID int64, dayOfWeek int, aScheduleID, bScheduleID int64) string {
 	lo, hi := aScheduleID, bScheduleID
 	if lo > hi {
@@ -169,7 +169,7 @@ func ConflictFingerprint(kind string, entityID int64, dayOfWeek int, aScheduleID
 	return fmt.Sprintf("%s:%d:%d:%d:%d", kind, entityID, dayOfWeek, lo, hi)
 }
 
-// ConflictScanResult نتیجهٔ اسکن.
+// ConflictScanResult scan result.
 type ConflictScanResult struct {
 	Pairs          []ConflictPair
 	RawOverlaps    int
@@ -178,7 +178,7 @@ type ConflictScanResult struct {
 	DuplicateSlots int
 }
 
-// DedupeSlots حذف ردیف‌های تکراری (کلید: ارائه+روز+ساعت+سالن).
+// DedupeSlots removes duplicate rows (key: offering+day+time+room).
 func DedupeSlots(slots []ConflictSlot) ([]ConflictSlot, int) {
 	seen := map[string]bool{}
 	out := []ConflictSlot{}
@@ -201,7 +201,7 @@ func DedupeSlots(slots []ConflictSlot) ([]ConflictSlot, int) {
 	return out, len(slots) - len(out)
 }
 
-// DetectScheduleConflicts اسکن کامل یک ترم — فقط تداخل‌های واقعی.
+// DetectScheduleConflicts full scan of a term — real conflicts only.
 func DetectScheduleConflicts(rawSlots []ConflictSlot) ConflictScanResult {
 	slots, removed := DedupeSlots(rawSlots)
 	pairs := []ConflictPair{}
@@ -314,7 +314,7 @@ func DetectScheduleConflicts(rawSlots []ConflictSlot) ConflictScanResult {
 	}
 }
 
-// ConflictSummary خلاصهٔ بالای صفحه.
+// ConflictSummary summary at the top of the page.
 type ConflictSummary struct {
 	Professor           int
 	Room                int
@@ -324,7 +324,7 @@ type ConflictSummary struct {
 	WorstOverlapMinutes int
 }
 
-// SummarizeConflicts پورت summarizeConflicts.
+// SummarizeConflicts port of summarizeConflicts.
 func SummarizeConflicts(pairs []ConflictPair) ConflictSummary {
 	profs := map[int64]bool{}
 	rooms := map[int64]bool{}
@@ -357,7 +357,7 @@ func SummarizeConflicts(pairs []ConflictPair) ConflictSummary {
 	}
 }
 
-// ConflictEntityGroup فهرست یکتا برای نمایش «کدام استادها/سالن‌ها درگیرند».
+// ConflictEntityGroup unique list for showing which professors/rooms are involved.
 type ConflictEntityGroup struct {
 	Kind       string
 	EntityID   int64
@@ -365,7 +365,7 @@ type ConflictEntityGroup struct {
 	Items      []ConflictPair
 }
 
-// GroupConflictsByEntity پورت groupConflictsByEntity.
+// GroupConflictsByEntity port of groupConflictsByEntity.
 func GroupConflictsByEntity(pairs []ConflictPair) []ConflictEntityGroup {
 	order := []string{}
 	byKey := map[string]*ConflictEntityGroup{}
@@ -396,14 +396,14 @@ func GroupConflictsByEntity(pairs []ConflictPair) []ConflictEntityGroup {
 	return out
 }
 
-// ConflictEntity موجودیت درگیر.
+// ConflictEntity involved entity.
 type ConflictEntity struct {
 	Kind string
 	ID   int64
 	Name string
 }
 
-// ConflictGroup یک «مسئله» — چند جفت هم‌زمان.
+// ConflictGroup one "issue" — several simultaneous pairs.
 type ConflictGroup struct {
 	Key            string
 	Kind           string // PROFESSOR | ROOM | MIXED
@@ -424,8 +424,8 @@ type ConflictGroup struct {
 	Reviewed       bool
 }
 
-// GroupConflictPairs پورت groupConflictPairs — union-find بر پایهٔ موجودیت
-// مشترک یا اسلات مشترک.
+// GroupConflictPairs port of groupConflictPairs — union-find on the shared entity
+// or shared slot.
 func GroupConflictPairs(pairs []ConflictPair, isReviewed func(ConflictPair) bool) []ConflictGroup {
 	n := len(pairs)
 	if n == 0 {
@@ -551,7 +551,7 @@ func GroupConflictPairs(pairs []ConflictPair, isReviewed func(ConflictPair) bool
 			return kinds[i] == "PROFESSOR"
 		})
 		first := cluster[0]
-		// کلید نمایشی پایدار: روز:از:تا:موجودیت‌ها
+		// stable display key: day:from:to:entities
 		key := fmt.Sprintf("%d:%d:%d:", first.DayOfWeek, overlapFrom, overlapTo)
 		parts := make([]string, 0, len(entities))
 		for _, e := range entities {
@@ -601,7 +601,7 @@ func GroupConflictPairs(pairs []ConflictPair, isReviewed func(ConflictPair) bool
 			return len(x.Slots) > len(y.Slots)
 		}
 		if x.Kind != y.Kind {
-			// PROFESSOR قبل، سپس ROOM، سپس MIXED
+			// PROFESSOR first, then ROOM, then MIXED
 			rank := func(k string) int {
 				switch k {
 				case "PROFESSOR":
@@ -624,7 +624,7 @@ func GroupConflictPairs(pairs []ConflictPair, isReviewed func(ConflictPair) bool
 	return out
 }
 
-// ConflictReasonLabels برچسب‌های فارسی دلیل «بررسی شد».
+// ConflictReasonLabels Persian labels for the "reviewed" reason.
 var ConflictReasonLabels = map[string]string{
 	"MERGED_OK": "کلاس ادغامی است (یک جلسهٔ واقعی)",
 	"PROF_OK":   "استاد هماهنگ است (حضور نوبتی/تفکیک جلسه)",
@@ -633,7 +633,7 @@ var ConflictReasonLabels = map[string]string{
 	"OTHER":     "سایر موارد",
 }
 
-// ConflictReasonCodes کدهای مجاز دلیل.
+// ConflictReasonCodes allowed reason codes.
 var ConflictReasonCodes = func() []string {
 	return []string{"MERGED_OK", "PROF_OK", "ROOM_OK", "WILL_FIX", "OTHER"}
 }()

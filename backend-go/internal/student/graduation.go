@@ -1,4 +1,4 @@
-// ═══ فارغ‌التحصیلی دانشجو — پورت getStudentTracker / auditStudent / advanceDossier ═══
+// ═══ Student graduation — port of getStudentTracker / auditStudent / advanceDossier ═══
 package student
 
 import (
@@ -21,14 +21,14 @@ import (
 	"backend-go/internal/messaging"
 )
 
-// MissingCourse درس باقی‌ماندهٔ سرفصل.
+// MissingCourse is a remaining curriculum course.
 type MissingCourse struct {
 	Code  string  `json:"code"`
 	Title string  `json:"title"`
 	Units float64 `json:"units"`
 }
 
-// AuditResult نتیجهٔ تطبیق کارنامه با سرفصل.
+// AuditResult is the transcript-vs-curriculum audit result.
 type AuditResult struct {
 	StudentID     int64           `json:"studentId"`
 	StudentCode   string          `json:"studentCode"`
@@ -43,7 +43,7 @@ type AuditResult struct {
 	Reasons       []string        `json:"reasons"`
 }
 
-// AuditInfo ردیف پروندهٔ فارغ‌التحصیلی.
+// AuditInfo is a graduation-dossier row.
 type AuditInfo struct {
 	ID                 int64           `json:"id"`
 	StudentID          int64           `json:"studentId"`
@@ -68,7 +68,7 @@ type AuditInfo struct {
 	Note               *string         `json:"note"`
 }
 
-// ClearanceItem ردیف تسویه.
+// ClearanceItem is a settlement row.
 type ClearanceItem struct {
 	ID          int64   `json:"id"`
 	Department  string  `json:"department"`
@@ -80,7 +80,7 @@ type ClearanceItem struct {
 	ResolvedAt  *string `json:"resolvedAt"`
 }
 
-// DegreeItem مدرک صادرشده.
+// DegreeItem is an issued degree.
 type DegreeItem struct {
 	ID          int64  `json:"id"`
 	DegreeType  string `json:"degreeType"`
@@ -90,7 +90,7 @@ type DegreeItem struct {
 	IssuedAt    string `json:"issuedAt"`
 }
 
-// TrackerStudent اطلاعات دانشجو در پرونده.
+// TrackerStudent is the student info in the dossier.
 type TrackerStudent struct {
 	StudentCode string  `json:"studentCode"`
 	FullName    string  `json:"fullName"`
@@ -99,7 +99,7 @@ type TrackerStudent struct {
 	Status      string  `json:"status"`
 }
 
-// TrackerDossier پروندهٔ باز.
+// TrackerDossier is the open dossier.
 type TrackerDossier struct {
 	Audit     AuditInfo       `json:"audit"`
 	Student   TrackerStudent  `json:"student"`
@@ -107,7 +107,7 @@ type TrackerDossier struct {
 	Degrees   []DegreeItem    `json:"degrees"`
 }
 
-// TrackerStep گام گردش‌کار.
+// TrackerStep is a workflow step.
 type TrackerStep struct {
 	Code  string `json:"code"`
 	Title string `json:"title"`
@@ -115,7 +115,7 @@ type TrackerStep struct {
 	State string `json:"state"`
 }
 
-// Tracker پاسخ ردیاب.
+// Tracker is the tracker response.
 type Tracker struct {
 	Open           bool            `json:"open"`
 	Audit          *AuditResult    `json:"audit,omitempty"`
@@ -177,7 +177,7 @@ func stepState(current, code string) string {
 	return "TODO"
 }
 
-// auditStudent پورت auditStudent.
+// auditStudent ports auditStudent.
 func (s *Service) auditStudent(ctx context.Context, studentID int64) (*AuditResult, error) {
 	var (
 		studentCode, firstName, lastName   string
@@ -319,18 +319,18 @@ func (s *Service) auditStudent(ctx context.Context, studentID int64) (*AuditResu
 	}, nil
 }
 
-// AuditStudentForAdmin تطبیق کارنامه با سرفصل — برای میز فارغ‌التحصیلی ادمین.
-// (همان auditStudent داخلی تا منطق تطبیق دو نسخه نشود.)
+// AuditStudentForAdmin audits the transcript against the curriculum — for the admin graduation desk.
+// (same internal auditStudent so the audit logic does not fork into two versions.)
 func (s *Service) AuditStudentForAdmin(ctx context.Context, studentID int64) (*AuditResult, error) {
 	return s.auditStudent(ctx, studentID)
 }
 
-// AdvanceDossierByID بازمحاسبهٔ وضعیت پرونده با همان موتور داخلی.
+// AdvanceDossierByID recomputes the dossier status with the same internal engine.
 func (s *Service) AdvanceDossierByID(ctx context.Context, auditID int64) error {
 	return s.advanceDossier(ctx, auditID, 0)
 }
 
-// StartClearanceForAudit ساخت چک‌لیست و بررسی خودکار دفتر مالی.
+// StartClearanceForAudit builds the checklist and auto-checks the finance ledger.
 func (s *Service) StartClearanceForAudit(ctx context.Context, auditID int64) error {
 	var studentID int64
 	if err := s.Pool.QueryRow(ctx, `select "studentId" from graduation_audits where id = $1`, auditID).Scan(&studentID); err != nil {
@@ -339,12 +339,12 @@ func (s *Service) StartClearanceForAudit(ctx context.Context, auditID int64) err
 	return s.startClearance(ctx, auditID, studentID)
 }
 
-// LedgerBalanceOfStudent ماندهٔ کانونی دانشجو (مثبت = بدهی، منفی → صفر).
+// LedgerBalanceOfStudent is the canonical student balance (positive = debt, negative → zero).
 func (s *Service) LedgerBalanceOfStudent(ctx context.Context, studentID int64) float64 {
 	return s.ledgerBalanceStudent(ctx, studentID)
 }
 
-// GetTracker پورت getStudentTracker.
+// GetTracker ports getStudentTracker.
 func (s *Service) GetTracker(ctx context.Context, studentID int64) (*Tracker, error) {
 	var auditID int64
 	err := s.Pool.QueryRow(ctx, `select id from graduation_audits where "studentId" = $1 limit 1`, studentID).Scan(&auditID)
@@ -482,7 +482,7 @@ func (s *Service) GetTracker(ctx context.Context, studentID int64) (*Tracker, er
 	return tracker, nil
 }
 
-// SubmitSajjad پورت submitSajjadRequest.
+// SubmitSajjad ports submitSajjadRequest.
 func (s *Service) SubmitSajjad(ctx context.Context, studentID, auditID int64, code string) error {
 	code = strings.TrimSpace(code)
 	if len([]rune(code)) < 4 {
@@ -501,7 +501,7 @@ func (s *Service) SubmitSajjad(ctx context.Context, studentID, auditID int64, co
 	return s.advanceDossier(ctx, auditID, 0)
 }
 
-// AttachGraduationPhoto بارگذاری عکس ۴×۳ و اتصال به پرونده.
+// AttachGraduationPhoto uploads a 4×3 photo and attaches it to the dossier.
 func (s *Service) AttachGraduationPhoto(ctx context.Context, userID, studentID, auditID int64, fileName, mime string, data []byte) error {
 	var owner int64
 	if err := s.Pool.QueryRow(ctx, `select "studentId" from graduation_audits where id = $1`, auditID).Scan(&owner); err != nil || owner != studentID {
@@ -546,7 +546,7 @@ func (s *Service) AttachGraduationPhoto(ctx context.Context, userID, studentID, 
 	return s.advanceDossier(ctx, auditID, 0)
 }
 
-// advanceDossier پورت advanceDossier (زیرمجموعهٔ دانشجویی).
+// advanceDossier ports advanceDossier (the student subset).
 func (s *Service) advanceDossier(ctx context.Context, auditID int64, depth int) error {
 	if depth > 3 {
 		return nil
@@ -752,19 +752,19 @@ func faDecimal(v float64) string {
 	return jalali.FaDigits(s)
 }
 
-// ChannelRow نشانی کانال کاربر.
+// ChannelRow is a user's channel address.
 type ChannelRow struct {
 	Channel string `json:"channel"`
 	Address string `json:"address"`
 }
 
-// ChannelsResponse کانال‌های اطلاع‌رسانی.
+// ChannelsResponse is the notification channels.
 type ChannelsResponse struct {
 	Active []string     `json:"active"`
 	Mine   []ChannelRow `json:"mine"`
 }
 
-// GetChannels پورت myChannelsAction.
+// GetChannels ports myChannelsAction.
 func (s *Service) GetChannels(ctx context.Context, userID int64) *ChannelsResponse {
 	active := []string{"INAPP"}
 	if s.Settings != nil {
@@ -799,7 +799,7 @@ func (s *Service) GetChannels(ctx context.Context, userID int64) *ChannelsRespon
 
 var smsRe = regexp.MustCompile(`^09\d{9}$`)
 
-// SaveChannel پورت saveUserChannel.
+// SaveChannel ports saveUserChannel.
 func (s *Service) SaveChannel(ctx context.Context, userID int64, channel, address string) error {
 	channel = strings.ToUpper(strings.TrimSpace(channel))
 	switch channel {

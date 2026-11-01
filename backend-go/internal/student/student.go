@@ -1,7 +1,7 @@
-// ═══ سرویس دادهٔ پرتال دانشجو (فاز ۳) ═══
+// ═══ Student portal data service (phase 3) ═══
 //
-// رفع پروندهٔ دانشجو و برنامهٔ هفتگی — پورت student/schedule/page.tsx و
-// getStudentByUser. قاعدهٔ انتخاب پرونده: ACTIVE اول، سپس جدیدترین (id desc).
+// Resolve the student record and weekly schedule — ports student/schedule/page.tsx and
+// getStudentByUser. Record selection rule: ACTIVE first, then the newest (id desc).
 package student
 
 import (
@@ -20,7 +20,7 @@ import (
 	"backend-go/internal/verification"
 )
 
-// Record پروندهٔ دانشجو.
+// Record is a student record.
 type Record struct {
 	ID            int64
 	UserID        int64
@@ -38,22 +38,22 @@ type Record struct {
 
 var errNoStudent = errors.New("پروندهٔ دانشجویی یافت نشد.")
 
-// Settings حداقل وابستگی تنظیمات برای TTL توکن‌ها.
+// Settings is the minimal settings dependency for token TTLs.
 type Settings interface {
 	Get(ctx context.Context, key string) (string, error)
 	GetNumber(ctx context.Context, key string, fallback float64) float64
 	GetBool(ctx context.Context, key string) bool
 }
 
-// Service دسترسی به دادهٔ دانشجو.
+// Service provides student data access.
 type Service struct {
 	Pool     *pgxpool.Pool
 	Scope    *scope.Service
 	Settings Settings
 	Signer   *verification.Signer
 	Archive  *archive.Store
-	// Tuition برای ریز شهریهٔ دروس در صورت‌حساب/کارنامهٔ مالی؛ اختیاری است
-	// (در نبودش ریز دروس خالی می‌ماند و بقیهٔ سند کامل است).
+	// Tuition is for course tuition details in the statement/finance transcript; it is optional
+	// (without it the course details stay empty and the rest of the document is complete).
 	Tuition *tuition.Engine
 }
 
@@ -65,7 +65,7 @@ func expiresAtISO(ttlSec int) string {
 	return time.Now().Add(time.Duration(ttlSec) * time.Second).UTC().Format(time.RFC3339)
 }
 
-// Resolve پورت getStudentByUser: ACTIVE اول، بعد جدیدترین.
+// Resolve ports getStudentByUser: ACTIVE first, then the newest.
 func (s *Service) Resolve(ctx context.Context, userID int64) (*Record, error) {
 	var r Record
 	err := s.Pool.QueryRow(ctx, `
@@ -88,7 +88,7 @@ func (s *Service) Resolve(ctx context.Context, userID int64) (*Record, error) {
 	return &r, nil
 }
 
-// ClassSlot یک جلسهٔ هفتگی کلاس.
+// ClassSlot is one weekly class session.
 type ClassSlot struct {
 	DayOfWeek *int   `json:"dayOfWeek"`
 	DayName   string `json:"dayName"`
@@ -99,7 +99,7 @@ type ClassSlot struct {
 	WeekType  string `json:"weekType"`
 }
 
-// ExamSlot زمان/سالن امتحان.
+// ExamSlot is an exam time/room.
 type ExamSlot struct {
 	ExamDate  string `json:"examDate"`
 	StartTime string `json:"startTime"`
@@ -107,7 +107,7 @@ type ExamSlot struct {
 	Room      string `json:"room"`
 }
 
-// Course درس ثبت‌نام‌شده به‌همراه جلسات.
+// Course is an enrolled course with its sessions.
 type Course struct {
 	EnrollmentID           int64       `json:"enrollmentId"`
 	OfferingID             int64       `json:"offeringId"`
@@ -125,7 +125,7 @@ type Course struct {
 	Exam                   *ExamSlot   `json:"exam"`
 }
 
-// StudentInfo اطلاعات نمایشی دانشجو.
+// StudentInfo is the student display info.
 type StudentInfo struct {
 	Name          string `json:"name"`
 	StudentCode   string `json:"studentCode"`
@@ -135,20 +135,20 @@ type StudentInfo struct {
 	EntryYear     int    `json:"entryYear"`
 }
 
-// TermInfo اطلاعات ترم نمایشی.
+// TermInfo is the term display info.
 type TermInfo struct {
 	ID       *int64 `json:"id"`
 	Title    string `json:"title"`
 	TermCode string `json:"termCode"`
 }
 
-// UniversityInfo اطلاعات دانشگاه.
+// UniversityInfo is the university info.
 type UniversityInfo struct {
 	Title   string  `json:"title"`
 	LogoURL *string `json:"logoUrl"`
 }
 
-// ScheduleResponse پاسخ برنامهٔ هفتگی.
+// ScheduleResponse is the weekly-schedule response.
 type ScheduleResponse struct {
 	Student    StudentInfo    `json:"student"`
 	Term       TermInfo       `json:"term"`
@@ -179,8 +179,8 @@ func clock5(v string) string {
 	return v
 }
 
-// describeStudent اطلاعات نمایشی دانشجو + ترم مؤثر را می‌سازد. مشترک بین
-// برنامهٔ هفتگی، داشبورد و کارنامه تا هر سه یک ترم و یک عنوان ببینند.
+// describeStudent builds the student display info + the effective term. Shared by the
+// weekly schedule, dashboard, and transcript so all three see one term and one title.
 func (s *Service) describeStudent(ctx context.Context, me *Record, userName string, termCookie *int64) (StudentInfo, *int64, string, string) {
 	selection := s.Scope.GetTermScope(ctx, me.UniversityID, termCookie)
 	termID := selection.EffectiveID
@@ -193,7 +193,7 @@ func (s *Service) describeStudent(ctx context.Context, me *Record, userName stri
 			Scan(&termTitle, &termCode)
 	}
 
-	// شمارهٔ ترم بر مبنای ورودی (نه ستون currentTermNo).
+	// Term number based on the entry year (not the currentTermNo column).
 	var ordinal *int
 	if termID != nil && termCode != "" {
 		ordinal = scope.TermOrdinalForEntry(&me.EntryYear, me.EntryTerm, termCode)
@@ -226,7 +226,7 @@ func (s *Service) describeStudent(ctx context.Context, me *Record, userName stri
 	}, termID, termTitle, termCode
 }
 
-// universityInfo عنوان/آرم دانشگاه دانشجو (با پشتوانهٔ نام پیش‌فرض سامانه).
+// universityInfo is the student university title/logo (backed by the system default name).
 func (s *Service) universityInfo(ctx context.Context, universityID *int64) UniversityInfo {
 	info := UniversityInfo{Title: "دانشگاه آفاق"}
 	if universityID == nil {
@@ -244,7 +244,7 @@ func (s *Service) universityInfo(ctx context.Context, universityID *int64) Unive
 	return info
 }
 
-// GetSchedule پورت student/schedule/page.tsx.
+// GetSchedule ports student/schedule/page.tsx.
 func (s *Service) GetSchedule(ctx context.Context, userID int64, userName string, termCookie *int64) (*ScheduleResponse, error) {
 	me, err := s.Resolve(ctx, userID)
 	if err != nil {
@@ -273,7 +273,7 @@ func (s *Service) GetSchedule(ctx context.Context, userID int64, userName string
 		return resp, nil
 	}
 
-	// ثبت‌نام‌های ترم با جلسات.
+	// Term enrollments with sessions.
 	rows, err := s.Pool.Query(ctx, `
 		select e.id, e."offeringId", e.status,
 		       o."courseId", c.code, c.title, coalesce(c.units, 0)::int,
@@ -312,7 +312,7 @@ func (s *Service) GetSchedule(ctx context.Context, userID int64, userName string
 		return nil, err
 	}
 
-	// نام استادها.
+	// Professor names.
 	profNames := map[int64]string{}
 	profIDs := []int64{}
 	for _, p := range list {
@@ -337,7 +337,7 @@ func (s *Service) GetSchedule(ctx context.Context, userID int64, userName string
 		}
 	}
 
-	// جلسات کلاس/امتحان.
+	// Class/exam sessions.
 	offeringIDs := []int64{}
 	for _, p := range list {
 		offeringIDs = append(offeringIDs, p.course.OfferingID)

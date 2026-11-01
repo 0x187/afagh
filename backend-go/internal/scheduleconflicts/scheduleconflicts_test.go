@@ -52,29 +52,29 @@ func TestMergeRules(t *testing.T) {
 	if !IsMergedPair(a, b) {
 		t.Fatal("ساعت و سالن یکسان = ادغامی")
 	}
-	// کلید ادغام یکسان
+	// same merge key
 	a2 := slot(func(s *ConflictSlot) { s.SharedScheduleGroupKey = sp("G-9") })
 	b2 := slot(func(s *ConflictSlot) { s.SharedScheduleGroupKey = sp("G-9"); s.ScheduleID = 3 })
 	if !IsMergedPair(a2, b2) {
 		t.Fatal("کلید ادغام یکسان = ادغامی")
 	}
-	// SOLO جلوی ادغام را می‌گیرد
+	// SOLO blocks merging
 	a3 := slot(func(s *ConflictSlot) { s.SharedScheduleGroupKey = sp("SOLO-1") })
 	if IsMergedPair(a3, b) {
 		t.Fatal("SOLO نباید ادغامی شمرده شود")
 	}
-	// سالن نامشخص مانع ادغام نیست
+	// unknown room does not block merging
 	a4 := slot(func(s *ConflictSlot) { s.RoomID = nil })
 	if !IsMergedPair(a4, b) {
 		t.Fatal("سالن NULL باید ادغام را مجاز کند")
 	}
-	// ساعت متفاوت
+	// different time
 	b5 := slot(func(s *ConflictSlot) { s.StartTime = "10:00"; s.EndTime = "11:30" })
 	if IsMergedPair(a, b5) {
 		t.Fatal("ساعت متفاوت نباید ادغامی باشد")
 	}
 
-	// near merged: همان استاد/سالن، اختلاف ≤۲۰ دقیقه
+	// near merged: same professor/room, gap ≤20 minutes
 	near := slot(func(s *ConflictSlot) { s.StartTime = "08:15"; s.EndTime = "09:45" })
 	if !IsNearMergedPair(a, near) {
 		t.Fatal("اختلاف ۱۵ دقیقه باید near-merged باشد")
@@ -108,14 +108,14 @@ func TestDedupeAndConflicts(t *testing.T) {
 		t.Fatal("سالن متفاوت نباید تکراری شمرده شود")
 	}
 
-	// ادغامی → تداخل استاد سرکوب، ولی چون همان استاد است تداخل سالن هم نیست
+	// merged → professor conflict suppressed, but since it is the same professor there is no room conflict either
 	mergedSameProf := slot(func(s *ConflictSlot) { s.ScheduleID = 2; s.OfferingID = 2; s.CourseCode = "C2" })
 	res := DetectScheduleConflicts([]ConflictSlot{dup, mergedSameProf})
 	if len(res.Pairs) != 0 || res.MergedSkipped != 1 || res.RawOverlaps != 1 {
 		t.Fatalf("ادغام: %+v", res)
 	}
 
-	// ادغامی با دو استاد متفاوت → تداخل سالن می‌ماند
+	// merged with two different professors → room conflict remains
 	mergedOtherProf := slot(func(s *ConflictSlot) {
 		s.ScheduleID = 3
 		s.OfferingID = 3
@@ -128,7 +128,7 @@ func TestDedupeAndConflicts(t *testing.T) {
 		t.Fatalf("ادغامی با استاد متفاوت باید تداخل سالن بدهد: %+v", res.Pairs)
 	}
 
-	// SOLO: ساعت و سالن یکسان → تداخل واقعی (استاد + سالن)
+	// SOLO: same time and room → real conflict (professor + room)
 	soloA := slot(func(s *ConflictSlot) { s.SharedScheduleGroupKey = sp("SOLO-1") })
 	soloB := slot(func(s *ConflictSlot) { s.ScheduleID = 4; s.OfferingID = 4; s.SharedScheduleGroupKey = sp("SOLO-1") })
 	res = DetectScheduleConflicts([]ConflictSlot{soloA, soloB})
@@ -136,7 +136,7 @@ func TestDedupeAndConflicts(t *testing.T) {
 		t.Fatalf("SOLO باید هر دو تداخل را بدهد: %d", len(res.Pairs))
 	}
 
-	// نزدیک-ادغامی: همان استاد/سالن با اختلاف ساعت → تداخل‌ها با likelyMerged
+	// near-merged: same professor/room with a time gap → conflicts flagged with likelyMerged
 	near := slot(func(s *ConflictSlot) {
 		s.ScheduleID = 5
 		s.OfferingID = 5
@@ -154,7 +154,7 @@ func TestDedupeAndConflicts(t *testing.T) {
 		}
 	}
 
-	// دو درسِ یک ارائه → نادیده
+	// two courses of the same offering → ignored
 	sameOffering := slot(func(s *ConflictSlot) { s.ScheduleID = 6; s.StartTime = "08:30"; s.EndTime = "10:00" })
 	res = DetectScheduleConflicts([]ConflictSlot{dup, sameOffering})
 	if len(res.Pairs) != 0 {
@@ -176,12 +176,12 @@ func TestSummaryAndEntityGrouping(t *testing.T) {
 	if sum.Professor == 0 || sum.Room == 0 || sum.ProfessorEntities != 1 || sum.RoomEntities != 1 {
 		t.Fatalf("summary: %+v", sum)
 	}
-	// دانشجویان در معرض فقط یک‌بار برای هر جفت ارائه شمرده می‌شوند
+	// affected students counted only once per offering pair
 	if sum.StudentsAtRisk != 25 {
 		t.Fatalf("studentsAtRisk=%d want 25", sum.StudentsAtRisk)
 	}
 	groups := GroupConflictsByEntity(res.Pairs)
-	if len(groups) != 2 { // یک استاد + یک سالن
+	if len(groups) != 2 { // one professor + one room
 		t.Fatalf("entity groups: %d", len(groups))
 	}
 	if groups[0].Kind != "PROFESSOR" {
@@ -190,7 +190,7 @@ func TestSummaryAndEntityGrouping(t *testing.T) {
 }
 
 func TestGroupConflictPairs(t *testing.T) {
-	// سه درسِ یک استاد در یک سالن با بازه‌های جابه‌جا → یک مسئله
+	// three courses by one professor in one room with interleaved ranges → one issue
 	mk := func(id int64, start, end string, enrolled int) ConflictSlot {
 		return slot(func(s *ConflictSlot) {
 			s.ScheduleID = id

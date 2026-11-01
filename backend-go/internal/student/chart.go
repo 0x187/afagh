@@ -1,4 +1,4 @@
-// ═══ چارت تحصیلی دانشجو — پورت student/chart ═══
+// ═══ Student curriculum chart — port of student/chart ═══
 package student
 
 import (
@@ -11,7 +11,7 @@ import (
 	"backend-go/internal/enroll"
 )
 
-// ChartRow ردیف درس چارت.
+// ChartRow is a chart course row.
 type ChartRow struct {
 	ID          int64    `json:"id"`
 	CourseID    int64    `json:"courseId"`
@@ -23,7 +23,7 @@ type ChartRow struct {
 	Status      string   `json:"status"` // PASSED | IN_PROGRESS | MISSING_PAST | FUTURE
 }
 
-// ChartSemester گروه ترم.
+// ChartSemester is a term group.
 type ChartSemester struct {
 	Key           int        `json:"key"`
 	Title         string     `json:"title"`
@@ -33,7 +33,7 @@ type ChartSemester struct {
 	Rows          []ChartRow `json:"rows"`
 }
 
-// ChartRoleSummary خلاصهٔ نوع درس.
+// ChartRoleSummary is a course-type summary.
 type ChartRoleSummary struct {
 	RoleType    string  `json:"roleType"`
 	Total       int     `json:"total"`
@@ -42,7 +42,7 @@ type ChartRoleSummary struct {
 	PassedUnits float64 `json:"passedUnits"`
 }
 
-// ChartResponse پاسخ چارت.
+// ChartResponse is the chart response.
 type ChartResponse struct {
 	Student           StudentInfo        `json:"student"`
 	MajorName         string             `json:"majorName"`
@@ -70,7 +70,7 @@ var semesterTitle = map[int]string{
 	7: "نیمسال هفتم (ترم ۷)", 8: "نیمسال هشتم (ترم ۸)", 9: "ترم تابستان",
 }
 
-// prereqCodes از درخت منطقی.
+// prereqCodes comes from the logic tree.
 func prereqCodes(logicTree string) []string {
 	out := []string{}
 	var walk func(node map[string]any)
@@ -95,7 +95,7 @@ func prereqCodes(logicTree string) []string {
 	return out
 }
 
-// GetChart پورت student/chart/page.tsx.
+// GetChart ports student/chart/page.tsx.
 func (s *Service) GetChart(ctx context.Context, userID int64, userName string, termCookie *int64) (*ChartResponse, error) {
 	me, err := s.Resolve(ctx, userID)
 	if err != nil {
@@ -116,7 +116,7 @@ func (s *Service) GetChart(ctx context.Context, userID int64, userName string, t
 		_ = s.Pool.QueryRow(ctx, `select title from degree_level_configs where id = $1`, *me.DegreeLevelID).Scan(&resp.DegreeTitle)
 	}
 
-	// ترم انتخابی/جاری.
+	// Selected/current term.
 	selection := s.Scope.GetTermScope(ctx, me.UniversityID, termCookie)
 	var selectedTerm *int64
 	if selection.SelectedID != nil {
@@ -131,7 +131,7 @@ func (s *Service) GetChart(ctx context.Context, userID int64, userName string, t
 		}
 	}
 
-	// سوابق دروس.
+	// Course history.
 	type enrollmentRow struct {
 		CourseID    int64
 		Units       float64
@@ -181,7 +181,7 @@ func (s *Service) GetChart(ctx context.Context, userID int64, userName string, t
 		}
 	}
 
-	// حل نسخهٔ چارت (گسترهٔ دانشگاه).
+	// Resolve the chart version (university scope).
 	var majorID *int64
 	_ = s.Pool.QueryRow(ctx, `select "majorId" from students where id = $1`, me.ID).Scan(&majorID)
 	if majorID == nil || me.DegreeLevelID == nil {
@@ -226,7 +226,7 @@ func (s *Service) GetChart(ctx context.Context, userID int64, userName string, t
 		resp.RequiredUnits = *totalRequired
 	}
 
-	// دروس چارت.
+	// Chart courses.
 	crows, err := s.Pool.Query(ctx, `
 		select cc.id, c.id, c.code, c.title, c.units, cc.units, coalesce(cc."roleType",''),
 		       cc."recommendedSemester"
@@ -256,7 +256,7 @@ func (s *Service) GetChart(ctx context.Context, userID int64, userName string, t
 	}
 	crows.Close()
 
-	// پیش‌نیازها.
+	// Prerequisites.
 	prereqMap := map[int64][]string{}
 	if len(chart) > 0 {
 		ids := make([]int64, len(chart))
@@ -278,7 +278,7 @@ func (s *Service) GetChart(ctx context.Context, userID int64, userName string, t
 		}
 	}
 
-	// گروه‌بندی و آمار.
+	// Grouping and stats.
 	groups := map[int][]chartRaw{}
 	for _, r := range chart {
 		key := 0
@@ -378,7 +378,7 @@ func (s *Service) GetChart(ctx context.Context, userID int64, userName string, t
 			Rows:          rowsOut,
 		})
 	}
-	// ترتیب نقش‌ها طبق ترتیب ثابت.
+	// Role order follows the fixed order.
 	order := []string{"CORE", "MAJOR", "ELECTIVE", "GENERAL", "THESIS", "INTERNSHIP", "WORKSHOP"}
 	for _, role := range order {
 		if item, ok := roleTotals[role]; ok {

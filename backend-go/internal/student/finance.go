@@ -1,4 +1,4 @@
-// ═══ امور مالی دانشجو — پورت student/finance + finance-engine/student-detail ═══
+// ═══ Student finance — port of student/finance + finance-engine/student-detail ═══
 package student
 
 import (
@@ -13,7 +13,7 @@ import (
 	"backend-go/internal/qr"
 )
 
-// FinanceStudent هویت دانشجو در سند مالی.
+// FinanceStudent is the student identity in the finance document.
 type FinanceStudent struct {
 	StudentID    int64   `json:"studentId"`
 	UserID       int64   `json:"userId"`
@@ -27,7 +27,7 @@ type FinanceStudent struct {
 	EntryTerm    *int    `json:"entryTerm"`
 }
 
-// FinanceEvent رویداد مالی ترم.
+// FinanceEvent is a term financial event.
 type FinanceEvent struct {
 	Kind   string  `json:"kind"`
 	Label  string  `json:"label"`
@@ -36,7 +36,7 @@ type FinanceEvent struct {
 	Sign   int     `json:"sign"`
 }
 
-// FinanceTerm کارنامهٔ یک ترم.
+// FinanceTerm is one term's statement.
 type FinanceTerm struct {
 	TermID         int64          `json:"termId"`
 	TermTitle      string         `json:"termTitle"`
@@ -54,7 +54,7 @@ type FinanceTerm struct {
 	Events         []FinanceEvent `json:"events"`
 }
 
-// FinanceCheque چک.
+// FinanceCheque is a cheque.
 type FinanceCheque struct {
 	ID       int64   `json:"id"`
 	TermID   *int64  `json:"termId"`
@@ -65,7 +65,7 @@ type FinanceCheque struct {
 	Status   *string `json:"status"`
 }
 
-// FinanceLoan وام.
+// FinanceLoan is a loan.
 type FinanceLoan struct {
 	ID           int64   `json:"id"`
 	TermID       *int64  `json:"termId"`
@@ -76,7 +76,7 @@ type FinanceLoan struct {
 	Status       *string `json:"status"`
 }
 
-// FinanceNotification پیام مالی.
+// FinanceNotification is a financial message.
 type FinanceNotification struct {
 	ID     int64   `json:"id"`
 	Text   string  `json:"text"`
@@ -84,7 +84,7 @@ type FinanceNotification struct {
 	Event  *string `json:"event"`
 }
 
-// DueCheque چک در شرف سررسید.
+// DueCheque is a cheque nearing its due date.
 type DueCheque struct {
 	ID       int64   `json:"id"`
 	ChequeNo *string `json:"chequeNo"`
@@ -94,7 +94,7 @@ type DueCheque struct {
 	Overdue  bool    `json:"overdue"`
 }
 
-// FinanceTotals جمع کل.
+// FinanceTotals are the totals.
 type FinanceTotals struct {
 	Charges        float64 `json:"charges"`
 	Discounts      float64 `json:"discounts"`
@@ -107,14 +107,14 @@ type FinanceTotals struct {
 	Balance        float64 `json:"balance"`
 }
 
-// FinanceQR بلوک استعلام.
+// FinanceQR is the verification block.
 type FinanceQR struct {
 	URL       string `json:"url"`
 	SVG       string `json:"svg"`
 	ExpiresAt string `json:"expiresAt"`
 }
 
-// FinanceResponse پاسخ صفحهٔ مالی.
+// FinanceResponse is the finance page response.
 type FinanceResponse struct {
 	Student           FinanceStudent        `json:"student"`
 	Records           []RecordOption        `json:"records"`
@@ -131,7 +131,7 @@ type FinanceResponse struct {
 	QR                *FinanceQR            `json:"qr"`
 }
 
-// GetFinance پورت دانشجویی getStudentFinance + صفحهٔ finance.
+// GetFinance ports the student-side getStudentFinance + the finance page.
 func (s *Service) GetFinance(ctx context.Context, userID int64, recordID *int64, termCookie *int64, publicBaseURL string) (*FinanceResponse, error) {
 	picked, err := s.Resolve(ctx, userID)
 	if err != nil {
@@ -147,9 +147,9 @@ func (s *Service) GetFinance(ctx context.Context, userID int64, recordID *int64,
 	return s.buildFinance(ctx, userID, me, termCookie, publicBaseURL)
 }
 
-// GetFinanceByStudentID نسخهٔ ادمینیِ همان موتور (پورت admin/finance/student/[id]
-// که خودش getStudentFinance را صدا می‌زند) — عدد کارتابل و کارنامهٔ مالی
-// نمی‌تواند واگرا شود چون هر دو از یک مسیر عبور می‌کنند.
+// GetFinanceByStudentID is the admin version of the same engine (port of admin/finance/student/[id],
+// which itself calls getStudentFinance) — the cartable number and the finance statement
+// cannot diverge because both go through one path.
 func (s *Service) GetFinanceByStudentID(ctx context.Context, studentID int64, termCookie *int64) (*FinanceResponse, error) {
 	var rec Record
 	err := s.Pool.QueryRow(ctx, `
@@ -166,7 +166,7 @@ func (s *Service) GetFinanceByStudentID(ctx context.Context, studentID int64, te
 	return s.buildFinance(ctx, rec.UserID, &rec, termCookie, "")
 }
 
-// buildFinance بدنهٔ مشترک کارنامهٔ مالی (دانشجو و ادمین).
+// buildFinance is the shared body of the finance statement (student and admin).
 func (s *Service) buildFinance(ctx context.Context, userID int64, me *Record, termCookie *int64, publicBaseURL string) (*FinanceResponse, error) {
 	var (
 		fullName, nationalCode, majorTitle, degreeTitle *string
@@ -199,7 +199,7 @@ func (s *Service) buildFinance(ctx context.Context, userID int64, me *Record, te
 		resp.Student.FullName = strings.TrimSpace(*fullName)
 	}
 
-	// عنوان ترم‌ها.
+	// Term titles.
 	termTitles := map[string]string{}
 	termCodes := map[string]string{}
 	trows, err := s.Pool.Query(ctx, `select id, coalesce("termCode",''), title from academic_terms`)
@@ -216,7 +216,7 @@ func (s *Service) buildFinance(ctx context.Context, userID int64, me *Record, te
 		trows.Close()
 	}
 
-	// دفتر مالی.
+	// Finance ledger.
 	ledger := []finance.LedgerTxn{}
 	lrows, err := s.Pool.Query(ctx, `
 		select id, "termId", "transactionType", amount::float8, description, "createdAt"
@@ -234,7 +234,7 @@ func (s *Service) buildFinance(ctx context.Context, userID int64, me *Record, te
 	}
 	lrows.Close()
 
-	// تخفیف‌ها/پوشش‌ها → تعدیلات ترم.
+	// Discounts/coverages → term adjustments.
 	termCharges := map[int64]float64{}
 	for _, t := range ledger {
 		key := int64(0)
@@ -302,7 +302,7 @@ func (s *Service) buildFinance(ctx context.Context, userID int64, me *Record, te
 		}
 	}
 
-	// چک‌ها.
+	// Cheques.
 	cheques := []finance.ChequeRow{}
 	crows, err := s.Pool.Query(ctx, `
 		select id, "termId", "chequeNo", "bankName", amount::float8, "dueDate", status, "remindedAt"
@@ -333,7 +333,7 @@ func (s *Service) buildFinance(ctx context.Context, userID int64, me *Record, te
 		resp.Cheques = dueRows
 	}
 
-	// وام‌ها.
+	// Loans.
 	loans := []finance.LoanRow{}
 	loanOut := []FinanceLoan{}
 	wrows, err := s.Pool.Query(ctx, `
@@ -358,13 +358,13 @@ func (s *Service) buildFinance(ctx context.Context, userID int64, me *Record, te
 		resp.Loans = loanOut
 	}
 
-	// ساخت کارنامه.
+	// Build the statement.
 	statements := finance.BuildTranscript(finance.TranscriptInput{
 		Ledger: ledger, Discounts: discountApplied, Sponsorships: sponsorApplied,
 		Cheques: cheques, Loans: loans, TermTitles: termTitles, TermCodes: termCodes,
 	})
 
-	// فیلتر ترم انتخابی (کوکی).
+	// Filter by the selected term (cookie).
 	selection := s.Scope.GetTermScope(ctx, me.UniversityID, termCookie)
 	var selected *int64
 	if selection.SelectedID != nil {
@@ -424,7 +424,7 @@ func (s *Service) buildFinance(ctx context.Context, userID int64, me *Record, te
 		resp.Loans = filteredLoans
 	}
 
-	// یادآوری چک‌های نزدیک سررسید.
+	// Reminder for cheques near their due date.
 	remindDays := 7.0
 	if s.Settings != nil {
 		remindDays = s.Settings.GetNumber(ctx, "CHEQUE_REMIND_DAYS", 7)
@@ -448,7 +448,7 @@ func (s *Service) buildFinance(ctx context.Context, userID int64, me *Record, te
 		return derefInt(resp.DueSoon[i].DaysLeft) < derefInt(resp.DueSoon[j].DaysLeft)
 	})
 
-	// پیام‌های مالی (فقط FINANCE_CHEQUE_DUE).
+	// Financial messages (only FINANCE_CHEQUE_DUE).
 	nrows, err := s.Pool.Query(ctx, `
 		select id, coalesce("eventCode",''), payload, "createdAt"
 		  from notifications where "userId" = $1 and "eventCode" = 'FINANCE_CHEQUE_DUE'
@@ -475,7 +475,7 @@ func (s *Service) buildFinance(ctx context.Context, userID int64, me *Record, te
 		nrows.Close()
 	}
 
-	// QR استعلام کارنامهٔ مالی.
+	// QR for finance-statement verification.
 	resp.QR = s.issueFinanceQR(ctx, userID, me, publicBaseURL)
 	return resp, nil
 }

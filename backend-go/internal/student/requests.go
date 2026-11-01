@@ -1,7 +1,7 @@
-// ═══ میز خدمات / گردش‌کار درخواست‌های دانشجو (فاز ۳) ═══
+// ═══ Service desk / student request workflow (phase 3) ═══
 //
-// پورت بخش دانشجویی workflow-engine: فهرست فرایندها، ثبت درخواست (مسیر عمومی +
-// گواهی اشتغال به تحصیل + تسویهٔ فارغ‌التحصیلی) و امتیاز رضایت.
+// Port of the workflow-engine student part: process list, request submission (general path +
+// enrollment certificate + graduation clearance) and the satisfaction score.
 package student
 
 import (
@@ -21,7 +21,7 @@ import (
 	"backend-go/internal/safeinput"
 )
 
-// ProcessStep مرحلهٔ فرایند.
+// ProcessStep is a process step.
 type ProcessStep struct {
 	StepOrder int    `json:"stepOrder"`
 	Title     string `json:"title"`
@@ -30,7 +30,7 @@ type ProcessStep struct {
 	SLAHours  int    `json:"slaHours"`
 }
 
-// ProcessDef فرایند قابل درخواست.
+// ProcessDef is a requestable process.
 type ProcessDef struct {
 	ID          int64           `json:"id"`
 	Code        string          `json:"code"`
@@ -42,7 +42,7 @@ type ProcessDef struct {
 	Steps       []ProcessStep   `json:"steps"`
 }
 
-// RequestLog لاگ مرحله.
+// RequestLog is a step log.
 type RequestLog struct {
 	ID              int64   `json:"id"`
 	ActorRole       *string `json:"actorRole"`
@@ -54,7 +54,7 @@ type RequestLog struct {
 	SLAStatus       *string `json:"slaStatus"`
 }
 
-// RequestCheckpoint چک‌پوینت موازی.
+// RequestCheckpoint is a parallel checkpoint.
 type RequestCheckpoint struct {
 	ID              int64   `json:"id"`
 	DepartmentCode  string  `json:"departmentCode"`
@@ -63,7 +63,7 @@ type RequestCheckpoint struct {
 	Notes           *string `json:"notes"`
 }
 
-// RequestRow درخواست دانشجو.
+// RequestRow is a student request.
 type RequestRow struct {
 	ID                int64               `json:"id"`
 	TrackingCode      string              `json:"trackingCode"`
@@ -82,14 +82,14 @@ type RequestRow struct {
 	Checkpoints       []RequestCheckpoint `json:"checkpoints"`
 }
 
-// RequestsStudent اطلاعات حداقلی دانشجو در سربرگ.
+// RequestsStudent is the minimal student info in the header.
 type RequestsStudent struct {
 	ID     int64  `json:"id"`
 	Name   string `json:"name"`
 	Status string `json:"status"`
 }
 
-// RequestsResponse پاسخ صفحهٔ میز خدمات.
+// RequestsResponse is the service-desk page response.
 type RequestsResponse struct {
 	Student         RequestsStudent `json:"student"`
 	StudentCode     string          `json:"studentCode"`
@@ -102,7 +102,7 @@ type RequestsResponse struct {
 	MyRequests      []RequestRow    `json:"myRequests"`
 }
 
-// ListRequests پورت student/requests/page.tsx.
+// ListRequests ports student/requests/page.tsx.
 func (s *Service) ListRequests(ctx context.Context, userID int64, userName string) (*RequestsResponse, error) {
 	me, err := s.Resolve(ctx, userID)
 	if err != nil {
@@ -128,7 +128,7 @@ func (s *Service) ListRequests(ctx context.Context, userID int64, userName strin
 	resp.UniversityTitle = uni.Title
 	resp.UniversityLogo = uni.LogoURL
 
-	// فرایندهای فعال (به‌جز درخواست پیش‌نیاز که از انتخاب واحد ثبت می‌شود).
+	// Active processes (except the prerequisite request, which is submitted from enrollment).
 	prows, err := s.Pool.Query(ctx, `
 		select id, code, title, coalesce(category,'عمومی'), coalesce(description,''),
 		       coalesce("feeAmount",0), coalesce("formSchema",'[]')
@@ -166,7 +166,7 @@ func (s *Service) ListRequests(ctx context.Context, userID int64, userName strin
 		}
 	}
 
-	// درخواست‌های خود دانشجو.
+	// The student's own requests.
 	rrows, err := s.Pool.Query(ctx, `
 		select r.id, r."trackingCode", r.status, r."createdAt"::text, r."updatedAt"::text,
 		       coalesce(r."formData",'{}'), r."processId", p.code, p.title,
@@ -231,7 +231,7 @@ func (s *Service) ListRequests(ctx context.Context, userID int64, userName strin
 	return resp, nil
 }
 
-// SubmitRequestResult نتیجهٔ ثبت.
+// SubmitRequestResult is the submission result.
 type SubmitRequestResult struct {
 	OK           bool   `json:"ok"`
 	TrackingCode string `json:"trackingCode"`
@@ -239,7 +239,7 @@ type SubmitRequestResult struct {
 	Error        string `json:"error,omitempty"`
 }
 
-// SubmitRequest پورت submitStudentRequest (مسیرهای عمومی، گواهی اشتغال و تسویه).
+// SubmitRequest ports submitStudentRequest (general, certificate, and clearance paths).
 func (s *Service) SubmitRequest(ctx context.Context, userID, studentID int64, processCode string, formData map[string]any) SubmitRequestResult {
 	inputRaw, err := json.Marshal(formData)
 	if err != nil || len(inputRaw) > 100*1024 {
@@ -428,7 +428,7 @@ func (s *Service) SubmitRequest(ctx context.Context, userID, studentID int64, pr
 	return result
 }
 
-// RateSatisfaction پورت submitRequestSatisfaction با مالکیت.
+// RateSatisfaction ports submitRequestSatisfaction with ownership.
 func (s *Service) RateSatisfaction(ctx context.Context, studentID, requestID int64, score int, feedback string) error {
 	if score < 1 {
 		score = 1
@@ -453,7 +453,7 @@ func (s *Service) RateSatisfaction(ctx context.Context, studentID, requestID int
 	return nil
 }
 
-// ── ابزارها ──
+// ── Helpers ──
 
 func notifyText(ctx context.Context, tx pgx.Tx, userID int64, eventCode, text string) {
 	payload, _ := json.Marshal(map[string]string{"text": text})
@@ -505,8 +505,8 @@ func (s *Service) ledgerBalanceTx(ctx context.Context, tx pgx.Tx, studentID int6
 
 func nextTrackingCode(ctx context.Context, tx pgx.Tx, prefix, year string) (string, error) {
 	var n int64
-	// دنباله ممکن است در محیط توسعه ساخته نشده باشد؛ بدون SAVEPOINT خطا کل
-	// تراکنش را abort می‌کند (25P02) و ثبت درخواست همیشه شکست می‌خورد.
+	// The sequence may not exist in the dev environment; without SAVEPOINT the error aborts the
+	// whole transaction (25P02) and request submission always fails.
 	_, _ = tx.Exec(ctx, `SAVEPOINT tracking_seq`)
 	if err := tx.QueryRow(ctx, `select nextval('tracking_code_seq')`).Scan(&n); err == nil && n > 0 {
 		_, _ = tx.Exec(ctx, `RELEASE SAVEPOINT tracking_seq`)
@@ -530,10 +530,10 @@ func jalaliYear(t time.Time) int {
 	return jalali.ToJalaliFromTime(t).Y
 }
 
-// MaxUploadBytes سقف پیوست درخواست (۱۰ مگابایت).
+// MaxUploadBytes is the request attachment cap (10 MB).
 const MaxUploadBytes = 10 * 1024 * 1024
 
-// UploadedAttachment متادیتای پیوست ذخیره‌شده.
+// UploadedAttachment is the stored attachment metadata.
 type UploadedAttachment struct {
 	Key      string `json:"key"`
 	Name     string `json:"name"`
@@ -541,7 +541,7 @@ type UploadedAttachment struct {
 	MimeType string `json:"mimeType"`
 }
 
-// UploadRequestAttachment پورت uploadRequestAttachmentAction.
+// UploadRequestAttachment ports uploadRequestAttachmentAction.
 func (s *Service) UploadRequestAttachment(ctx context.Context, studentID int64, fileName, claimedType string, data []byte) (*UploadedAttachment, error) {
 	if len(data) == 0 {
 		return nil, errors.New("فایلی انتخاب نشده است.")

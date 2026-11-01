@@ -10,7 +10,7 @@ func nowMinusMinutes(m int) int64 {
 	return time.Now().Add(-time.Duration(m) * time.Minute).UnixMilli()
 }
 
-// fakeSettings تنظیمات ساختگی برای تست — همان قرارداد SettingsStore.
+// fakeSettings fake settings for tests — same contract as SettingsStore.
 type fakeSettings map[string]string
 
 func (f fakeSettings) Get(_ context.Context, key string) (string, error) { return f[key], nil }
@@ -32,7 +32,7 @@ func TestRoleMinutesParsing(t *testing.T) {
 	s := New(nil, fakeSettings{})
 	ctx := context.Background()
 
-	// JSON معتبر: نقش موجود برنده است، ۰ یعنی غیرفعال
+	// valid JSON: an existing role wins, 0 means disabled
 	s = New(nil, fakeSettings{
 		"SESSION_LOCK_MINUTES":       "15",
 		"SESSION_LOCK_MINUTES_ROLES": `{"ADMIN":30,"STUDENT":0}`,
@@ -43,15 +43,15 @@ func TestRoleMinutesParsing(t *testing.T) {
 	if got := s.ResolveIdleTimeoutMinutes(ctx, []string{"STUDENT"}); got != 0 {
 		t.Fatalf("STUDENT باید ۰ باشد: %v", got)
 	}
-	// اولین نقش منطبق برنده است
+	// the first matching role wins
 	if got := s.ResolveIdleTimeoutMinutes(ctx, []string{"STUDENT", "ADMIN"}); got != 0 {
 		t.Fatalf("اولین نقش منطبق (STUDENT) باید برنده شود: %v", got)
 	}
-	// نقش ناموجود → پیش‌فرض
+	// missing role → default
 	if got := s.ResolveIdleTimeoutMinutes(ctx, []string{"PROFESSOR"}); got != 15 {
 		t.Fatalf("نقش ناموجود باید پیش‌فرض ۱۵ باشد: %v", got)
 	}
-	// JSON خراب → پیش‌فرض
+	// malformed JSON → default
 	s = New(nil, fakeSettings{
 		"SESSION_LOCK_MINUTES_ROLES": "not-json",
 	})
@@ -63,7 +63,7 @@ func TestRoleMinutesParsing(t *testing.T) {
 func TestReauthMinutesFloor(t *testing.T) {
 	ctx := context.Background()
 	s := New(nil, fakeSettings{"SESSION_REAUTH_MINUTES": "20"})
-	// قفل ۳۰ دقیقه‌ای ⇒ reauth حداقل ۳۵
+	// 30-minute lock ⇒ reauth at least 35
 	if got := s.ResolveReauthMinutes(ctx, 30); got != 35 {
 		t.Fatalf("reauth باید حداقل idle+5 باشد: %v", got)
 	}
@@ -93,11 +93,11 @@ func TestIdleEvaluation(t *testing.T) {
 	s := New(nil, nil)
 	ctx := context.Background()
 
-	// نخستین مشاهده: مبنای بیکاری نیست
+	// first observation: no basis for idleness
 	if s.EvaluateIdleLock(ctx, 8, 15) {
 		t.Fatal("نخستین مشاهده نباید قفل کند")
 	}
-	// شبیه‌سازی بیکاری: فعالیت را ۲۰ دقیقه عقب ببریم
+	// simulate idleness: move the activity back 20 minutes
 	s.mu.Lock()
 	s.seenMem[8] = nowMinusMinutes(20)
 	s.mu.Unlock()

@@ -2,16 +2,16 @@ package session
 
 import "testing"
 
-// پارتی با auth.ts: توکن معتبر دقیقاً ۶۴ کاراکتر hex است.
+// parity with auth.ts: a valid token is exactly 64 hex characters.
 func TestValidTokenShape(t *testing.T) {
 	good := "a1b2c3d4e5f6a7b8a1b2c3d4e5f6a7b8a1b2c3d4e5f6a7b8a1b2c3d4e5f6a7b8"
 	if !ValidTokenShape(good) {
 		t.Fatal("توکن ۶۴تایی hex معتبر باید پذیرفته شود")
 	}
 	for _, bad := range []string{
-		"", "short", good + "extra", // طول
-		"zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",  // غیر hex
-		"a1b2c3d4e5f6a7b8a1b2c3d4e5f6a7b8a1b2c3d4e5f6a7b8a1b2c3d4e5f6a7b%8", // غیر hex
+		"", "short", good + "extra", // length
+		"zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz",  // non-hex
+		"a1b2c3d4e5f6a7b8a1b2c3d4e5f6a7b8a1b2c3d4e5f6a7b8a1b2c3d4e5f6a7b%8", // non-hex
 	} {
 		if ValidTokenShape(bad) {
 			t.Fatalf("توکن بدشکل باید رد شود: %q", bad)
@@ -20,7 +20,7 @@ func TestValidTokenShape(t *testing.T) {
 }
 
 func TestSha256Hex(t *testing.T) {
-	// پارتی با sha256('abc') شناخته‌شده
+	// parity with the known sha256('abc')
 	if got := Sha256Hex("abc"); got != "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad" {
 		t.Fatalf("sha256 hex نادرست: %s", got)
 	}

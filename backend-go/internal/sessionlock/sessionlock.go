@@ -1,9 +1,9 @@
-// ═══ قفل بیکاری سرور-محور — پورت خط‌به‌خط src/lib/session-lock.ts ═══
+// ═══ server-side idle lock — line-by-line port of src/lib/session-lock.ts ═══
 //
-// کلیدهای Redis عیناً `sesslock:{id}` و `sessseen:{id}` — سیستم قدیم و جدید
-// باید یک وضعیت قفل را ببینند. «پاک‌سازی» با مقدار '0' (سنگ‌قبر) نوشته می‌شود
-// تا پروسه‌های دیگر آینهٔ حافظه‌ای خود را پاک کنند (با DEL، آینهٔ کهنه تا ۲۴
-// ساعت می‌توانست در پروسهٔ دیگر قفل نگه دارد). TTL هر دو ۲۴ ساعت.
+// Redis keys exactly `sesslock:{id}` and `sessseen:{id}` — the old and new systems
+// must see the same lock state. "clear" is written as the value '0' (tombstone)
+// so that other processes clear their in-memory mirror (with DEL, a stale mirror could keep a lock in another process for up to 24
+// hours). TTL of both is 24 hours.
 package sessionlock
 
 import (
@@ -22,26 +22,26 @@ const (
 	keyTTL          = 24 * time.Hour
 )
 
-// SettingsStore حداقل وابستگی تنظیمات (SESSION_LOCK_MINUTES و …).
+// SettingsStore minimal settings dependency (SESSION_LOCK_MINUTES and …).
 type SettingsStore interface {
 	Get(ctx context.Context, key string) (string, error)
 	GetNumber(ctx context.Context, key string, fallback float64) float64
 }
 
-// Service قفل بیکاری با آینهٔ درون‌حافظه هنگام قطعی Redis.
+// Service idle lock with an in-memory mirror during Redis outages.
 type Service struct {
 	rdb      *redis.Client
 	settings SettingsStore
 
 	mu           sync.Mutex
 	downUntil    time.Time
-	memLock      map[int64]time.Time // userId → انقضای قفل
+	memLock      map[int64]time.Time // userId → lock expiry
 	pendingClear map[int64]bool
-	seenMem      map[int64]int64 // userId → آخرین فعالیت (ms epoch)
+	seenMem      map[int64]int64 // userId → last activity (ms epoch)
 	pendingSeen  map[int64]int64
 }
 
-// New سازنده — rdb می‌تواند nil باشد (حالت درون‌حافظه برای تست/توسعه).
+// New constructor — rdb may be nil (in-memory mode for testing/development).
 func New(rdb *redis.Client, settings SettingsStore) *Service {
 	return &Service{
 		rdb: rdb, settings: settings,
@@ -78,7 +78,7 @@ func (s *Service) sweepLocked(now time.Time) {
 	}
 }
 
-// flushClears تلاش دوباره برای پاک‌سازی‌های عقب‌افتاده — '0' به‌جای DEL.
+// flushClears retries the missed clears — '0' instead of DEL.
 func (s *Service) flushClears(ctx context.Context) {
 	s.mu.Lock()
 	if len(s.pendingClear) == 0 {
@@ -133,7 +133,7 @@ func (s *Service) flushSeen(ctx context.Context) {
 	}
 }
 
-// SetLock فعال‌سازی قفل بیکاری — با رفرش/تب جدید هم برداشته نمی‌شود.
+// SetLock activates the idle lock — it is not lifted even by a refresh/new tab.
 func (s *Service) SetLock(ctx context.Context, userID int64) error {
 	s.mu.Lock()
 	delete(s.pendingClear, userID)
@@ -150,19 +150,19 @@ func (s *Service) SetLock(ctx context.Context, userID int64) error {
 	return nil
 }
 
-// ClearLock بازگشایی با رمز درست — و ثبت «فعالیت» از این لحظه.
+// ClearLock reopens with the correct password — and records an "activity" from this moment.
 func (s *Service) ClearLock(ctx context.Context, userID int64) error {
 	s.mu.Lock()
 	delete(s.memLock, userID)
 	s.pendingClear[userID] = true
 	s.mu.Unlock()
 	s.flushClears(ctx)
-	// بازگشایی = فعالیت: ساعت بیکاری از این لحظه از نو شمرده شود.
+	// unlock = activity: the idle clock is counted anew from this moment.
 	s.TouchActivity(ctx, userID)
 	return nil
 }
 
-// IsLocked آیا کاربر هم‌اکنون قفل است؟ (Redis منبع حقیقت است، آینه فقط برای قطعی)
+// IsLocked is the user currently locked? (Redis is the source of truth, the mirror only for outages)
 func (s *Service) IsLocked(ctx context.Context, userID int64) bool {
 	s.mu.Lock()
 	s.sweepLocked(time.Now())
@@ -186,8 +186,8 @@ func (s *Service) IsLocked(ctx context.Context, userID int64) bool {
 				s.mu.Unlock()
 				return false
 			}
-			// کلید نیست؛ اگر این پروسه قفلِ فعال در حافظه دارد، نوشتن قبلی نرسیده
-			// بود → دوباره ثبت کن (fail-closed)، وگرنه باز است.
+			// not the key; if this process has an active in-memory lock, the previous write had not
+			// arrived → record it again (fail-closed), otherwise it is open.
 			s.mu.Lock()
 			m, ok := s.memLock[userID]
 			s.mu.Unlock()
@@ -198,14 +198,14 @@ func (s *Service) IsLocked(ctx context.Context, userID int64) bool {
 			return false
 		}
 	}
-	// دوران قطعی Redis → آینهٔ درون‌حافظه (fail-closed)
+	// during a Redis outage → in-memory mirror (fail-closed)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	m, ok := s.memLock[userID]
 	return ok && m.After(time.Now())
 }
 
-// TouchActivity ثبت یک «فعالیت» کاربر.
+// TouchActivity records one user "activity".
 func (s *Service) TouchActivity(ctx context.Context, userID int64) {
 	at := time.Now().UnixMilli()
 	cutoff := at - keyTTL.Milliseconds()
@@ -221,7 +221,7 @@ func (s *Service) TouchActivity(ctx context.Context, userID int64) {
 	s.flushSeen(ctx)
 }
 
-// LastActivityAt زمان آخرین فعالیت — nil یعنی هنوز ثبت نشده.
+// LastActivityAt time of the last activity — nil means not yet recorded.
 func (s *Service) LastActivityAt(ctx context.Context, userID int64) *int64 {
 	if s.redisAvailable() {
 		s.flushSeen(ctx)
@@ -253,22 +253,22 @@ func (s *Service) LastActivityAt(ctx context.Context, userID int64) *int64 {
 	return nil
 }
 
-// IsIdle آیا از آخرین فعالیت بیش از timeoutMin دقیقه گذشته؟ (بدون به‌روزرسانی)
+// IsIdle has more than timeoutMin minutes passed since the last activity? (no update)
 func (s *Service) IsIdle(ctx context.Context, userID int64, timeoutMin float64) bool {
 	if !(timeoutMin > 0) {
 		return false
 	}
 	at := s.LastActivityAt(ctx, userID)
 	if at == nil {
-		return false // نخستین مشاهده — مبنایی برای بیکاری نیست
+		return false // first observation — no basis for idleness
 	}
 	return time.Since(time.UnixMilli(*at)) > time.Duration(timeoutMin*float64(time.Minute))
 }
 
-// EvaluateIdleLock ارزیابی هنگام رندر/درخواست:
-//  1. پرچم قفل صریح روشن → قفل
-//  2. بیکاری بیش از حد → قفل را همین‌جا ثبت کن و true
-//  3. در حال کار → همین بازدید «فعالیت» ثبت و بدون قفل ادامه بده
+// EvaluateIdleLock evaluation at render/request time:
+//  1. explicit lock flag is on → locked
+//  2. idle beyond the limit → record the lock right here and return true
+//  3. actively working → record this visit as an "activity" and continue without a lock
 func (s *Service) EvaluateIdleLock(ctx context.Context, userID int64, timeoutMin float64) bool {
 	if !(timeoutMin > 0) {
 		return false
@@ -294,8 +294,8 @@ func clampMinutes(n float64) float64 {
 	return float64(int(n))
 }
 
-// ResolveIdleTimeoutMinutes سقف قفل بر پایهٔ نقش‌ها —
-// SESSION_LOCK_MINUTES_ROLES یک JSON اختیاری مثل {"ADMIN":30,"STUDENT":0}.
+// ResolveIdleTimeoutMinutes lock timeout cap based on roles —
+// SESSION_LOCK_MINUTES_ROLES is an optional JSON like {"ADMIN":30,"STUDENT":0}.
 func (s *Service) ResolveIdleTimeoutMinutes(ctx context.Context, roles []string) float64 {
 	fallback := 15.0
 	if s.settings != nil {
@@ -309,7 +309,7 @@ func (s *Service) ResolveIdleTimeoutMinutes(ctx context.Context, roles []string)
 	if raw == "" {
 		return clampMinutes(fallback)
 	}
-	// پارس مینیمال JSON بدون وابستگی: {"ROLE": number, ...}
+	// minimal dependency-free JSON parsing: {"ROLE": number, ...}
 	parsed := parseRoleMinutes(raw)
 	for _, r := range roles {
 		if v, ok := parsed[r]; ok && v != nil {
@@ -319,8 +319,8 @@ func (s *Service) ResolveIdleTimeoutMinutes(ctx context.Context, roles []string)
 	return clampMinutes(fallback)
 }
 
-// ResolveReauthMinutes سقف «غیبت طولانی» — مقدار مؤثر هرگز کمتر از
-// «سقف قفل بیکاری + ۵ دقیقه» نیست (همان resolveReauthMinutes).
+// ResolveReauthMinutes cap on long absence — the effective value is never less than
+// "idle lock cap + 5 minutes" (same as resolveReauthMinutes).
 func (s *Service) ResolveReauthMinutes(ctx context.Context, idleTimeoutMin float64) float64 {
 	n := clampMinutes(30)
 	if s.settings != nil {
@@ -335,8 +335,8 @@ func (s *Service) ResolveReauthMinutes(ctx context.Context, idleTimeoutMin float
 	return n
 }
 
-// parseRoleMinutes پارس JSON ساده {string: number|null} — null/رشتهٔ خالی یعنی
-// «این نقش را نادیده بگیر» (مطابق TS: undefined/null/” → continue).
+// parseRoleMinutes parses a simple {string: number|null} JSON — null/empty string means
+// "skip this role" (matching TS: undefined/null/” → continue).
 func parseRoleMinutes(raw string) map[string]*float64 {
 	out := map[string]*float64{}
 	raw = strings.TrimSpace(raw)
@@ -366,7 +366,7 @@ func parseRoleMinutes(raw string) map[string]*float64 {
 	return out
 }
 
-// splitTopLevel جداکردن اعضای یک آبجکت تخت JSON (بدون تودرتویی واقعی).
+// splitTopLevel splits members of a flat JSON object (no real nesting).
 func splitTopLevel(body string) []string {
 	parts := []string{}
 	depth, last := 0, 0

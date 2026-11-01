@@ -1,4 +1,4 @@
-// ═══ قیود سخت برنامه + مولد تاریخ جلسات — ادامهٔ پورت scheduling-core.ts ═══
+// ═══ schedule hard constraints + session date generator — continuation of the scheduling-core.ts port ═══
 package scheduling
 
 import (
@@ -12,9 +12,9 @@ import (
 	"backend-go/internal/jalali"
 )
 
-// ─────────────────────────── قیود سخت V1 ───────────────────────────
+// ─────────────────────────── hard constraints V1 ───────────────────────────
 
-// ScheduleConflictInput یک ردیف برنامهٔ هفتگی برای قیود سخت.
+// ScheduleConflictInput one weekly schedule row for hard constraints.
 type ScheduleConflictInput struct {
 	OfferingID       int64
 	GroupNumber      *int
@@ -27,22 +27,22 @@ type ScheduleConflictInput struct {
 	OfferingTitle    string
 }
 
-// RoomCapacityInfo ظرفیت و عنوان سالن.
+// RoomCapacityInfo room capacity and title.
 type RoomCapacityInfo struct {
 	ID       int64
 	Capacity int
 	Title    string
 }
 
-// ScheduleConflict قید سخت نقض‌شده.
+// ScheduleConflict violated hard constraint.
 type ScheduleConflict struct {
 	Type        string // ROOM_OVERLAP | PROFESSOR_OVERLAP | ROOM_CAPACITY
-	Severity    string // همیشه ERROR
+	Severity    string // always ERROR
 	Message     string
 	OfferingIDs []int64
 }
 
-// DetectScheduleConflictsV1 پورت detectScheduleConflicts (نسخهٔ اول).
+// DetectScheduleConflictsV1 port of detectScheduleConflicts (first version).
 func DetectScheduleConflictsV1(entries []ScheduleConflictInput, rooms []RoomCapacityInfo) []ScheduleConflict {
 	conflicts := []ScheduleConflict{}
 	byRoom := map[int64][]ScheduleConflictInput{}
@@ -131,18 +131,18 @@ func DetectScheduleConflictsV1(entries []ScheduleConflictInput, rooms []RoomCapa
 	return conflicts
 }
 
-// HasHardConflicts آیا قید سختی نقض شده است؟
+// HasHardConflicts has any hard constraint been violated?
 func HasHardConflicts(conflicts []ScheduleConflict) bool { return len(conflicts) > 0 }
 
-// ─────────────────────────── تاریخ جلسات V1 ───────────────────────────
+// ─────────────────────────── session dates V1 ───────────────────────────
 
-// SessionDate جلسهٔ تولیدشده.
+// SessionDate generated session.
 type SessionDate struct {
 	SessionNo int
 	Date      time.Time // UTC
 }
 
-// SessionDatesFor پورت sessionDatesFor (ALL/EVEN/ODD، ۱۶ جلسهٔ پیش‌فرض).
+// SessionDatesFor port of sessionDatesFor (ALL/EVEN/ODD, 16 sessions by default).
 func SessionDatesFor(termStart time.Time, dayOfWeek int, scheduleType string, totalSessions int) []SessionDate {
 	if dayOfWeek < 0 || dayOfWeek > 6 {
 		return nil
@@ -167,12 +167,12 @@ func SessionDatesFor(termStart time.Time, dayOfWeek int, scheduleType string, to
 	return out
 }
 
-// ─────────────────────────── قیود سخت V2 ───────────────────────────
+// ─────────────────────────── hard constraints V2 ───────────────────────────
 
-// HardConflictListLimit سقف پیش‌فرض فهرست تداخل‌ها.
+// HardConflictListLimit default cap for the conflict list.
 const HardConflictListLimit = 500
 
-// HardConflictEntry ردیف زمان‌بندی‌شده برای قیود V2.
+// HardConflictEntry scheduled row for the V2 constraints.
 type HardConflictEntry struct {
 	OfferingID    int64
 	GroupNumber   int
@@ -186,22 +186,22 @@ type HardConflictEntry struct {
 	Capacity      int
 }
 
-// HardConflict قید سخت V2.
+// HardConflict V2 hard constraint.
 type HardConflict struct {
 	Kind        string // PROFESSOR_OVERLAP | ROOM_OVERLAP | CAPACITY_OVERFLOW
 	OfferingIDs []int64
 	Message     string
 }
 
-// HardConflictReport گزارش با شمار کامل و فهرست سقف‌دار.
+// HardConflictReport report with the full count and a capped list.
 type HardConflictReport struct {
 	Conflicts []HardConflict
 	Total     int
 	Truncated bool
 }
 
-// AnalyzeHardConflicts پورت analyzeHardConflicts — همان الگوریتم سطل‌بندی
-// «روز+سالن» و «روز+استاد» با شمارندهٔ عددی و ساخت تنبل اشیا.
+// AnalyzeHardConflicts port of analyzeHardConflicts — same bucketing algorithm
+// "day+room" and "day+professor" with numeric counters and lazy object creation.
 func AnalyzeHardConflicts(rows []HardConflictEntry, limit int) HardConflictReport {
 	if limit == 0 {
 		limit = HardConflictListLimit
@@ -215,7 +215,7 @@ func AnalyzeHardConflicts(rows []HardConflictEntry, limit int) HardConflictRepor
 		}
 	}
 
-	// ۱) سرریز ظرفیت
+	// 1) capacity overflow
 	for _, r := range rows {
 		if r.Capacity > 0 && r.EnrolledCount > r.Capacity {
 			r := r
@@ -229,7 +229,7 @@ func AnalyzeHardConflicts(rows []HardConflictEntry, limit int) HardConflictRepor
 		}
 	}
 
-	// ۲) تداخل‌های زمانی درون سطل‌های هم‌روز
+	// 2) time conflicts inside same-day buckets
 	type item struct {
 		idx int
 		r   HardConflictEntry
@@ -257,7 +257,7 @@ func AnalyzeHardConflicts(rows []HardConflictEntry, limit int) HardConflictRepor
 			continue
 		}
 		isRoom := key[0] == 'R'
-		// مرتب‌سازی پایدار بر اساس زمان شروع سپس idx
+		// stable sort by start time then idx
 		for i := 1; i < len(items); i++ {
 			for j := i; j > 0; j-- {
 				a, b := items[j-1], items[j]
@@ -311,27 +311,27 @@ func AnalyzeHardConflicts(rows []HardConflictEntry, limit int) HardConflictRepor
 	return HardConflictReport{Conflicts: out, Total: total, Truncated: total > len(out)}
 }
 
-// DetectHardConflicts نسخهٔ سازگار — فقط فهرست سقف‌دار.
+// DetectHardConflicts compatibility version — capped list only.
 func DetectHardConflicts(rows []HardConflictEntry, limit int) []HardConflict {
 	return AnalyzeHardConflicts(rows, limit).Conflicts
 }
 
-// ─────────────────────────── مولد تاریخ جلسات (شمسی) ───────────────────────────
+// ─────────────────────────── session date generator (Jalali) ───────────────────────────
 
-// SessionDateInput ورودی computeSessionDates.
+// SessionDateInput input of computeSessionDates.
 type SessionDateInput struct {
 	TermStart      time.Time
 	ClassStartDate *time.Time
 	ClassEndDate   *time.Time
 	DayOfWeek      int
 	SessionsCount  int
-	// OddFirstWeek هفتهٔ اول «فرد» است؟ (nil = پیش‌فرض true، همان TS)
+	// OddFirstWeek is the first week "odd"? (nil = default true, same as TS)
 	OddFirstWeek *bool
 	Holidays     []string
-	Recurrence   string // ALL | EVEN | ODD (پیش‌فرض ALL)
+	Recurrence   string // ALL | EVEN | ODD (default ALL)
 }
 
-// GeneratedSession جلسهٔ تولیدشده (تاریخ شمسی).
+// GeneratedSession generated session (Jalali date).
 type GeneratedSession struct {
 	SessionNo  int
 	JalaliDate string
@@ -348,9 +348,9 @@ func dateOnlyLocal(t time.Time) time.Time {
 	return time.Date(y, m, d, 0, 0, 0, 0, time.Local)
 }
 
-// ComputeSessionDates پورت computeSessionDates: مبدأ classStartDate یا termStart،
-// اولین تکرار روز هفته، گام ۷روزه تا sessionsCount یا پایان کلاس، حذف
-// هفته‌های زوج/فرد و تعطیلات، سقف ایمنی ۴۰ هفته.
+// ComputeSessionDates port of computeSessionDates: origin classStartDate or termStart,
+// first weekday occurrence, 7-day step until sessionsCount or class end, dropping
+// even/odd weeks and holidays, safety cap of 40 weeks.
 func ComputeSessionDates(px SessionDateInput) ([]GeneratedSession, error) {
 	if px.DayOfWeek < 0 || px.DayOfWeek > 6 {
 		return nil, errors.New("روز هفته باید ۰..۶ باشد (شنبه=۰).")
@@ -432,7 +432,7 @@ func ComputeSessionDates(px SessionDateInput) ([]GeneratedSession, error) {
 
 var jalaliDateRe = regexp.MustCompile(`^(\d{4})/(\d{1,2})/(\d{1,2})$`)
 
-// ParseJalaliDate پورت parseJalaliDate: «YYYY/MM/DD» → Date میلادی (محلی).
+// ParseJalaliDate port of parseJalaliDate: "YYYY/MM/DD" → Gregorian Date (local).
 func ParseJalaliDate(s string) (time.Time, error) {
 	m := jalaliDateRe.FindStringSubmatch(strings.TrimSpace(s))
 	if m == nil {
@@ -445,7 +445,7 @@ func ParseJalaliDate(s string) (time.Time, error) {
 	return time.Date(gg.Y, time.Month(gg.M), gg.D, 0, 0, 0, 0, time.Local), nil
 }
 
-// JalaliDateOf پورت jalaliDateOf: Date میلادی → «YYYY/MM/DD» شمسی.
+// JalaliDateOf port of jalaliDateOf: Gregorian Date → Jalali "YYYY/MM/DD".
 func JalaliDateOf(d time.Time) string {
 	j := jalali.ToJalaliFromTime(dateOnlyLocal(d))
 	return fmt.Sprintf("%d/%s/%s", j.Y, pad2(j.M), pad2(j.D))

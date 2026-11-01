@@ -1,8 +1,8 @@
-// ═══ دانشگاه/نیمسال — پورت از university-scope.ts و term-scope.ts ═══
+// ═══ university/term — port from university-scope.ts and term-scope.ts ═══
 //
-// کوکی‌ها فقط «انتخاب»اند نه «مجوز»: مرز امنیتی چندمؤسسه‌ای =
-// users.universityId + expert_scopes (UNIVERSITY)؛ ADMIN بدون universityId
-// حساب پلتفرمی است و همه را می‌بیند. DENY означает fail-closed (شناسهٔ ۰).
+// cookies are only a "selection", not an "authorization": multi-institution security boundary =
+// users.universityId + expert_scopes (UNIVERSITY); ADMIN without universityId
+// is a platform account and sees everything. DENY means fail-closed (id 0).
 package scope
 
 import (
@@ -18,14 +18,14 @@ import (
 	"backend-go/internal/session"
 )
 
-// نام کوکی‌های scope — عیناً سامانهٔ فعلی.
+// scope cookie names — exactly the same as the current system.
 const (
 	UniversityCookie  = "afagh_uni"
 	TermCookie        = "afagh_term"
 	TermSwitcherLimit = 30
 )
 
-// UniScope دانشگاه قابل انتخاب.
+// UniScope selectable university.
 type UniScope struct {
 	ID      int64   `json:"id"`
 	Code    string  `json:"code"`
@@ -34,13 +34,13 @@ type UniScope struct {
 	LogoURL *string `json:"logoUrl"`
 }
 
-// DenyUni دانشگاهِ «هیچ‌کدام» — وقتی کاربر به هیچ دانشگاهی مجاز نیست.
+// DenyUni the "no university" option — when the user is not authorized for any university.
 var DenyUni = UniScope{ID: 0, Code: "", Title: "—", Kind: "NONE"}
 
-// FallbackUni پیش‌فرض وقتی جدول دانشگاه‌ها هنوز ساخته نشده (نصب تازه).
+// FallbackUni default when the universities table does not exist yet (fresh install).
 var FallbackUni = UniScope{ID: 1, Code: "AFAGH", Title: "دانشگاه آفاق", Kind: "OWN"}
 
-// TermScope یک نیمسال در سوییچر.
+// TermScope one term in the switcher.
 type TermScope struct {
 	ID                 int64      `json:"id"`
 	TermCode           string     `json:"termCode"`
@@ -54,14 +54,14 @@ type TermScope struct {
 	SortOrder          *int       `json:"sortOrder"`
 }
 
-// Service دسترسی به دانشگاه/ترم روی استخر مالک.
+// Service university/term access on the owner pool.
 type Service struct{ Pool *pgxpool.Pool }
 
 func New(pool *pgxpool.Pool) *Service { return &Service{Pool: pool} }
 
-// ─────────────────────────── دانشگاه ───────────────────────────
+// ─────────────────────────── university ───────────────────────────
 
-// allUniversities همان allUniversities در university-scope.ts.
+// allUniversities same as allUniversities in university-scope.ts.
 func (s *Service) allUniversities(ctx context.Context) ([]UniScope, error) {
 	rows, err := s.Pool.Query(ctx,
 		`select id, code, title, kind, "logoUrl" from universities order by id`)
@@ -80,7 +80,7 @@ func (s *Service) allUniversities(ctx context.Context) ([]UniScope, error) {
 	return out, rows.Err()
 }
 
-// authorizedUniversityIDs فهرست مجاز — خروجی nil یعنی «نامحدود» (حساب پلتفرمی).
+// authorizedUniversityIDs allowed list — nil output means "unlimited" (platform account).
 func (s *Service) authorizedUniversityIDs(ctx context.Context, user *session.User) ([]int64, error) {
 	if user == nil {
 		return []int64{}, nil
@@ -98,7 +98,7 @@ func (s *Service) authorizedUniversityIDs(ctx context.Context, user *session.Use
 		return false
 	}
 
-	// مدیر پلتفرمی باید پیش از fallbackهای students/staff شناسایی شود.
+	// the platform admin must be identified before the students/staff fallbacks.
 	if len(ids) == 0 && hasRole("ADMIN") {
 		return nil, nil
 	}
@@ -131,7 +131,7 @@ func (s *Service) authorizedUniversityIDs(ctx context.Context, user *session.Use
 		}
 	}
 
-	// کاربری که فقط از راه رکورد دانشجو/کارمند به دانشگاه وصل است.
+	// a user tied to the university only through a student/staff record.
 	if len(ids) == 0 {
 		var uniID *int64
 		if err := s.Pool.QueryRow(ctx,
@@ -158,7 +158,7 @@ func (s *Service) authorizedUniversityIDs(ctx context.Context, user *session.Use
 	return out, nil
 }
 
-// CurrentUniversity دانشگاه فعال — کوکی فقط درون دانشگاه‌های مجاز پذیرفته می‌شود.
+// CurrentUniversity active university — the cookie is accepted only within allowed universities.
 func (s *Service) CurrentUniversity(ctx context.Context, user *session.User, wantCode string) (UniScope, error) {
 	all, err := s.allUniversities(ctx)
 	if err != nil {
@@ -202,7 +202,7 @@ func (s *Service) CurrentUniversity(ctx context.Context, user *session.User, wan
 	return pool[0], nil
 }
 
-// ListUniversities همهٔ دانشگاه‌های مجاز برای سوییچر سربرگ.
+// ListUniversities all allowed universities for the header switcher.
 func (s *Service) ListUniversities(ctx context.Context, user *session.User) ([]UniScope, error) {
 	all, err := s.allUniversities(ctx)
 	if err != nil {
@@ -231,14 +231,14 @@ func (s *Service) ListUniversities(ctx context.Context, user *session.User) ([]U
 	return out, nil
 }
 
-// CanActOnUniversity آیا کاربر اجازهٔ کار با این دانشگاه را دارد؟
+// CanActOnUniversity is the user allowed to work with this university?
 func (s *Service) CanActOnUniversity(ctx context.Context, user *session.User, universityID *int64) bool {
 	if universityID == nil {
 		return false
 	}
 	allowed, _ := s.authorizedUniversityIDs(ctx, user)
 	if allowed == nil {
-		return true // حساب پلتفرمی
+		return true // platform account
 	}
 	for _, id := range allowed {
 		if id == *universityID {
@@ -248,7 +248,7 @@ func (s *Service) CanActOnUniversity(ctx context.Context, user *session.User, un
 	return false
 }
 
-// ─────────────────────────── نیمسال ───────────────────────────
+// ─────────────────────────── term ───────────────────────────
 
 var hiddenTermTypes = map[string]bool{"EQUIVALENCE": true, "SPECIAL": true}
 
@@ -259,7 +259,7 @@ func normalizeTermType(t *string) string {
 	return strings.ToUpper(strings.TrimSpace(*t))
 }
 
-// isTeachingTerm ترم آموزشی = هر چیزی جز EQUIVALENCE/SPECIAL.
+// isTeachingTerm teaching term = anything except EQUIVALENCE/SPECIAL.
 func isTeachingTerm(t *string) bool {
 	typ := normalizeTermType(t)
 	if typ == "" {
@@ -268,7 +268,7 @@ func isTeachingTerm(t *string) bool {
 	return !hiddenTermTypes[typ]
 }
 
-// TermSemesterIndex ایندکس نیمسال از رقم آخر کد ترم (ارقام فارسی هم پذیرفته).
+// TermSemesterIndex semester index from the last digit of the term code (Persian digits accepted too).
 func TermSemesterIndex(termCode string) int {
 	digits := fa.ToEnDigits(strings.TrimSpace(termCode))
 	if digits == "" {
@@ -285,7 +285,7 @@ func TermSemesterIndex(termCode string) int {
 	return 3
 }
 
-// TermAcademicYear سال تحصیلی — ستون، وگرنه ۴ رقم اول کد.
+// TermAcademicYear academic year — column, otherwise the first 4 digits of the code.
 func TermAcademicYear(t TermScope) *int {
 	if t.AcademicYear != nil {
 		return t.AcademicYear
@@ -305,7 +305,7 @@ func TermAcademicYear(t TermScope) *int {
 	return &n
 }
 
-// TermCodeNumber عدد کد ترم (ارقام فارسی → لاتین)؛ نامعتبر = کمترین.
+// TermCodeNumber numeric value of the term code (Persian digits → Latin); invalid = lowest.
 func TermCodeNumber(termCode string) float64 {
 	digits := fa.ToEnDigits(strings.TrimSpace(termCode))
 	if digits == "" {
@@ -321,7 +321,7 @@ func TermCodeNumber(termCode string) float64 {
 	return n
 }
 
-// SortTermsChronologically مرتب‌سازی زمانی — پورت sortTermsChronologically.
+// SortTermsChronologically chronological sort — port of sortTermsChronologically.
 func SortTermsChronologically(terms []TermScope) []TermScope {
 	type ranked struct {
 		t     TermScope
@@ -366,7 +366,7 @@ func SortTermsChronologically(terms []TermScope) []TermScope {
 	return out
 }
 
-// TermContainsToday آیا امروز بین شروع و پایان ترم است؟
+// TermContainsToday is today between the term start and end?
 func TermContainsToday(t TermScope, today time.Time) bool {
 	if t.StartDate == nil {
 		return false
@@ -380,7 +380,7 @@ func TermContainsToday(t TermScope, today time.Time) bool {
 	return !today.After(*t.EndDate)
 }
 
-// PickEffectiveTerm ترم مؤثر: شامل امروز → پرچم isCurrent → آخرین شروع‌شده → نزدیک‌ترین آینده.
+// PickEffectiveTerm effective term: includes today → isCurrent flag → latest started → nearest future.
 func PickEffectiveTerm(terms []TermScope, today time.Time) *TermScope {
 	if len(terms) == 0 {
 		return nil
@@ -396,7 +396,7 @@ func PickEffectiveTerm(terms []TermScope, today time.Time) *TermScope {
 			if out[b].StartDate != nil {
 				bv = *out[b].StartDate
 			}
-			// نزولی: تاریخ شروع جدیدتر اول — معادل (b - a) در byStartDesc.ts
+			// descending: newer start date first — equivalent to (b - a) in byStartDesc.ts
 			return av.After(bv)
 		})
 		return out
@@ -437,14 +437,14 @@ func PickEffectiveTerm(terms []TermScope, today time.Time) *TermScope {
 	if len(upcoming) == 0 {
 		return nil
 	}
-	// نزدیک‌ترین آینده = کوچک‌ترین startDate
+	// nearest future = smallest startDate
 	sort.SliceStable(upcoming, func(a, b int) bool {
 		return upcoming[a].StartDate.Before(*upcoming[b].StartDate)
 	})
 	return &upcoming[0]
 }
 
-// loadOrderedTerms واکشی + فیلتر آموزشی + مرتب‌سازی + علامت ترم مؤثر.
+// loadOrderedTerms fetch + teaching filter + sorting + effective term flag.
 func (s *Service) loadOrderedTerms(ctx context.Context, universityID *int64) []TermScope {
 	if universityID == nil || *universityID <= 0 {
 		return []TermScope{}
@@ -479,7 +479,7 @@ func (s *Service) loadOrderedTerms(ctx context.Context, universityID *int64) []T
 	return ordered
 }
 
-// ListTermsForUniversity فهرست ترم‌های آموزشی (سقف ۳۰) — پورت listTermsForUniversity.
+// ListTermsForUniversity list of teaching terms (cap 30) — port of listTermsForUniversity.
 func (s *Service) ListTermsForUniversity(ctx context.Context, universityID *int64) []TermScope {
 	ordered := s.loadOrderedTerms(ctx, universityID)
 	if len(ordered) > TermSwitcherLimit {
@@ -488,15 +488,15 @@ func (s *Service) ListTermsForUniversity(ctx context.Context, universityID *int6
 	return ordered
 }
 
-// TermSelection نتیجهٔ انتخاب ترم: فهرست + شناسهٔ انتخاب‌شده + ترم مؤثر.
+// TermSelection term selection result: list + selected id + effective term.
 type TermSelection struct {
 	Terms       []TermScope `json:"terms"`
 	SelectedID  *int64      `json:"selectedId"`
 	EffectiveID *int64      `json:"effectiveId"`
 }
 
-// GetTermScope پورت getTermScope — کوکی فقط اگر در فهرست باشد؛ انتخاب‌شدهٔ
-// خارج از سقف به فهرست افزوده می‌شود (resolveSelectedTerm).
+// GetTermScope port of getTermScope — cookie only if it is in the list; the selected
+// one beyond the cap is appended to the list (resolveSelectedTerm).
 func (s *Service) GetTermScope(ctx context.Context, universityID *int64, wantedID *int64) TermSelection {
 	ordered := s.loadOrderedTerms(ctx, universityID)
 	var effectiveID *int64
@@ -538,7 +538,7 @@ func (s *Service) GetTermScope(ctx context.Context, universityID *int64, wantedI
 	return sel
 }
 
-// ValidateTermForUniversity آیا ترم متعلق به این دانشگاه است؟ (برای POST scope/term)
+// ValidateTermForUniversity does the term belong to this university? (for POST scope/term)
 func (s *Service) ValidateTermForUniversity(ctx context.Context, termID, universityID int64) bool {
 	var id int64
 	err := s.Pool.QueryRow(ctx,
@@ -546,13 +546,13 @@ func (s *Service) ValidateTermForUniversity(ctx context.Context, termID, univers
 	return err == nil
 }
 
-// ListAllTermsForUniversity فهرست بدون سقف ترم‌ها — برای محاسبهٔ شمارهٔ ترم.
+// ListAllTermsForUniversity uncapped list of terms — for computing the term number.
 func (s *Service) ListAllTermsForUniversity(ctx context.Context, universityID *int64) []TermScope {
 	return s.loadOrderedTerms(ctx, universityID)
 }
 
-// TermOrdinalForEntry پورت termOrdinalForEntry: شمارهٔ ترتیب ترم تحصیلی بر مبنای
-// ورودی — هر سال = ۲ نیمسال؛ مستقل از تعداد ترم‌های ثبت‌شده.
+// TermOrdinalForEntry port of termOrdinalForEntry: ordinal number of the academic term based on
+// input — each year = 2 semesters; independent of the number of recorded terms.
 func TermOrdinalForEntry(entryYear *int, entryTerm *int, targetTermCode string) *int {
 	if entryYear == nil || strings.TrimSpace(targetTermCode) == "" {
 		return nil

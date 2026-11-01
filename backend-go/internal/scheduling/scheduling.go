@@ -1,8 +1,8 @@
-// ═══ هستهٔ خالص موتور برنامه‌ریزی — پورت scheduling-core.ts ═══
+// ═══ pure core of the scheduling engine — port of scheduling-core.ts ═══
 //
-// مسئولیت‌ها: نرمال‌سازی کد ترم، اعتبارسنجی گروه درسی، هم‌پوشانی زمانی،
-// امتیازدهی پیشنهاد، پیش‌بینی تقاضا، ماشین فازها، سلامت برنامه، قیود سخت
-// و مولد تاریخ جلسات. هیچ DB در این پکیج نیست.
+// Responsibilities: term code normalization, course group validation, time overlap,
+// suggestion scoring, demand forecasting, phase machine, schedule health, hard constraints
+// and session date generation. No DB in this package.
 package scheduling
 
 import (
@@ -14,7 +14,7 @@ import (
 	"strings"
 )
 
-// ─────────────────────────── ثابت‌ها ───────────────────────────
+// ─────────────────────────── constants ───────────────────────────
 
 const (
 	MaxGroups            = 20
@@ -25,13 +25,13 @@ const (
 	EquivalenceGroupYear = 0
 )
 
-// Shift مرز شیفت‌ها (دقیقه از نیمه‌شب).
+// Shift shift boundary (minutes from midnight).
 const (
 	MorningEnd   = 12 * 60
 	EveningStart = 13*60 + 30
 )
 
-// Genders / Shifts / Scopes / LocationTypes / Phases — مجموعه‌های مجاز.
+// Genders / Shifts / Scopes / LocationTypes / Phases — allowed sets.
 var Genders = []string{"MALE", "FEMALE", "MIXED"}
 var Shifts = []string{"MORNING", "EVENING"}
 var OfferingScopes = []string{"DEPARTMENTAL", "GENERAL_SERVICE"}
@@ -47,9 +47,9 @@ func contains(list []string, v string) bool {
 	return false
 }
 
-// ─────────────────────────── کد ترم ───────────────────────────
+// ─────────────────────────── term code ───────────────────────────
 
-// NormalizedTerm پورت NormalizedTerm.
+// NormalizedTerm port of NormalizedTerm.
 type NormalizedTerm struct {
 	OriginalCode    string
 	NormalizedCode  string
@@ -61,7 +61,7 @@ type NormalizedTerm struct {
 	DisplaySemester string
 }
 
-// TermTypeFromDigit رقم آخر کد ترم → نوع.
+// TermTypeFromDigit last digit of the term code → type.
 func TermTypeFromDigit(d int) string {
 	switch d {
 	case 1, 2:
@@ -94,8 +94,8 @@ func digitsOnly(s string) string {
 	return b.String()
 }
 
-// NormalizeTermCode پورت normalizeTermCode — کد ۵ رقمی کاننیکال؛
-// مسیرهای قدیمی ۳/۴ رقمی هم برای سازگاری پشتیبانی می‌شوند.
+// NormalizeTermCode port of normalizeTermCode — canonical 5-digit code;
+// legacy 3/4-digit paths are also supported for compatibility.
 func NormalizeTermCode(raw string) *NormalizedTerm {
 	s := strings.TrimSpace(raw)
 	if s == "" {
@@ -165,13 +165,13 @@ func NormalizeTermCode(raw string) *NormalizedTerm {
 	}
 }
 
-// TermWithCode برای مرتب‌سازی/گروه‌بندی.
+// TermWithCode for sorting/grouping.
 type TermWithCode struct {
 	TermCode string
 	Rows     any
 }
 
-// SortTermsForTranscript پورت sortTermsForTranscript.
+// SortTermsForTranscript port of sortTermsForTranscript.
 func SortTermsForTranscript(terms []TermWithCode) []TermWithCode {
 	out := make([]TermWithCode, len(terms))
 	copy(out, terms)
@@ -189,22 +189,22 @@ func SortTermsForTranscript(terms []TermWithCode) []TermWithCode {
 	return out
 }
 
-// TermWithNormalized برای خروجی گروه‌بندی.
+// TermWithNormalized for the grouping output.
 type TermWithNormalized struct {
 	TermCode   string
 	Rows       any
 	Normalized *NormalizedTerm
 }
 
-// AcademicYearGroup گروه سال تحصیلی در کارنامه.
+// AcademicYearGroup academic-year group in the transcript.
 type AcademicYearGroup struct {
 	AcademicYear int
 	DisplayYear  string
 	Terms        []TermWithNormalized
 }
 
-// GroupTermsByAcademicYear پورت groupTermsByAcademicYear: معادل‌سازی‌ها یک
-// بلوک جدا در ابتدا، سپس سال‌ها نزولی.
+// GroupTermsByAcademicYear port of groupTermsByAcademicYear: equivalencies as one
+// separate block at the beginning, then years descending.
 func GroupTermsByAcademicYear(terms []TermWithCode) []AcademicYearGroup {
 	sorted := SortTermsForTranscript(terms)
 	byYear := map[int][]TermWithNormalized{}
@@ -244,11 +244,11 @@ func GroupTermsByAcademicYear(terms []TermWithCode) []AcademicYearGroup {
 	return groups
 }
 
-// ─────────────────────────── ابزار زمان ───────────────────────────
+// ─────────────────────────── time utilities ───────────────────────────
 
 var errTimeFormat = errors.New("قالب ساعت نامعتبر است.")
 
-// ToMinutes پورت toMinutes (با خطا).
+// ToMinutes port of toMinutes (with error).
 func ToMinutes(hhmm string) (int, error) {
 	s := strings.TrimSpace(hhmm)
 	parts := strings.SplitN(s, ":", 2)
@@ -263,7 +263,7 @@ func ToMinutes(hhmm string) (int, error) {
 	return h*60 + m, nil
 }
 
-// ToMinutesOrNil نسخهٔ بدون خطا (برای داده‌های نامعتبر → nil).
+// ToMinutesOrNil error-free version (invalid data → nil).
 func ToMinutesOrNil(v string) *int {
 	m, err := ToMinutes(v)
 	if err != nil {
@@ -272,7 +272,7 @@ func ToMinutesOrNil(v string) *int {
 	return &m
 }
 
-// ShiftOf پورت shiftOf.
+// ShiftOf port of shiftOf.
 func ShiftOf(startMinutes, endMinutes int) (string, error) {
 	if endMinutes <= MorningEnd {
 		return "MORNING", nil
@@ -283,14 +283,14 @@ func ShiftOf(startMinutes, endMinutes int) (string, error) {
 	return "", errors.New("بازهٔ زمانی نباید از مرز شیفت‌ها عبور کند (صبح تا ۱۲:۰۰ — عصر از ۱۳:۳۰).")
 }
 
-// Overlaps هم‌پوشانی دو بازه: aStart < bEnd && bStart < aEnd.
+// Overlaps overlap of two ranges: aStart < bEnd && bStart < aEnd.
 func Overlaps(aStart, aEnd, bStart, bEnd int) bool {
 	return aStart < bEnd && bStart < aEnd
 }
 
-// ─────────────────────────── اعتبارسنجی گروه ───────────────────────────
+// ─────────────────────────── group validation ───────────────────────────
 
-// GroupDraftInput ورودی گروه درسی.
+// GroupDraftInput course group input.
 type GroupDraftInput struct {
 	GroupNumber int
 	Capacity    int
@@ -302,7 +302,7 @@ type GroupDraftInput struct {
 	EndTime     string
 }
 
-// ValidatedGroupDraft گروه نرمال‌شده.
+// ValidatedGroupDraft normalized group.
 type ValidatedGroupDraft struct {
 	GroupDraftInput
 	StartMinutes int
@@ -310,7 +310,7 @@ type ValidatedGroupDraft struct {
 	Shift        string
 }
 
-// ValidateGroupDrafts پورت validateGroupDrafts — همان پیام‌های فارسی، خروجی مرتب.
+// ValidateGroupDrafts port of validateGroupDrafts — same Persian messages, sorted output.
 func ValidateGroupDrafts(inputs []GroupDraftInput, ownerIsServicePool bool) ([]ValidatedGroupDraft, error) {
 	if len(inputs) == 0 {
 		return nil, errors.New("هیچ گروه درسی برای برنامه‌ریزی ارسال نشده است.")
@@ -375,9 +375,9 @@ func ValidateGroupDrafts(inputs []GroupDraftInput, ownerIsServicePool bool) ([]V
 	return out, nil
 }
 
-// ─────────────────────────── امتیازدهی ───────────────────────────
+// ─────────────────────────── scoring ───────────────────────────
 
-// امتیازهای SCORE.
+// SCORE score values.
 const (
 	ScoreSameFaculty     = 40
 	ScoreCrossFaculty    = 10
@@ -389,7 +389,7 @@ const (
 	ScoreGapAllowed      = 40
 )
 
-// SlotScoreInput ورودی امتیازدهی.
+// SlotScoreInput scoring input.
 type SlotScoreInput struct {
 	RoomFacultyID     *int64
 	TargetFacultyID   *int64
@@ -399,13 +399,13 @@ type SlotScoreInput struct {
 	RequiredCapacity  int
 }
 
-// SlotScore خروجی امتیازدهی.
+// SlotScore scoring output.
 type SlotScore struct {
 	Score   int
 	Reasons []string
 }
 
-// CalculateSlotScore پورت calculateSlotScore.
+// CalculateSlotScore port of calculateSlotScore.
 func CalculateSlotScore(p SlotScoreInput) SlotScore {
 	reasons := []string{}
 	score := 0
@@ -446,7 +446,7 @@ func CalculateSlotScore(p SlotScoreInput) SlotScore {
 	return SlotScore{Score: score, Reasons: reasons}
 }
 
-// SuggestedGroupCount پورت suggestedGroupCount.
+// SuggestedGroupCount port of suggestedGroupCount.
 func SuggestedGroupCount(eligibleStudents int, standardCapacity float64) (int, error) {
 	if eligibleStudents < 0 {
 		return 0, errors.New("تعداد متقاضی نامعتبر است.")
@@ -467,20 +467,20 @@ func SuggestedGroupCount(eligibleStudents int, standardCapacity float64) (int, e
 	return n, nil
 }
 
-// FacultyDemand تقاضای هر دانشکده.
+// FacultyDemand per-faculty demand.
 type FacultyDemand struct {
 	FacultyID *int64
 	Eligible  int
 }
 
-// FacultyGroups توزیع گروه.
+// FacultyGroups group distribution.
 type FacultyGroups struct {
 	FacultyID *int64
 	Eligible  int
 	Groups    int
 }
 
-// DistributeGroupsByFaculty پورت distributeGroupsByFaculty.
+// DistributeGroupsByFaculty port of distributeGroupsByFaculty.
 func DistributeGroupsByFaculty(perFaculty []FacultyDemand, standardCapacity float64) []FacultyGroups {
 	out := make([]FacultyGroups, 0, len(perFaculty))
 	for _, f := range perFaculty {
@@ -494,22 +494,22 @@ func DistributeGroupsByFaculty(perFaculty []FacultyDemand, standardCapacity floa
 	return out
 }
 
-// ─────────────────────────── سهمیهٔ سالن ───────────────────────────
+// ─────────────────────────── room quota ───────────────────────────
 
-// RoomGrantInput سالن با شیفت‌هایش.
+// RoomGrantInput room with its shifts.
 type RoomGrantInput struct {
 	ClassroomID int64
 	Capacity    int
 	Shifts      []string
 }
 
-// DeptShareInput سهمیهٔ دانشکده.
+// DeptShareInput department quota.
 type DeptShareInput struct {
 	DepartmentID   int64
 	ActiveStudents int
 }
 
-// RoomGrant خروجی تخصیص.
+// RoomGrant allocation output.
 type RoomGrant struct {
 	DepartmentID int64
 	ClassroomID  int64
@@ -517,7 +517,7 @@ type RoomGrant struct {
 	Shift        string
 }
 
-// AllocateQuotaShifts پورت allocateQuotaShifts.
+// AllocateQuotaShifts port of allocateQuotaShifts.
 func AllocateQuotaShifts(rooms []RoomGrantInput, depts []DeptShareInput) []RoomGrant {
 	totalStudents := 0
 	for _, d := range depts {
@@ -571,35 +571,35 @@ func AllocateQuotaShifts(rooms []RoomGrantInput, depts []DeptShareInput) []RoomG
 	return grants
 }
 
-// ─────────────────────────── ماشین فازها ───────────────────────────
+// ─────────────────────────── phase machine ───────────────────────────
 
 var phaseOrder = map[string]int{"SUPPLY": 0, "ALLOCATION": 1, "REVIEW": 2, "PUBLISHED": 3}
 
-// CanTransition آیا گذار فاز مجاز است؟
+// CanTransition is the phase transition allowed?
 func CanTransition(from, to string) bool {
 	f, ok1 := phaseOrder[from]
 	t, ok2 := phaseOrder[to]
 	return ok1 && ok2 && t == f+1
 }
 
-// CanEditInPhase ویرایش در هر فاز جز PUBLISHED.
+// CanEditInPhase editing allowed in every phase except PUBLISHED.
 func CanEditInPhase(phase string) bool {
 	return phase == "SUPPLY" || phase == "ALLOCATION" || phase == "REVIEW"
 }
 
-// CanAllocateInPhase تخصیص فقط در ALLOCATION/REVIEW.
+// CanAllocateInPhase allocation only in ALLOCATION/REVIEW.
 func CanAllocateInPhase(phase string) bool {
 	return phase == "ALLOCATION" || phase == "REVIEW"
 }
 
-// ─────────────────────────── سلامت برنامه ───────────────────────────
+// ─────────────────────────── schedule health ───────────────────────────
 
 const (
 	UnderfilledThreshold = 0.5
 	FullThreshold        = 0.9
 )
 
-// ClassifyUtilization پورت classifyUtilization.
+// ClassifyUtilization port of classifyUtilization.
 func ClassifyUtilization(enrolled, capacity int) string {
 	if capacity <= 0 {
 		return "OVERBOOKED"
@@ -617,7 +617,7 @@ func ClassifyUtilization(enrolled, capacity int) string {
 	return "NORMAL"
 }
 
-// ShiftUtilization پورت shiftUtilization.
+// ShiftUtilization port of shiftUtilization.
 func ShiftUtilization(usedMinutes, shiftMinutes int) float64 {
 	if shiftMinutes <= 0 {
 		return 0

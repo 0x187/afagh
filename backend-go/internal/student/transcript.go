@@ -1,7 +1,7 @@
-// ═══ کارنامهٔ تحصیلی دانشجو — پورت student/transcript/page.tsx ═══
+// ═══ Student transcript — port of student/transcript/page.tsx ═══
 //
-// محاسبات معدل از هستهٔ خالص gpa است (همان تابعی که موتور آیین‌نامه و
-// فارغ‌التحصیلی استفاده می‌کنند) تا کارنامه و استعلام هرگز واگرا نشوند.
+// GPA calculations come from the pure gpa core (the same functions used by the regulation engine
+// and graduation) so the transcript and verification can never diverge.
 package student
 
 import (
@@ -17,7 +17,7 @@ import (
 	"backend-go/internal/scheduling"
 )
 
-// transcriptStatusFa معادل statusFa صفحهٔ کارنامه.
+// transcriptStatusFa is the transcript page's statusFa equivalent.
 var transcriptStatusFa = map[string]string{
 	"REGISTERED":      "ثبت قطعی",
 	"WAITLISTED":      "اتاق انتظار",
@@ -30,7 +30,7 @@ var transcriptStatusFa = map[string]string{
 	"GRADUATED":       "فارغ‌التحصیل",
 }
 
-// RecordOption گزینهٔ پروندهٔ چندمقطعی.
+// RecordOption is a multi-level record option.
 type RecordOption struct {
 	ID          int64   `json:"id"`
 	StudentCode string  `json:"studentCode"`
@@ -39,7 +39,7 @@ type RecordOption struct {
 	EntryYear   int     `json:"entryYear"`
 }
 
-// TranscriptRow یک ردیف درس کارنامه.
+// TranscriptRow is one transcript course row.
 type TranscriptRow struct {
 	EnrollmentID        int64    `json:"enrollmentId"`
 	Code                string   `json:"code"`
@@ -54,13 +54,13 @@ type TranscriptRow struct {
 	Grade               *float64 `json:"grade"`
 	GradeStatus         *string  `json:"gradeStatus"`
 	HasEvaluated        bool     `json:"hasEvaluated"`
-	// محاسبات نمایشی
+	// Display calculations
 	IsDescriptive bool    `json:"isDescriptive"`
 	PassMark      float64 `json:"passMark"`
 	Result        string  `json:"result"` // PASSED|FAILED|PENDING|EQUIV|EMERGENCY|OTHER
 }
 
-// TermBlock یک نیمسال در کارنامه.
+// TermBlock is one term in the transcript.
 type TermBlock struct {
 	TermID       int64           `json:"termId"`
 	TermCode     string          `json:"termCode"`
@@ -80,7 +80,7 @@ type TermBlock struct {
 	IsProbation  bool            `json:"isProbation"`
 }
 
-// AcademicYearBlock گروه سال تحصیلی.
+// AcademicYearBlock is an academic-year group.
 type AcademicYearBlock struct {
 	AcademicYear int         `json:"academicYear"`
 	DisplayYear  string      `json:"displayYear"`
@@ -88,7 +88,7 @@ type AcademicYearBlock struct {
 	Terms        []TermBlock `json:"terms"`
 }
 
-// TranscriptTotals خلاصهٔ کل دوره.
+// TranscriptTotals is the whole-period summary.
 type TranscriptTotals struct {
 	EnrolledUnits int      `json:"enrolledUnits"`
 	PassedUnits   int      `json:"passedUnits"`
@@ -98,14 +98,14 @@ type TranscriptTotals struct {
 	ExcludedCount int      `json:"excludedCount"`
 }
 
-// TranscriptQR بلوک اصالت‌سنجی.
+// TranscriptQR is the verification block.
 type TranscriptQR struct {
 	URL       string `json:"url"`
 	SVG       string `json:"svg"`
 	ExpiresAt string `json:"expiresAt"`
 }
 
-// TranscriptResponse سند کارنامه.
+// TranscriptResponse is the transcript document.
 type TranscriptResponse struct {
 	Student          StudentInfo         `json:"student"`
 	University       UniversityInfo      `json:"university"`
@@ -134,7 +134,7 @@ type regulationConfig struct {
 	DedupeRepeated bool
 }
 
-// loadRegulation پورت getRegulationConfig + انتخاب آیین‌نامهٔ صفحهٔ کارنامه.
+// loadRegulation ports getRegulationConfig + the transcript page's regulation selection.
 func (s *Service) loadRegulation(ctx context.Context, me *Record) regulationConfig {
 	cfg := regulationConfig{
 		Title:          "آیین‌نامهٔ آموزشی دورهٔ تحصیلی",
@@ -183,7 +183,7 @@ func (s *Service) loadRegulation(ctx context.Context, me *Record) regulationConf
 		}
 	}
 	if chosen == nil {
-		// جدیدترین آیین‌نامهٔ معتبر از نظر سال ورود
+		// The newest valid regulation by entry year
 		var candidates []regRow
 		for _, r := range all {
 			if inWindow(r) {
@@ -215,8 +215,8 @@ func (s *Service) loadRegulation(ctx context.Context, me *Record) regulationConf
 	return cfg
 }
 
-// applyRulesConfig پارس rulesConfig با پشتیبانی از کلیدهای تخت (سید قدیمی) و
-// ساختار تودرتوی grading_and_gpa.
+// applyRulesConfig parses rulesConfig supporting flat keys (legacy seed) and the
+// nested grading_and_gpa structure.
 func applyRulesConfig(cfg *regulationConfig, raw string) {
 	if strings.TrimSpace(raw) == "" {
 		return
@@ -260,7 +260,7 @@ func numberFromAny(v any) *float64 {
 	return nil
 }
 
-// Records پورت myRecords: همهٔ پرونده‌های دانشجویی یک کاربر.
+// Records ports myRecords: all student records of one user.
 func (s *Service) Records(ctx context.Context, userID int64) ([]RecordOption, error) {
 	rows, err := s.Pool.Query(ctx, `
 		select st.id, st."studentCode", st.status, dlc.title, st."entryYear"
@@ -283,8 +283,8 @@ func (s *Service) Records(ctx context.Context, userID int64) ([]RecordOption, er
 	return out, rows.Err()
 }
 
-// resolveRecord پورت انتخاب پرونده در کارنامه: پیش‌فرض picked؛ اگر recordId
-// متعلق به همین کاربر باشد، همان (مقطع دیگر).
+// resolveRecord ports the transcript record selection: default picked; if recordId
+// belongs to the same user, that one (another level).
 func (s *Service) resolveRecord(ctx context.Context, userID int64, picked *Record, recordID *int64) (*Record, error) {
 	if recordID == nil || *recordID == picked.ID {
 		return picked, nil
@@ -304,7 +304,7 @@ func (s *Service) resolveRecord(ctx context.Context, userID int64, picked *Recor
 	return &r, nil
 }
 
-// GetTranscript سند کارنامهٔ کامل.
+// GetTranscript is the full transcript document.
 func (s *Service) GetTranscript(ctx context.Context, userID int64, userName string, recordID *int64, termCookie *int64, publicBaseURL string) (*TranscriptResponse, error) {
 	picked, err := s.Resolve(ctx, userID)
 	if err != nil {
@@ -344,7 +344,7 @@ func (s *Service) GetTranscript(ctx context.Context, userID int64, userName stri
 		resp.StatusLabel = me.Status
 	}
 
-	// کد ملی ماسک‌شده
+	// Masked national code
 	var nationalCode *string
 	_ = s.Pool.QueryRow(ctx, `select "nationalCode" from users where id = $1`, userID).Scan(&nationalCode)
 	resp.NationalIDMasked = maskNationalCode(nationalCode)
@@ -363,7 +363,7 @@ func (s *Service) GetTranscript(ctx context.Context, userID int64, userName stri
 		resp.RegulationPolicy = "حذف نمرهٔ مردودی از معدل کل پس از قبولی مجدد"
 	}
 
-	// همهٔ سوابق دروس.
+	// All course history.
 	rows, err := s.Pool.Query(ctx, `
 		select e.id, c.code, c.title, coalesce(c.units,0)::int, c."courseType",
 		       c."gradingType", c."affectsGpa", c."minPassedMark",

@@ -1,8 +1,8 @@
-// ═══ پیکربندی متمرکز سامانه — پورت وفادار از src/lib/settings.ts ═══
+// ═══ centralized system configuration — faithful port from src/lib/settings.ts ═══
 //
-// ترتیب اولویت هر مقدار: ۱) جدول system_settings  ۲) متغیر محیطی  ۳) پیش‌فرض.
-// کش درون‌پردازه‌ای ۱۵ ثانیه‌ای (همان CACHE_TTL_MS) + Invalidate() برای پنل مدیر.
-// کلیدهای envOnly فقط از ENV خوانده می‌شوند (پیش از اتصال دیتابیس لازم‌اند).
+// priority order for each value: 1) system_settings table  2) environment variable  3) default.
+// 15-second in-process cache (same as CACHE_TTL_MS) + Invalidate() for the admin panel.
+// envOnly keys are read only from ENV (needed before the DB is connected).
 package settings
 
 import (
@@ -20,7 +20,7 @@ import (
 
 const cacheTTL = 15 * time.Second
 
-// Def تعریف یک تنظیم — معادل SettingDef (زیرمجموعهٔ لازم فاز ۱).
+// Def is one setting definition — equivalent to SettingDef (the Phase 1 subset).
 type Def struct {
 	Key     string
 	Env     string
@@ -28,13 +28,13 @@ type Def struct {
 	EnvOnly bool
 }
 
-// DBReader خواندن یک تنظیم از DB — برای تست بدون دیتابیس قابل جایگزینی است.
+// DBReader reads one setting from DB — replaceable for tests without a database.
 type DBReader interface {
-	// ReadAll همهٔ ردیف‌های system_settings را برمی‌گرداند (key→value).
+	// ReadAll returns all system_settings rows (key→value).
 	ReadAll(ctx context.Context) (map[string]string, error)
 }
 
-// pgReader پیاده‌سازی DBReader روی استخر pgx.
+// pgReader implements DBReader on the pgx pool.
 type pgReader struct{ pool *pgxpool.Pool }
 
 func (p pgReader) ReadAll(ctx context.Context) (map[string]string, error) {
@@ -59,7 +59,7 @@ type cacheEntry struct {
 	rows map[string]string
 }
 
-// Store سرویس تنظیمات.
+// Store is the settings service.
 type Store struct {
 	reader DBReader
 	defs   map[string]Def
@@ -68,7 +68,7 @@ type Store struct {
 	cache *cacheEntry
 }
 
-// New سازنده — pool می‌تواند nil باشد (فقط ENV/پیش‌فرض؛ تست/توسعه).
+// New is the constructor — pool may be nil (ENV/default only; tests/dev).
 func New(pool *pgxpool.Pool, defs []Def) *Store {
 	s := &Store{defs: make(map[string]Def, len(defs))}
 	for _, d := range defs {
@@ -80,7 +80,7 @@ func New(pool *pgxpool.Pool, defs []Def) *Store {
 	return s
 }
 
-// NewWithReader برای تست — خوانندهٔ ساختگی.
+// NewWithReader is for tests — a fake reader.
 func NewWithReader(reader DBReader, defs []Def) *Store {
 	s := New(nil, defs)
 	s.reader = reader
@@ -101,7 +101,7 @@ func (s *Store) dbSettings(ctx context.Context) map[string]string {
 		if got, err := s.reader.ReadAll(ctx); err == nil {
 			rows = got
 		}
-		// خطا (جدول هنوز ساخته نشده) → با ENV/پیش‌فرض ادامه می‌دهیم (همان TS)
+		// Error (table not created yet) → continue with ENV/default (same as TS)
 	}
 	s.mu.Lock()
 	s.cache = &cacheEntry{at: time.Now(), rows: rows}
@@ -109,7 +109,7 @@ func (s *Store) dbSettings(ctx context.Context) map[string]string {
 	return rows
 }
 
-// Save ذخیرهٔ مقدار در جدول system_settings (پنل مدیر).
+// Save stores a value in system_settings (admin panel).
 func (s *Store) Save(ctx context.Context, key, value string) error {
 	def, ok := s.defs[key]
 	if !ok {
@@ -130,7 +130,7 @@ func (s *Store) Save(ctx context.Context, key, value string) error {
 	return nil
 }
 
-// Delete حذف ردیف (بازگشت به پیش‌فرض).
+// Delete removes a row (back to default).
 func (s *Store) Delete(ctx context.Context, key string) error {
 	if s.reader == nil {
 		return errors.New("اتصال دیتابیس در دسترس نیست.")
@@ -142,7 +142,7 @@ func (s *Store) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
-// AllDefs تعریف‌های ثبت‌شده را برمی‌گرداند (برای پنل مدیر).
+// AllDefs returns the registered definitions (for the admin panel).
 func (s *Store) AllDefs() []Def {
 	out := make([]Def, 0, len(s.defs))
 	for _, d := range s.defs {
@@ -151,7 +151,7 @@ func (s *Store) AllDefs() []Def {
 	return out
 }
 
-// pool استخر زیرین (nil-safe برای تست).
+// pool is the underlying pool (nil-safe for tests).
 func (s *Store) pool() *pgxpool.Pool {
 	if p, ok := s.reader.(pgReader); ok {
 		return p.pool
@@ -159,7 +159,7 @@ func (s *Store) pool() *pgxpool.Pool {
 	return nil
 }
 
-// Invalidate پاک‌کردن کش (معادل invalidateSettingsCache).
+// Invalidate clears the cache (equivalent to invalidateSettingsCache).
 func (s *Store) Invalidate() {
 	s.mu.Lock()
 	s.cache = nil
@@ -174,8 +174,8 @@ func envOf(d Def) string {
 	return v
 }
 
-// Get مقدار تنظیم با ترتیب دیتابیس ← ENV ← پیش‌فرض. تنظیم ناشناخته خطا می‌دهد
-// (همان رفتار getSetting در TS).
+// Get returns the setting value with the DB ← ENV ← default order. An unknown setting errors
+// (same behavior as getSetting in TS).
 func (s *Store) Get(ctx context.Context, key string) (string, error) {
 	def, ok := s.defs[key]
 	if !ok {
@@ -197,7 +197,7 @@ func (s *Store) Get(ctx context.Context, key string) (string, error) {
 	return def.Default, nil
 }
 
-// GetNumber پورت getNumber: مقدار عددی؛ نامعتبر → fallback.
+// GetNumber ports getNumber: numeric value; invalid → fallback.
 func (s *Store) GetNumber(ctx context.Context, key string, fallback float64) float64 {
 	raw, err := s.Get(ctx, key)
 	if err != nil {
@@ -210,7 +210,7 @@ func (s *Store) GetNumber(ctx context.Context, key string, fallback float64) flo
 	return n
 }
 
-// GetBool پورت getBool.
+// GetBool ports getBool.
 func (s *Store) GetBool(ctx context.Context, key string) bool {
 	raw, err := s.Get(ctx, key)
 	if err != nil {
@@ -223,8 +223,8 @@ func (s *Store) GetBool(ctx context.Context, key string) bool {
 	return false
 }
 
-// PhaseOneDefs تعریف کلیدهای لازم فاز ۱ — رشته‌های کلید/ENV عیناً از
-// SETTING_DEFS در settings.ts.
+// PhaseOneDefs defines the Phase 1 keys — key/ENV strings copied verbatim from
+// SETTING_DEFS in settings.ts.
 var PhaseOneDefs = []Def{
 	{Key: "TICKET_TOKEN_SECRET", Env: "TICKET_TOKEN_SECRET", Default: ""},
 	{Key: "BYPASS_CRON_SECRET", Env: "BYPASS_CRON_SECRET", Default: ""},
@@ -239,7 +239,7 @@ var PhaseOneDefs = []Def{
 	{Key: "UNIVERSITY_NAME", Env: "AFAGH_UNIVERSITY_NAME", Default: "دانشگاه آفاق"},
 	{Key: "UNIVERSITY_LOGO", Env: "AFAGH_UNIVERSITY_LOGO", Default: ""},
 
-	// ── انتخاب واحد (فاز ۳) — عیناً از SETTING_DEFS سیستم فعلی ──
+	// ── Enrollment (phase 3) — copied verbatim from the current system's SETTING_DEFS ──
 	{Key: "ENROLLMENT_WINDOW_OPEN", Env: "AFAGH_ENROLLMENT_WINDOW_OPEN", Default: "true"},
 	{Key: "ENROLL_REQUIRE_CURRICULUM_CHART", Env: "AFAGH_ENROLL_REQUIRE_CURRICULUM_CHART", Default: "true"},
 	{Key: "EMERGENCY_WITHDRAW_OPEN", Env: "AFAGH_EMERGENCY_WITHDRAW_OPEN", Default: "false"},
@@ -250,18 +250,18 @@ var PhaseOneDefs = []Def{
 	{Key: "EXAM_TICKET_TTL_MINUTES", Env: "EXAM_TICKET_TTL_MINUTES", Default: "180"},
 	{Key: "ENROLL_CONFIRM_TTL_MINUTES", Env: "ENROLL_CONFIRM_TTL_MINUTES", Default: "20160"},
 
-	// ── کلاس مجازی / BBB (فاز ۳/۱۰) ──
+	// ── Virtual class / BBB (phase 3/10) ──
 	{Key: "BBB_URL", Env: "BIGBLUEBUTTON_URL", Default: ""},
 	{Key: "BBB_SECRET", Env: "BIGBLUEBUTTON_SECRET", Default: ""},
 	{Key: "BBB_MODERATOR_PW", Env: "BIGBLUEBUTTON_MODERATOR_PW", Default: ""},
 	{Key: "BBB_ATTENDEE_PW", Env: "BIGBLUEBUTTON_ATTENDEE_PW", Default: ""},
 	{Key: "BBB_AUTO_RECORD", Env: "BIGBLUEBUTTON_AUTO_RECORD", Default: "false"},
 
-	// ── مالی (فاز ۳) ──
+	// ── Finance (phase 3) ──
 	{Key: "CHEQUE_REMIND_DAYS", Env: "AFAGH_CHEQUE_REMIND_DAYS", Default: "7"},
 	{Key: "FINANCE_STMT_TTL_MINUTES", Env: "FINANCE_STMT_TTL_MINUTES", Default: "10080"},
 
-	// ── فارغ‌التحصیلی و پایان‌نامه (فاز ۳) ──
+	// ── Graduation and thesis (phase 3) ──
 	{Key: "GRAD_MIN_GPA", Env: "GRAD_MIN_GPA", Default: "12"},
 	{Key: "GRAD_REQUIRE_SAJJAD", Env: "GRAD_REQUIRE_SAJJAD", Default: "true"},
 	{Key: "GRAD_REQUIRE_PHOTO", Env: "GRAD_REQUIRE_PHOTO", Default: "true"},
@@ -285,13 +285,13 @@ var PhaseOneDefs = []Def{
 	{Key: "ENROLL_EXPERT_OVERRIDE", Env: "AFAGH_ENROLL_EXPERT_OVERRIDE", Default: "true"},
 	{Key: "EQUIV_FIXED_TUITION_MODE", Env: "EQUIV_FIXED_TUITION_MODE", Default: "ONCE"},
 
-	// ── قرارداد و حق‌التدریس (فاز ۴) ──
+	// ── Contract and teaching pay (phase 4) ──
 	{Key: "HOURLY_RATE_TMN", Env: "HOURLY_RATE_TMN", Default: "850000"},
 	{Key: "CONTRACT_TAX_PERCENT", Env: "CONTRACT_TAX_PERCENT", Default: "10"},
 	{Key: "CONTRACT_INSURANCE_PERCENT", Env: "CONTRACT_INSURANCE_PERCENT", Default: "7"},
 	{Key: "CONTRACT_MINUTES_PER_UNIT", Env: "CONTRACT_MINUTES_PER_UNIT", Default: "0"},
 
-	// ── ارزشیابی/عملکرد/اعلان‌ها (فاز ۶) ──
+	// ── Evaluation/performance/notifications (phase 6) ──
 	{Key: "EVAL_FLAG_THRESHOLD", Env: "EVAL_FLAG_THRESHOLD", Default: "3.5"},
 	{Key: "EVAL_TREND_TERMS", Env: "EVAL_TREND_TERMS", Default: "3"},
 	{Key: "PERF_SLA_TARGET", Env: "PERF_SLA_TARGET", Default: "90"},

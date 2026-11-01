@@ -1,13 +1,13 @@
-// ═══ نشست مشترک — پورت وفادار از afagh-next/src/lib/auth.ts ═══
+// ═══ shared session — faithful port from afagh-next/src/lib/auth.ts ═══
 //
-// قرارداد عمداً با Next.js یکسان است تا در الگوی strangler هر دو سرویس
-// روی یک جدول sessions و یک کوکی کار کنند:
-//   - توکن: ۶۴ کاراکتر hex (۳۲ بایت تصادفی)؛ در DB فقط sha256 آن ذخیره می‌شود.
-//   - کوکی: نام قدیمی «token» + dual-read نام جدید «__Host-afagh_session»
-//     پشت گیت AFAGH_SESSION_COOKIE_PREFIX=host (خواندن از نام جدید در اولویت).
-//   - سقف مطلق نشست در DB (expiresAt) — بدون تمدید لغزان.
-//   - کاربر غیرفعال ⇒ حذف نشست و بی‌اعتباری فوری همهٔ کانال‌ها.
-//   - mustChangePassword ⇒ نشست فقط برای جریان تغییر رمز/خروج معتبر است.
+// the contract is deliberately identical to Next.js so that in the strangler pattern both services
+// work on one sessions table and one cookie:
+//   - token: 64 hex characters (32 random bytes); only its sha256 is stored in the DB.
+//   - cookie: legacy name "token" + dual-read of the new name "__Host-afagh_session"
+//     behind the AFAGH_SESSION_COOKIE_PREFIX=host gate (reads from the new name take priority).
+//   - absolute session cap in the DB (expiresAt) — no sliding renewal.
+//   - inactive user ⇒ delete the session and immediately invalidate all channels.
+//   - mustChangePassword ⇒ session valid only for the change-password/logout flow.
 package session
 
 import (
@@ -22,18 +22,18 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// نام کوکی‌ها — همان ثابت‌های auth.ts.
+// cookie names — the same constants as auth.ts.
 const (
 	CookieName     = "token"
 	CookieNameHost = "__Host-afagh_session"
 )
 
-// HostPrefixEnabled گیت مهاجرت به نام کوکی __Host- — همان hostSessionCookieEnabled.
+// HostPrefixEnabled migration gate to the __Host- cookie name — same as hostSessionCookieEnabled.
 func HostPrefixEnabled() bool {
 	return strings.ToLower(strings.TrimSpace(os.Getenv("AFAGH_SESSION_COOKIE_PREFIX"))) == "host"
 }
 
-// ReadToken خواندن توکن نشست از مپ کوکی‌ها — DUAL-READ با اولویت نام جدید.
+// ReadToken reads the session token from the cookie map — DUAL-READ with the new name taking priority.
 func ReadToken(cookies map[string]string) string {
 	if HostPrefixEnabled() {
 		if t := cookies[CookieNameHost]; t != "" {
@@ -43,13 +43,13 @@ func ReadToken(cookies map[string]string) string {
 	return cookies[CookieName]
 }
 
-// Sha256Hex هش توکن پیش از مقایسه/ذخیره — همان sha256() در auth.ts.
+// Sha256Hex hashes the token before comparing/storing — same as sha256() in auth.ts.
 func Sha256Hex(t string) string {
 	sum := sha256.Sum256([]byte(t))
 	return hex.EncodeToString(sum[:])
 }
 
-// User همان SessionUser در auth.ts.
+// User same as SessionUser in auth.ts.
 type User struct {
 	ID                 int64    `json:"id"`
 	Name               string   `json:"name"`
@@ -58,19 +58,19 @@ type User struct {
 	UniversityID       *int64   `json:"universityId"`
 }
 
-// Store جست‌وجوی نشست روی استخر مالک — همان مسیر db در getSessionUser.
+// Store session lookup on the owner pool — same db path as getSessionUser.
 type Store struct {
 	pool *pgxpool.Pool
 }
 
 func NewStore(pool *pgxpool.Pool) *Store { return &Store{pool: pool} }
 
-// Get پورت خط‌به‌خط getSessionUser:
-//  1. join sessions→users→user_roles→roles با token هش‌شده و انقضای آینده
-//  2. هیچ سطری ⇒ nil (بدون نشست)
-//  3. isActive != 1 ⇒ حذف نشست + nil (ابطال فوری همهٔ کانال‌ها)
-//  4. mustChangePassword == 1 و !allowPending ⇒ nil (گاردها نشست نمی‌بینند)
-//  5. roles بدون تکرار (چند سطر user_roles برای یک نقش)
+// Get line-by-line port of getSessionUser:
+//  1. join sessions→users→user_roles→roles on the hashed token with a future expiry
+//  2. no rows ⇒ nil (no session)
+//  3. isActive != 1 ⇒ delete the session + nil (immediate invalidation of all channels)
+//  4. mustChangePassword == 1 and !allowPending ⇒ nil (guards see no session)
+//  5. roles without duplicates (multiple user_roles rows for one role)
 func (s *Store) Get(ctx context.Context, rawToken string, allowPendingPasswordChange bool) (*User, error) {
 	tokenHash := Sha256Hex(rawToken)
 	rows, err := s.pool.Query(ctx, `
@@ -112,14 +112,14 @@ func (s *Store) Get(ctx context.Context, rawToken string, allowPendingPasswordCh
 	}
 	first := rowsData[0]
 
-	// ⛔ غیرفعال‌سازی کامل کاربر: نشست باز هم بی‌اعتبار است.
+	// ⛔ full user deactivation: the session is invalid regardless.
 	if first.isActive != 1 {
 		if _, err := s.pool.Exec(ctx, `delete from sessions where token = $1`, tokenHash); err != nil {
 			return nil, err
 		}
 		return nil, nil
 	}
-	// 🔒 تغییر اجباری رمز: تا تغییر رمز هیچ گارد عمومی نشست معتبر نمی‌بیند.
+	// 🔒 forced password change: until the password is changed, no general guard sees a valid session.
 	if first.mustChangePassword == 1 && !allowPendingPasswordChange {
 		return nil, nil
 	}
@@ -145,8 +145,8 @@ func (s *Store) Get(ctx context.Context, rawToken string, allowPendingPasswordCh
 	}, nil
 }
 
-// PurgeExpired پاکسازی دوره‌ای نشست‌های منقضی — کمکی داخلی؛ Next این کار را
-// در لحظهٔ ورود انجام می‌دهد (issueSessionFor)؛ اینجا فقط برای سرویس بلند-عمر.
+// PurgeExpired periodic cleanup of expired sessions — internal helper; Next does this
+// at login time (issueSessionFor); here only for the long-lived service.
 func (s *Store) PurgeExpired(ctx context.Context) (int64, error) {
 	tag, err := s.pool.Exec(ctx, `delete from sessions where "expiresAt" < $1`, time.Now())
 	if err != nil {
@@ -155,9 +155,9 @@ func (s *Store) PurgeExpired(ctx context.Context) (int64, error) {
 	return tag.RowsAffected(), nil
 }
 
-// ConstantTimeEmpty مقایسهٔ زمان‌ثابت برای طول توکن — توکن معتبر دقیقاً ۶۴ hex است.
-// (مشابه چک شکل کوکی در src/proxy.ts؛ تضمین می‌کند توکن‌های بدشکل زودتر رد شوند
-// بدون لو دادن اطلاعات زمانی.)
+// ConstantTimeEmpty constant-time comparison of the token length — a valid token is exactly 64 hex chars.
+// (similar to the cookie shape check in src/proxy.ts; ensures malformed tokens are rejected early
+// without leaking timing information.)
 func ValidTokenShape(t string) bool {
 	if len(t) != 64 {
 		return false

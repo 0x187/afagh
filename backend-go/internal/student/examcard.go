@@ -1,4 +1,4 @@
-// ═══ کارت آزمون / ورود به جلسه — پورت student/exam-card ═══
+// ═══ Exam card / session entry — port of student/exam-card ═══
 package student
 
 import (
@@ -12,7 +12,7 @@ import (
 	"backend-go/internal/qr"
 )
 
-// ExamCardCourse ردیف درس در کارت آزمون.
+// ExamCardCourse is a course row in the exam card.
 type ExamCardCourse struct {
 	EnrollmentID  int64   `json:"enrollmentId"`
 	CourseCode    string  `json:"courseCode"`
@@ -27,7 +27,7 @@ type ExamCardCourse struct {
 	HasEvaluated  bool    `json:"hasEvaluated"`
 }
 
-// ExamCard کارت آزمون دانشجو.
+// ExamCard is the student exam card.
 type ExamCard struct {
 	StudentID          int64            `json:"studentId"`
 	StudentCode        string           `json:"studentCode"`
@@ -41,26 +41,26 @@ type ExamCard struct {
 	Courses            []ExamCardCourse `json:"courses"`
 }
 
-// EvaluationWindowStatus وضعیت پنجرهٔ ارزشیابی.
+// EvaluationWindowStatus is the evaluation-window state.
 type EvaluationWindowStatus struct {
 	Open    bool   `json:"open"`
 	Message string `json:"message"`
 	Title   string `json:"title"`
 }
 
-// ExamTicketInfo توکن امضاشدهٔ کارت ورود.
+// ExamTicketInfo is the signed entry-card token.
 type ExamTicketInfo struct {
 	Token     string `json:"token"`
 	ExpiresAt string `json:"expiresAt"`
 }
 
-// ExamCardQR بلوک QR.
+// ExamCardQR is the QR block.
 type ExamCardQR struct {
 	URL string `json:"url"`
 	SVG string `json:"svg"`
 }
 
-// ExamCardResponse پاسخ کامل کارت آزمون.
+// ExamCardResponse is the full exam-card response.
 type ExamCardResponse struct {
 	Card              *ExamCard               `json:"card"`
 	ExamTicket        *ExamTicketInfo         `json:"examTicket"`
@@ -71,10 +71,10 @@ type ExamCardResponse struct {
 	NoCourses         bool                    `json:"noCourses"`
 }
 
-// GetExamCard پورت getExamCardData + صفحهٔ exam-card.
+// GetExamCard ports getExamCardData + the exam-card page.
 //
-// نیمسال: اگر termID داده نشود، ترم مؤثر جاری دانشگاه مبنا است (مثل
-// getExamCardData وقتی resolvedTerm داده نشود).
+// Term: if termID is not given, the university's current effective term is the basis (like
+// getExamCardData when resolvedTerm is not provided).
 func (s *Service) GetExamCard(ctx context.Context, userID int64, termCookie *int64, publicBaseURL string) (*ExamCardResponse, error) {
 	me, err := s.Resolve(ctx, userID)
 	if err != nil {
@@ -118,11 +118,11 @@ func (s *Service) GetExamCard(ctx context.Context, userID int64, termCookie *int
 		card.FullName = strings.TrimSpace(*fullName)
 	}
 
-	// بدهی مالی.
+	// Financial debt.
 	card.DebtRials = s.debtRials(ctx, me.ID)
 	card.IsFinancialCleared = card.DebtRials == 0
 
-	// دروس + تخصیص صندلی (یک کوئری، مثل getExamCardData).
+	// Courses + seat allocation (one query, like getExamCardData).
 	rows, err := s.Pool.Query(ctx, `
 		select en.id as "enrollmentId",
 		       c.code as "courseCode", c.title as "courseTitle", coalesce(c.units,0)::int as "units",
@@ -188,7 +188,7 @@ func (s *Service) GetExamCard(ctx context.Context, userID int64, termCookie *int
 		NoCourses:  len(card.Courses) == 0,
 	}
 
-	// توکن کارت ورود — فقط وقتی پرونده هست (مثل صفحهٔ اصلی).
+	// Entry-card token — only when a dossier exists (like the home page).
 	if s.Signer != nil {
 		ttlMin := 180.0
 		if s.Settings != nil {
@@ -217,7 +217,7 @@ func (s *Service) GetExamCard(ctx context.Context, userID int64, termCookie *int
 		}
 	}
 
-	// پنجرهٔ ارزشیابی.
+	// Evaluation window.
 	resp.EvaluationWindow = s.evaluationWindow(ctx, me.UniversityID, termID)
 	return resp, nil
 }
@@ -243,7 +243,7 @@ func (s *Service) debtRials(ctx context.Context, studentID int64) int64 {
 	return int64(balance + 0.5)
 }
 
-// evaluationWindow پورت getEvaluationWindow (fail-closed).
+// evaluationWindow ports getEvaluationWindow (fail-closed).
 func (s *Service) evaluationWindow(ctx context.Context, universityID, termID *int64) *EvaluationWindowStatus {
 	status := &EvaluationWindowStatus{
 		Open:    false,

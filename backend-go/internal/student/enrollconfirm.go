@@ -1,4 +1,4 @@
-// ═══ تأییدیهٔ انتخاب واحد — پورت issueEnrollConfirmToken + verifyEnrollConfirm ═══
+// ═══ Enrollment confirmation — port of issueEnrollConfirmToken + verifyEnrollConfirm ═══
 package student
 
 import (
@@ -9,7 +9,7 @@ import (
 	"backend-go/internal/qr"
 )
 
-// ConfirmCourse ردیف درس در تأییدیه.
+// ConfirmCourse is a course row in the confirmation.
 type ConfirmCourse struct {
 	CourseTitle   string  `json:"courseTitle"`
 	CourseCode    string  `json:"courseCode"`
@@ -19,7 +19,7 @@ type ConfirmCourse struct {
 	Status        string  `json:"status"`
 }
 
-// EnrollConfirmData دادهٔ سند تأییدیه.
+// EnrollConfirmData is the confirmation document data.
 type EnrollConfirmData struct {
 	StudentID        int64           `json:"studentId"`
 	StudentName      string          `json:"studentName"`
@@ -33,7 +33,7 @@ type EnrollConfirmData struct {
 	CheckedAt        string          `json:"checkedAt"`
 }
 
-// EnrollConfirmResponse پاسخ صفحه.
+// EnrollConfirmResponse is the page response.
 type EnrollConfirmResponse struct {
 	TermTitle    string             `json:"termTitle"`
 	Blocked      *string            `json:"blocked"`
@@ -44,7 +44,7 @@ type EnrollConfirmResponse struct {
 	EmptyMessage *string            `json:"emptyMessage"`
 }
 
-// GetEnrollConfirm تأییدیهٔ نیمسال انتخابی (کوکی) — بدون انتخاب، پیام راهنما.
+// GetEnrollConfirm is the confirmation for the selected (cookie) term — without a selection, a guidance message.
 func (s *Service) GetEnrollConfirm(ctx context.Context, userID int64, termCookie *int64, publicBaseURL string) (*EnrollConfirmResponse, error) {
 	me, err := s.Resolve(ctx, userID)
 	if err != nil {
@@ -65,7 +65,7 @@ func (s *Service) GetEnrollConfirm(ctx context.Context, userID int64, termCookie
 	}
 	_ = s.Pool.QueryRow(ctx, `select title from academic_terms where id = $1`, *termID).Scan(&resp.TermTitle)
 
-	// صدور توکن.
+	// Token issuance.
 	ttlMin := 20160.0
 	if s.Settings != nil {
 		ttlMin = s.Settings.GetNumber(ctx, "ENROLL_CONFIRM_TTL_MINUTES", 20160)
@@ -103,7 +103,7 @@ func (s *Service) GetEnrollConfirm(ctx context.Context, userID int64, termCookie
 	exp := expiresAtISO(int(ttlMin) * 60)
 	resp.ExpiresAt = &exp
 
-	// دادهٔ زندهٔ دروس همین نیمسال (به‌جز حذف‌شده‌ها).
+	// Live course data of this term (excluding dropped ones).
 	var fullName, nationalCode, majorName *string
 	_ = s.Pool.QueryRow(ctx, `
 		select (u."firstName" || ' ' || u."lastName"), u."nationalCode", m.name
@@ -168,8 +168,8 @@ func (s *Service) GetEnrollConfirm(ctx context.Context, userID int64, termCookie
 	return resp, nil
 }
 
-// IssueEnrollConfirmFor صدور توکن تأییدیهٔ انتخاب واحد توسط کارشناس ادمین.
-// خروجی: توکن، زمان انقضای ISO.
+// IssueEnrollConfirmFor issues the enrollment-confirmation token by the admin expert.
+// Output: token, ISO expiry time.
 func (s *Service) IssueEnrollConfirmFor(ctx context.Context, studentID, termID int64) (string, string, error) {
 	var userID int64
 	var studentCode string

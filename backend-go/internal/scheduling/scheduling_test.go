@@ -14,7 +14,7 @@ func mkDraft(over func(*GroupDraftInput)) GroupDraftInput {
 	return d
 }
 
-// پورت تست validateGroupDrafts — همهٔ پیام‌ها و مرزها.
+// port of the validateGroupDrafts tests — all messages and boundaries.
 func TestValidateGroupDrafts(t *testing.T) {
 	mustErr := func(name string, inputs []GroupDraftInput, part string) {
 		t.Helper()
@@ -45,7 +45,7 @@ func TestValidateGroupDrafts(t *testing.T) {
 	mustErr("مرز شیفت", []GroupDraftInput{mkDraft(func(d *GroupDraftInput) { d.StartTime = "10:30"; d.EndTime = "13:00" })}, "مرز شیفت")
 	mustErr("قالب ساعت", []GroupDraftInput{mkDraft(func(d *GroupDraftInput) { d.StartTime = "8am" })}, "قالب ساعت")
 
-	// روز ۰ و ۶ معتبر
+	// days 0 and 6 are valid
 	if _, err := ValidateGroupDrafts([]GroupDraftInput{mkDraft(func(d *GroupDraftInput) { d.DayOfWeek = 0 })}, false); err != nil {
 		t.Fatalf("روز ۰ باید معتبر باشد: %v", err)
 	}
@@ -282,7 +282,7 @@ func hasType(list []ScheduleConflict, typ string) bool {
 }
 
 func TestSessionDatesFor(t *testing.T) {
-	start := time.Date(2025, 9, 20, 0, 0, 0, 0, time.UTC) // شنبه
+	start := time.Date(2025, 9, 20, 0, 0, 0, 0, time.UTC) // Saturday
 	all := SessionDatesFor(start, 0, "ALL", 16)
 	if len(all) != 16 || all[0].SessionNo != 1 || all[15].SessionNo != 16 {
 		t.Fatalf("ALL: %d جلسه", len(all))
@@ -410,7 +410,7 @@ func TestHardConflictsV2(t *testing.T) {
 	if len(multi) != 4 {
 		t.Fatalf("هم‌زمانی سه‌گانه باید ۴ تداخل بدهد: %d", len(multi))
 	}
-	// سقف فهرست + شمار کامل
+	// list cap + full count
 	report := AnalyzeHardConflicts([]HardConflictEntry{row(func(e *HardConflictEntry) { e.EnrolledCount = 50 })}, 1)
 	if report.Total != 1 || len(report.Conflicts) != 1 || report.Truncated {
 		t.Fatalf("report: %+v", report)
@@ -470,7 +470,7 @@ func TestComputeSessionDates(t *testing.T) {
 		t.Fatal("۶۰+ جلسه باید خطا بدهد")
 	}
 
-	// لنگر واقعی: ۲۰۲۴-۱۰-۲۶ (شنبه) = ۱۴۰۳/۰۸/۰۵
+	// real anchor: 2024-10-26 (Saturday) = 1403/08/05
 	anchor := time.Date(2024, 10, 26, 0, 0, 0, 0, time.Local)
 	if got := JalaliDateOf(anchor); got != "1403/08/05" {
 		t.Fatalf("لنگر شمسی: %s", got)
