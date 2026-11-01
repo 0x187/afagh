@@ -3,10 +3,12 @@ import {
   AlertTriangle,
   CalendarClock,
   ClipboardCheck,
+  Eye,
   GitBranch,
   Layout,
   Pencil,
   RefreshCw,
+  Sparkles,
   Trash2,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -29,13 +31,16 @@ import {
   getSchedDashboard,
   getSchedHardConflicts,
   getSchedHealth,
+  getSchedSmartSuggestions,
   getSchedWorkspace,
   saveRegulation,
+  supplyGroupDrafts,
   transitionSchedPhase,
   type RegulationDegreeLevel,
   type RegulationRow,
   type SchedHardConflictsData,
   type SchedHealthData,
+  type SchedSmartSlot,
   type SchedWorkspaceData,
 } from '@/lib/scheduling-suite-api';
 
@@ -357,6 +362,8 @@ const PHASE_FA: Record<string, string> = {
   ROOMS: 'تخصیص فضا', SESSIONS: 'جلسات', PUBLISHED: 'منتشرشده',
 };
 const PHASES = Object.keys(PHASE_FA);
+const DAY_NAMES = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
+const PROF_DEFAULT_MAX_UNITS = 16;
 
 const CONFLICT_FA: Record<string, string> = {
   ROOM_OVERLAP: 'تداخل سالن',
@@ -364,7 +371,7 @@ const CONFLICT_FA: Record<string, string> = {
   CAPACITY_OVERFLOW: 'سرریز ظرفیت',
 };
 
-type SchedTab = 'DEMANDS' | 'APPROVED' | 'SESSIONS' | 'HEALTH' | 'CONFLICTS' | 'ACTIONS';
+type SchedTab = 'DEMANDS' | 'APPROVED' | 'SESSIONS' | 'HEALTH' | 'CONFLICTS' | 'QUOTAS' | 'SUGGEST' | 'ACTIONS';
 
 export function AdminSchedulingPage() {
   const qc = useQueryClient();
@@ -375,6 +382,12 @@ export function AdminSchedulingPage() {
   const [deptId, setDeptId] = useState('');
   const [msg, setMsg] = useState<MsgState>(null);
   const [busy, setBusy] = useState(false);
+  const [quotaMax, setQuotaMax] = useState<Record<number, number>>({});
+  const [availProfId, setAvailProfId] = useState<number | null>(null);
+  const [suggestDemandId, setSuggestDemandId] = useState<number | null>(null);
+  const [suggestions, setSuggestions] = useState<SchedSmartSlot[]>([]);
+  const [suggestBusy, setSuggestBusy] = useState(false);
+  const [supplyBusy, setSupplyBusy] = useState(false);
 
   const dash = useQuery({ queryKey: ['sched-dash', termId], queryFn: () => getSchedDashboard(termId ?? undefined) });
   useEffect(() => {
@@ -410,6 +423,115 @@ export function AdminSchedulingPage() {
     () => [...new Set((workspace?.demands ?? []).map((d) => d.programTitle).filter(Boolean))],
     [workspace],
   );
+
+  useEffect(() => {
+    if (!workspace) return;
+    setQuotaMax((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const p of workspace.professors) {
+        if (next[p.id] == null) {
+          next[p.id] = PROF_DEFAULT_MAX_UNITS;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [workspace]);
+
+  const assignedUnits = useMemo(() => {
+    const map = new Map<number, number>();
+    for (const d of workspace?.demands ?? []) {
+      if (d.professorId == null) continue;
+      const units = Number(d.units) || 0;
+      map.set(d.professorId, (map.get(d.professorId) ?? 0) + (d.isCoTaught ? units / 2 : units));
+    }
+    return (id: number) => map.get(id) ?? 0;
+  }, [workspace]);
+
+  const suggestDemand = (workspace?.demands ?? []).find((d) => d.offeringId === suggestDemandId) ?? null;
+  const availProf = (workspace?.professors ?? []).find((p) => p.id === availProfId) ?? null;
+  const availRows = (workspace?.availabilities ?? []).filter((a) => a.staffId === availProfId);
+
+  const refreshSched = async () => {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ['sched-dash'] }),
+      qc.invalidateQueries({ queryKey: ['sched-ws'] }),
+      qc.invalidateQueries({ queryKey: ['sched-health'] }),
+      qc.invalidateQueries({ queryKey: ['sched-hard'] }),
+    ]);
+  };
+
+  async function runSuggest() {
+    if (!termId || !suggestDemand) {
+      setMsg({ kind: 'err', text: 'ابتدا درس متقاضی را انتخاب کنید.' });
+      return;
+    }
+    if (!suggestDemand.professorId) {
+      setMsg({ kind: 'err', text: 'برای این درس استادی تعیین نشده است — ابتدا از نیازمندی‌ها/انتساب استاد، استاد را مشخص کنید.' });
+      return;
+    }
+    setSuggestBusy(true);
+    setSuggestions([]);
+    setMsg(null);
+    try {
+      const slots = await getSchedSmartSuggestions({
+        termId,
+        professorId: suggestDemand.professorId,
+        capacity: suggestDemand.capacity,
+        targetFacultyId: null,
+      });
+      setSuggestions(slots);
+      if (slots.length === 0) {
+        setMsg({ kind: 'ok', text: 'هیچ اسلات آزادی پیشنهاد نشد — احتمالاً استاد هنوز حضور خود را برای این ترم اعلام نکرده است (پنل استاد).' });
+      }
+    } catch (e) {
+      setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'خطا در محاسبهٔ پیشنهادها.' });
+    } finally {
+      setSuggestBusy(false);
+    }
+  }
+
+  async function supplyFromSuggestion(slot: SchedSmartSlot) {
+    if (!termId || !suggestDemand || !suggestDemand.professorId) return;
+    const groups = [
+      ...(workspace?.demands ?? []).filter((d) => d.code === suggestDemand.code).map((d) => d.groupNumber),
+      ...(workspace?.approvedOfferings ?? []).filter((o) => o.code === suggestDemand.code).map((o) => o.groupNumber),
+    ];
+    const groupNumber = Math.max(0, ...groups) + 1;
+    const ownerDepartmentId = suggestDemand.courseDeptId ?? (Number(deptId) || (workspace?.departments[0]?.id ?? 0));
+    if (!ownerDepartmentId) {
+      setMsg({ kind: 'err', text: 'گروه سازندهٔ درس مشخص نیست.' });
+      return;
+    }
+    setSupplyBusy(true);
+    setMsg(null);
+    try {
+      const res = await supplyGroupDrafts({
+        termId,
+        courseId: suggestDemand.courseId,
+        ownerDepartmentId,
+        isSharedService: false,
+        drafts: [{
+          groupNumber,
+          capacity: suggestDemand.capacity,
+          gender: 'MIXED',
+          professorId: suggestDemand.professorId,
+          classroomId: slot.classroomId,
+          dayOfWeek: slot.dayOfWeek,
+          startTime: slot.startTime,
+          endTime: slot.endTime,
+        }],
+      });
+      setMsg({ kind: 'ok', text: `گروه ${faNumber(groupNumber)} درس «${suggestDemand.title}» عرضه شد (شناسهٔ ارائه: ${faNumber(res.offeringIds[0] ?? 0)}).` });
+      setSuggestions([]);
+      await refreshSched();
+    } catch (e) {
+      setMsg({ kind: 'err', text: e instanceof Error ? e.message : 'ثبت گروه از پیشنهاد ناموفق بود.' });
+    } finally {
+      setSupplyBusy(false);
+    }
+  }
 
   async function run(fn: () => Promise<string>) {
     setBusy(true);
@@ -527,6 +649,8 @@ export function AdminSchedulingPage() {
                 {tabButton('SESSIONS', 'جلسات و تقویم', workspace?.sessionsTotal)}
                 {tabButton('HEALTH', 'سلامت برنامه')}
                 {tabButton('CONFLICTS', 'تداخل‌ها', conflictCount)}
+                {tabButton('QUOTAS', 'سقف واحدها و حضور', workspace?.professors.length)}
+                {tabButton('SUGGEST', 'پیشنهاد هوشمند')}
                 {tabButton('ACTIONS', 'اقدامات')}
               </div>
 
@@ -646,6 +770,124 @@ export function AdminSchedulingPage() {
 
               {tab === 'CONFLICTS' ? <ConflictsPanel data={hard.data} loading={hard.isLoading} /> : null}
 
+              {tab === 'QUOTAS' ? (
+                <div className="space-y-3">
+                  <p className="text-[11px] text-muted-foreground">
+                    سقف واحد هفتگی یک تنظیم محلی برای تحلیل بار است (در نسخهٔ Next نیز ذخیرهٔ دیتابیسی ندارد).
+                    فرم حضور فقط توسط خود استاد ثبت می‌شود و این‌جا خواندنی است.
+                  </p>
+                  <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                    {(workspace?.professors ?? []).map((p) => {
+                      const rows = (workspace?.availabilities ?? []).filter((a) => a.staffId === p.id);
+                      const max = quotaMax[p.id] ?? PROF_DEFAULT_MAX_UNITS;
+                      const assigned = assignedUnits(p.id);
+                      const pct = max > 0 ? Math.min(100, Math.round((assigned / max) * 100)) : 0;
+                      const over = assigned > max;
+                      return (
+                        <div key={p.id} className="space-y-2 rounded-xl border border-border bg-card p-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-black">{p.name}</p>
+                              <p className="mt-0.5 text-[10px] text-muted-foreground">
+                                {p.academicRank} · {p.departmentName} · <span dir="ltr" className="font-mono">{p.staffCode}</span>
+                              </p>
+                            </div>
+                            <Badge variant={rows.length ? 'success' : 'warning'} className="shrink-0 text-[9px]">
+                              {rows.length ? `حضور اعلام‌شده (${faNumber(rows.length)} بازه)` : 'در انتظار اعلام حضور'}
+                            </Badge>
+                          </div>
+                          <div className="flex items-center justify-between gap-2 rounded-lg border border-border/60 bg-muted/30 p-2 text-[11px]">
+                            <label className="flex items-center gap-1 text-muted-foreground">
+                              سقف واحد هفتگی
+                              <Input
+                                type="number"
+                                min={0}
+                                value={max}
+                                onChange={(e) => setQuotaMax((prev) => ({ ...prev, [p.id]: Number(e.target.value) || 0 }))}
+                                className="h-7 w-16 text-center font-mono"
+                                dir="ltr"
+                              />
+                            </label>
+                            <span className={over ? 'font-black text-destructive' : 'font-black text-success'}>{faNumber(assigned)} واحد تخصیصی</span>
+                          </div>
+                          <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+                            <div className={over ? 'h-full bg-destructive' : 'h-full bg-success'} style={{ width: `${pct}%` }} />
+                          </div>
+                          {over ? <p className="text-[10px] font-bold text-destructive">⚠ بار تخصیصی از سقف مجاز عبور کرده است.</p> : null}
+                          <Button size="sm" variant="outline" className="h-7 w-full text-[11px]" onClick={() => setAvailProfId(p.id)}>
+                            <Eye className="size-3" aria-hidden /> مشاهدهٔ فرم حضور استاد
+                          </Button>
+                        </div>
+                      );
+                    })}
+                    {(workspace?.professors ?? []).length === 0 ? <p className="text-xs text-muted-foreground">استادی برای این دانشگاه ثبت نشده است.</p> : null}
+                  </div>
+                </div>
+              ) : null}
+
+              {tab === 'SUGGEST' ? (
+                <div className="space-y-3">
+                  <p className="text-[11px] text-muted-foreground">
+                    پیشنهادها روی سرور از حضور اعلام‌شدهٔ استاد، اشغال واقعی سالن‌ها، زونینگ دانشکده و تناسب ظرفیت محاسبه می‌شوند.
+                    ثبت هر پیشنهاد یک گروه واقعی (ارائه + برنامه + استاد) در پایگاه داده می‌سازد.
+                  </p>
+                  <div className="flex flex-wrap items-end gap-2">
+                    <label className="flex min-w-64 flex-1 flex-col gap-1 text-[10px] font-bold text-muted-foreground">
+                      درس متقاضی
+                      <select
+                        value={suggestDemandId ?? ''}
+                        onChange={(e) => { setSuggestDemandId(Number(e.target.value) || null); setSuggestions([]); }}
+                        className="h-8 rounded-lg border border-input bg-card px-2 text-[11px]"
+                      >
+                        <option value="">— انتخاب درس —</option>
+                        {(workspace?.demands ?? []).map((d) => (
+                          <option key={d.offeringId} value={d.offeringId}>
+                            {d.code} — {d.title} (گروه {faNumber(d.groupNumber)}، ظرفیت {faNumber(d.capacity)}){d.professorId == null ? ' ⚠ بدون استاد' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <Button size="sm" className="h-8 text-[11px]" disabled={suggestBusy || !suggestDemandId} onClick={() => void runSuggest()}>
+                      <Sparkles className="size-3.5" aria-hidden /> {suggestBusy ? 'در حال محاسبه…' : 'دریافت پیشنهاد موتور'}
+                    </Button>
+                  </div>
+
+                  {suggestDemand ? (
+                    <div className="rounded-xl border border-border/60 bg-muted/20 p-3 text-[11px]">
+                      <b>{suggestDemand.code} — {suggestDemand.title}</b> · استاد: <b>{profName(suggestDemand.professorId)}</b> · ظرفیت {faNumber(suggestDemand.capacity)} · گروه {faNumber(suggestDemand.groupNumber)}
+                      {suggestDemand.professorId == null ? <span className="text-destructive"> — ابتدا استاد را تعیین کنید.</span> : null}
+                    </div>
+                  ) : null}
+
+                  {suggestBusy ? <Skeleton className="h-32 w-full" /> : null}
+                  {!suggestBusy && suggestions.length === 0 ? (
+                    <div className="rounded-xl border border-dashed border-border p-6 text-center text-[11px] text-muted-foreground">
+                      پیشنهادی محاسبه نشده است. یک درس انتخاب و دکمهٔ دریافت پیشنهاد را بزنید.
+                    </div>
+                  ) : null}
+
+                  <div className="grid gap-2 md:grid-cols-2">
+                    {suggestions.map((slot, idx) => (
+                      <div key={`${slot.dayOfWeek}-${slot.startTime}-${slot.classroomId}-${idx}`} className="space-y-2 rounded-xl border border-primary/30 bg-primary/5 p-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-xs font-black">{DAY_NAMES[slot.dayOfWeek] ?? '—'} · <span className="font-mono">{slot.startTime}–{slot.endTime}</span></p>
+                          <Badge variant="success" className="text-[9px]">امتیاز {faNumber(slot.score)}</Badge>
+                        </div>
+                        <p className="text-[11px]">🏫 {slot.classroomName} (ظرفیت {faNumber(slot.classroomCapacity)})</p>
+                        <div className="flex flex-wrap gap-1">
+                          {slot.reasons.map((r, i) => (
+                            <span key={i} className="rounded-full bg-card px-2 py-0.5 text-[9px] font-bold text-muted-foreground ring-1 ring-border">{r}</span>
+                          ))}
+                        </div>
+                        <Button size="sm" className="h-7 w-full text-[10px]" disabled={supplyBusy || !suggestDemand?.professorId} onClick={() => void supplyFromSuggestion(slot)}>
+                          {supplyBusy ? 'در حال ثبت…' : 'ثبت گروه از این پیشنهاد (درج واقعی)'}
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : null}
+
               {tab === 'ACTIONS' ? (
                 <div className="space-y-3">
                   <div className="flex flex-wrap items-center gap-2">
@@ -698,6 +940,48 @@ export function AdminSchedulingPage() {
           </Card>
         </>
       )}
+
+      {availProf ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-foreground/50 p-4" role="dialog" aria-modal="true" aria-label="فرم حضور استاد">
+          <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+            <div className="flex items-center justify-between bg-primary px-4 py-3 text-primary-foreground">
+              <div>
+                <p className="text-sm font-black">فرم حضور استاد: {availProf.name}</p>
+                <p className="text-[10px] opacity-80">{availProf.academicRank} — {availProf.departmentName}</p>
+              </div>
+              <button type="button" onClick={() => setAvailProfId(null)} aria-label="بستن" className="rounded-lg px-2 py-1 text-xl leading-none hover:bg-white/10">×</button>
+            </div>
+            <div className="overflow-y-auto p-4">
+              {availRows.length === 0 ? (
+                <div className="py-8 text-center text-xs text-muted-foreground">
+                  این استاد هنوز در دسترس بودن خود را اعلام نکرده است. ثبت فقط از پرتال استاد ممکن است.
+                </div>
+              ) : (
+                <table className="w-full border-collapse text-right text-[11px]">
+                  <thead className="bg-muted/60"><tr><Th>روز</Th><Th>از</Th><Th>تا</Th><Th>وضعیت</Th></tr></thead>
+                  <tbody>
+                    {availRows.map((r, i) => (
+                      <tr key={i} className="border-t border-border/50">
+                        <Td className="font-bold">{DAY_NAMES[r.dayOfWeek] ?? '—'}</Td>
+                        <Td className="font-mono">{r.startTime}</Td>
+                        <Td className="font-mono">{r.endTime}</Td>
+                        <Td>
+                          <Badge variant={r.status === 'PREF' ? 'success' : 'warning'} className="text-[9px]">
+                            {r.status === 'PREF' ? 'اولویت' : 'قابل حضور'}
+                          </Badge>
+                        </Td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+              <p className="mt-3 rounded-lg border border-border/60 bg-muted/30 p-2 text-[10px] text-muted-foreground">
+                🔒 این داده فقط توسط خود استاد ثبت می‌شود و موتور پیشنهاد همین بازه‌ها را به‌عنوان قید می‌خواند.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -99,6 +99,20 @@ export type SchedHardConflictsData = {
   count: number;
   report: { Conflicts: SchedConflictItem[]; Total: number; Truncated: boolean };
 };
+export type SchedSmartSlot = {
+  dayOfWeek: number; startTime: string; endTime: string;
+  classroomId: number; classroomName: string; classroomCapacity: number;
+  score: number; reasons: string[];
+};
+export type SchedSupplyDraft = {
+  groupNumber: number; capacity: number; gender: 'MIXED' | 'MALE' | 'FEMALE';
+  professorId: number | null; classroomId: number;
+  dayOfWeek: number; startTime: string; endTime: string;
+};
+export type SchedSupplyInput = {
+  termId: number; courseId: number; ownerDepartmentId: number;
+  isSharedService: boolean; drafts: SchedSupplyDraft[];
+};
 
 export const getSchedDashboard = (termId?: number) =>
   apiGet<{ ok: boolean; data: SchedDashData }>(`/admin/scheduling/dashboard${termId ? `?termId=${termId}` : ''}`).then((r) => r.data);
@@ -108,14 +122,17 @@ export const getSchedDemands = (termId: number, programId: number) =>
   apiGet<{ ok: boolean; data: { demands: SchedDemandRow[] } }>(`/admin/scheduling/demands?termId=${termId}&programId=${programId}`).then((r) => r.data.demands);
 export const transitionSchedPhase = (termId: number, to: string) =>
   apiPost<{ ok: boolean; data: Record<string, unknown> }>('/admin/scheduling/transition', { termId, to }).then((r) => r.data);
-export const supplyGroupDrafts = (input: Record<string, unknown>) =>
-  apiPost<{ ok: boolean; data: Record<string, unknown> }>('/admin/scheduling/supply-drafts', input).then((r) => r.data);
+export const supplyGroupDrafts = (input: SchedSupplyInput) =>
+  apiPost<{ ok: boolean; data: { created: number; offeringIds: number[] } }>('/admin/scheduling/supply-drafts', input).then((r) => r.data);
 export const allocateSections = (input: { termId: number; departmentId: number; offeringIds: number[] }) =>
   apiPost<{ ok: boolean; data: { allocated: number } }>('/admin/scheduling/allocate-sections', input).then((r) => r.data);
 export const allocateRoomQuotas = (termId: number) =>
   apiPost<{ ok: boolean; data: { allocated: number } }>('/admin/scheduling/allocate-room-quotas', { termId }).then((r) => r.data);
-export const getSchedSmartSuggestions = (input: Record<string, unknown>) =>
-  apiPost<{ ok: boolean; data: { suggestions: Record<string, unknown>[] } }>('/admin/scheduling/smart-suggestions', input).then((r) => r.data.suggestions);
+export const getSchedSmartSuggestions = (input: {
+  termId: number; professorId: number; capacity: number;
+  targetFacultyId: number | null; durationMinutes?: number;
+}) =>
+  apiPost<{ ok: boolean; data: { suggestions: SchedSmartSlot[] } }>('/admin/scheduling/smart-suggestions', input).then((r) => r.data.suggestions);
 export const getSchedHealth = (termId: number) =>
   apiGet<{ ok: boolean; data: SchedHealthData }>(`/admin/scheduling/health?termId=${termId}`).then((r) => r.data);
 export const generateSchedSessions = (input: Record<string, unknown>) =>
