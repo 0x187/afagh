@@ -964,7 +964,11 @@ export default function AdmissionsClient({
               <label className="block text-xs font-bold text-slate-700">رشته تحصیلی: *</label>
               <select
                 value={manualForm.majorId}
-                onChange={e => setManualForm({ ...manualForm, majorId: Number(e.target.value) })}
+                onChange={e => {
+                  const majorId = Number(e.target.value);
+                  const major = majors.find(m => m.id === majorId);
+                  setManualForm({ ...manualForm, majorId, degreeLevelId: major?.degreeLevelId ?? manualForm.degreeLevelId });
+                }}
                 className="w-full p-2.5 text-xs rounded-xl border border-slate-300 bg-slate-50"
               >
                 {majors.map(m => (
