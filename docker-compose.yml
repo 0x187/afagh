@@ -112,6 +112,13 @@ x-common-env: &common-env
   PREVIOUS_TICKET_TOKEN_SECRET: ${PREVIOUS_TICKET_TOKEN_SECRET:-}
   # 🔐 امنیت (موج audit) — بدون pepper، صدور OTP امضای الکترونیک در production fail-closed است
   AFAGH_OTP_PEPPER: ${AFAGH_OTP_PEPPER:-}
+  # 🔐 رمزنگاری داده‌های هویتی (کد ملی سنجش، کارت دانشجویی…). ۶۴ hex یا عبارت عبور قوی.
+  #   بدون این متغیر، `piiKey()` در production خطا می‌دهد و هر مسیر PII fail-closed می‌شود
+  #   (قبلاً فقط در .env بود و به کانتینر نمی‌رسید ⇒ صفحهٔ سنجش بنر قرمز می‌داد).
+  #   «:?» عمداً اجباری است تا این خطا در زمان استقرار دیده شود، نه در زمان استفاده.
+  #   گردش کلید: مقدار قبلی را در AFAGH_PII_KEY_PREVIOUS بگذارید تا دادهٔ قدیمی خوانده شود.
+  AFAGH_PII_KEY: ${AFAGH_PII_KEY:?AFAGH_PII_KEY تنظیم نشده — کلید رمزنگاری PII (۶۴ hex یا عبارت عبور)}
+  AFAGH_PII_KEY_PREVIOUS: ${AFAGH_PII_KEY_PREVIOUS:-}
   # کلید هدر x-cron-secret برای POST /api/cron/bi-refresh (fail-closed؛ در پنل تنظیمات هم قابل ست است)
   BI_CRON_SECRET: ${BI_CRON_SECRET:-}
   # کلید هدر x-cron-secret برای POST /api/cron/scheduled-warnings (ارسال خودکار هشدارها از پیام‌رسان‌ها)

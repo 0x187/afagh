@@ -19,8 +19,10 @@ import {
   sanjesh_file_fields,
   sanjesh_file_rows,
   sanjesh_files,
+  sanjesh_mappings,
   students,
 } from '@/db/schema';
+import { universityScope } from './access';
 import { blindIndex, encryptPii } from '@/lib/pii';
 import { buildRowPayload, parseSanjeshFile, rowFingerprint, type SanjeshParseResult } from './parse';
 import { detectTemplateByColumnCount, type SanjeshTemplate } from './templates';
@@ -337,6 +339,17 @@ export async function stageMatchedRows(fileId: number): Promise<{ staged: number
 
   if (rows.length === 0) return { staged: 0, skipped: 0 };
 
+  // ── نگاشت «کد رشتهٔ سنجش» → «رشتهٔ داخلی» ──
+  // همان قاعدهٔ admissions-engine: اگر نگاشت موجود باشد ردیف مستقیماً RESOLVED
+  // می‌شود، وگرنه PENDING_MAPPING می‌ماند تا کارشناس در /admin/admissions
+  // آن را نگاشت کند. هر وضعیت دیگری ردیف را در آن صفحه **قفل** می‌کند، چون
+  // اکشن نگاشت فقط PENDING_MAPPING را به‌روز می‌کند و ثبت نهایی فقط RESOLVED را.
+  const mappings = await db
+    .select({ sanjeshCode: sanjesh_mappings.sanjeshCode, internalMajorId: sanjesh_mappings.internalMajorId })
+    .from(sanjesh_mappings)
+    .where(universityScope(sanjesh_mappings.universityId, file.universityId ?? null));
+  const majorByCode = new Map(mappings.map((m) => [String(m.sanjeshCode).trim(), m.internalMajorId]));
+
   const existing = await db
     .select({ rowNo: admissions_staging.rowNo })
     .from(admissions_staging)
@@ -348,6 +361,10 @@ export async function stageMatchedRows(fileId: number): Promise<{ staged: number
     if (alreadyStaged.has(r.rowNo)) continue;
     const data = r.dataJson as { fields?: Record<string, string> } | null;
     const f = data?.fields ?? {};
+    // کد «رشته محل قبولی» معتبرترین کلید است؛ در کاردانی ستون «کد رشتهٔ
+    // تحصیلی» همیشه صفر است، پس fallback به fieldCode فقط برای قالب‌های قدیمی.
+    const sanjeshCode = String(f.fieldPlaceCode ?? '').trim() || String(f.fieldCode ?? '').trim();
+    const mappedMajorId = majorByCode.get(sanjeshCode) ?? null;
     values.push({
       nationalCode: r.nationalCode ?? '',
       nationalCodeEnc: r.nationalCodeEnc,
@@ -358,7 +375,8 @@ export async function stageMatchedRows(fileId: number): Promise<{ staged: number
       fullName: r.fullName,
       mobile: f.mobile ?? null,
       studentId: r.studentId,
-      status: 'matched',
+      mappedMajorId,
+      status: mappedMajorId ? 'RESOLVED' : 'PENDING_MAPPING',
       fileId,
       rowNo: r.rowNo,
       matchedAt: new Date(),
