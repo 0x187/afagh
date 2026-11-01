@@ -113,6 +113,27 @@ export function isValidNationalCode(raw: string | null | undefined): boolean {
 }
 
 /**
+ * کد ملی را به ۱۰ رقم می‌رساند و صفرِ اولِ افتاده را برمی‌گرداند.
+ *
+ * ⚠ بعضی کدهای ملی با صفر شروع می‌شوند (مثل `0250812045`). سما عدد را
+ * راست‌چین و به‌صورت عددی ذخیره می‌کند، پس صفرِ اول در خروجی می‌افتد و
+ * فیلد ۹ رقمی می‌رسد (` 250812045` با یک فاصلهٔ ابتدایی تا عرض ۱۰).
+ *
+ * صفرگذاری **فقط** وقتی پذیرفته می‌شود که رقم کنترلی ۱۰ رقمِ حاصل معتبر
+ * باشد؛ بنابراین کدِ ۹ رقمیِ واقعاً ناقص (که کنترلی‌اش نمی‌خواند) دست‌نخورده
+ * و «نامعتبر» می‌ماند. `repaired` برای نمایش شفاف در UI است.
+ */
+export function repairNationalCode(raw: string | null | undefined): { value: string; repaired: boolean } {
+  const d = digitsOnly(raw ?? '');
+  if (d.length === 10) return { value: d, repaired: false };
+  if (d.length > 0 && d.length < 10) {
+    const padded = d.padStart(10, '0');
+    if (isValidNationalCode(padded)) return { value: padded, repaired: true };
+  }
+  return { value: d, repaired: false };
+}
+
+/**
  * تاریخ تولد سنجش به برچسب شمسی `YYYY-MM-DD`.
  *   - ۶ رقم: `YYMMDD` — سال دورقمی، همیشه ۱۳xx (در فایل ۱۴۰۵ کاردانی: ۶۶..۸۷)
  *   - ۸ رقم: `YYYYMMDD`

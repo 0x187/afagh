@@ -25,6 +25,7 @@ import {
   parseMultiYear,
   parseRawInt,
   parseSanjeshBirthDate,
+  repairNationalCode,
   type SanjeshEncoding,
 } from './decode';
 
@@ -61,6 +62,8 @@ export interface SanjeshParsedRow {
   lengthIssues: LengthIssue[];
   nationalCode: string | null;
   nationalCodeValid: boolean;
+  /** صفرِ اول از فایل افتاده بود و با تأیید رقم کنترلی بازگردانده شد */
+  nationalCodeRepaired: boolean;
   fullName: string | null;
   applicantNo: string | null;
   uniqueId: string | null;
@@ -98,8 +101,9 @@ function normalizeField(field: string, raw: string): string | number | null {
   if (isAbsent(raw)) return null;
   switch (field) {
     case 'nationalCode': {
-      const d = digitsOnly(raw);
-      return d.length === 10 ? d : d || null;
+      // صفرِ اولِ افتاده بازگردانده می‌شود (سما عدد را بدون صفر ذخیره می‌کند)
+      const { value } = repairNationalCode(raw);
+      return value || null;
     }
     case 'idNumber':
     case 'applicantNo':
@@ -221,6 +225,8 @@ export function parseSanjeshFile(
       }
     }
 
+    const ncRaw = fields.nationalCode ?? '';
+    const ncFix = repairNationalCode(ncRaw);
     const nationalCode = (normalized.nationalCode as string | null) ?? null;
     const first = cleanText(fields.firstName ?? '');
     const last = cleanText(fields.lastName ?? '');
@@ -235,6 +241,7 @@ export function parseSanjeshFile(
       lengthIssues,
       nationalCode,
       nationalCodeValid: isValidNationalCode(nationalCode),
+      nationalCodeRepaired: ncFix.repaired,
       fullName,
       applicantNo: (normalized.applicantNo as string | null) ?? null,
       uniqueId: (normalized.uniqueId as string | null) ?? null,

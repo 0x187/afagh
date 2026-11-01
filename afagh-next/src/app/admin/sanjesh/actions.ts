@@ -101,6 +101,7 @@ export async function uploadSanjeshFileAction(formData: FormData) {
     if (result.unmappedFields > 0) bits.push(`${result.unmappedFields} ستون نگاشت‌نشده`);
     if (result.duplicatesInFile > 0) bits.push(`${result.duplicatesInFile} ردیف تکراری`);
     if (result.invalidNationalCodes > 0) bits.push(`${result.invalidNationalCodes} کد ملی نامعتبر`);
+    if (result.repairedNationalCodes > 0) bits.push(`${result.repairedNationalCodes} کد ملی با صفرِ اول اصلاح شد`);
 
     revalidatePath(BASE);
     outcome = { to: `${BASE}/${result.fileId}/fields`, msg: bits.join(' · ') };

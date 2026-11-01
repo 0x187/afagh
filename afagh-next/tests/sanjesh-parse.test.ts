@@ -27,6 +27,7 @@ import {
   parseRawInt,
   decodeSanjeshBuffer,
   normalizePersian,
+  repairNationalCode,
 } from '../src/lib/sanjesh/decode';
 import { SANJESH_TEMPLATES, SANJESH_TEMPLATE_MAP, decodeSanjeshValue, detectTemplateByColumnCount } from '../src/lib/sanjesh/templates';
 
@@ -250,6 +251,25 @@ console.log('\n▶ نرمال‌سازی مقادیر');
   ok(!isValidNationalCode('123'), 'طول نادرست');
 
   ok(normalizePersian('علي  كريمي') === 'علی کریمی', 'ي/ك عربی و فاصلهٔ اضافه نرمال شد');
+}
+
+console.log('\n▶ صفرِ اولِ کد ملی (سما عدد را بدون صفر ذخیره می‌کند)');
+{
+  // نمونهٔ واقعی: ردیف ۶ فایل کاردانی — در فایل « 250812045» (۹ رقم با فاصلهٔ ابتدایی)
+  const fixed = repairNationalCode(' 250812045');
+  ok(fixed.value === '0250812045', `صفرِ اول بازگردانده شد: ${fixed.value}`);
+  ok(fixed.repaired === true, 'پرچم «اصلاح شد» ست است');
+  ok(isValidNationalCode(fixed.value), 'کد ۱۰ رقمیِ حاصل معتبر است');
+  ok(!isValidNationalCode('250812045'), 'کد ۹ رقمی خام نامعتبر است (شاهد)');
+
+  // کدی که از قبل ۱۰ رقم است نباید دست بخورد
+  const asIs = repairNationalCode('2742238689');
+  ok(asIs.value === '2742238689' && asIs.repaired === false, 'کد ۱۰ رقمی دست‌نخورده می‌ماند');
+
+  // عدد ۹ رقمی که با صفرگذاری هم معتبر نمی‌شود ⇒ نباید «تعمیر» شود
+  // (۰۱۱۱۱۱۱۱۱۱ رقم کنترلی‌اش ۰ است ولی رقم آخر ۱ است)
+  const bogus = repairNationalCode('111111111');
+  ok(bogus.value === '111111111' && bogus.repaired === false, 'کد ناقصِ نامعتبر تعمیر نمی‌شود');
 }
 
 console.log('\n▶ براورد (decode) هم کد و هم عنوان را می‌پذیرد');

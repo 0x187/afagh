@@ -58,6 +58,8 @@ export interface IngestResult {
   mappedFields: number;
   unmappedFields: number;
   invalidNationalCodes: number;
+  /** کد ملی‌هایی که صفرِ اولشان از فایل افتاده بود و بازگردانده شد */
+  repairedNationalCodes: number;
   duplicatesInFile: number;
 }
 
@@ -152,6 +154,7 @@ export async function ingestSanjeshFile(input: IngestInput): Promise<IngestResul
     const seenHashes = new Map<string, number>();
     let invalidNationalCodes = 0;
     let duplicatesInFile = 0;
+    let repairedNationalCodes = 0;
 
     const rowValues = rows.map((r) => {
       const payload = buildRowPayload(r, template?.key ?? null, parsed.colCount);
@@ -164,6 +167,7 @@ export async function ingestSanjeshFile(input: IngestInput): Promise<IngestResul
         seenHashes.set(fp, r.rowNo);
       }
       if (r.nationalCode && !r.nationalCodeValid) invalidNationalCodes++;
+      if (r.nationalCodeRepaired) repairedNationalCodes++;
 
       const nc = r.nationalCode;
       return {
@@ -192,6 +196,12 @@ export async function ingestSanjeshFile(input: IngestInput): Promise<IngestResul
     }
 
     const mapped = fieldRows.filter((f) => f.isMapped).length;
+    const warnings = [...parsed.warnings];
+    if (repairedNationalCodes > 0) {
+      warnings.push(
+        `${repairedNationalCodes} کد ملی با صفرِ اولِ افتاده اصلاح شد (رقم کنترلی ۱۰ رقم را تأیید کرد) — خط خام دست‌نخورده در دیتابیس است.`,
+      );
+    }
     return {
       fileId,
       templateKey: template?.key ?? null,
@@ -200,11 +210,12 @@ export async function ingestSanjeshFile(input: IngestInput): Promise<IngestResul
       rowCount: rows.length,
       extraColumns: parsed.extraColumns,
       missingColumns: parsed.missingColumns,
-      warnings: parsed.warnings,
+      warnings,
       mappedFields: mapped,
       unmappedFields: fieldRows.length - mapped,
       invalidNationalCodes,
       duplicatesInFile,
+      repairedNationalCodes,
     } satisfies IngestResult;
   });
 }
