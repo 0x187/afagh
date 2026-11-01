@@ -116,6 +116,26 @@ Caddy ─▶ Go edge (:8091)
   دود runtime واقعی (health، لاگین ادمین، API نقش‌دار، خاموشی نرم با همان رویدادهای لاگ).
 - `gofmt` روی کل بک‌ند اعمال شد (صفر فایل خارج از فرمت)؛ ریویو دوم: بیلد/vet/تستها سبز.
 
+### کیفیت و CI (۲۰۲۶-۱۱-۰۱) — پاس نهایی
+
+- **CI سه ستونه:** `.github/workflows/ci.yml` حالا جابهای بک‌ند Go
+  (gofmt-gate + build + vet + test، **staticcheck با آستانهٔ صفر**، gosec گزارشی)
+  و فرانت React (tsc + vitest + build) را علاوه بر Next اجرا میکند.
+- **staticcheck صفر یافته** (`backend-go/staticcheck.conf`؛ چهار چک استایلِ
+  ناسازگار با پیامهای فارسی مستند و غیرفعال شدهاند) — ۲۹ مشکل واقعی رفع شد
+  (dead store، کد مرده، `Director`→`Rewrite` پراکسیها با رگرسیون تستگرفته).
+- **code-splitting فرانت:** همهٔ صفحات مسیرها lazy شدند و `MODULES` به
+  `admin-modules.ts` منتقل شد؛ باندل ورودی **۱٬۶۸۲KB → ۴۲۸KB** (۶۰+ chunk).
+- **تفکیک `httpapi/admin.go`:** ۱٬۸۶۸ خط → هستهٔ ۳۵۱ خطی + ۱۰ فایل per-domain
+  (students/offerings/evaluations/settings/exams/attendance/archive/discipline/finance/finance-extra).
+- **هارنس پارتی:** [`tools/parity-check.mjs`](../tools/parity-check.mjs) +
+  نمونهٔ مسیرها — مقایسهٔ API قدیم/جدید در پنجرهٔ strangler.
+- **QA مرورگری ۱۳۰+ صفحه:** هر ۴ پورتال (ادمین/دانشجو/استاد/مدیر گروه + عمومی)
+  با لاگین واقعی و **صفر خطای رندر/API**؛ یگانه «⛔»ها وضعیتهای دادهٔ دموی
+  شبیهساز حقوق بود نه خطا (lazy chunks هم در همین سوئیپ اجرا و تأیید شدند).
+- **باقیماندهٔ شناختهشده:** ESLint فرانت (رجیستری npm در این محیط در دسترس نبود؛
+  پکیجها + کانفیک باید در محیط با شبکه اضافه شود) و بدهی فنی ثبتشده در راهنما.
+
 ## سطوح API
 
 - مسیرهای Go: **۵۱۵** در ۴۶ فایل `internal/httpapi/*.go` (auth، scope،
