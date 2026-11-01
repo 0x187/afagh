@@ -81,3 +81,29 @@ jobs:
         with: { node-version: 22, cache: npm, cache-dependency-path: afagh-erp/package-lock.json }
       - run: npm ci
       - run: find src -name '*.js' -exec node --check {} \;
+
+  backend-go:
+    name: بک‌ند Go — بیلد، vet و تست
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: backend-go } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with: { go-version-file: backend-go/go.mod, cache-dependency-path: backend-go/go.sum }
+      - run: gofmt -l . | tee /tmp/gofmt.out && test ! -s /tmp/gofmt.out   # فرمت استاندارد
+      - run: go build ./...
+      - run: go vet ./...
+      - run: go test ./...
+
+  frontend-react:
+    name: فرانت React — تایپ، تست و بیلد
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: frontend-react } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: npm, cache-dependency-path: frontend-react/package-lock.json }
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npm test -- --run
+      - run: npm run build
