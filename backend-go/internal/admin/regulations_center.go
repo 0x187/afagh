@@ -423,12 +423,29 @@ func (s *Service) SaveEducationalRegulation(ctx context.Context, user *session.U
 		return err
 	}
 
-	_, err := s.DB.Pool.Exec(ctx, `
+	tx, err := s.DB.Pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	// هم‌ترازی توالی شناسه با داده‌های واردشدهٔ دستی/مهاجرت‌شده — وگرنه اولین
+	// درج جدید با نقض کلید یکتا شکست می‌خورد (همان ترمیم syllabuses).
+	if _, err := tx.Exec(ctx, `
+		select setval(
+			pg_get_serial_sequence('educational_regulations', 'id'),
+			greatest(coalesce((select max(id) from educational_regulations), 0), 1),
+			true
+		)`); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `
 		insert into educational_regulations
 		       ("universityId", title, "degreeLevelId", "effectiveFromYear", "effectiveToYear", "rulesConfig")
 		values ($1, $2, $3, $4, $5, $6)`,
-		*uniID, title, in.DegreeLevelID, from, to, configStr)
-	return err
+		*uniID, title, in.DegreeLevelID, from, to, configStr); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 // DeleteEducationalRegulation پورت deleteRegulationAction — حذف با گارد دانشگاه.
