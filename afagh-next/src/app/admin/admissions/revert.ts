@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { db } from '@/db';
-import { admissions_staging, sanjesh_files, sanjesh_file_rows } from '@/db/schema';
+import { admissions_staging, sanjesh_files, sanjesh_file_rows, sanjesh_file_fields } from '@/db/schema';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { requireRole } from '@/lib/auth';
 import { getCurrentUniversity } from '@/lib/university-scope';
