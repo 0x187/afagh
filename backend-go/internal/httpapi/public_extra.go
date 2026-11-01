@@ -316,14 +316,14 @@ var extraAlumniServices = []extraAlumniService{
 }
 
 type extraAlumniMe struct {
-	StudentID   int64    `json:"-"`
-	FullName    string   `json:"fullName"`
-	StudentCode int64    `json:"studentCode"`
-	MajorName   *string  `json:"majorName"`
-	DegreeTitle *string  `json:"degreeTitle"`
-	EntryYear   *int     `json:"entryYear"`
-	Status      string   `json:"-"`
-	UserID      int64    `json:"-"`
+	StudentID    int64   `json:"-"`
+	FullName     string  `json:"fullName"`
+	StudentCode  int64   `json:"studentCode"`
+	MajorName    *string `json:"majorName"`
+	DegreeTitle  *string `json:"degreeTitle"`
+	EntryYear    *int    `json:"entryYear"`
+	Status       string  `json:"-"`
+	UserID       int64   `json:"-"`
 	UniversityID *int64  `json:"-"`
 }
 
@@ -353,17 +353,17 @@ func (a *PublicExtraAPI) extraAlumniOf(ctx context.Context, userID int64) *extra
 }
 
 type extraAlumniRequest struct {
-	ID            int64    `json:"id"`
-	RequestType   string   `json:"requestType"`
-	TrackingCode  string   `json:"trackingCode"`
-	Status        string   `json:"status"`
-	Fee           float64  `json:"fee"`
-	Destination   *string  `json:"destination"`
-	Description   *string  `json:"description"`
-	ResultFileURL *string  `json:"resultFileUrl"`
-	AdminNote     *string  `json:"adminNote"`
-	CreatedAt     *string  `json:"createdAt"`
-	PaidAt        *string  `json:"paidAt"`
+	ID            int64   `json:"id"`
+	RequestType   string  `json:"requestType"`
+	TrackingCode  string  `json:"trackingCode"`
+	Status        string  `json:"status"`
+	Fee           float64 `json:"fee"`
+	Destination   *string `json:"destination"`
+	Description   *string `json:"description"`
+	ResultFileURL *string `json:"resultFileUrl"`
+	AdminNote     *string `json:"adminNote"`
+	CreatedAt     *string `json:"createdAt"`
+	PaidAt        *string `json:"paidAt"`
 }
 
 func (a *PublicExtraAPI) extraAlumniRequests(ctx context.Context, studentID int64) []extraAlumniRequest {
@@ -630,16 +630,16 @@ type extraProctorRosterItem struct {
 }
 
 type extraProctorSession struct {
-	ID           int64                     `json:"id"`
-	HallID       int64                     `json:"hallId"`
-	HallName     string                    `json:"hallName"`
-	BuildingName string                    `json:"buildingName"`
-	HallCapacity int                       `json:"hallCapacity"`
-	ExamDate     string                    `json:"examDate"`
-	StartTime    string                    `json:"startTime"`
-	EndTime      string                    `json:"endTime"`
+	ID            int64                    `json:"id"`
+	HallID        int64                    `json:"hallId"`
+	HallName      string                   `json:"hallName"`
+	BuildingName  string                   `json:"buildingName"`
+	HallCapacity  int                      `json:"hallCapacity"`
+	ExamDate      string                   `json:"examDate"`
+	StartTime     string                   `json:"startTime"`
+	EndTime       string                   `json:"endTime"`
 	ClockInStatus string                   `json:"clockInStatus"`
-	Roster       []extraProctorRosterItem  `json:"roster"`
+	Roster        []extraProctorRosterItem `json:"roster"`
 }
 
 // extraUserUniScope — list of allowed universities; nil = unlimited (platform ADMIN account).
@@ -1251,16 +1251,16 @@ func (a *PublicExtraAPI) extraVerifyAttendanceCore(ctx context.Context, user *se
 // ───────────────── 4) Professor check-in via classroom door QR (p/[code]) ─────────────────
 
 type extraRoomSessionRow struct {
-	ID                    int64   `json:"id"`
-	OfferingID            int64   `json:"offeringId"`
-	SessionDate           string  `json:"sessionDate"`
-	StartTime             string  `json:"startTime"`
-	EndTime               string  `json:"endTime"`
-	ProfessorID           *int64  `json:"professorId"`
-	CourseTitle           string  `json:"courseTitle"`
-	CourseCode            string  `json:"courseCode"`
-	GroupNumber           int     `json:"groupNumber"`
-	RoomID                int64   `json:"roomId"`
+	ID                     int64   `json:"id"`
+	OfferingID             int64   `json:"offeringId"`
+	SessionDate            string  `json:"sessionDate"`
+	StartTime              string  `json:"startTime"`
+	EndTime                string  `json:"endTime"`
+	ProfessorID            *int64  `json:"professorId"`
+	CourseTitle            string  `json:"courseTitle"`
+	CourseCode             string  `json:"courseCode"`
+	GroupNumber            int     `json:"groupNumber"`
+	RoomID                 int64   `json:"roomId"`
 	SharedScheduleGroupKey *string `json:"sharedScheduleGroupKey"`
 	// Temporary for the core
 	explicitRoomID *int64
@@ -1873,9 +1873,9 @@ func (a *PublicExtraAPI) extraRoomCheckinState(c *gin.Context) {
 
 	// "focus" session: my first unchecked OPEN ← OPEN ← BEFORE ← last
 	type focusRow struct {
-		row     extraRoomSessionRow
-		state   string
-		window  [2]string
+		row      extraRoomSessionRow
+		state    string
+		window   [2]string
 		recorded *time.Time
 	}
 	mineRows := []focusRow{}
@@ -2055,18 +2055,18 @@ func (a *PublicExtraAPI) extraRoomCheckinState(c *gin.Context) {
 		"roomId": roomID, "todayJalali": jalaliToday, "todayDow": extraIranDow(jalaliToday),
 		"room": gin.H{"id": room.ID, "name": room.Name, "buildingName": room.BuildingName,
 			"floor": room.Floor, "isActive": room.IsActive},
-		"staffName": user.Name,
-		"me": gin.H{"staffId": staffID, "hasStaff": hasStaff, "name": user.Name, "isProfessor": extraHasRole(user, "PROFESSOR")},
-		"policy": gin.H{"mode": policyMode, "professorAllowed": profAllowed, "controllerAllowed": ctrlAllowed},
-		"control": gin.H{"allowed": ctrlCan, "source": ctrlCanSrc},
-		"focus":       focusJSON(),
-		"upcoming":    upcoming,
-		"ctrlGroups":  ctrlGroups,
-		"weekly":      weekly,
+		"staffName":         user.Name,
+		"me":                gin.H{"staffId": staffID, "hasStaff": hasStaff, "name": user.Name, "isProfessor": extraHasRole(user, "PROFESSOR")},
+		"policy":            gin.H{"mode": policyMode, "professorAllowed": profAllowed, "controllerAllowed": ctrlAllowed},
+		"control":           gin.H{"allowed": ctrlCan, "source": ctrlCanSrc},
+		"focus":             focusJSON(),
+		"upcoming":          upcoming,
+		"ctrlGroups":        ctrlGroups,
+		"weekly":            weekly,
 		"mySharedOfferings": mySharedList,
-		"todayBySlot": todayBySlot,
-		"twinRooms":   twinRooms,
-		"noStaff":     !hasStaff,
+		"todayBySlot":       todayBySlot,
+		"twinRooms":         twinRooms,
+		"noStaff":           !hasStaff,
 	}})
 }
 

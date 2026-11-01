@@ -10,28 +10,28 @@ import (
 
 // ExamPaymentRow is an exam payment row.
 type ExamPaymentRow struct {
-	ID                int64    `json:"id"`
-	StaffID           int64    `json:"staffId"`
-	TermID            int64    `json:"termId"`
-	Source            string   `json:"source"`
-	SessionCount      int      `json:"sessionCount"`
-	UnitCount         float64  `json:"unitCount"`
-	Amount            float64  `json:"amount"`
-	DecreeID          *int64   `json:"decreeId"`
-	CreatedAt         *string  `json:"createdAt"`
-	StaffCode         *string  `json:"staffCode"`
-	StaffName         string   `json:"staffName"`
-	ArchiveDeliveries int      `json:"archiveDeliveries"`
-	ArchivePending    int      `json:"archivePending"`
+	ID                int64   `json:"id"`
+	StaffID           int64   `json:"staffId"`
+	TermID            int64   `json:"termId"`
+	Source            string  `json:"source"`
+	SessionCount      int     `json:"sessionCount"`
+	UnitCount         float64 `json:"unitCount"`
+	Amount            float64 `json:"amount"`
+	DecreeID          *int64  `json:"decreeId"`
+	CreatedAt         *string `json:"createdAt"`
+	StaffCode         *string `json:"staffCode"`
+	StaffName         string  `json:"staffName"`
+	ArchiveDeliveries int     `json:"archiveDeliveries"`
+	ArchivePending    int     `json:"archivePending"`
 }
 
 // NotReadyRow: an instructor whose papers have not returned to the archive.
 type NotReadyRow struct {
-	StaffID  int64   `json:"staffId"`
+	StaffID   int64   `json:"staffId"`
 	StaffCode *string `json:"staffCode"`
-	Name     string  `json:"name"`
-	Pending  int     `json:"pending"`
-	Payments int     `json:"payments"`
+	Name      string  `json:"name"`
+	Pending   int     `json:"pending"`
+	Payments  int     `json:"payments"`
 }
 
 // ListExamPayments lists a term's payments with archive status.

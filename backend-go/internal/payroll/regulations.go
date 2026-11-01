@@ -9,13 +9,13 @@ import (
 
 // RegulationVersion regulation version.
 type RegulationVersion struct {
-	ID          int64    `json:"id"`
-	Code        string   `json:"code"`
-	Title       string   `json:"title"`
-	Year        *int     `json:"year"`
-	Description *string  `json:"description"`
-	IsActive    bool     `json:"isActive"`
-	CreatedAt   *string  `json:"createdAt"`
+	ID          int64   `json:"id"`
+	Code        string  `json:"code"`
+	Title       string  `json:"title"`
+	Year        *int    `json:"year"`
+	Description *string `json:"description"`
+	IsActive    bool    `json:"isActive"`
+	CreatedAt   *string `json:"createdAt"`
 }
 
 // ListRegulations list of versions.

@@ -2,9 +2,9 @@
 //
 // Rates are read from the unified tuition_rules table and rule selection is done with
 // a single resolver (Resolve): degree level > major > term type > course type > entry cohort.
-//   • Fixed tuition: charged once per term type (termLevelOnly)
-//   • Variable tuition: per unit with theory/practical/general bucketing
-//   • Semester escalation coefficient (tuition_coefficients) + subject-specific amounts (subject_fee_types)
+//   - Fixed tuition: charged once per term type (termLevelOnly)
+//   - Variable tuition: per unit with theory/practical/general bucketing
+//   - Semester escalation coefficient (tuition_coefficients) + subject-specific amounts (subject_fee_types)
 package tuition
 
 import (
@@ -330,7 +330,7 @@ func (e *Engine) ComputeTermTuition(ctx context.Context, studentID, termID int64
 		SubjectFees: subjectLines, SubjectFeesTotal: subjectTotal,
 		FixedTuitionAfterCoeff: fixedAfter, VariableTuitionAfterCoeff: variableAfter,
 		TotalTuition: fixedAfter + variableAfter + subjectTotal,
-		Lines: lines, FixedRuleID: fixedRuleID,
+		Lines:        lines, FixedRuleID: fixedRuleID,
 	}
 	if override != nil {
 		out.OverrideID = &override.ID

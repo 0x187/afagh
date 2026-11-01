@@ -1,10 +1,10 @@
 // ═══ instructor teaching-fee engine — port of lib/payroll-engine.ts ═══
 //
-//  Payment flow:  DRAFT → MID_TERM_PAID (advance payment) → FINAL_SETTLED
-//  Settlement gates:  ① all instructor grades FINALIZED  ② all their documents SIGNED
+//	Payment flow:  DRAFT → MID_TERM_PAID (advance payment) → FINAL_SETTLED
+//	Settlement gates:  ① all instructor grades FINALIZED  ② all their documents SIGNED
 //
-//  load the term with "fixed queries" (no N+1) and compute in memory;
-//  money as integers rounded to a multiple of 10 rials.
+//	load the term with "fixed queries" (no N+1) and compute in memory;
+//	money as integers rounded to a multiple of 10 rials.
 package payroll
 
 import (
@@ -202,27 +202,27 @@ type ContractRow struct {
 }
 
 type staffMetaRow struct {
-	Info StaffMeta
+	Info   StaffMeta
 	UserID int64
 }
 
 type staffOffering struct {
-	OfferingID    int64
-	CourseCode    string
-	CourseTitle   string
-	UnitsInt      int
-	PracticalUnits int
-	GroupNumber   *int
-	EnrolledCount int
-	OfferingType  string
-	PayRole       string
-	SharePct      float64
-	MergeKey      *string
+	OfferingID      int64
+	CourseCode      string
+	CourseTitle     string
+	UnitsInt        int
+	PracticalUnits  int
+	GroupNumber     *int
+	EnrolledCount   int
+	OfferingType    string
+	PayRole         string
+	SharePct        float64
+	MergeKey        *string
 	MergedMemberIds []int64
-	CourseID      int64
-	TheoryUnits   float64
-	DeptID        *int64
-	CourseType    *string
+	CourseID        int64
+	TheoryUnits     float64
+	DeptID          *int64
+	CourseType      *string
 }
 
 type statementRow struct {
@@ -240,29 +240,29 @@ type statementRow struct {
 }
 
 type termData struct {
-	TermID               int64
-	TermTitle            string
-	Coefs                coefs
-	Rules                []PayRule
-	RateByStaff          map[int64]float64
-	Contracts            map[int64]*ContractRow
-	EffectiveDuties      map[int64]float64
-	StaffInfo            map[int64]staffMetaRow
-	OfferingsByStaff     map[int64][]*staffOffering
-	SessionsByOffering   map[int64]SessionStats
-	SlotsByOffering      map[int64]string
-	GatesByStaff         map[int64]Gates
-	StatementsByStaff    map[int64]*statementRow
-	MsPrefixes           []string
-	CrowdedThreshold     float64
-	CrowdedStep          float64
-	CrowdedStepUp        float64
-	RateFraction         bool
-	RateDivisor          float64
-	RateSource           map[int64]string
+	TermID                 int64
+	TermTitle              string
+	Coefs                  coefs
+	Rules                  []PayRule
+	RateByStaff            map[int64]float64
+	Contracts              map[int64]*ContractRow
+	EffectiveDuties        map[int64]float64
+	StaffInfo              map[int64]staffMetaRow
+	OfferingsByStaff       map[int64][]*staffOffering
+	SessionsByOffering     map[int64]SessionStats
+	SlotsByOffering        map[int64]string
+	GatesByStaff           map[int64]Gates
+	StatementsByStaff      map[int64]*statementRow
+	MsPrefixes             []string
+	CrowdedThreshold       float64
+	CrowdedStep            float64
+	CrowdedStepUp          float64
+	RateFraction           bool
+	RateDivisor            float64
+	RateSource             map[int64]string
 	PlannedSessionsDefault float64
-	RoleTitles           map[string]string
-	RepeatCount          map[string]int
+	RoleTitles             map[string]string
+	RepeatCount            map[string]int
 }
 
 // ─────────────────── roles and labels ───────────────────
@@ -309,11 +309,11 @@ func (e *Engine) loadCoefficients(ctx context.Context) (coefs, error) {
 	}
 	defer rows.Close()
 	type cRow struct {
-		Name      string
-		Mult      float64
-		Min       *int
-		Step      *int
-		StepInc   *float64
+		Name    string
+		Mult    float64
+		Min     *int
+		Step    *int
+		StepInc *float64
 	}
 	list := []cRow{}
 	for rows.Next() {
@@ -480,12 +480,24 @@ func DiagnoseRuleMiss(rules []PayRule, m RuleMatch) (dim, reason string) {
 	}
 	steps := []step{
 		{"offeringType", func(r *PayRule) bool { return r.OfferingType == nil || *r.OfferingType == t },
-			func() string { return fmt.Sprintf("نوع درس «%s»: هیچ قانونی این نوع را پوشش نمی‌دهد.", tFa) }},
+			func() string {
+				return fmt.Sprintf("نوع درس «%s»: هیچ قانونی این نوع را پوشش نمی‌دهد.", tFa)
+			}},
 		{"professorRole", func(r *PayRule) bool { return r.ProfessorRole == nil || *r.ProfessorRole == m.Role },
-			func() string { return fmt.Sprintf("نقش «%s»: قانونی برای این نقش تعریف نشده (نقش قابل تعریف است).", m.Role) }},
+			func() string {
+				return fmt.Sprintf("نقش «%s»: قانونی برای این نقش تعریف نشده (نقش قابل تعریف است).", m.Role)
+			}},
 		{"academicRank", func(r *PayRule) bool { return r.AcademicRank == nil || (m.Rank != nil && *r.AcademicRank == *m.Rank) },
-			func() string { rank := "—"; if m.Rank != nil { rank = *m.Rank }; return fmt.Sprintf("مرتبهٔ «%s»: قوانین موجود مرتبهٔ دیگری می‌خواهند.", rank) }},
-		{"classMode", func(r *PayRule) bool { return r.ClassMode == "" || r.ClassMode == "ANY" || (r.ClassMode == "WITH_CLASS") == m.HasClass },
+			func() string {
+				rank := "—"
+				if m.Rank != nil {
+					rank = *m.Rank
+				}
+				return fmt.Sprintf("مرتبهٔ «%s»: قوانین موجود مرتبهٔ دیگری می‌خواهند.", rank)
+			}},
+		{"classMode", func(r *PayRule) bool {
+			return r.ClassMode == "" || r.ClassMode == "ANY" || (r.ClassMode == "WITH_CLASS") == m.HasClass
+		},
 			func() string {
 				if m.HasClass {
 					return "وضعیت کلاس: ارائه باکلاس است ولی قوانینِ منطبق فقط «بدون‌کلاس» می‌خواهند."
@@ -494,13 +506,29 @@ func DiagnoseRuleMiss(rules []PayRule, m RuleMatch) (dim, reason string) {
 			}},
 		{"studentRange", func(r *PayRule) bool {
 			return (r.MinStudents == nil || m.Enrolled >= *r.MinStudents) && (r.MaxStudents == nil || m.Enrolled <= *r.MaxStudents)
-		}, func() string { return fmt.Sprintf("تعداد دانشجو (%d نفر): خارج از بازهٔ قوانین منطبق است.", m.Enrolled) }},
-		{"department", func(r *PayRule) bool { return r.DepartmentID == nil || (m.DeptID != nil && *r.DepartmentID == *m.DeptID) },
-			func() string { return "گروه آموزشی: قوانین منطبق محدود به گروه دیگری هستند." }},
-		{"courseType", func(r *PayRule) bool { return r.CourseType == nil || (m.CourseType != nil && *r.CourseType == *m.CourseType) },
-			func() string { ct := "—"; if m.CourseType != nil { ct = *m.CourseType }; return fmt.Sprintf("نوع درس کاتالوگ («%s»): قانونی برای این نوع نیست.", ct) }},
+		}, func() string {
+			return fmt.Sprintf("تعداد دانشجو (%d نفر): خارج از بازهٔ قوانین منطبق است.", m.Enrolled)
+		}},
+		{"department", func(r *PayRule) bool {
+			return r.DepartmentID == nil || (m.DeptID != nil && *r.DepartmentID == *m.DeptID)
+		},
+			func() string {
+				return "گروه آموزشی: قوانین منطبق محدود به گروه دیگری هستند."
+			}},
+		{"courseType", func(r *PayRule) bool {
+			return r.CourseType == nil || (m.CourseType != nil && *r.CourseType == *m.CourseType)
+		},
+			func() string {
+				ct := "—"
+				if m.CourseType != nil {
+					ct = *m.CourseType
+				}
+				return fmt.Sprintf("نوع درس کاتالوگ («%s»): قانونی برای این نوع نیست.", ct)
+			}},
 		{"repeat", func(r *PayRule) bool { return r.RepeatNumber == nil || *r.RepeatNumber == m.Nth },
-			func() string { return fmt.Sprintf("نوبت تکرار (بار %dاُم): قوانین منطبق نوبت دیگری می‌خواهند.", m.Nth) }},
+			func() string {
+				return fmt.Sprintf("نوبت تکرار (بار %dاُم): قوانین منطبق نوبت دیگری می‌خواهند.", m.Nth)
+			}},
 	}
 	for _, s := range steps {
 		next := []PayRule{}
@@ -538,7 +566,7 @@ func crowdedMult(enrolled int, data *termData) (mult float64, label string) {
 	if !(up > 0) || steps <= 1 {
 		return base, fmt.Sprintf("جمعی ×%s", fmtCoef(base))
 	}
-	m := mathRound((base + float64(steps-1)*up) * 100) / 100
+	m := mathRound((base+float64(steps-1)*up)*100) / 100
 	return m, fmt.Sprintf("جمعی ×%s (%d پله)", fmtCoef(m), steps)
 }
 
@@ -549,7 +577,12 @@ func fmtCoef(v float64) string {
 
 func mathFloor(v float64) float64 { return math.Floor(v) }
 
-func boolToInt(b bool) int { if b { return 1 }; return 0 }
+func boolToInt(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
 
 func mathRound(v float64) float64 { return math.Round(v) }
 
@@ -624,22 +657,22 @@ func faToEnDigits(s string) string {
 // LoadTermPayrollData loads all data needed to compute every instructor's statement in a term.
 func (e *Engine) LoadTermPayrollData(ctx context.Context, termID int64) (*termData, error) {
 	data := &termData{
-		TermID:             termID,
-		RateByStaff:        map[int64]float64{},
-		Contracts:          map[int64]*ContractRow{},
-		EffectiveDuties:    map[int64]float64{},
-		StaffInfo:          map[int64]staffMetaRow{},
-		OfferingsByStaff:   map[int64][]*staffOffering{},
-		SessionsByOffering: map[int64]SessionStats{},
-		SlotsByOffering:    map[int64]string{},
-		GatesByStaff:       map[int64]Gates{},
-		StatementsByStaff:  map[int64]*statementRow{},
-		RateSource:         map[int64]string{},
-		RoleTitles:         map[string]string{},
-		RepeatCount:        map[string]int{},
-		RateDivisor:        50,
-		CrowdedThreshold:   40,
-		CrowdedStep:        25,
+		TermID:                 termID,
+		RateByStaff:            map[int64]float64{},
+		Contracts:              map[int64]*ContractRow{},
+		EffectiveDuties:        map[int64]float64{},
+		StaffInfo:              map[int64]staffMetaRow{},
+		OfferingsByStaff:       map[int64][]*staffOffering{},
+		SessionsByOffering:     map[int64]SessionStats{},
+		SlotsByOffering:        map[int64]string{},
+		GatesByStaff:           map[int64]Gates{},
+		StatementsByStaff:      map[int64]*statementRow{},
+		RateSource:             map[int64]string{},
+		RoleTitles:             map[string]string{},
+		RepeatCount:            map[string]int{},
+		RateDivisor:            50,
+		CrowdedThreshold:       40,
+		CrowdedStep:            25,
 		PlannedSessionsDefault: 16,
 	}
 
@@ -984,11 +1017,11 @@ func (e *Engine) LoadTermPayrollData(ctx context.Context, termID int64) (*termDa
 	// each instructor's base rate: contract snapshot ← table rate (tenured over general) ← decree fraction
 	year := e.FiscalYear(ctx)
 	type rateRow struct {
-		Rank    string
-		Degree  string
-		Base    *string
-		Rate    float64
-		Year    int
+		Rank   string
+		Degree string
+		Base   *string
+		Rate   float64
+		Year   int
 	}
 	rateRows := []rateRow{}
 	rr, err := e.Pool.Query(ctx, `
@@ -1082,15 +1115,20 @@ func (e *Engine) LoadTermPayrollData(ctx context.Context, termID int64) (*termDa
 	return data, nil
 }
 
-func maxInt(a, b int) int { if a > b { return a }; return b }
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
 func mathRoundF(v float64) float64 { return math.Round(v) }
 
 // ─────────────────── merging concurrent classes ───────────────────
 
 type mergeSlot struct {
-	day         *int
-	start, end  string
-	room        string
+	day        *int
+	start, end string
+	room       string
 }
 
 func normMergeTimeP(v string) string {
@@ -1377,7 +1415,7 @@ func CalcStaffPayrollFromData(data *termData, staffID int64) (*StaffPayroll, err
 		}
 		effectiveInt := int(RatioOf(float64(equivInt), float64(planned)-float64(sessions.NetAbsences), planned))
 		grossRial := ToRial(float64(IntToUnits(equivInt)) * rate)
-		deduction := ToRial(float64(IntToUnits(equivInt - effectiveInt)) * rate)
+		deduction := ToRial(float64(IntToUnits(equivInt-effectiveInt)) * rate)
 
 		totalEquivInt += equivInt
 		totalEffectiveInt += effectiveInt
@@ -1415,17 +1453,22 @@ func CalcStaffPayrollFromData(data *termData, staffID int64) (*StaffPayroll, err
 	out := &StaffPayroll{
 		Staff: meta.Info, Rate: rate, RateSource: rateSource,
 		RateDivisor: data.RateDivisor,
-		DutyUnits: dutyUnits, TaxRate: taxRate, Rows: rows,
+		DutyUnits:   dutyUnits, TaxRate: taxRate, Rows: rows,
 		TotalEquivalentUnits: float64(IntToUnits(totalEquivInt)),
 		TotalEffectiveUnits:  float64(IntToUnits(totalEffectiveInt)),
 		PayableUnits:         float64(IntToUnits(payableInt)),
-		Gross: gross, AbsenceDeductionRial: absenceTotal, Tax: tax, Net: net,
+		Gross:                gross, AbsenceDeductionRial: absenceTotal, Tax: tax, Net: net,
 		Gates: gates, HasContract: contract != nil,
 	}
 	return out, nil
 }
 
-func maxF(a, b float64) float64 { if a > b { return a }; return b }
+func maxF(a, b float64) float64 {
+	if a > b {
+		return a
+	}
+	return b
+}
 
 // groupThousands: format rials with thousands separators — display only.
 func groupThousands(v float64) string {
@@ -1520,7 +1563,7 @@ func (e *Engine) GetOverview(ctx context.Context, termID *int64) (*Overview, err
 		}
 		item := PayrollOverviewItem{
 			StaffMeta: calc.Staff,
-			Rate: calc.Rate, RateSource: calc.RateSource, DutyUnits: calc.DutyUnits,
+			Rate:      calc.Rate, RateSource: calc.RateSource, DutyUnits: calc.DutyUnits,
 			TotalEquivalentUnits: calc.TotalEquivalentUnits, TotalEffectiveUnits: calc.TotalEffectiveUnits,
 			PayableUnits: calc.PayableUnits, Gross: calc.Gross, Tax: calc.Tax,
 			AbsenceDeductionRial: calc.AbsenceDeductionRial, Net: calc.Net,

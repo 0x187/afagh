@@ -842,10 +842,10 @@ func (a *PayrollAPI) payrollObjectionsReview(c *gin.Context) {
 		return
 	}
 	var body struct {
-		ID        int64  `json:"id"`
-		Decision  string `json:"decision"`
+		ID         int64  `json:"id"`
+		Decision   string `json:"decision"`
 		ReviewNote string `json:"reviewNote"`
-		Reopen    bool   `json:"reopen"`
+		Reopen     bool   `json:"reopen"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil || body.ID <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "داده ورودی معتبر نیست."})

@@ -339,7 +339,7 @@ func (e *Engine) RegisterDefaultHandlers(tuitionEng *tuition.Engine) {
 	e.Handlers = append(e.Handlers, Handler{
 		Name: "PROPOSAL_TRACKING_LOG", ProcessCode: "PROPOSAL_TRACKING",
 		Events: []string{"WORKFLOW_FINAL_APPROVED"},
-		Run: func(ctx context.Context, ev Event) error { return nil },
+		Run:    func(ctx context.Context, ev Event) error { return nil },
 	})
 }
 

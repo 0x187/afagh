@@ -282,10 +282,10 @@ func (e *Engine) UnassignStaffTermRole(ctx context.Context, assignmentID int64) 
 
 // SearchStaffHit is an instructor search result.
 type SearchStaffHit struct {
-	ID         int64   `json:"id"`
-	StaffCode  *string `json:"staffCode"`
-	Name       string  `json:"name"`
-	Rank       *string `json:"rank"`
+	ID        int64   `json:"id"`
+	StaffCode *string `json:"staffCode"`
+	Name      string  `json:"name"`
+	Rank      *string `json:"rank"`
 }
 
 // SearchPayrollStaff ports searchStaffAction.

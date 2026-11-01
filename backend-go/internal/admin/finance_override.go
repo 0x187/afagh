@@ -128,11 +128,11 @@ type txExec struct{ tx pgx.Tx }
 
 // SaveTuitionOverrideInput create input.
 type SaveTuitionOverrideInput struct {
-	StudentID     int64    `json:"studentId"`
-	TermID        *int64   `json:"termId"`
-	FixedAmount   float64  `json:"fixedAmount"`
-	PerUnitAmount float64  `json:"perUnitAmount"`
-	Reason        *string  `json:"reason"`
+	StudentID     int64   `json:"studentId"`
+	TermID        *int64  `json:"termId"`
+	FixedAmount   float64 `json:"fixedAmount"`
+	PerUnitAmount float64 `json:"perUnitAmount"`
+	Reason        *string `json:"reason"`
 }
 
 const maxOverrideRials = 9_999_999_999_999

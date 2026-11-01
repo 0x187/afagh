@@ -11,8 +11,8 @@ import (
 
 	"github.com/jackc/pgx/v5"
 
-	"backend-go/internal/otp"
 	"backend-go/internal/messaging"
+	"backend-go/internal/otp"
 )
 
 // ProfDocument is the professor's electronic document.

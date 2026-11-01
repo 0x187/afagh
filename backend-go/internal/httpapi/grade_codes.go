@@ -212,8 +212,8 @@ func (a *AdminAPI) gradeThresholdsSave(c *gin.Context) {
 		return
 	}
 	var in struct {
-		DegreeLevelID         int64                 `json:"degreeLevelId"`
-		TranscriptDisplayMode string                `json:"transcriptDisplayMode"`
+		DegreeLevelID         int64                  `json:"degreeLevelId"`
+		TranscriptDisplayMode string                 `json:"transcriptDisplayMode"`
 		Thresholds            []admin.ThresholdInput `json:"thresholds"`
 	}
 	if err := c.ShouldBindJSON(&in); err != nil {

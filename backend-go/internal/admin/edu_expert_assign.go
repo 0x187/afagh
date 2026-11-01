@@ -5,9 +5,9 @@
 //
 // Decision chain for a course's expert (from specific to general):
 //
-//	1) course_offering_edu_experts — exception for that course (many-to-many)
-//	2) classroom_edu_experts       — expert for the room of that course's sessions
-//	3) expert_scopes               — department → university
+//  1. course_offering_edu_experts — exception for that course (many-to-many)
+//  2. classroom_edu_experts       — expert for the room of that course's sessions
+//  3. expert_scopes               — department → university
 //
 // The primary assignment unit is "room"; course-level assignment is only an "exception".
 package admin

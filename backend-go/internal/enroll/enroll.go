@@ -2,11 +2,11 @@
 //
 // The validation pipeline is exactly the five filters from document §1008:
 //
-//	1) Financial + student status
-//	2) Atomic capacity (Redis with DB fallback) + duplicate course
-//	3) Unit cap per regulations
-//	4) Prerequisite/corequisite (soft error)
-//	5) Class conflict (soft) and exam conflict (HARD/SOFT)
+//  1. Financial + student status
+//  2. Atomic capacity (Redis with DB fallback) + duplicate course
+//  3. Unit cap per regulations
+//  4. Prerequisite/corequisite (soft error)
+//  5. Class conflict (soft) and exam conflict (HARD/SOFT)
 package enroll
 
 import (

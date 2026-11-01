@@ -9,8 +9,8 @@ import (
 	"strings"
 
 	"backend-go/internal/enroll"
-	"backend-go/internal/scope"
 	"backend-go/internal/messaging"
+	"backend-go/internal/scope"
 )
 
 // ───────────────────────── Higher-term course assignment ─────────────────────────

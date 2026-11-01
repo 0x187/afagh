@@ -11,7 +11,7 @@ import (
 
 // ObjectionStatuses objection statuses.
 const (
-	ObjectionOpen    = "OPEN"
+	ObjectionOpen     = "OPEN"
 	ObjectionResolved = "RESOLVED"
 	ObjectionRejected = "REJECTED"
 )
@@ -69,15 +69,15 @@ func (e *Engine) CreateObjection(ctx context.Context, in CreateObjectionInput) (
 
 // StaffObjection objection from the professor's view.
 type StaffObjection struct {
-	ID                 int64   `json:"id"`
-	StatementID        int64   `json:"statementId"`
-	TermTitle          *string `json:"termTitle"`
-	StatementStatus    *string `json:"statementStatus"`
-	Text               string  `json:"text"`
-	Status             string  `json:"status"`
-	ReviewNote         *string `json:"reviewNote"`
-	ReopenedStatement  int     `json:"reopenedStatement"`
-	CreatedAt          *string `json:"createdAt"`
+	ID                int64   `json:"id"`
+	StatementID       int64   `json:"statementId"`
+	TermTitle         *string `json:"termTitle"`
+	StatementStatus   *string `json:"statementStatus"`
+	Text              string  `json:"text"`
+	Status            string  `json:"status"`
+	ReviewNote        *string `json:"reviewNote"`
+	ReopenedStatement int     `json:"reopenedStatement"`
+	CreatedAt         *string `json:"createdAt"`
 }
 
 // ListObjectionsForStaff a professor's objections.
@@ -117,8 +117,8 @@ func (e *Engine) ListObjectionsForStaff(ctx context.Context, staffID int64, term
 // OpenObjection open objection from the expert's view.
 type OpenObjection struct {
 	StaffObjection
-	StaffName  string  `json:"staffName"`
-	StaffCode  *string `json:"staffCode"`
+	StaffName   string   `json:"staffName"`
+	StaffCode   *string  `json:"staffCode"`
 	GrossAmount *float64 `json:"grossAmount"`
 }
 
@@ -235,8 +235,8 @@ func mapEvent(decision string) string {
 // ObjectionHistoryRow objection history (expert worklist).
 type ObjectionHistoryRow struct {
 	StaffObjection
-	StaffName string   `json:"staffName"`
-	StaffCode *string  `json:"staffCode"`
+	StaffName string  `json:"staffName"`
+	StaffCode *string `json:"staffCode"`
 }
 
 // ListObjectionsHistory all objections (latest 100).

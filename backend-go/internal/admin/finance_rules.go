@@ -42,20 +42,20 @@ type Sponsor struct {
 
 // TuitionFormula tuition formula.
 type TuitionFormula struct {
-	ID             int64    `json:"id"`
-	Code           string   `json:"code"`
-	Title          string   `json:"title"`
-	DegreeLevelID  *int64   `json:"degreeLevelId"`
-	MajorID        *int64   `json:"majorId"`
-	EntryYearFrom  *int     `json:"entryYearFrom"`
-	EntryYearTo    *int     `json:"entryYearTo"`
-	FixedAmount    float64  `json:"fixedAmount"`
-	PerUnitTheory  float64  `json:"perUnitTheory"`
+	ID               int64   `json:"id"`
+	Code             string  `json:"code"`
+	Title            string  `json:"title"`
+	DegreeLevelID    *int64  `json:"degreeLevelId"`
+	MajorID          *int64  `json:"majorId"`
+	EntryYearFrom    *int    `json:"entryYearFrom"`
+	EntryYearTo      *int    `json:"entryYearTo"`
+	FixedAmount      float64 `json:"fixedAmount"`
+	PerUnitTheory    float64 `json:"perUnitTheory"`
 	PerUnitPractical float64 `json:"perUnitPractical"`
-	PerUnitGeneral float64  `json:"perUnitGeneral"`
-	Priority       int      `json:"priority"`
-	IsActive       bool     `json:"isActive"`
-	Note           *string  `json:"note"`
+	PerUnitGeneral   float64 `json:"perUnitGeneral"`
+	Priority         int     `json:"priority"`
+	IsActive         bool    `json:"isActive"`
+	Note             *string `json:"note"`
 }
 
 // LoanProduct loan institution.
@@ -75,13 +75,13 @@ type LoanProduct struct {
 
 // TuitionCoefficient semester increase coefficient.
 type TuitionCoefficient struct {
-	ID                int64   `json:"id"`
-	TermID            *int64  `json:"termId"`
+	ID                  int64   `json:"id"`
+	TermID              *int64  `json:"termId"`
 	VariableCoefficient float64 `json:"variableCoefficient"`
-	FixedCoefficient  float64 `json:"fixedCoefficient"`
-	Note              *string `json:"note"`
-	TermTitle         *string `json:"termTitle"`
-	TermCode          *string `json:"termCode"`
+	FixedCoefficient    float64 `json:"fixedCoefficient"`
+	Note                *string `json:"note"`
+	TermTitle           *string `json:"termTitle"`
+	TermCode            *string `json:"termCode"`
 }
 
 // SubjectFeeType subject fee.
@@ -105,22 +105,22 @@ type OptionItem struct {
 
 // TermOption term option.
 type TermOption struct {
-	ID       int64  `json:"id"`
-	TermCode string `json:"termCode"`
+	ID        int64  `json:"id"`
+	TermCode  string `json:"termCode"`
 	TermTitle string `json:"termTitle"`
 }
 
 // FinanceRulesResponse finance engine definitions page response.
 type FinanceRulesResponse struct {
-	DiscountTypes  []DiscountType        `json:"discountTypes"`
-	Sponsors       []Sponsor             `json:"sponsors"`
-	Formulas       []TuitionFormula      `json:"formulas"`
-	Degrees        []OptionItem          `json:"degrees"`
-	Majors         []OptionItem          `json:"majors"`
-	LoanProducts   []LoanProduct         `json:"loanProducts"`
-	Coefficients   []TuitionCoefficient  `json:"coefficients"`
-	SubjectFees    []SubjectFeeType      `json:"subjectFeeTypes"`
-	Terms          []TermOption          `json:"terms"`
+	DiscountTypes []DiscountType       `json:"discountTypes"`
+	Sponsors      []Sponsor            `json:"sponsors"`
+	Formulas      []TuitionFormula     `json:"formulas"`
+	Degrees       []OptionItem         `json:"degrees"`
+	Majors        []OptionItem         `json:"majors"`
+	LoanProducts  []LoanProduct        `json:"loanProducts"`
+	Coefficients  []TuitionCoefficient `json:"coefficients"`
+	SubjectFees   []SubjectFeeType     `json:"subjectFeeTypes"`
+	Terms         []TermOption         `json:"terms"`
 }
 
 // ListFinanceRules page admin/finance/rules port — all catalogs in one response.

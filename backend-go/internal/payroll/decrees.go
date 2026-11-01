@@ -86,10 +86,10 @@ type DecreeSigner struct {
 // DecreeDetail is the decree details.
 type DecreeDetail struct {
 	DecreeListItem
-	Snapshot      map[string]any   `json:"snapshot"`
-	Signers       []DecreeSigner   `json:"signers"`
-	Items         []DecreeItemRow  `json:"items"`
-	IssuedByName  *string          `json:"issuedByName"`
+	Snapshot     map[string]any  `json:"snapshot"`
+	Signers      []DecreeSigner  `json:"signers"`
+	Items        []DecreeItemRow `json:"items"`
+	IssuedByName *string         `json:"issuedByName"`
 }
 
 // GetDecreeDetail: details of a decree + items.
@@ -262,8 +262,8 @@ func (e *Engine) IssueDecree(ctx context.Context, staffID, termID, universityID 
 				units := strconv.FormatFloat(math.Round(quantity*factor*100)/100, 'f', -1, 64)
 				meta, _ := json.Marshal(map[string]any{"kind": "activity"})
 				items = append(items, itemRow{section: "ACTIVITIES",
-					title:  fmt.Sprintf("%s — %s مورد", title, intToStr(int(quantity))),
-					units:  &units, amount: "0", metaJSON: string(meta)})
+					title: fmt.Sprintf("%s — %s مورد", title, intToStr(int(quantity))),
+					units: &units, amount: "0", metaJSON: string(meta)})
 			}
 		}
 		acts.Close()

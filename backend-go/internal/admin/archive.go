@@ -18,30 +18,30 @@ import (
 
 // ArchiveDoc is an archive document row.
 type ArchiveDoc struct {
-	ID          int64   `json:"id"`
-	FileName    string  `json:"fileName"`
-	MimeType    *string `json:"mimeType"`
-	Status      string  `json:"status"`
-	Reason      *string `json:"reason"`
-	UploadedAt  *string `json:"uploadedAt"`
-	Student     string  `json:"student"`
+	ID           int64   `json:"id"`
+	FileName     string  `json:"fileName"`
+	MimeType     *string `json:"mimeType"`
+	Status       string  `json:"status"`
+	Reason       *string `json:"reason"`
+	UploadedAt   *string `json:"uploadedAt"`
+	Student      string  `json:"student"`
 	NationalCode *string `json:"nationalCode"`
-	Category    string  `json:"category"`
-	DocType     string  `json:"type"`
+	Category     string  `json:"category"`
+	DocType      string  `json:"type"`
 }
 
 // ArchiveListResponse is the list response.
 type ArchiveListResponse struct {
-	Rows       []ArchiveDoc    `json:"rows"`
-	Categories []OptionItem    `json:"categories"`
-	Types      []ArchiveType   `json:"types"`
+	Rows       []ArchiveDoc  `json:"rows"`
+	Categories []OptionItem  `json:"categories"`
+	Types      []ArchiveType `json:"types"`
 }
 
 // ArchiveType is a document type with a category.
 type ArchiveType struct {
-	ID         int64   `json:"id"`
-	Title      string  `json:"title"`
-	CategoryID *int64  `json:"categoryId"`
+	ID         int64  `json:"id"`
+	Title      string `json:"title"`
+	CategoryID *int64 `json:"categoryId"`
 }
 
 // ListArchiveDocuments ports the admin/archive page.

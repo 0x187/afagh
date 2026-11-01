@@ -15,12 +15,12 @@ import (
 
 // ComputeTermResult whole-term computation result.
 type ComputeTermResult struct {
-	Ok                bool            `json:"ok"`
-	TermTitle         string          `json:"termTitle"`
-	Computed          int             `json:"computed"`
-	SkippedNoContract int             `json:"skippedNoContract"`
-	SkippedSettled    int             `json:"skippedSettled"`
-	SkippedLocked     int             `json:"skippedLocked"`
+	Ok                bool               `json:"ok"`
+	TermTitle         string             `json:"termTitle"`
+	Computed          int                `json:"computed"`
+	SkippedNoContract int                `json:"skippedNoContract"`
+	SkippedSettled    int                `json:"skippedSettled"`
+	SkippedLocked     int                `json:"skippedLocked"`
 	Totals            map[string]float64 `json:"totals"`
 }
 
@@ -60,11 +60,11 @@ func (e *Engine) ComputeTermPayroll(ctx context.Context, actorUserID *int64, ter
 	}
 	inserts := []insertRow{}
 	type updateRow struct {
-		id                                             int64
-		totalEquiv, payable, gross, deductions, net    string
-		detail                                         string
-		rank, base                                     *string
-		rate                                           string
+		id                                          int64
+		totalEquiv, payable, gross, deductions, net string
+		detail                                      string
+		rank, base                                  *string
+		rate                                        string
 	}
 	updates := []updateRow{}
 	res := &ComputeTermResult{Ok: true, TermTitle: term.Title, Totals: map[string]float64{"gross": 0, "deductions": 0, "net": 0}}
@@ -117,7 +117,7 @@ func (e *Engine) ComputeTermPayroll(ctx context.Context, actorUserID *int64, ter
 
 		if existing != nil {
 			updates = append(updates, updateRow{
-				id: existing.ID,
+				id:         existing.ID,
 				totalEquiv: strconv.FormatFloat(calc.TotalEquivalentUnits, 'f', -1, 64),
 				payable:    strconv.FormatFloat(calc.PayableUnits, 'f', -1, 64),
 				gross:      strconv.FormatFloat(calc.Gross, 'f', -1, 64),
@@ -316,21 +316,21 @@ func (e *Engine) SettleFinal(ctx context.Context, staffID int64, actorUserID *in
 
 // PayslipResponse a professor's payslip for the professor portal/admin dialog.
 type PayslipResponse struct {
-	Term      string             `json:"term"`
-	Computed  bool               `json:"computed"`
-	Calc      *StaffPayroll      `json:"calc"`
-	Statement *PayslipStatement  `json:"statement"`
+	Term      string            `json:"term"`
+	Computed  bool              `json:"computed"`
+	Calc      *StaffPayroll     `json:"calc"`
+	Statement *PayslipStatement `json:"statement"`
 }
 
 // PayslipStatement the stored payslip.
 type PayslipStatement struct {
-	ID             int64   `json:"id"`
-	Status         string  `json:"status"`
-	MidtermPaid    float64 `json:"midtermPaidAmount"`
-	MidtermPaidAt  *string `json:"midtermPaidAt"`
-	FinalPaid      float64 `json:"finalPaidAmount"`
-	FinalPaidAt    *string `json:"finalPaidAt"`
-	Remaining      float64 `json:"remaining"`
+	ID            int64   `json:"id"`
+	Status        string  `json:"status"`
+	MidtermPaid   float64 `json:"midtermPaidAmount"`
+	MidtermPaidAt *string `json:"midtermPaidAt"`
+	FinalPaid     float64 `json:"finalPaidAmount"`
+	FinalPaidAt   *string `json:"finalPaidAt"`
+	Remaining     float64 `json:"remaining"`
 }
 
 // GetStaffPayslip a professor's current payslip.
@@ -507,22 +507,22 @@ func deref(s *string) string {
 
 // PayConfig transparent engine configuration for the finance panel.
 type PayConfig struct {
-	Year      int          `json:"year"`
-	Coefs     coefs        `json:"coefs"`
-	Crowded   float64      `json:"crowded"`
-	Sessions  float64      `json:"sessions"`
-	Midterm   float64      `json:"midterm"`
-	Rates     []PayRateRow `json:"rates"`
-	Rules     []PayRule    `json:"rules"`
+	Year     int          `json:"year"`
+	Coefs    coefs        `json:"coefs"`
+	Crowded  float64      `json:"crowded"`
+	Sessions float64      `json:"sessions"`
+	Midterm  float64      `json:"midterm"`
+	Rates    []PayRateRow `json:"rates"`
+	Rules    []PayRule    `json:"rules"`
 }
 
 // PayRateRow teaching rate row.
 type PayRateRow struct {
-	AcademicRank   string  `json:"academicRank"`
-	Degree         string  `json:"degree"`
-	AcademicBase   *string `json:"academicBase"`
+	AcademicRank    string  `json:"academicRank"`
+	Degree          string  `json:"degree"`
+	AcademicBase    *string `json:"academicBase"`
 	BaseRatePerUnit float64 `json:"baseRatePerUnit"`
-	EffectiveYear  int     `json:"effectiveYear"`
+	EffectiveYear   int     `json:"effectiveYear"`
 }
 
 // ListPayConfiguration formula-builder rules and current coefficients.

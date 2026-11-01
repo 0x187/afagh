@@ -15,10 +15,10 @@ import (
 
 // SaveCoefficientInput coefficient upsert input.
 type SaveCoefficientInput struct {
-	TermID            int64   `json:"termId"`
+	TermID              int64   `json:"termId"`
 	VariableCoefficient float64 `json:"variableCoefficient"`
-	FixedCoefficient  float64 `json:"fixedCoefficient"`
-	Note              string  `json:"note"`
+	FixedCoefficient    float64 `json:"fixedCoefficient"`
+	Note                string  `json:"note"`
 }
 
 // SaveCoefficient POST finance/coefficients port — upsert with ±20% change cap.
@@ -282,16 +282,16 @@ func (s *Service) DeleteSubjectFeeType(ctx context.Context, user *session.User, 
 
 // SubjectFeeAssignment assignment row.
 type SubjectFeeAssignment struct {
-	ID         int64   `json:"id"`
-	StudentID  int64   `json:"studentId"`
-	TermID     int64   `json:"termId"`
-	TypeID     int64   `json:"subjectFeeTypeId"`
-	Amount     float64 `json:"amount"`
-	IsActive   bool    `json:"isActive"`
-	Note       *string `json:"note"`
-	TypeCode   string  `json:"typeCode"`
-	TypeTitle  string  `json:"typeTitle"`
-	TypeKind   string  `json:"typeKind"`
+	ID        int64   `json:"id"`
+	StudentID int64   `json:"studentId"`
+	TermID    int64   `json:"termId"`
+	TypeID    int64   `json:"subjectFeeTypeId"`
+	Amount    float64 `json:"amount"`
+	IsActive  bool    `json:"isActive"`
+	Note      *string `json:"note"`
+	TypeCode  string  `json:"typeCode"`
+	TypeTitle string  `json:"typeTitle"`
+	TypeKind  string  `json:"typeKind"`
 }
 
 // ListSubjectFeeAssignments GET assign port.

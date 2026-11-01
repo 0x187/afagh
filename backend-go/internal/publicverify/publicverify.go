@@ -1,8 +1,8 @@
 // ═══ Public verification engine — port of verifyTranscript/verifyFinance/... ═══
 //
-//  Signed tokens (T1.<payload>.<sig>) — every answer comes only from the database;
-//  an unknown/expired token explicitly reports 'not found' (no fake fallback).
-//  National ID is always masked (first 3 digits + 5 stars + last 2 digits).
+//	Signed tokens (T1.<payload>.<sig>) — every answer comes only from the database;
+//	an unknown/expired token explicitly reports 'not found' (no fake fallback).
+//	National ID is always masked (first 3 digits + 5 stars + last 2 digits).
 package publicverify
 
 import (

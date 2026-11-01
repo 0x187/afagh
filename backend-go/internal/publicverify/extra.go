@@ -18,21 +18,21 @@ import (
 
 // StudentCardVerdict is the student card verification result.
 type StudentCardVerdict struct {
-	Verdict      string   `json:"verdict"` // VALID | REVOKED | LOST | EXPIRED | INACTIVE | BLOCKED | NOT_FOUND
-	Allowed      bool     `json:"allowed"`
-	Reason       string   `json:"reason"`
-	StudentCode  string   `json:"studentCode"`
-	FullName     string   `json:"fullName"`
-	NationalMask string   `json:"nationalIdMasked"`
-	StatusLabel  string   `json:"statusLabel"`
-	MajorName    *string  `json:"majorName"`
-	DegreeLevel  *string  `json:"degreeLevel"`
-	EntryYear    *int     `json:"entranceYear"`
-	Debt         float64  `json:"debt"`
-	RFID         *string  `json:"rfidSerialNumber"`
-	PrintStatus  *string  `json:"printStatus"`
-	IssuedAt     *string  `json:"issuedAt"`
-	ExpiresAt    *string  `json:"expiresAt"`
+	Verdict      string  `json:"verdict"` // VALID | REVOKED | LOST | EXPIRED | INACTIVE | BLOCKED | NOT_FOUND
+	Allowed      bool    `json:"allowed"`
+	Reason       string  `json:"reason"`
+	StudentCode  string  `json:"studentCode"`
+	FullName     string  `json:"fullName"`
+	NationalMask string  `json:"nationalIdMasked"`
+	StatusLabel  string  `json:"statusLabel"`
+	MajorName    *string `json:"majorName"`
+	DegreeLevel  *string `json:"degreeLevel"`
+	EntryYear    *int    `json:"entranceYear"`
+	Debt         float64 `json:"debt"`
+	RFID         *string `json:"rfidSerialNumber"`
+	PrintStatus  *string `json:"printStatus"`
+	IssuedAt     *string `json:"issuedAt"`
+	ExpiresAt    *string `json:"expiresAt"`
 }
 
 // VerifyStudentCard ports verifyStudentCard (raw card token — not T1).
@@ -132,15 +132,15 @@ func faNumber(v float64) string {
 
 // DegreeVerdict is the degree verification result.
 type DegreeVerdict struct {
-	Found       bool            `json:"found"`
-	Valid       bool            `json:"valid"`
-	Revoked     bool            `json:"revoked"`
-	RevokeReason *string        `json:"revokeReason"`
-	SerialNo    string          `json:"serialNo"`
-	DegreeType  string          `json:"degreeType"`
-	MinistryCode *string        `json:"ministryVerificationCode"`
-	IssuedAt    *string         `json:"issuedAt"`
-	Snapshot    json.RawMessage `json:"snapshot"`
+	Found        bool            `json:"found"`
+	Valid        bool            `json:"valid"`
+	Revoked      bool            `json:"revoked"`
+	RevokeReason *string         `json:"revokeReason"`
+	SerialNo     string          `json:"serialNo"`
+	DegreeType   string          `json:"degreeType"`
+	MinistryCode *string         `json:"ministryVerificationCode"`
+	IssuedAt     *string         `json:"issuedAt"`
+	Snapshot     json.RawMessage `json:"snapshot"`
 }
 
 // VerifyDegree ports verifyDegree — recomputes the document hash with canonical JSON.

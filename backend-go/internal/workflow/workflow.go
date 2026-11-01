@@ -1,8 +1,8 @@
 // ═══ Workflow engine and admin inbox — port of workflow-engine/analytics ═══
 //
-//  Case state machine: SUBMITTED/IN_REVIEW/RETURNED → APPROVED/REJECTED
-//  Actions: APPROVE (next step or final) / REJECT / RETURN_FOR_REVISION / ESCALATE
-//  All transitions happen inside one transaction with row locks and auditing.
+//	Case state machine: SUBMITTED/IN_REVIEW/RETURNED → APPROVED/REJECTED
+//	Actions: APPROVE (next step or final) / REJECT / RETURN_FOR_REVISION / ESCALATE
+//	All transitions happen inside one transaction with row locks and auditing.
 package workflow
 
 import (
@@ -81,22 +81,22 @@ type InboxCheckpoint struct {
 
 // InboxItem is an inbox row.
 type InboxItem struct {
-	ID               int64             `json:"id"`
-	TrackingCode     string            `json:"trackingCode"`
-	StudentName      string            `json:"studentName"`
-	StudentCode      string            `json:"studentCode"`
-	ProcessTitle     string            `json:"processTitle"`
-	ProcessCode      string            `json:"processCode"`
-	Status           string            `json:"status"`
-	Created          *string           `json:"created"`
-	CurrentStepTitle *string           `json:"currentStepTitle"`
-	CurrentRoleCode  *string           `json:"currentRoleCode"`
-	SLAHours         int               `json:"slaHours"`
-	HoursElapsed     int               `json:"hoursElapsed"`
-	IsBreached       bool              `json:"isBreached"`
-	FormData         map[string]any    `json:"formData"`
-	SatisfactionScore *int             `json:"satisfactionScore"`
-	Checkpoints      []InboxCheckpoint `json:"checkpoints"`
+	ID                int64             `json:"id"`
+	TrackingCode      string            `json:"trackingCode"`
+	StudentName       string            `json:"studentName"`
+	StudentCode       string            `json:"studentCode"`
+	ProcessTitle      string            `json:"processTitle"`
+	ProcessCode       string            `json:"processCode"`
+	Status            string            `json:"status"`
+	Created           *string           `json:"created"`
+	CurrentStepTitle  *string           `json:"currentStepTitle"`
+	CurrentRoleCode   *string           `json:"currentRoleCode"`
+	SLAHours          int               `json:"slaHours"`
+	HoursElapsed      int               `json:"hoursElapsed"`
+	IsBreached        bool              `json:"isBreached"`
+	FormData          map[string]any    `json:"formData"`
+	SatisfactionScore *int              `json:"satisfactionScore"`
+	Checkpoints       []InboxCheckpoint `json:"checkpoints"`
 }
 
 // HeatmapItem is a step's heatmap entry.
@@ -125,29 +125,29 @@ type DepartmentQueueItem struct {
 
 // StaffKpiItem is a role's KPI.
 type StaffKpiItem struct {
-	ActorRole            string  `json:"actorRole"`
-	FullName             string  `json:"fullName"`
-	TotalResolved        int     `json:"totalResolved"`
-	AvgMttrHours         float64 `json:"avgMttrHours"`
-	SLAAdherencePercent  int     `json:"slaAdherencePercent"`
-	EscalationCount      int     `json:"escalationCount"`
-	AvgCsatScore         float64 `json:"avgCsatScore"`
-	ProductivityScore    int     `json:"productivityScore"`
+	ActorRole           string  `json:"actorRole"`
+	FullName            string  `json:"fullName"`
+	TotalResolved       int     `json:"totalResolved"`
+	AvgMttrHours        float64 `json:"avgMttrHours"`
+	SLAAdherencePercent int     `json:"slaAdherencePercent"`
+	EscalationCount     int     `json:"escalationCount"`
+	AvgCsatScore        float64 `json:"avgCsatScore"`
+	ProductivityScore   int     `json:"productivityScore"`
 }
 
 // Analytics is the inbox analytics.
 type Analytics struct {
 	Summary struct {
-		TotalRequests      int     `json:"totalRequests"`
-		ActiveRequests     int     `json:"activeRequests"`
-		ApprovedRequests   int     `json:"approvedRequests"`
-		RejectedRequests   int     `json:"rejectedRequests"`
-		BounceRatePercent  float64 `json:"bounceRatePercent"`
-		AvgSatisfaction    float64 `json:"avgSatisfaction"`
+		TotalRequests     int     `json:"totalRequests"`
+		ActiveRequests    int     `json:"activeRequests"`
+		ApprovedRequests  int     `json:"approvedRequests"`
+		RejectedRequests  int     `json:"rejectedRequests"`
+		BounceRatePercent float64 `json:"bounceRatePercent"`
+		AvgSatisfaction   float64 `json:"avgSatisfaction"`
 	} `json:"summary"`
-	Heatmap         []HeatmapItem        `json:"heatmap"`
+	Heatmap          []HeatmapItem         `json:"heatmap"`
 	DepartmentQueues []DepartmentQueueItem `json:"departmentQueues"`
-	StaffKpiList    []StaffKpiItem       `json:"staffKpiList"`
+	StaffKpiList     []StaffKpiItem        `json:"staffKpiList"`
 }
 
 var roleTitles = map[string]string{
@@ -280,15 +280,15 @@ func (e *Engine) LoadAdminWorkflows(ctx context.Context, universityID *int64) (*
 		ids[i] = r.ID
 	}
 	type logRow struct {
-		ID         int64
-		RequestID  int64
-		AssignedAt *time.Time
+		ID          int64
+		RequestID   int64
+		AssignedAt  *time.Time
 		CompletedAt *time.Time
-		Action     *string
-		ActorRole  *string
-		Duration   *int
-		SLAStatus  *string
-		StepID     *int64
+		Action      *string
+		ActorRole   *string
+		Duration    *int
+		SLAStatus   *string
+		StepID      *int64
 	}
 	logs := []logRow{}
 	if len(ids) > 0 {
@@ -424,13 +424,13 @@ func (e *Engine) computeAnalytics(ctx context.Context, universityID *int64) Anal
 
 	// Heatmap
 	type stepDef struct {
-		ProcessID   int64
-		ProcessCode string
+		ProcessID    int64
+		ProcessCode  string
 		ProcessTitle string
-		StepID      int64
-		StepTitle   string
-		RoleCode    string
-		SLAHours    int
+		StepID       int64
+		StepTitle    string
+		RoleCode     string
+		SLAHours     int
 	}
 	steps := []stepDef{}
 	srows, err := e.Pool.Query(ctx, `
@@ -446,13 +446,13 @@ func (e *Engine) computeAnalytics(ctx context.Context, universityID *int64) Anal
 		srows.Close()
 	}
 	type logAgg struct {
-		StepID      *int64
-		Duration    *int
-		Completed   *time.Time
-		Assigned    *time.Time
-		SLAStatus   *string
-		ActorRole   *string
-		Action      *string
+		StepID    *int64
+		Duration  *int
+		Completed *time.Time
+		Assigned  *time.Time
+		SLAStatus *string
+		ActorRole *string
+		Action    *string
 	}
 	logs := []logAgg{}
 	lrows, err := e.Pool.Query(ctx, `
@@ -497,7 +497,7 @@ func (e *Engine) computeAnalytics(ctx context.Context, universityID *int64) Anal
 		}
 		displayAvg := avg
 		if displayAvg == 0 {
-			displayAvg = float64(int(float64(s.SLAHours)*0.45))
+			displayAvg = float64(int(float64(s.SLAHours) * 0.45))
 		}
 		a.Heatmap = append(a.Heatmap, HeatmapItem{
 			ProcessID: s.ProcessID, ProcessCode: s.ProcessCode, ProcessTitle: s.ProcessTitle,
@@ -610,10 +610,10 @@ func (e *Engine) computeAnalytics(ctx context.Context, universityID *int64) Anal
 
 // AdvanceResult is the result of an action.
 type AdvanceResult struct {
-	Status             string  `json:"status"` // MOVED_TO_NEXT_STEP | APPROVED_FINAL | REJECTED | RETURNED | ESCALATED | ALREADY_FINAL
-	NextStepTitle      string  `json:"nextStepTitle,omitempty"`
-	CertificateNumber  string  `json:"certificateNumber,omitempty"`
-	TargetRole         string  `json:"targetRole,omitempty"`
+	Status            string `json:"status"` // MOVED_TO_NEXT_STEP | APPROVED_FINAL | REJECTED | RETURNED | ESCALATED | ALREADY_FINAL
+	NextStepTitle     string `json:"nextStepTitle,omitempty"`
+	CertificateNumber string `json:"certificateNumber,omitempty"`
+	TargetRole        string `json:"targetRole,omitempty"`
 }
 
 // ActionResult is the action response.
@@ -690,10 +690,10 @@ func (e *Engine) AdvanceWorkflowStep(ctx context.Context, requestID int64, actor
 	}
 
 	type stepRow struct {
-		ID     int64
-		Order  int
-		Title  string
-		Role   string
+		ID    int64
+		Order int
+		Title string
+		Role  string
 	}
 	allSteps := []stepRow{}
 	srows, err := tx.Query(ctx, `
@@ -1036,12 +1036,12 @@ func (e *Engine) CheckAndTriggerSLATimeouts(ctx context.Context) ([]SLAItem, err
 		return nil, err
 	}
 	type due struct {
-		RequestID    int64
-		TrackingCode string
-		StepTitle    string
-		SLAHours     int
+		RequestID     int64
+		TrackingCode  string
+		StepTitle     string
+		SLAHours      int
 		TimeoutAction string
-		EscalateTo   string
+		EscalateTo    string
 	}
 	list := []due{}
 	for rows.Next() {
@@ -1171,7 +1171,12 @@ func (e *Engine) SaveProcessDefinition(ctx context.Context, universityID *int64,
 
 func fmtNum(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64) }
 
-func maxInt(a, b int) int { if a > b { return a }; return b }
+func maxInt(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
 
 // ─────────────────── Utilities ───────────────────
 

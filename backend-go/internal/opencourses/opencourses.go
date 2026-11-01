@@ -21,23 +21,23 @@ type Service struct {
 
 // Course is a public course.
 type Course struct {
-	ID             int64   `json:"id"`
-	Code           string  `json:"code"`
-	Title          string  `json:"title"`
-	TitleEn        string  `json:"titleEn"`
-	Category       string  `json:"category"`
-	Description    string  `json:"description"`
-	Hours          int     `json:"hours"`
-	TuitionPrice   float64 `json:"tuitionPrice"`
-	Capacity       int     `json:"capacity"`
-	EnrolledCount  int     `json:"enrolledCount"`
-	InstructorName string  `json:"instructorName"`
-	InstructorBio  string  `json:"instructorBio"`
+	ID             int64    `json:"id"`
+	Code           string   `json:"code"`
+	Title          string   `json:"title"`
+	TitleEn        string   `json:"titleEn"`
+	Category       string   `json:"category"`
+	Description    string   `json:"description"`
+	Hours          int      `json:"hours"`
+	TuitionPrice   float64  `json:"tuitionPrice"`
+	Capacity       int      `json:"capacity"`
+	EnrolledCount  int      `json:"enrolledCount"`
+	InstructorName string   `json:"instructorName"`
+	InstructorBio  string   `json:"instructorBio"`
 	Syllabus       []string `json:"syllabus"`
-	ScheduleText   string  `json:"scheduleText"`
-	StartDate      string  `json:"startDate"`
-	EndDate        string  `json:"endDate"`
-	PassingGrade   float64 `json:"passingGrade"`
+	ScheduleText   string   `json:"scheduleText"`
+	StartDate      string   `json:"startDate"`
+	EndDate        string   `json:"endDate"`
+	PassingGrade   float64  `json:"passingGrade"`
 }
 
 // List: live open-course catalog — OPEN only.

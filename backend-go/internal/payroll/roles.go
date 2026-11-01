@@ -1,9 +1,10 @@
 // ═══ Role-based effective duty — port of lib/payroll-roles.ts (term load section) ═══
 //
 // finance-owner rule: duty comes from the professor's "role", not academic rank.
-//   teaching = assigned roles with isTeaching=1;
-//   base = dutyUnits of the first teaching role (minimum sortOrder);
-//   effective = max(0, base − Σ reductionUnits of all assigned roles).
+//
+//	teaching = assigned roles with isTeaching=1;
+//	base = dutyUnits of the first teaching role (minimum sortOrder);
+//	effective = max(0, base − Σ reductionUnits of all assigned roles).
 package payroll
 
 import (

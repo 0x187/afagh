@@ -29,35 +29,35 @@ var posVoidSeniorRoles = map[string]bool{"ADMIN": true, "FINANCE_EXPERT": true, 
 
 // PosTerminal: POS terminal.
 type PosTerminal struct {
-	ID          int64   `json:"id"`
-	Code        string  `json:"code"`
-	Title       string  `json:"title"`
-	Location    *string `json:"location"`
-	GatewayID   *int64  `json:"gatewayId"`
-	TerminalNo  *string `json:"terminalId"`
-	MerchantID  *string `json:"merchantId"`
-	IsActive    bool    `json:"isActive"`
-	SortOrder   *int    `json:"sortOrder"`
-	Note        *string `json:"note"`
+	ID         int64   `json:"id"`
+	Code       string  `json:"code"`
+	Title      string  `json:"title"`
+	Location   *string `json:"location"`
+	GatewayID  *int64  `json:"gatewayId"`
+	TerminalNo *string `json:"terminalId"`
+	MerchantID *string `json:"merchantId"`
+	IsActive   bool    `json:"isActive"`
+	SortOrder  *int    `json:"sortOrder"`
+	Note       *string `json:"note"`
 }
 
 // PosTxn: POS transaction.
 type PosTxn struct {
-	ID            int64    `json:"id"`
-	Stan          string   `json:"stan"`
-	Rrn           *string  `json:"rrn"`
-	Amount        float64  `json:"amount"`
-	TxnType       string   `json:"txnType"`
-	EntryMode     string   `json:"entryMode"`
-	Status        string   `json:"status"`
-	ResponseCode  *string  `json:"responseCode"`
-	CardPan       *string  `json:"cardPan"`
-	Cardholder    *string  `json:"cardholderName"`
-	CreatedAt     *string  `json:"createdAt"`
-	TerminalCode  string   `json:"terminalCode"`
-	TerminalTitle string   `json:"terminalTitle"`
-	StudentCode   string   `json:"studentCode"`
-	StudentName   string   `json:"studentName"`
+	ID            int64   `json:"id"`
+	Stan          string  `json:"stan"`
+	Rrn           *string `json:"rrn"`
+	Amount        float64 `json:"amount"`
+	TxnType       string  `json:"txnType"`
+	EntryMode     string  `json:"entryMode"`
+	Status        string  `json:"status"`
+	ResponseCode  *string `json:"responseCode"`
+	CardPan       *string `json:"cardPan"`
+	Cardholder    *string `json:"cardholderName"`
+	CreatedAt     *string `json:"createdAt"`
+	TerminalCode  string  `json:"terminalCode"`
+	TerminalTitle string  `json:"terminalTitle"`
+	StudentCode   string  `json:"studentCode"`
+	StudentName   string  `json:"studentName"`
 }
 
 // GetPosTerminals port of getPosTerminals.

@@ -1,12 +1,12 @@
 // ═══ teaching-fee statement approval chain — port of lib/payroll-approvals.ts ═══
 //
-//  State machine (on payroll_statements.status):
-//    DRAFT ─┬─→ MID_TERM_PAID ─┬─→ DEPT_HEAD_APPROVED
-//           └─→ DEPT_HEAD_APPROVED  (department head)
-//                 → DEAN_APPROVED (academic deputy)
-//                 → FINAL_SETTLED (financial settlement — engine, with precondition)
-//    DEPT_HEAD_APPROVED|DEAN_APPROVED ─(RETURN)→ DRAFT or MID_TERM_PAID
-//    * ─(REJECT)→ REJECTED (terminal)
+//	State machine (on payroll_statements.status):
+//	  DRAFT ─┬─→ MID_TERM_PAID ─┬─→ DEPT_HEAD_APPROVED
+//	         └─→ DEPT_HEAD_APPROVED  (department head)
+//	               → DEAN_APPROVED (academic deputy)
+//	               → FINAL_SETTLED (financial settlement — engine, with precondition)
+//	  DEPT_HEAD_APPROVED|DEAN_APPROVED ─(RETURN)→ DRAFT or MID_TERM_PAID
+//	  * ─(REJECT)→ REJECTED (terminal)
 package payroll
 
 import (
@@ -69,9 +69,9 @@ type HeadedDepartments func(ctx context.Context, staffID int64, ownDeptID *int64
 
 // StaffRef is the staff reference for scope.
 type StaffRef struct {
-	StaffID       int64
-	DepartmentID  *int64
-	UniversityID  *int64
+	StaffID      int64
+	DepartmentID *int64
+	UniversityID *int64
 }
 
 // StaffByUser resolves the staff member from the user — injected.
@@ -82,7 +82,7 @@ type CanActOnUniversity func(ctx context.Context, user *SessionUser, universityI
 
 // Approvals is the approval-chain service.
 type Approvals struct {
-	Engine     *Engine
+	Engine      *Engine
 	HeadedDepts HeadedDepartments
 	StaffByUser StaffByUser
 	CanActUni   CanActOnUniversity
@@ -95,8 +95,8 @@ func NewApprovals(engine *Engine) *Approvals {
 
 // ApprovalResult is the approval-step result.
 type ApprovalResult struct {
-	Ok     bool    `json:"ok"`
-	Info   *string `json:"info,omitempty"`
+	Ok     bool     `json:"ok"`
+	Info   *string  `json:"info,omitempty"`
 	Amount *float64 `json:"amount,omitempty"`
 }
 
@@ -448,14 +448,14 @@ func (a *Approvals) SettleApproved(ctx context.Context, user *SessionUser, staff
 
 // ApprovalHistoryRow is an approval-history row.
 type ApprovalHistoryRow struct {
-	ID          int64    `json:"id"`
-	StatementID int64    `json:"statementId"`
-	Stage       string   `json:"stage"`
-	ActorUserID *int64   `json:"actorUserId"`
-	ActorRole   *string  `json:"actorRole"`
-	Action      string   `json:"action"`
-	Note        *string  `json:"note"`
-	CreatedAt   *string  `json:"createdAt"`
+	ID          int64   `json:"id"`
+	StatementID int64   `json:"statementId"`
+	Stage       string  `json:"stage"`
+	ActorUserID *int64  `json:"actorUserId"`
+	ActorRole   *string `json:"actorRole"`
+	Action      string  `json:"action"`
+	Note        *string `json:"note"`
+	CreatedAt   *string `json:"createdAt"`
 }
 
 // GetApprovalHistory: approval history of a statement (with university boundary).

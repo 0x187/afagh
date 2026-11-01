@@ -1,7 +1,7 @@
 // ═══ Background cron jobs — port of api/cron/* ═══
 //
-//  Each job runs with the x-cron-secret header and its own configured key (fail-closed),
-//  writes hash-chain audit entries, and GET is status-only (no side effects).
+//	Each job runs with the x-cron-secret header and its own configured key (fail-closed),
+//	writes hash-chain audit entries, and GET is status-only (no side effects).
 package cron
 
 import (
@@ -20,17 +20,17 @@ import (
 
 	"backend-go/internal/finance"
 	"backend-go/internal/jalali"
+	"backend-go/internal/messaging"
 	"backend-go/internal/settings"
 	"backend-go/internal/workflow"
-	"backend-go/internal/messaging"
 )
 
 // Engine is the cron engine.
 type Engine struct {
-	Pool      *pgxpool.Pool
-	Settings  *settings.Store
-	Workflow  *workflow.Engine
-	mu        sync.Mutex
+	Pool     *pgxpool.Pool
+	Settings *settings.Store
+	Workflow *workflow.Engine
+	mu       sync.Mutex
 }
 
 // New constructs the engine.
@@ -268,13 +268,13 @@ func (e *Engine) runBypassDeadlines(ctx context.Context) (map[string]any, error)
 		return nil, err
 	}
 	type brow struct {
-		ID, StudentID, OfferingID, CourseID int64
-		Kind, Status                        string
-		SeatReserved                        *int
-		ManagerDeadlineAt, ExpertDeadlineAt *time.Time
+		ID, StudentID, OfferingID, CourseID                  int64
+		Kind, Status                                         string
+		SeatReserved                                         *int
+		ManagerDeadlineAt, ExpertDeadlineAt                  *time.Time
 		ManagerReminderAt, ExpertReminderAt, StudentWarnedAt *string
-		CourseTitle                         string
-		ManagerHours, ExpertHours, ReminderHours *int
+		CourseTitle                                          string
+		ManagerHours, ExpertHours, ReminderHours             *int
 	}
 	list := []brow{}
 	for rows.Next() {

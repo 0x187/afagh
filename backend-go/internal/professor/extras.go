@@ -16,8 +16,8 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"backend-go/internal/jalali"
-	"backend-go/internal/otp"
 	"backend-go/internal/messaging"
+	"backend-go/internal/otp"
 )
 
 // ScheduleResponse is the professor schedule response.

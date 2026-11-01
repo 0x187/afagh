@@ -2,10 +2,10 @@
 //
 // Rules (Django/OWASP pattern — same documentation in security.ts):
 //
-//	1) Origin present ⇒ must be the request host or in the ALLOWED_EXTRA_ORIGINS allowlist
-//	2) no Origin but Referer present ⇒ Referer must be same-origin
-//	3) neither ⇒ non-browser client (curl/cron); CSRF without Origin/Referer
-//	   is not possible in a browser ⇒ allowed (with a log if mutating and authenticated)
+//  1. Origin present ⇒ must be the request host or in the ALLOWED_EXTRA_ORIGINS allowlist
+//  2. no Origin but Referer present ⇒ Referer must be same-origin
+//  3. neither ⇒ non-browser client (curl/cron); CSRF without Origin/Referer
+//     is not possible in a browser ⇒ allowed (with a log if mutating and authenticated)
 //
 // only the host is compared (not the scheme) so it works behind a Caddy proxy.
 package middleware

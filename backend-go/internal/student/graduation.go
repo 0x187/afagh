@@ -17,8 +17,8 @@ import (
 	"backend-go/internal/finance"
 	"backend-go/internal/gpa"
 	"backend-go/internal/jalali"
-	"backend-go/internal/safeinput"
 	"backend-go/internal/messaging"
+	"backend-go/internal/safeinput"
 )
 
 // MissingCourse is a remaining curriculum course.

@@ -185,12 +185,12 @@ func (e *Engine) DeleteSupervision(ctx context.Context, id int64) error {
 
 // ThesisDraw a single withdrawal.
 type ThesisDraw struct {
-	ID        int64    `json:"id"`
-	TermID    int64    `json:"termId"`
-	TermTitle *string  `json:"termTitle"`
-	Units     float64  `json:"units"`
-	Note      *string  `json:"note"`
-	CreatedAt *string  `json:"createdAt"`
+	ID        int64   `json:"id"`
+	TermID    int64   `json:"termId"`
+	TermTitle *string `json:"termTitle"`
+	Units     float64 `json:"units"`
+	Note      *string `json:"note"`
+	CreatedAt *string `json:"createdAt"`
 }
 
 // ListThesisDraws withdrawals of a summary.
