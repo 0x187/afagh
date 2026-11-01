@@ -16,8 +16,8 @@ import {
 import { faNumber, toEnDigits } from '@/lib/fa';
 import { cn } from '@/lib/utils';
 
-// ═══ مدیر کلاس‌ها در تنظیمات — پورت admin/settings/ClassroomManager ═══
-// کد کلاس (LT4.Code)، مرتب‌سازی/فیلتر، انتخاب چندگانه و عملیات گروهی.
+// Admin classroom manager, ported from admin/settings/ClassroomManager.
+// Supports the LT4 class code, sorting/filtering, multi-select, and bulk actions.
 
 const ROOM_TYPES = ['کلاس درس', 'آزمایشگاه', 'سالن', 'ورزشی', 'کارگاه', 'اداری'];
 
@@ -363,6 +363,7 @@ function ClassroomRow({
   );
 }
 
+/** Admin room manager: add/edit/delete rows, sort/filter, and bulk actions. */
 export function ClassroomManager() {
   const qc = useQueryClient();
   const { data, isLoading, isError } = useQuery({ queryKey: ['admin-classrooms'], queryFn: getAdminClassrooms, staleTime: 30_000 });

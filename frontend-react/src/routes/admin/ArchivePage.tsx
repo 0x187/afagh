@@ -124,7 +124,7 @@ export function AdminArchivePage() {
                   <td className="p-2 font-mono text-[10px]" dir="ltr">{r.uploadedAt ? faDigits(r.uploadedAt.slice(0, 10)) : '—'}</td>
                   <td className="p-2">
                     <div className="flex flex-wrap gap-1">
-                      <Button size="sm" variant="outline" className="h-6 px-1.5" onClick={() => window.open(archiveFileUrl(r.id), '_blank', 'noopener')}><Download className="size-3" aria-hidden /></Button>
+                      <Button size="sm" variant="outline" className="h-6 px-1.5" onClick={() => window.open(archiveFileUrl(r.id), '_blank', 'noopener,noreferrer')}><Download className="size-3" aria-hidden /></Button>
                       {r.status !== 'VERIFIED' ? <Button size="sm" className="h-6 bg-emerald-700 px-1.5 text-white hover:bg-emerald-800" disabled={verifyMut.isPending} onClick={() => verifyMut.mutate({ id: r.id, decision: 'VERIFIED' })}><Check className="size-3" aria-hidden /></Button> : null}
                       {r.status !== 'REJECTED' ? <Button size="sm" variant="outline" className="h-6 px-1.5 text-rose-700" disabled={verifyMut.isPending} onClick={() => verifyMut.mutate({ id: r.id, decision: 'REJECTED' })}><X className="size-3" aria-hidden /></Button> : null}
                     </div>

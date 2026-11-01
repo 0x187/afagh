@@ -1855,11 +1855,19 @@ type MigRollbackItem struct {
 	Note   *string `json:"note"`
 }
 
-// migRollbackTables جدول‌های مجاز واگرد — whitelist عمدی (پورت TABLES).
+// migRollbackTables is an explicit allowlist of tables that may be rolled back.
 var migRollbackTables = map[string]bool{
 	"enrollments": true, "course_offerings": true, "courses": true, "academic_terms": true,
 	"term_financial_rules": true, "student_ledger": true, "financial_clearances": true,
 	"students": true, "users": true, "legacy_grades": true,
+}
+
+var migSafeColumnRE = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
+// migSafeColumn validates a column identifier taken from an audit JSON
+// snapshot before interpolating it into an UPDATE statement.
+func migSafeColumn(name string) bool {
+	return migSafeColumnRE.MatchString(name)
 }
 
 // RollbackMigrationBatch واگرد یک دسته یا گروه عملیاتی (پورت rollbackBatch).
@@ -1979,9 +1987,20 @@ func (s *Service) RollbackMigrationBatch(ctx context.Context, batchID *int64, op
 			_ = json.Unmarshal(e.before, &before)
 			if len(before) > 0 {
 				sets, args2 := []string{}, []any{}
+				unsafe := ""
 				for k, v := range before {
+					if !migSafeColumn(k) {
+						unsafe = k
+						break
+					}
 					args2 = append(args2, v)
 					sets = append(sets, fmt.Sprintf(`"%s" = $%d`, k, len(args2)))
+				}
+				if unsafe != "" {
+					res.Blocked++
+					res.Details = append(res.Details, MigRollbackItem{Table: e.table, RowID: e.rowID, Op: e.op, Result: "BLOCKED",
+						Note: migStrPtr("نام ستون غیرمجاز در دادهٔ واگرد: " + unsafe)})
+					continue
 				}
 				args2 = append(args2, e.rowID)
 				if _, err := s.DB.Pool.Exec(ctx, fmt.Sprintf(`update %s set %s where id = $%d`, e.table, strings.Join(sets, ", "), len(args2)), args2...); err != nil {

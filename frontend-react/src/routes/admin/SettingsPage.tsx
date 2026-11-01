@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getAdminSettings, resetAdminSetting, saveAdminSetting } from '@/lib/admin-api';
 import { ClassroomManager } from './ClassroomManager';
 
-// ═══ تنظیمات سامانه — پورت admin/settings (کلیدهای ثبت‌شده در نسخهٔ جدید) ═══
+// System settings, ported from admin/settings (keys registered in the Go service).
 
 function groupOf(key: string): string {
   if (key.startsWith('BBB_')) return 'کلاس مجازی';

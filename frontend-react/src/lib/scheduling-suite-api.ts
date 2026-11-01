@@ -1,7 +1,7 @@
-// ═══ کلاینت آیین‌نامه‌ها + تخصیص کارشناس + سوئیت برنامه‌ریزی ═══
+// API client for regulations, edu-expert assignment, and the scheduling suite.
 import { apiGet, apiPost } from './api';
 
-// ── آیین‌نامه‌ها ──
+// Regulations
 export type RegulationRules = Record<string, unknown>;
 export type RegulationRow = {
   id: number; title: string; degreeLevelId: number; degreeLevelTitle?: string;
@@ -35,7 +35,7 @@ export const saveRegulation = (input: RegulationSaveInput) =>
   apiPost<{ ok: boolean; data: { id?: number } }>('/admin/regulations/save', input).then((r) => r.data);
 export const deleteRegulation = (id: number) => apiPost('/admin/regulations/delete', { id });
 
-// ── تخصیص کارشناس آموزشی ──
+// Edu-expert assignment
 export type EduExpertInit = Record<string, unknown>;
 export const getEduExpertInit = () => apiGet<{ ok: boolean; data: EduExpertInit }>('/admin/edu-expert-assign').then((r) => r.data);
 export const eduExpertSetClassroomDept = (input: Record<string, unknown>) => apiPost('/admin/edu-expert-assign/classroom/department', input);
@@ -46,7 +46,7 @@ export const eduExpertRemoveOffering = (input: Record<string, unknown>) => apiPo
 export const eduExpertBulkSetOffering = (input: Record<string, unknown>) => apiPost('/admin/edu-expert-assign/offering/bulk-set', input);
 export const eduExpertClearTerm = (input: Record<string, unknown>) => apiPost('/admin/edu-expert-assign/term/clear', input);
 
-// ── سوئیت برنامه‌ریزی ──
+// Scheduling suite
 export type SchedTerm = { id: number; code: string; title: string; isCurrent: boolean };
 export type SchedClassroomRow = { id: number; name: string; buildingName: string; capacity: number; roomType: string };
 export type SchedProfessorRow = { id: number; name: string; staffCode: string; academicRank: string; departmentName: string };

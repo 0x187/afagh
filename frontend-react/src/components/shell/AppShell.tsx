@@ -15,7 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { logout } from '@/lib/auth-api';
 import { useSession } from '@/lib/session';
 
-// ═══ شل سراسری — سربرگ تیره (همان هویت فعلی) + سوییچرها + قفل بیکاری ═══
+// Global shell: dark header, switchers, idle lock, and mobile navigation.
 export function AppShell() {
   const { data, isLoading } = useSession();
   const queryClient = useQueryClient();
@@ -25,7 +25,7 @@ export function AppShell() {
 
   const user = data?.user ?? null;
 
-  // گارد مسیر: بدون نشست → ورود؛ رمزِ تغییرنیافته → تغییر رمز.
+  // Route guard: no session -> login; password change pending -> change screen.
   if (!isLoading && !user) {
     if (data?.pendingPasswordChange) {
       return <Navigate to="/change-password" replace />;

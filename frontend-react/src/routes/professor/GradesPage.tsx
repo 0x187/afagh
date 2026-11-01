@@ -46,7 +46,7 @@ function storageKey(offeringId: number, studentId: number) {
 
 function loadComponents(offeringId: number, studentId: number): Components {
   try {
-    const raw = localStorage.getItem(storageKey(offeringId, studentId));
+    const raw = sessionStorage.getItem(storageKey(offeringId, studentId));
     return raw ? (JSON.parse(raw) as Components) : {};
   } catch {
     return {};
@@ -147,9 +147,11 @@ function StudentRow({
                         const next = { ...components, [f.key]: e.target.value === '' ? undefined : Number(e.target.value) };
                         setComponents(next);
                         try {
-                          localStorage.setItem(storageKey(offering.id, student.studentId), JSON.stringify(next));
+                          // Draft components are per-tab working data; sessionStorage
+                          // avoids leaving grade drafts on shared devices after logout.
+                          sessionStorage.setItem(storageKey(offering.id, student.studentId), JSON.stringify(next));
                         } catch {
-                          /* حافظهٔ محلی در دسترس نیست */
+                          /* storage is unavailable */
                         }
                       }}
                       className="mt-1 h-7 text-center text-xs"

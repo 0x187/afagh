@@ -1,10 +1,10 @@
 // ═══ سوئیت برنامه‌ریزی درسی — پورت admin/scheduling (Next) ═══
 //
 // پورت خط‌به‌خط:
-//   • afagh-next/src/app/admin/scheduling/actions.ts  (اکشن‌های صفحه)
-//   • afagh-next/src/lib/scheduling-engine.ts         (موتور: فازها/تأمین/تخصیص/سهمیه/پیشنهاد)
-//   • afagh-next/src/lib/scheduling-health.ts         (عارضه‌یابی)
-//   • afagh-next/src/lib/class-session-generator.ts   (تولید جلسات واقعی)
+//   - afagh-next/src/app/admin/scheduling/actions.ts  (اکشن‌های صفحه)
+//   - afagh-next/src/lib/scheduling-engine.ts         (موتور: فازها/تأمین/تخصیص/سهمیه/پیشنهاد)
+//   - afagh-next/src/lib/scheduling-health.ts         (عارضه‌یابی)
+//   - afagh-next/src/lib/class-session-generator.ts   (تولید جلسات واقعی)
 //
 // هستهٔ خالص از پکیج موجود backend-go/internal/scheduling استفاده می‌کند
 // (پورت scheduling-core.ts). منطق DB-دار این‌جا پورت شده است.
@@ -81,6 +81,25 @@ func schedEqCond(col string, uniID *int64) string {
 		return fmt.Sprintf(`%s = %d`, col, *uniID)
 	}
 	return `1 = 0`
+}
+
+// AssertSchedTermInUni verifies that a term belongs to the active university
+// (or is a global row). Read-only engines that take a raw termId from the
+// client must call this before querying schedules/rooms to prevent cross-tenant
+// data exposure.
+func (s *Service) AssertSchedTermInUni(ctx context.Context, termID int64, uniID *int64) error {
+	if termID <= 0 {
+		return errors.New("نیمسال نامعتبر است.")
+	}
+	var ok bool
+	q := `select exists(select 1 from academic_terms where id = $1 and ` + schedScopeCond(`"universityId"`, uniID) + `)`
+	if err := s.DB.Pool.QueryRow(ctx, q, termID).Scan(&ok); err != nil {
+		return err
+	}
+	if !ok {
+		return errors.New("نیمسال انتخابی متعلق به دانشگاه فعال نیست.")
+	}
+	return nil
 }
 
 // schedHM نرمال‌سازی زمان به HH:MM (ورودی از to_char یا رشتهٔ خام).
@@ -189,45 +208,45 @@ type SchedAvailabilityRow struct {
 
 // SchedDemand تقاضای درس (یک گروه از یک ارائه).
 type SchedDemand struct {
-	OfferingID      int64   `json:"offeringId"`
-	CourseID        int64   `json:"courseId"`
-	CourseDeptID    *int64  `json:"courseDeptId"`
-	Code            string  `json:"code"`
-	Title           string  `json:"title"`
-	Units           string  `json:"units"`
-	CourseType      string  `json:"courseType"`
-	Capacity        int     `json:"capacity"`
-	GroupNumber     int     `json:"groupNumber"`
-	ProfessorID     *int64  `json:"professorId"`
-	IsCoTaught      bool    `json:"isCoTaught"`
-	EnrolledCount   int     `json:"enrolledCount"`
-	ProgramID       int64   `json:"programId"`
-	ProgramTitle    string  `json:"programTitle"`
-	CohortID        string  `json:"cohortId"`
-	CohortTitle     string  `json:"cohortTitle"`
-	IsSharedService bool    `json:"isSharedService"`
-	OfferingScope   string  `json:"offeringScope"`
+	OfferingID      int64  `json:"offeringId"`
+	CourseID        int64  `json:"courseId"`
+	CourseDeptID    *int64 `json:"courseDeptId"`
+	Code            string `json:"code"`
+	Title           string `json:"title"`
+	Units           string `json:"units"`
+	CourseType      string `json:"courseType"`
+	Capacity        int    `json:"capacity"`
+	GroupNumber     int    `json:"groupNumber"`
+	ProfessorID     *int64 `json:"professorId"`
+	IsCoTaught      bool   `json:"isCoTaught"`
+	EnrolledCount   int    `json:"enrolledCount"`
+	ProgramID       int64  `json:"programId"`
+	ProgramTitle    string `json:"programTitle"`
+	CohortID        string `json:"cohortId"`
+	CohortTitle     string `json:"cohortTitle"`
+	IsSharedService bool   `json:"isSharedService"`
+	OfferingScope   string `json:"offeringScope"`
 }
 
 // SchedApprovedOffering کلاس مصوب (سطر schedules).
 type SchedApprovedOffering struct {
-	OfferingID    int64   `json:"offeringId"`
-	Code          string  `json:"code"`
-	Title         string  `json:"title"`
-	Units         string  `json:"units"`
-	CourseType    string  `json:"courseType"`
-	GroupNumber   int     `json:"groupNumber"`
-	ProfessorID   *int64  `json:"professorId"`
-	ProfessorName string  `json:"professorName"`
-	Capacity      int     `json:"capacity"`
-	EnrolledCount int     `json:"enrolledCount"`
-	DayOfWeek     *int    `json:"dayOfWeek"`
-	DayName       string  `json:"dayName"`
-	StartTime     string  `json:"startTime"`
-	EndTime       string  `json:"endTime"`
-	RoomID        *int64  `json:"roomId"`
-	RoomName      string  `json:"roomName"`
-	BuildingName  string  `json:"buildingName"`
+	OfferingID    int64  `json:"offeringId"`
+	Code          string `json:"code"`
+	Title         string `json:"title"`
+	Units         string `json:"units"`
+	CourseType    string `json:"courseType"`
+	GroupNumber   int    `json:"groupNumber"`
+	ProfessorID   *int64 `json:"professorId"`
+	ProfessorName string `json:"professorName"`
+	Capacity      int    `json:"capacity"`
+	EnrolledCount int    `json:"enrolledCount"`
+	DayOfWeek     *int   `json:"dayOfWeek"`
+	DayName       string `json:"dayName"`
+	StartTime     string `json:"startTime"`
+	EndTime       string `json:"endTime"`
+	RoomID        *int64 `json:"roomId"`
+	RoomName      string `json:"roomName"`
+	BuildingName  string `json:"buildingName"`
 }
 
 // SchedMakeupSession جلسهٔ جبرانی.
@@ -259,23 +278,23 @@ type SchedOfferingSessionSummary struct {
 
 // SchedulingWorkspace خروجی کامل کارتابل (پورت getSchedulingWorkspaceAction).
 type SchedulingWorkspace struct {
-	Terms            []SchedTermOption                            `json:"terms"`
-	SelectedTermID   *int64                                       `json:"selectedTermId"`
-	Programs         []SchedProgramOption                         `json:"programs"`
-	Cohorts          []SchedCohort                                `json:"cohorts"`
-	Classrooms       []SchedClassroomOption                       `json:"classrooms"`
-	AllocatedRoomIDs []int64                                      `json:"allocatedRoomIds"`
-	Professors       []SchedProfessorOption                       `json:"professors"`
-	Demands          []SchedDemand                                `json:"demands"`
-	Departments      []map[string]any                             `json:"departments"`
-	Availabilities   []SchedAvailabilityRow                       `json:"availabilities"`
-	Phases           map[int64]string                             `json:"phases"`
-	TermCalendar     *SchedTermCalendar                           `json:"termCalendar"`
-	SessionsTotal    int                                          `json:"sessionsTotal"`
-	SessionsByOffering map[int64]SchedOfferingSessionSummary      `json:"sessionsByOffering"`
-	HardConflictCount int                                         `json:"hardConflictCount"`
-	ApprovedOfferings []SchedApprovedOffering                     `json:"approvedOfferings"`
-	MakeupSessions    []SchedMakeupSession                        `json:"makeupSessions"`
+	Terms              []SchedTermOption                     `json:"terms"`
+	SelectedTermID     *int64                                `json:"selectedTermId"`
+	Programs           []SchedProgramOption                  `json:"programs"`
+	Cohorts            []SchedCohort                         `json:"cohorts"`
+	Classrooms         []SchedClassroomOption                `json:"classrooms"`
+	AllocatedRoomIDs   []int64                               `json:"allocatedRoomIds"`
+	Professors         []SchedProfessorOption                `json:"professors"`
+	Demands            []SchedDemand                         `json:"demands"`
+	Departments        []map[string]any                      `json:"departments"`
+	Availabilities     []SchedAvailabilityRow                `json:"availabilities"`
+	Phases             map[int64]string                      `json:"phases"`
+	TermCalendar       *SchedTermCalendar                    `json:"termCalendar"`
+	SessionsTotal      int                                   `json:"sessionsTotal"`
+	SessionsByOffering map[int64]SchedOfferingSessionSummary `json:"sessionsByOffering"`
+	HardConflictCount  int                                   `json:"hardConflictCount"`
+	ApprovedOfferings  []SchedApprovedOffering               `json:"approvedOfferings"`
+	MakeupSessions     []SchedMakeupSession                  `json:"makeupSessions"`
 }
 
 var schedDayNames = []string{"شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنج‌شنبه", "جمعه"}
@@ -1216,10 +1235,10 @@ func (s *Service) SupplyGroupDrafts(ctx context.Context, user *session.User, coo
 		return nil, err
 	}
 	type bookedRow struct {
-		day       int
+		day        int
 		start, end string
-		roomID    *int64
-		profID    *int64
+		roomID     *int64
+		profID     *int64
 	}
 	booked := []bookedRow{}
 	for brows.Next() {
@@ -1593,16 +1612,36 @@ type SchedSuggestInput struct {
 	DurationMinutes int    `json:"durationMinutes"`
 }
 
-// GetSmartSuggestions پورت getSmartSuggestionsAction — اسلات‌های ممکن بر اساس
-// درٔ دسترس بودنِ واقعی استاد + اشغال سالن‌ها + زونینگ (چهار پیشنهاد برتر).
-func (s *Service) GetSmartSuggestions(ctx context.Context, px SchedSuggestInput) ([]SchedSmartSlot, error) {
+// GetSmartSuggestions ports getSmartSuggestionsAction. Slots are derived from
+// the professor's declared availability, real room occupancy, faculty zoning,
+// and capacity fit. All lookups are constrained to the active university.
+func (s *Service) GetSmartSuggestions(ctx context.Context, uniID *int64, px SchedSuggestInput) ([]SchedSmartSlot, error) {
+	if err := s.AssertSchedTermInUni(ctx, px.TermID, uniID); err != nil {
+		return nil, err
+	}
+	if px.ProfessorID <= 0 || px.Capacity <= 0 || px.Capacity > 100000 {
+		return nil, errors.New("استاد یا ظرفیت درس نامعتبر است.")
+	}
 	duration := px.DurationMinutes
-	if duration <= 0 {
+	if duration < 30 || duration > 240 {
 		duration = 90 // WEEKLY_DURATION_MIN
 	}
 	var exists int
-	if err := s.DB.Pool.QueryRow(ctx, `select count(*) from staff where id = $1`, px.ProfessorID).Scan(&exists); err != nil || exists == 0 {
+	if err := s.DB.Pool.QueryRow(ctx, `
+		select count(*) from staff where id = $1 and `+schedScopeCond(`"universityId"`, uniID),
+		px.ProfessorID).Scan(&exists); err != nil || exists == 0 {
 		return nil, errors.New("استاد یافت نشد.")
+	}
+	// Ignore a forged faculty hint from another tenant instead of letting it
+	// influence score reasons.
+	if px.TargetFacultyID != nil {
+		var ok bool
+		_ = s.DB.Pool.QueryRow(ctx, `
+			select exists(select 1 from faculties where id = $1 and `+schedScopeCond(`"universityId"`, uniID)+`)`,
+			*px.TargetFacultyID).Scan(&ok)
+		if !ok {
+			px.TargetFacultyID = nil
+		}
 	}
 
 	type availRow struct {
@@ -1615,6 +1654,7 @@ func (s *Service) GetSmartSuggestions(ctx context.Context, px SchedSuggestInput)
 		select "dayOfWeek", to_char("startTime",'HH24:MI'), to_char("endTime",'HH24:MI'), "termId" is not null
 		  from professor_availabilities
 		 where "staffId" = $1 and ("termId" is null or "termId" = $2)
+		   and `+schedScopeCond(`"universityId"`, uniID)+`
 		   and "startTime" is not null and "endTime" is not null`, px.ProfessorID, px.TermID)
 	if err != nil {
 		return nil, err
@@ -1655,14 +1695,17 @@ func (s *Service) GetSmartSuggestions(ctx context.Context, px SchedSuggestInput)
 	}
 
 	type roomRow struct {
-		id          int64
-		name        string
-		capacity    int
-		facultyID   *int64
+		id        int64
+		name      string
+		capacity  int
+		facultyID *int64
 	}
 	rooms := []roomRow{}
 	rrows, err := s.DB.Pool.Query(ctx, `
-		select id, name, coalesce(capacity,0), "facultyId" from classrooms where coalesce(capacity,0) >= $1 order by id`, px.Capacity)
+		select id, name, coalesce(capacity,0), "facultyId"
+		  from classrooms
+		 where coalesce(capacity,0) >= $1 and `+schedScopeCond(`"universityId"`, uniID)+`
+		 order by id`, px.Capacity)
 	if err != nil {
 		return nil, err
 	}
@@ -1765,13 +1808,13 @@ func (s *Service) GetSmartSuggestions(ctx context.Context, px SchedSuggestInput)
 
 // SchedForecast پیش‌بینی تقاضای درس (forecastCourseDemand).
 type SchedForecast struct {
-	CourseID            int64                    `json:"courseId"`
-	ClusterID           *int64                   `json:"clusterId"`
-	EquivalentCourseIDs []int64                  `json:"equivalentCourseIds"`
-	ActiveNeedingCount  int                      `json:"activeNeedingCount"`
-	AlreadyPassedCount  int                      `json:"alreadyPassedCount"`
-	EligibleStudents    int                      `json:"eligibleStudents"`
-	SuggestedGroups     int                      `json:"suggestedGroups"`
+	CourseID            int64                      `json:"courseId"`
+	ClusterID           *int64                     `json:"clusterId"`
+	EquivalentCourseIDs []int64                    `json:"equivalentCourseIds"`
+	ActiveNeedingCount  int                        `json:"activeNeedingCount"`
+	AlreadyPassedCount  int                        `json:"alreadyPassedCount"`
+	EligibleStudents    int                        `json:"eligibleStudents"`
+	SuggestedGroups     int                        `json:"suggestedGroups"`
 	ByFaculty           []scheduling.FacultyGroups `json:"byFaculty"`
 }
 
@@ -1911,12 +1954,12 @@ type SchedHiddenConflict struct {
 
 // SchedSupplyDemand عرضه در برابر تقاضا.
 type SchedSupplyDemand struct {
-	CourseID        int64  `json:"courseId"`
-	Title           string `json:"title"`
-	SuppliedGroups  int    `json:"suppliedGroups"`
-	SuggestedGroups int    `json:"suggestedGroups"`
-	Gap             int    `json:"gap"`
-	EligibleStudents int   `json:"eligibleStudents"`
+	CourseID         int64  `json:"courseId"`
+	Title            string `json:"title"`
+	SuppliedGroups   int    `json:"suppliedGroups"`
+	SuggestedGroups  int    `json:"suggestedGroups"`
+	Gap              int    `json:"gap"`
+	EligibleStudents int    `json:"eligibleStudents"`
 }
 
 // SchedUnallocatedShared کلاس مشترک بدون تخصیص.
@@ -1944,17 +1987,21 @@ type SchedReleasedUnused struct {
 
 // SchedHealthReport گزارش سلامت برنامه (HealthReport).
 type SchedHealthReport struct {
-	TermID           int64                     `json:"termId"`
-	HiddenConflicts  []SchedHiddenConflict     `json:"hiddenConflicts"`
-	SupplyVsDemand   []SchedSupplyDemand       `json:"supplyVsDemand"`
+	TermID            int64                    `json:"termId"`
+	HiddenConflicts   []SchedHiddenConflict    `json:"hiddenConflicts"`
+	SupplyVsDemand    []SchedSupplyDemand      `json:"supplyVsDemand"`
 	UnallocatedShared []SchedUnallocatedShared `json:"unallocatedShared"`
-	RoomShiftUsage   []SchedRoomShiftUsage     `json:"roomShiftUsage"`
-	ReleasedUnused   []SchedReleasedUnused     `json:"releasedUnused"`
-	Lines            []string                  `json:"lines"`
+	RoomShiftUsage    []SchedRoomShiftUsage    `json:"roomShiftUsage"`
+	ReleasedUnused    []SchedReleasedUnused    `json:"releasedUnused"`
+	Lines             []string                 `json:"lines"`
 }
 
-// GetSchedulingHealth پورت getSchedulingHealthAction / runSchedulingHealthCheck.
-func (s *Service) GetSchedulingHealth(ctx context.Context, termID int64) (*SchedHealthReport, error) {
+// GetSchedulingHealth ports getSchedulingHealthAction / runSchedulingHealthCheck.
+// The term is validated against the active university before any query runs.
+func (s *Service) GetSchedulingHealth(ctx context.Context, uniID *int64, termID int64) (*SchedHealthReport, error) {
+	if err := s.AssertSchedTermInUni(ctx, termID, uniID); err != nil {
+		return nil, err
+	}
 	report := &SchedHealthReport{
 		TermID: termID, HiddenConflicts: []SchedHiddenConflict{},
 		SupplyVsDemand: []SchedSupplyDemand{}, UnallocatedShared: []SchedUnallocatedShared{},
@@ -2081,11 +2128,11 @@ func (s *Service) GetSchedulingHealth(ctx context.Context, termID int64) (*Sched
 
 	// ۴) بهره‌وری (سالن، شیفت)
 	type usageRow struct {
-		roomID      int64
-		roomName    string
-		facultyID   *int64
-		day         int
-		start, end  string
+		roomID     int64
+		roomName   string
+		facultyID  *int64
+		day        int
+		start, end string
 	}
 	urooms, err := s.DB.Pool.Query(ctx, `
 		select s."roomId", c.name, c."facultyId", s."dayOfWeek",
@@ -2176,15 +2223,15 @@ type SchedGenerateInput struct {
 
 // SchedGenerateResult نتیجهٔ تولید جلسات.
 type SchedGenerateResult struct {
-	OK                bool                          `json:"ok"`
-	Generated         int                           `json:"generated"`
-	Skipped           int                           `json:"skipped"`
-	Warnings          []string                      `json:"warnings"`
-	Error             string                        `json:"error,omitempty"`
-	Offerings         int                           `json:"offerings"`
-	SessionsPerOffering map[int64]int               `json:"sessionsPerOffering"`
-	HardConflicts     []scheduling.HardConflict     `json:"hardConflicts"`
-	TermStart         *string                       `json:"termStart"`
+	OK                  bool                      `json:"ok"`
+	Generated           int                       `json:"generated"`
+	Skipped             int                       `json:"skipped"`
+	Warnings            []string                  `json:"warnings"`
+	Error               string                    `json:"error,omitempty"`
+	Offerings           int                       `json:"offerings"`
+	SessionsPerOffering map[int64]int             `json:"sessionsPerOffering"`
+	HardConflicts       []scheduling.HardConflict `json:"hardConflicts"`
+	TermStart           *string                   `json:"termStart"`
 }
 
 // GenerateClassSessions پورت generateClassSessionsAction / generateClassSessionsForTerm —
@@ -2278,11 +2325,11 @@ func (s *Service) GenerateClassSessions(ctx context.Context, user *session.User,
 	sessionsPerOffering := map[int64]int{}
 	warnings := []string{}
 	type sessionValue struct {
-		offeringID int64
+		offeringID  int64
 		sessionDate string
-		startTime  string
-		endTime    string
-		sessionNo  int
+		startTime   string
+		endTime     string
+		sessionNo   int
 	}
 	values := []sessionValue{}
 	skipped := 0
@@ -2449,16 +2496,16 @@ func (s *Service) CheckScheduleConflicts(ctx context.Context, user *session.User
 
 // SchedDashboardBundle خروجی getSchedulingDashboardAction.
 type SchedDashboardBundle struct {
-	Terms                 []map[string]any     `json:"terms"`
-	Rooms                 []map[string]any     `json:"rooms"`
-	Professors            []map[string]any     `json:"professors"`
-	Phases                []map[string]any     `json:"phases"`
-	ActiveTermID          *int64               `json:"activeTermId"`
-	Offerings             []map[string]any     `json:"offerings"`
-	Schedules             []map[string]any     `json:"schedules"`
-	OfferingProfessors    []map[string]any     `json:"offeringProfessors"`
-	GeneratedSessionCount int                  `json:"generatedSessionCount"`
-	Phase                 string               `json:"phase"`
+	Terms                 []map[string]any `json:"terms"`
+	Rooms                 []map[string]any `json:"rooms"`
+	Professors            []map[string]any `json:"professors"`
+	Phases                []map[string]any `json:"phases"`
+	ActiveTermID          *int64           `json:"activeTermId"`
+	Offerings             []map[string]any `json:"offerings"`
+	Schedules             []map[string]any `json:"schedules"`
+	OfferingProfessors    []map[string]any `json:"offeringProfessors"`
+	GeneratedSessionCount int              `json:"generatedSessionCount"`
+	Phase                 string           `json:"phase"`
 }
 
 // GetSchedulingDashboard پورت getSchedulingDashboardAction.

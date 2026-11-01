@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
+  Archive,
+  BookOpen,
   BookOpenCheck,
+  Calculator,
   CalendarDays,
   CalendarRange,
+  ClipboardCheck,
   ClipboardList,
   Clock,
   CreditCard,
@@ -19,17 +23,20 @@ import {
   MonitorPlay,
   Printer,
   ScrollText,
+  ShieldAlert,
   ShoppingCart,
   Target,
   TrendingUp,
   Users,
+  Wallet,
 } from 'lucide-react';
 
 import { MODULES } from '@/routes/admin/DashboardPage';
 import { cn } from '@/lib/utils';
 
-// ═══ نوار پایین موبایل (دانشجو/استاد/ادمین) — پورت StudentNav/ProfessorNav ═══
-// ۵ مقصد پرتکرار + دکمهٔ «منو» که بقیهٔ مقاصد را در bottom sheet باز می‌کند.
+// Mobile bottom navigation for student/professor/admin shells, ported from
+// StudentNav/ProfessorNav. Shows five frequent destinations plus a menu button
+// that opens the full destination list in a bottom sheet.
 
 type Tab = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
 
@@ -86,7 +93,45 @@ const ADMIN_TABS: Tab[] = [
   { to: '/admin/payroll', label: 'حقوق', icon: Landmark },
 ];
 
-const ADMIN_MENU: Tab[] = MODULES.map((m) => ({ to: m.to, label: m.label, icon: m.icon }));
+const ADMIN_MENU: Tab[] = (() => {
+  // The dashboard tiles (MODULES) do not cover every admin sub-page. Merge a
+  // supplementary list so the mobile menu reaches the full admin surface,
+  // skipping duplicate destinations.
+  const extra: Tab[] = [
+    { to: '/admin', label: 'داشبورد مدیریت', icon: LayoutDashboard, exact: true },
+    { to: '/admin/archive', label: 'بایگانی الکترونیک', icon: Archive },
+    { to: '/admin/attendance-manual', label: 'تأیید دستی حضور استاد', icon: ClipboardCheck },
+    { to: '/admin/attendance-control', label: 'کنترل تشکیل کلاس', icon: ClipboardList },
+    { to: '/admin/council', label: 'شورای آموزشی', icon: Users },
+    { to: '/admin/course-finance', label: 'مالی دروس', icon: CreditCard },
+    { to: '/admin/curriculum', label: 'سرفصل و کاتالوگ', icon: BookOpen },
+    { to: '/admin/discipline', label: 'کمیتهٔ انضباطی', icon: ShieldAlert },
+    { to: '/admin/exams', label: 'برنامهٔ امتحانات', icon: CalendarDays },
+    { to: '/admin/finance/advanced', label: 'مالی پیشرفته', icon: Wallet },
+    { to: '/admin/finance/pos', label: 'ترمینال POS', icon: CreditCard },
+    { to: '/admin/finance/reports', label: 'گزارش‌های مالی', icon: FileText },
+    { to: '/admin/finance/rules', label: 'تعاریف موتور مالی', icon: Wallet },
+    { to: '/admin/finance/time-control', label: 'کنترل زمانی ثبت مالی', icon: Clock },
+    { to: '/admin/finance/welfare', label: 'صندوق رفاه', icon: Wallet },
+    { to: '/admin/finance/student-formula', label: 'فرمول ویژهٔ دانشجو', icon: Calculator },
+    { to: '/admin/tuition/tariff', label: 'تعرفهٔ سالانه', icon: CreditCard },
+    { to: '/admin/templates', label: 'قالب‌های اعلان', icon: FileText },
+    { to: '/admin/payroll/roles', label: 'سمت‌های موظفی', icon: Landmark },
+    { to: '/admin/payroll/teaching-roles', label: 'نقش‌های تدریس', icon: Landmark },
+    { to: '/admin/payroll/coverage', label: 'پوشش فرمول', icon: Landmark },
+    { to: '/admin/payroll/decrees', label: 'ابلاغ‌های آموزشی', icon: Landmark },
+    { to: '/admin/payroll/regs-objections', label: 'آیین‌نامه/اعتراض حقوق', icon: Landmark },
+    { to: '/admin/payroll/operations', label: 'عملیات حقوق', icon: Landmark },
+  ];
+  const seen = new Set<string>();
+  const out: Tab[] = [];
+  for (const item of [...extra, ...MODULES.map((m) => ({ to: m.to, label: m.label, icon: m.icon }))]) {
+    if (seen.has(item.to)) continue;
+    seen.add(item.to);
+    out.push(item);
+  }
+  return out;
+})();
 
 function sectionOf(pathname: string): 'student' | 'professor' | 'admin' | null {
   if (pathname === '/student' || pathname.startsWith('/student/')) return 'student';
@@ -105,6 +150,7 @@ const DATA = {
   admin: { tabs: ADMIN_TABS, menu: ADMIN_MENU, title: 'منوی مدیریت', aria: 'ناوبری اصلی مدیریت' },
 };
 
+/** Fixed mobile tab bar; returns null outside student/professor/admin routes. */
 export function MobileTabBar() {
   const { pathname } = useLocation();
   const section = sectionOf(pathname);

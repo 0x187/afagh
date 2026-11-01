@@ -1,4 +1,8 @@
-// ═══ مدیریت کلاس‌ها از سطح تنظیمات ادمین — پورت admin/settings/ClassroomManager ═══
+// Classroom management for the admin settings screen.
+//
+// Ported from afagh-next/src/app/admin/settings/ClassroomManager.tsx and
+// actions.ts. All reads and writes are constrained to the active university;
+// delete operations refuse rooms that are still referenced by weekly schedules.
 package admin
 
 import (
@@ -13,7 +17,16 @@ import (
 	"backend-go/internal/session"
 )
 
-// AdminClassroom یک اتاق/کلاس قابل برنامه‌ریزی.
+const (
+	maxClassroomNameLen     = 200
+	maxClassroomCodeLen     = 50
+	maxClassroomRoomTypeLen = 60
+	maxClassroomFloorLen    = 20
+	maxClassroomCapacity    = 100000
+	maxSeatDimension        = 100
+)
+
+// AdminClassroom is a schedulable room returned to the admin settings UI.
 type AdminClassroom struct {
 	ID          int64   `json:"id"`
 	Name        string  `json:"name"`
@@ -28,13 +41,14 @@ type AdminClassroom struct {
 	IsActive    int     `json:"isActive"`
 }
 
-// AdminClassroomsResponse پاسخ فهرست کلاس‌ها + دانشکده‌های دانشگاه فعال.
+// AdminClassroomsResponse is the room list plus the faculties of the active
+// university. Faculties are empty when no university scope is available.
 type AdminClassroomsResponse struct {
 	Classrooms []AdminClassroom `json:"classrooms"`
 	Faculties  []SimpleOption   `json:"faculties"`
 }
 
-// AdminClassroomInput ورودی ذخیرهٔ یک کلاس (هم افزودن و هم ویرایش).
+// AdminClassroomInput is the create/update payload for a single room.
 type AdminClassroomInput struct {
 	ID        *int64 `json:"id"`
 	Code      string `json:"code"`
@@ -48,12 +62,14 @@ type AdminClassroomInput struct {
 	IsActive  *int   `json:"isActive"`
 }
 
-// AdminClassroomResult نتیجهٔ ذخیره.
+// AdminClassroomResult is the user-facing message for a mutation.
 type AdminClassroomResult struct {
 	Message string `json:"message"`
 	NewID   *int64 `json:"newId,omitempty"`
 }
 
+// sameClassroomUni compares nullable university ids; NULL == NULL is a valid
+// match for global rows, mirroring the Next.js classroomOwnedBy helper.
 func sameClassroomUni(a, b *int64) bool {
 	if a == nil || b == nil {
 		return a == nil && b == nil
@@ -61,6 +77,8 @@ func sameClassroomUni(a, b *int64) bool {
 	return *a == *b
 }
 
+// classroomStrPtr trims a string and returns nil for empty values so optional
+// text columns stay NULL instead of ”.
 func classroomStrPtr(v string) *string {
 	v = strings.TrimSpace(v)
 	if v == "" {
@@ -69,7 +87,8 @@ func classroomStrPtr(v string) *string {
 	return &v
 }
 
-// ListAdminClassrooms فهرست کامل کلاس‌های دانشگاه فعال (شامل غیرفعال‌ها).
+// ListAdminClassrooms returns every room of the active university, including
+// inactive rows, sorted by name.
 func (s *Service) ListAdminClassrooms(ctx context.Context, user *session.User, uniCookie string) (*AdminClassroomsResponse, error) {
 	uni := s.UniversityID(ctx, user, uniCookie)
 	resp := &AdminClassroomsResponse{Classrooms: []AdminClassroom{}, Faculties: []SimpleOption{}}
@@ -114,12 +133,44 @@ func (s *Service) ListAdminClassrooms(ctx context.Context, user *session.User, u
 	return resp, nil
 }
 
-// SaveAdminClassroom افزودن/ویرایش یک کلاس با گیت مالکیت دانشگاه.
-func (s *Service) SaveAdminClassroom(ctx context.Context, user *session.User, uniCookie string, in AdminClassroomInput) (*AdminClassroomResult, error) {
+// validateAdminClassroomInput applies the same mandatory checks as the Next
+// form plus defensive length/range limits before hitting the database.
+func validateAdminClassroomInput(in AdminClassroomInput) error {
 	name := strings.TrimSpace(in.Name)
 	if name == "" || in.Capacity <= 0 {
-		return nil, errors.New("نام کلاس و ظرفیت مثبت الزامی است.")
+		return errors.New("نام کلاس و ظرفیت مثبت الزامی است.")
 	}
+	if len([]rune(name)) > maxClassroomNameLen {
+		return fmt.Errorf("نام کلاس حداکثر %d نویسه است.", maxClassroomNameLen)
+	}
+	if len([]rune(strings.TrimSpace(in.Code))) > maxClassroomCodeLen {
+		return fmt.Errorf("کد کلاس حداکثر %d نویسه است.", maxClassroomCodeLen)
+	}
+	if len([]rune(strings.TrimSpace(in.RoomType))) > maxClassroomRoomTypeLen {
+		return fmt.Errorf("نوع کلاس حداکثر %d نویسه است.", maxClassroomRoomTypeLen)
+	}
+	if len([]rune(strings.TrimSpace(in.Floor))) > maxClassroomFloorLen {
+		return fmt.Errorf("طبقه حداکثر %d نویسه است.", maxClassroomFloorLen)
+	}
+	if in.Capacity > maxClassroomCapacity {
+		return fmt.Errorf("ظرفیت کلاس حداکثر %d نفر است.", maxClassroomCapacity)
+	}
+	if in.Rows != nil && (*in.Rows < 0 || *in.Rows > maxSeatDimension) {
+		return fmt.Errorf("تعداد ردیف باید بین ۰ تا %d باشد.", maxSeatDimension)
+	}
+	if in.Cols != nil && (*in.Cols < 0 || *in.Cols > maxSeatDimension) {
+		return fmt.Errorf("تعداد ستون باید بین ۰ تا %d باشد.", maxSeatDimension)
+	}
+	return nil
+}
+
+// SaveAdminClassroom creates or updates a room. Updates are guarded by the
+// room's university id so a forged id cannot cross tenant boundaries.
+func (s *Service) SaveAdminClassroom(ctx context.Context, user *session.User, uniCookie string, in AdminClassroomInput) (*AdminClassroomResult, error) {
+	if err := validateAdminClassroomInput(in); err != nil {
+		return nil, err
+	}
+	name := strings.TrimSpace(in.Name)
 	uni := s.UniversityID(ctx, user, uniCookie)
 
 	if in.ID != nil {
@@ -161,16 +212,21 @@ func (s *Service) SaveAdminClassroom(ctx context.Context, user *session.User, un
 	floor := classroomStrPtr(in.Floor)
 
 	if in.ID != nil {
-		_, err := s.DB.Pool.Exec(ctx, `
+		tag, err := s.DB.Pool.Exec(ctx, `
 			update classrooms set name = $1, code = $2, capacity = $3, "roomType" = $4,
 			       "facultyId" = $5, "buildingName" = $6, floor = $7, "rowsCount" = $8,
 			       "colsCount" = $9, "isActive" = $10
-			 where id = $11`,
-			name, code, in.Capacity, roomType, in.FacultyID, facultyName, floor, in.Rows, in.Cols, active, *in.ID)
+			 where id = $11 and ("universityId" is not distinct from $12::bigint)`,
+			name, code, in.Capacity, roomType, in.FacultyID, facultyName, floor, in.Rows, in.Cols, active, *in.ID, uni)
 		if err != nil {
 			return nil, err
 		}
-		s.auditClassroom(ctx, user, "CLASSROOM_UPDATED", *in.ID, map[string]any{"name": name, "code": code, "facultyId": in.FacultyID, "isActive": active})
+		if tag.RowsAffected() == 0 {
+			return nil, errors.New("این کلاس متعلق به دانشگاه شما نیست.")
+		}
+		s.auditClassroom(ctx, user, "CLASSROOM_UPDATED", *in.ID, map[string]any{
+			"name": name, "code": code, "facultyId": in.FacultyID, "isActive": active,
+		})
 		return &AdminClassroomResult{Message: fmt.Sprintf("کلاس «%s» ذخیره شد.", name)}, nil
 	}
 
@@ -184,15 +240,19 @@ func (s *Service) SaveAdminClassroom(ctx context.Context, user *session.User, un
 	if err != nil {
 		return nil, err
 	}
-	s.auditClassroom(ctx, user, "CLASSROOM_CREATED", newID, map[string]any{"name": name, "code": code, "facultyId": in.FacultyID, "isActive": active})
+	s.auditClassroom(ctx, user, "CLASSROOM_CREATED", newID, map[string]any{
+		"name": name, "code": code, "facultyId": in.FacultyID, "isActive": active,
+	})
 	return &AdminClassroomResult{Message: fmt.Sprintf("کلاس «%s» افزوده شد.", name), NewID: &newID}, nil
 }
 
-// DeleteAdminClassroom حذف یک کلاس — کلاس دارای برنامهٔ هفتگی حذف نمی‌شود.
+// DeleteAdminClassroom deletes a single room. The DELETE itself checks for
+// schedule references to avoid a check-then-delete race.
 func (s *Service) DeleteAdminClassroom(ctx context.Context, user *session.User, uniCookie string, id int64) (*AdminClassroomResult, error) {
 	if id <= 0 {
 		return nil, errors.New("کلاس نامعتبر است.")
 	}
+	uni := s.UniversityID(ctx, user, uniCookie)
 	var roomUni *int64
 	if err := s.DB.Pool.QueryRow(ctx, `select "universityId" from classrooms where id = $1`, id).Scan(&roomUni); err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -200,24 +260,27 @@ func (s *Service) DeleteAdminClassroom(ctx context.Context, user *session.User, 
 		}
 		return nil, err
 	}
-	if !sameClassroomUni(roomUni, s.UniversityID(ctx, user, uniCookie)) {
+	if !sameClassroomUni(roomUni, uni) {
 		return nil, errors.New("این کلاس متعلق به دانشگاه شما نیست.")
 	}
-	var used int
-	if err := s.DB.Pool.QueryRow(ctx, `select count(*) from schedules where "roomId" = $1`, id).Scan(&used); err != nil {
+
+	tag, err := s.DB.Pool.Exec(ctx, `
+		delete from classrooms c
+		 where c.id = $1
+		   and not exists (select 1 from schedules s where s."roomId" = c.id)`, id)
+	if err != nil {
 		return nil, err
 	}
-	if used > 0 {
+	if tag.RowsAffected() == 0 {
 		return nil, errors.New("این کلاس در برنامهٔ هفتگی استفاده می‌شود — ابتدا برنامه را حذف کنید.")
-	}
-	if _, err := s.DB.Pool.Exec(ctx, `delete from classrooms where id = $1`, id); err != nil {
-		return nil, err
 	}
 	s.auditClassroom(ctx, user, "CLASSROOM_DELETED", id, map[string]any{})
 	return &AdminClassroomResult{Message: "کلاس حذف شد."}, nil
 }
 
-// BulkAdminClassrooms عملیات گروهی فعال/غیرفعال/حذف روی کلاس‌های انتخاب‌شده.
+// BulkAdminClassrooms activates, deactivates, or deletes the selected rooms.
+// Ownership is checked row by row; delete skips rooms referenced by schedules
+// instead of failing the whole batch.
 func (s *Service) BulkAdminClassrooms(ctx context.Context, user *session.User, uniCookie, op string, ids []int64) (*AdminClassroomResult, error) {
 	op = strings.TrimSpace(op)
 	if op != "activate" && op != "deactivate" && op != "delete" {
@@ -276,44 +339,30 @@ func (s *Service) BulkAdminClassrooms(ctx context.Context, user *session.User, u
 		return &AdminClassroomResult{Message: fmt.Sprintf("%d کلاس %s شد.%s", len(owned), word, tail)}, nil
 
 	case "delete":
-		usedRows, err := s.DB.Pool.Query(ctx, `select distinct "roomId" from schedules where "roomId" = any($1::bigint[])`, owned)
+		tag, err := s.DB.Pool.Exec(ctx, `
+			delete from classrooms c
+			 where c.id = any($1::bigint[])
+			   and not exists (select 1 from schedules s where s."roomId" = c.id)`, owned)
 		if err != nil {
 			return nil, err
 		}
-		used := map[int64]bool{}
-		for usedRows.Next() {
-			var roomID *int64
-			if err := usedRows.Scan(&roomID); err == nil && roomID != nil {
-				used[*roomID] = true
-			}
-		}
-		usedRows.Close()
-		if err := usedRows.Err(); err != nil {
-			return nil, err
-		}
-		deletable := make([]int64, 0, len(owned))
-		for _, id := range owned {
-			if !used[id] {
-				deletable = append(deletable, id)
-			}
-		}
-		blocked := len(owned) - len(deletable)
-		if len(deletable) == 0 {
+		deleted := int(tag.RowsAffected())
+		blocked := len(owned) - deleted
+		if deleted == 0 {
 			return nil, fmt.Errorf("هیچ‌کدام حذف نشد — هر %d کلاس در برنامهٔ هفتگی استفاده می‌شود.", blocked)
-		}
-		if _, err := s.DB.Pool.Exec(ctx, `delete from classrooms where id = any($1::bigint[])`, deletable); err != nil {
-			return nil, err
 		}
 		note := ""
 		if blocked > 0 {
 			note = fmt.Sprintf(" %d کلاس به‌دلیل داشتن برنامهٔ هفتگی حذف نشد.", blocked)
 		}
-		s.auditClassroom(ctx, user, "CLASSROOMS_BULK_DELETE", 0, map[string]any{"ids": deletable, "blocked": blocked})
-		return &AdminClassroomResult{Message: fmt.Sprintf("%d کلاس حذف شد.%s%s", len(deletable), note, tail)}, nil
+		s.auditClassroom(ctx, user, "CLASSROOMS_BULK_DELETE", 0, map[string]any{"ids": owned, "blocked": blocked})
+		return &AdminClassroomResult{Message: fmt.Sprintf("%d کلاس حذف شد.%s%s", deleted, note, tail)}, nil
 	}
 	return nil, errors.New("عملیات گروهی نامعتبر است.")
 }
 
+// auditClassroom writes a best-effort audit entry; audit failures must not
+// roll back a successful mutation.
 func (s *Service) auditClassroom(ctx context.Context, user *session.User, action string, entityID int64, details map[string]any) {
 	if user == nil {
 		return

@@ -20,7 +20,9 @@ export function StudentVirtualClassesPage() {
   const joinMut = useMutation({
     mutationFn: joinVirtualClass,
     onSuccess: (url) => {
-      if (url) window.open(url, '_blank', 'noopener');
+      // Only open absolute HTTP(S) links returned by the API, and isolate the
+      // new tab from this window (noopener/noreferrer).
+      if (url && /^https?:\/\//i.test(url)) window.open(url, '_blank', 'noopener,noreferrer');
     },
     onError: (e: Error) => setError(e.message),
   });

@@ -172,7 +172,8 @@ func (a *SchedulingSuiteAPI) schedAllocateRooms(c *gin.Context) {
 }
 
 func (a *SchedulingSuiteAPI) schedSmartSuggestions(c *gin.Context) {
-	if a.require(c) == nil {
+	user := a.require(c)
+	if user == nil {
 		return
 	}
 	var px admin.SchedSuggestInput
@@ -180,7 +181,8 @@ func (a *SchedulingSuiteAPI) schedSmartSuggestions(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "اطلاعات نامعتبر."})
 		return
 	}
-	res, err := a.Admin.Svc.GetSmartSuggestions(c.Request.Context(), px)
+	uniID := a.Admin.Svc.UniversityID(c.Request.Context(), user, a.Admin.uniCookie(c))
+	res, err := a.Admin.Svc.GetSmartSuggestions(c.Request.Context(), uniID, px)
 	if err != nil {
 		a.Admin.fail(c, err)
 		return
@@ -189,11 +191,13 @@ func (a *SchedulingSuiteAPI) schedSmartSuggestions(c *gin.Context) {
 }
 
 func (a *SchedulingSuiteAPI) schedHealth(c *gin.Context) {
-	if a.require(c) == nil {
+	user := a.require(c)
+	if user == nil {
 		return
 	}
 	termID, _ := strconv.ParseInt(c.Query("termId"), 10, 64)
-	res, err := a.Admin.Svc.GetSchedulingHealth(c.Request.Context(), termID)
+	uniID := a.Admin.Svc.UniversityID(c.Request.Context(), user, a.Admin.uniCookie(c))
+	res, err := a.Admin.Svc.GetSchedulingHealth(c.Request.Context(), uniID, termID)
 	if err != nil {
 		a.Admin.fail(c, err)
 		return
@@ -240,10 +244,16 @@ func (a *SchedulingSuiteAPI) schedCheckConflicts(c *gin.Context) {
 }
 
 func (a *SchedulingSuiteAPI) schedHardConflicts(c *gin.Context) {
-	if a.require(c) == nil {
+	user := a.require(c)
+	if user == nil {
 		return
 	}
 	termID, _ := strconv.ParseInt(c.Query("termId"), 10, 64)
+	uniID := a.Admin.Svc.UniversityID(c.Request.Context(), user, a.Admin.uniCookie(c))
+	if err := a.Admin.Svc.AssertSchedTermInUni(c.Request.Context(), termID, uniID); err != nil {
+		a.Admin.fail(c, err)
+		return
+	}
 	res, n := a.Admin.Svc.InspectSchedulingHardConflicts(c.Request.Context(), termID)
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"report": res, "count": n}})
 }

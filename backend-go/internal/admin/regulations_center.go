@@ -18,6 +18,8 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/jackc/pgx/v5/pgconn"
+
 	"backend-go/internal/session"
 )
 
@@ -104,7 +106,7 @@ func regulationPresetBachelor1403() RegulationConfig {
 		GradingAndGpa:       RegulationGradingAndGpa{FailedCourseGpaPolicy: "EXCLUDE_IF_PASSED", DefaultPassingGrade: 10.0, RegulationLabel: strPtr("آیین‌نامه ۱۴۰۲")},
 		QuotaOverrides: map[string]RegulationQuotaOverride{
 			"SHAHED_ISARGAR": {
-				SummerTermRules:       &struct {
+				SummerTermRules: &struct {
 					DefaultMaxUnits *float64 `json:"default_max_units,omitempty"`
 				}{DefaultMaxUnits: regFloat(8)},
 				ProbationMaxUnits:     regFloat(14),
@@ -265,8 +267,8 @@ type RegulationItem struct {
 
 // RegulationCenterData پاسخ کامل صفحهٔ مرکز آیین‌نامه‌ها.
 type RegulationCenterData struct {
-	Regulations  []RegulationItem          `json:"regulations"`
-	DegreeLevels []RegulationDegreeLevel   `json:"degreeLevels"`
+	Regulations  []RegulationItem            `json:"regulations"`
+	DegreeLevels []RegulationDegreeLevel     `json:"degreeLevels"`
 	Presets      map[string]RegulationConfig `json:"presets"`
 }
 
@@ -423,29 +425,34 @@ func (s *Service) SaveEducationalRegulation(ctx context.Context, user *session.U
 		return err
 	}
 
-	tx, err := s.DB.Pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-	// هم‌ترازی توالی شناسه با داده‌های واردشدهٔ دستی/مهاجرت‌شده — وگرنه اولین
-	// درج جدید با نقض کلید یکتا شکست می‌خورد (همان ترمیم syllabuses).
-	if _, err := tx.Exec(ctx, `
-		select setval(
-			pg_get_serial_sequence('educational_regulations', 'id'),
-			greatest(coalesce((select max(id) from educational_regulations), 0), 1),
-			true
-		)`); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(ctx, `
+	insertSQL := `
 		insert into educational_regulations
 		       ("universityId", title, "degreeLevelId", "effectiveFromYear", "effectiveToYear", "rulesConfig")
-		values ($1, $2, $3, $4, $5, $6)`,
-		*uniID, title, in.DegreeLevelID, from, to, configStr); err != nil {
-		return err
+		values ($1, $2, $3, $4, $5, $6)`
+	_, err := s.DB.Pool.Exec(ctx, insertSQL, *uniID, title, in.DegreeLevelID, from, to, configStr)
+
+	// Some installations seeded educational_regulations manually, leaving the
+	// id sequence behind. Repair the sequence once and retry instead of failing
+	// the first legitimate insert with a duplicate-key error.
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		if _, repairErr := s.DB.Pool.Exec(ctx, `
+			select setval(
+				pg_get_serial_sequence('educational_regulations', 'id'),
+				greatest(
+					coalesce((select max(id) from educational_regulations), 0),
+					coalesce((select last_value from pg_sequences
+					           where schemaname = current_schema()
+					             and sequencename = 'educational_regulations_id_seq'), 0),
+					1
+				),
+				true
+			)`); repairErr != nil {
+			return repairErr
+		}
+		_, err = s.DB.Pool.Exec(ctx, insertSQL, *uniID, title, in.DegreeLevelID, from, to, configStr)
 	}
-	return tx.Commit(ctx)
+	return err
 }
 
 // DeleteEducationalRegulation پورت deleteRegulationAction — حذف با گارد دانشگاه.

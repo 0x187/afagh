@@ -44,7 +44,7 @@ import {
   type SchedWorkspaceData,
 } from '@/lib/scheduling-suite-api';
 
-// ═══ آیین‌نامه‌ها + تخصیص کارشناس + سوئیت برنامه‌ریزی ═══
+// Regulations + edu-expert assignment + scheduling suite.
 
 type MsgState = { kind: 'ok' | 'err'; text: string } | null;
 
@@ -74,7 +74,7 @@ function EmptyRow({ colSpan, children }: { colSpan: number; children: React.Reac
   return <tr><td colSpan={colSpan} className="p-4 text-center text-[11px] text-muted-foreground">{children}</td></tr>;
 }
 
-// ─── آیین‌نامه‌ها ───
+// Regulations
 
 type RegForm = {
   id?: number;
@@ -91,6 +91,13 @@ const EMPTY_REG_FORM: RegForm = {
   effectiveFromYear: '1404',
   effectiveToYear: '',
   rulesConfig: '',
+};
+
+// Human-readable labels for the ministry regulation presets returned by the API.
+const PRESET_LABELS: Record<string, string> = {
+  defaultBachelor1390: 'کارشناسی — مصوب ۱۳۹۰',
+  defaultBachelor1403: 'کارشناسی — مصوب ۱۴۰۳',
+  defaultMaster1403: 'کارشناسی ارشد — مصوب ۱۴۰۳',
 };
 
 function prettyJSON(value: unknown): string {
@@ -121,6 +128,7 @@ function degreeTitle(levels: RegulationDegreeLevel[], id: number): string {
   return levels.find((l) => l.id === id)?.title || levels.find((l) => l.id === id)?.levelName || `مقطع ${id}`;
 }
 
+/** Regulations center: list, edit, presets, and the full JSON config editor. */
 export function AdminRegulationsPage() {
   const qc = useQueryClient();
   const center = useQuery({ queryKey: ['regulations'], queryFn: getRegulationCenter });
@@ -245,7 +253,7 @@ export function AdminRegulationsPage() {
                 className="h-8 rounded-lg border border-input bg-card px-2 text-[11px]"
               >
                 <option value="">— انتخاب الگو —</option>
-                {presetKeys.map((k) => <option key={k} value={k}>{k}</option>)}
+                {presetKeys.map((k) => <option key={k} value={k}>{PRESET_LABELS[k] ?? k}</option>)}
               </select>
             </label>
             <Button
@@ -310,8 +318,9 @@ export function AdminRegulationsPage() {
   );
 }
 
-// ─── تخصیص کارشناس آموزشی ───
+// Edu-expert assignment
 
+/** Classroom-to-edu-expert assignment screen. */
 export function AdminEduExpertAssignPage() {
   const data = useQuery({ queryKey: ['edu-expert-assign'], queryFn: getEduExpertInit });
   const [msg, setMsg] = useState<MsgState>(null);
@@ -355,7 +364,7 @@ export function AdminEduExpertAssignPage() {
   );
 }
 
-// ─── سوئیت برنامه‌ریزی ───
+// Scheduling suite
 
 const PHASE_FA: Record<string, string> = {
   DRAFT: 'پیش‌نویس', DEMANDS: 'نیازمندی‌ها', SUPPLY: 'تأمین', SECTIONS: 'گروه‌بندی',
@@ -373,6 +382,8 @@ const CONFLICT_FA: Record<string, string> = {
 
 type SchedTab = 'DEMANDS' | 'APPROVED' | 'SESSIONS' | 'HEALTH' | 'CONFLICTS' | 'QUOTAS' | 'SUGGEST' | 'ACTIONS';
 
+/** Scheduling suite: term selection, phase workflow, demands, sessions, health,
+ * conflicts, smart suggestions, professor quotas, and bulk actions. */
 export function AdminSchedulingPage() {
   const qc = useQueryClient();
   const [termId, setTermId] = useState<number | null>(null);
@@ -393,6 +404,28 @@ export function AdminSchedulingPage() {
   useEffect(() => {
     if (termId == null && dash.data?.activeTermId) setTermId(dash.data.activeTermId);
   }, [dash.data, termId]);
+
+  // Term-bound engine results must not survive a term switch.
+  useEffect(() => {
+    setSuggestDemandId(null);
+    setSuggestions([]);
+    setAvailProfId(null);
+  }, [termId]);
+
+  // Lock background scroll and close the availability dialog with Escape.
+  useEffect(() => {
+    if (availProfId == null) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setAvailProfId(null);
+    };
+    window.addEventListener('keydown', onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [availProfId]);
 
   const ws = useQuery({ queryKey: ['sched-ws', termId], queryFn: () => getSchedWorkspace(termId ?? undefined), enabled: !!termId });
   const health = useQuery({ queryKey: ['sched-health', termId], queryFn: () => getSchedHealth(termId ?? 0), enabled: !!termId });
@@ -942,8 +975,17 @@ export function AdminSchedulingPage() {
       )}
 
       {availProf ? (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-foreground/50 p-4" role="dialog" aria-modal="true" aria-label="فرم حضور استاد">
-          <div className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl">
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-foreground/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="فرم حضور استاد"
+          onClick={() => setAvailProfId(null)}
+        >
+          <div
+            className="flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="flex items-center justify-between bg-primary px-4 py-3 text-primary-foreground">
               <div>
                 <p className="text-sm font-black">فرم حضور استاد: {availProf.name}</p>
@@ -1015,7 +1057,7 @@ function HealthPanel({ health, loading }: { health?: SchedHealthData; loading: b
               {health.hiddenConflicts.map((c, i) => (
                 <tr key={i} className="border-t border-border/50">
                   <Td>{CONFLICT_FA[c.kind] ?? c.kind}</Td>
-                  <Td>{faNumber(c.dayOfWeek + 1)}</Td>
+                  <Td>{DAY_NAMES[c.dayOfWeek] ?? '—'}</Td>
                   <Td className="font-mono text-[10px]">{c.startTime}–{c.endTime}</Td>
                   <Td className="font-mono text-[10px]">{c.a} / {c.b}</Td>
                 </tr>
