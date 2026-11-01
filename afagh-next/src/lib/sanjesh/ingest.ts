@@ -332,8 +332,16 @@ export async function matchFileRows(fileId: number): Promise<{
 }
 
 /**
- * انتقال ردیف‌های تطبیق‌یافته به `admissions_staging` (مرحلهٔ «تطبیق داده شده»).
- * هر ردیف یک ردیف staging با پیوند به فایل و ردیف مبدأ می‌سازد.
+ * انتقال ردیف‌های **معتبر** به `admissions_staging` (مرحلهٔ «تطبیق داده شده»).
+ *
+ * ⚠ «تطبیق با دانشجوی موجود» شرط انتقال نیست. داوطلبِ تازه — که در فایل
+ * سنجش اکثریت است — هیچ دانشجوی متناظری ندارد و وضعیتش `PENDING` می‌ماند؛
+ * اگر فقط `MATCHED` منتقل شود، برای یک ورودی جدید **هیچ ردیفی** به پذیرش
+ * نمی‌رسد و کل جریان بسته می‌شود. پس ردیف‌های معتبر (PENDING و MATCHED)
+ * منتقل می‌شوند و ردیف‌های `INVALID` / `IGNORED` / `DUPLICATE` بیرون می‌مانند.
+ *
+ * `importStagedToStudents` پیش از ساخت کاربر، وجود همان کد ملی را در همان
+ * دانشگاه بررسی می‌کند؛ بنابراین انتقال ردیف‌های MATCHED هم دانشجوی تکراری نمی‌سازد.
  */
 export async function stageMatchedRows(fileId: number): Promise<{ staged: number; skipped: number }> {
   const [file] = await db
@@ -346,7 +354,12 @@ export async function stageMatchedRows(fileId: number): Promise<{ staged: number
   const rows = await db
     .select()
     .from(sanjesh_file_rows)
-    .where(and(eq(sanjesh_file_rows.fileId, fileId), eq(sanjesh_file_rows.matchStatus, 'MATCHED')));
+    .where(
+      and(
+        eq(sanjesh_file_rows.fileId, fileId),
+        inArray(sanjesh_file_rows.matchStatus, ['PENDING', 'MATCHED']),
+      ),
+    );
 
   if (rows.length === 0) return { staged: 0, skipped: 0 };
 

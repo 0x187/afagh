@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql } from 'drizzle-orm';
 
 import { db } from '@/db';
 import { admissions_staging, sanjesh_file_rows, sanjesh_files } from '@/db/schema';
@@ -27,7 +27,7 @@ export default async function SanjeshMatchedPage({
   const file = await getScopedFile(fileId, uniScope?.id ?? null);
   if (!file) return <div className="p-6 text-sm text-red-600">فایل یافت نشد.</div>;
 
-  const [matchedRows, counters, stagedRes] = await Promise.all([
+  const [readyRows, counters, stagedRes] = await Promise.all([
     db
       .select({
         id: sanjesh_file_rows.id,
@@ -35,10 +35,16 @@ export default async function SanjeshMatchedPage({
         fullName: sanjesh_file_rows.fullName,
         nationalCode: sanjesh_file_rows.nationalCode,
         studentId: sanjesh_file_rows.studentId,
+        matchStatus: sanjesh_file_rows.matchStatus,
         matchedAt: sanjesh_file_rows.matchedAt,
       })
       .from(sanjesh_file_rows)
-      .where(and(eq(sanjesh_file_rows.fileId, fileId), eq(sanjesh_file_rows.matchStatus, 'MATCHED')))
+      .where(
+        and(
+          eq(sanjesh_file_rows.fileId, fileId),
+          inArray(sanjesh_file_rows.matchStatus, ['PENDING', 'MATCHED']),
+        ),
+      )
       .orderBy(asc(sanjesh_file_rows.rowNo))
       .limit(300),
     fileCounters(fileId),
@@ -46,6 +52,7 @@ export default async function SanjeshMatchedPage({
   ]);
 
   const stagedCount = Number(stagedRes[0]?.n ?? 0);
+  const readyCount = counters.pending + counters.matched;
 
   return (
     <div className="mx-auto max-w-6xl p-4">
@@ -54,13 +61,15 @@ export default async function SanjeshMatchedPage({
         <div>
           <h1 className="text-base font-bold text-slate-800">تطبیق داده شده — {file.title}</h1>
           <p className="text-[11px] text-slate-500">
-            ردیف‌هایی که با کد ملی به یک دانشجوی موجود وصل شده‌اند. با «انتقال به پذیرش» در جدول پذیرش ثبت می‌شوند.
+            ردیف‌های معتبر این فایل که آمادهٔ ورود به صف پذیرش‌اند. ردیف‌های «نامعتبر»، «تکراری» و «نادیده‌گرفته‌شده» منتقل
+            نمی‌شوند. ستون «دانشجوی موجود» فقط نشان می‌دهد داوطلب از قبل در سامانه هست یا نه؛ مانع انتقال نیست.
           </p>
         </div>
         <div className="flex flex-wrap gap-1.5">
-          <Counter label="تطبیق‌یافته" value={counters.matched} tone="emerald" />
+          <Counter label="آمادهٔ انتقال" value={readyCount} tone="emerald" />
+          <Counter label="دانشجوی موجود" value={counters.matched} tone="sky" />
           <Counter label="منتقل‌شده" value={stagedCount} tone="sky" />
-          <Counter label="در انتظار" value={counters.pending} tone="amber" />
+          <Counter label="نامعتبر" value={counters.invalid} tone="red" />
         </div>
       </header>
 
@@ -69,8 +78,8 @@ export default async function SanjeshMatchedPage({
       <div className="mb-3">
         <form action={stageMatchedAction}>
           <input type="hidden" name="fileId" value={fileId} />
-          <button className="btn-primary !py-1.5 text-xs" disabled={counters.matched === 0}>
-            انتقال {counters.matched.toLocaleString('fa-IR')} ردیف تطبیق‌یافته به پذیرش
+          <button className="btn-primary !py-1.5 text-xs" disabled={readyCount === 0}>
+            انتقال {readyCount.toLocaleString('fa-IR')} ردیف به پذیرش
           </button>
         </form>
       </div>
@@ -82,19 +91,19 @@ export default async function SanjeshMatchedPage({
               <th className="sticky right-0 z-20 w-12 bg-slate-100 p-2 font-medium shadow-[-2px_0_0_0_#cbd5e1]">ردیف</th>
               <th className="p-2 font-medium">نام</th>
               <th className="p-2 font-medium">کد ملی</th>
-              <th className="p-2 font-medium">شناسهٔ دانشجو</th>
+              <th className="p-2 font-medium">دانشجوی موجود</th>
               <th className="p-2 font-medium">زمان تطبیق</th>
             </tr>
           </thead>
           <tbody>
-            {matchedRows.length === 0 ? (
+            {readyRows.length === 0 ? (
               <tr>
                 <td colSpan={5} className="p-6 text-center text-slate-400">
-                  هنوز ردیفی تطبیق نیافته است. ابتدا در «لیست سنجش» دکمهٔ تطبیق را بزنید.
+                  ردیف معتبری برای انتقال نیست (همه نامعتبر، تکراری یا نادیده‌گرفته شده‌اند).
                 </td>
               </tr>
             ) : (
-              matchedRows.map((r) => (
+              readyRows.map((r) => (
                 <tr key={r.id} className="border-t border-slate-100 odd:bg-white even:bg-slate-50/60">
                   <td className="sticky right-0 z-10 bg-inherit p-2 text-center tabular-nums text-slate-500 shadow-[-2px_0_0_0_#e2e8f0]">
                     {r.rowNo}
@@ -103,7 +112,15 @@ export default async function SanjeshMatchedPage({
                   <td className="p-2 tabular-nums text-slate-600" dir="ltr">
                     {r.nationalCode ?? '—'}
                   </td>
-                  <td className="p-2 tabular-nums text-slate-600">{r.studentId ?? '—'}</td>
+                  <td className="p-2 text-[11px]">
+                    {r.matchStatus === 'MATCHED' ? (
+                      <span className="rounded bg-sky-100 px-1.5 py-0.5 font-medium text-sky-800">
+                        بله · شناسه {r.studentId}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">داوطلب جدید</span>
+                    )}
+                  </td>
                   <td className="p-2 text-[10px] text-slate-400">
                     {r.matchedAt ? new Date(r.matchedAt).toLocaleString('fa-IR') : '—'}
                   </td>
@@ -113,7 +130,7 @@ export default async function SanjeshMatchedPage({
           </tbody>
         </table>
       </div>
-      {matchedRows.length === 300 && (
+      {readyRows.length === 300 && (
         <p className="mt-2 text-[10px] text-slate-400">فقط ۳۰۰ ردیف اول نمایش داده شده است.</p>
       )}
     </div>
