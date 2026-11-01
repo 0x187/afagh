@@ -469,7 +469,7 @@ export async function parseAndStageSanjeshData(rawText: string, entryYear = 1405
  * برمی‌گردد — کاربر بدون پروندهٔ دانشجویی (یا شمارهٔ سوزانده‌شده) باقی نمی‌ماند.
  * شکست یک رکورد، بقیهٔ رکوردهای دسته را از کار نمی‌اندازد و در خروجی گزارش می‌شود.
  */
-export async function importStagedToStudents(
+export async function assignStudentNumbers(
   stagingIds: number[],
   opts: { entryMethod: EntryMethod },
 ) {
@@ -597,14 +597,14 @@ export async function importStagedToStudents(
           .returning();
         const studentId = newStudent.id;
 
-        // ۵. به‌روزرسانی وضعیت در Staging
+        // ۵. به‌روزرسانی وضعیت در Staging (فقط شماره صادر شده، ثبت قطعی نشده)
         await tx
           .update(admissions_staging)
           .set({
-            status: 'IMPORTED',
+            status: 'NUMBER_ASSIGNED',
             studentId,
             userId: user.id,
-            onboardingStatus: 'COMPLETED',
+            onboardingStatus: 'NUMBER_ASSIGNED',
           })
           .where(eq(admissions_staging.id, row.id));
 
@@ -625,6 +625,38 @@ export async function importStagedToStudents(
         ? err.message
         : (err?.message ?? (typeof err === 'string' ? err : 'خطای ناشناخته'));
       log.error('staging_import_failed', { stagingId: row.id, err });
+      failures.push({ stagingId: row.id, error: String(maskSecrets(rawMessage)) });
+    }
+  }
+
+  return { imported: importedResults, failures };
+}
+
+/**
+ * مرحلهٔ دوم: ثبت قطعی ردیف‌هایی که شماره دانشجویی آنان صادر شده است.
+ * فقط وضعیت staging را از NUMBER_ASSIGNED به IMPORTED می‌برد.
+ */
+export async function finalRegisterStudents(stagingIds: number[]) {
+  const stagedRows = await db
+    .select()
+    .from(admissions_staging)
+    .where(inArray(admissions_staging.id, stagingIds));
+
+  const importedResults: any[] = [];
+  const failures: { stagingId: number; error: string }[] = [];
+
+  for (const row of stagedRows) {
+    if (!row.studentId || row.status !== 'NUMBER_ASSIGNED') continue;
+    try {
+      await db
+        .update(admissions_staging)
+        .set({ status: 'IMPORTED', onboardingStatus: 'COMPLETED' })
+        .where(eq(admissions_staging.id, row.id));
+      importedResults.push({ stagingId: row.id, studentCode: null, fullName: row.fullName, nationalCode: row.nationalCode });
+    } catch (err: any) {
+      const rawMessage = err instanceof Error
+        ? err.message
+        : (err?.message ?? 'خطای ناشناخته');
       failures.push({ stagingId: row.id, error: String(maskSecrets(rawMessage)) });
     }
   }

@@ -5,6 +5,8 @@ import { requireRole } from '@/lib/auth';
 import {
   ensureDefaultSanjeshMappings,
   importStagedToStudents,
+  assignStudentNumbers,
+  finalRegisterStudents,
   findExistingRecordsForStaging,
   checkFormulaUniqueness,
   parseAndStageSanjeshData,
@@ -68,6 +70,43 @@ export async function setStagingDecisionAction(
     return { ok: true };
   } catch (err: any) {
     return { ok: false, error: err?.message || 'ثبت تصمیم انجام نشد.' };
+  }
+}
+
+export async function assignStudentNumbersAction(stagingIds: number[], entryMethod: string) {
+  await requireRole(['ADMIN', 'EDU_EXPERT']);
+
+  try {
+    if (!isEntryMethod(entryMethod)) return { ok: false, error: 'روش ورود را انتخاب کنید.' };
+    const result = await assignStudentNumbers(stagingIds, { entryMethod });
+    revalidatePath('/admin/admissions');
+    revalidatePath('/admin/students');
+    return {
+      ok: true,
+      count: result.imported.length,
+      items: result.imported,
+      failures: result.failures,
+    };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'خطا در صدور شماره دانشجویی.' };
+  }
+}
+
+export async function finalRegisterStudentsAction(stagingIds: number[]) {
+  await requireRole(['ADMIN', 'EDU_EXPERT']);
+
+  try {
+    const result = await finalRegisterStudents(stagingIds);
+    revalidatePath('/admin/admissions');
+    revalidatePath('/admin/students');
+    return {
+      ok: true,
+      count: result.imported.length,
+      items: result.imported,
+      failures: result.failures,
+    };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'خطا در ثبت قطعی.' };
   }
 }
 
