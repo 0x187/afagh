@@ -345,7 +345,7 @@ export async function matchFileRows(fileId: number): Promise<{
  */
 export async function stageMatchedRows(fileId: number): Promise<{ staged: number; skipped: number }> {
   const [file] = await db
-    .select({ universityId: sanjesh_files.universityId })
+    .select({ universityId: sanjesh_files.universityId, examKind: sanjesh_files.examKind })
     .from(sanjesh_files)
     .where(eq(sanjesh_files.id, fileId))
     .limit(1);
@@ -374,27 +374,49 @@ export async function stageMatchedRows(fileId: number): Promise<{ staged: number
     .where(universityScope(sanjesh_mappings.universityId, file.universityId ?? null));
   const majorByCode = new Map(mappings.map((m) => [String(m.sanjeshCode).trim(), m.internalMajorId]));
 
+  // ردیف‌هایی که قبلاً برای همین فایل stage شده‌اند **به‌روزرسانی** می‌شوند، نه
+  // نادیده. این کار انتقال را قابل تکرار (idempotent) می‌کند: اگر قالب داده یا
+  // قاعدهٔ نگاشت اصلاح شود، یک بار دیگر زدن دکمه همان ردیف‌ها را تازه می‌کند
+  // و ردیف تکراری نمی‌سازد. ردیف‌های «ثبت قطعی شده» دست نمی‌خورند.
   const existing = await db
-    .select({ rowNo: admissions_staging.rowNo })
+    .select({ id: admissions_staging.id, rowNo: admissions_staging.rowNo, status: admissions_staging.status })
     .from(admissions_staging)
     .where(eq(admissions_staging.fileId, fileId));
-  const alreadyStaged = new Set(existing.map((e) => e.rowNo));
+  const stagedByRowNo = new Map(existing.map((e) => [e.rowNo ?? -1, e]));
 
   const values = [];
+  let updated = 0;
   for (const r of rows) {
-    if (alreadyStaged.has(r.rowNo)) continue;
+    const prev = stagedByRowNo.get(r.rowNo);
+    if (prev?.status === 'IMPORTED') continue;
     const data = r.dataJson as { fields?: Record<string, string> } | null;
     const f = data?.fields ?? {};
     // کد «رشته محل قبولی» معتبرترین کلید است؛ در کاردانی ستون «کد رشتهٔ
     // تحصیلی» همیشه صفر است، پس fallback به fieldCode فقط برای قالب‌های قدیمی.
     const sanjeshCode = String(f.fieldPlaceCode ?? '').trim() || String(f.fieldCode ?? '').trim();
     const mappedMajorId = majorByCode.get(sanjeshCode) ?? null;
-    values.push({
+    // قرارداد `admissions_staging.rawSanjeshData` یک **JSON** با همین کلیدهاست
+    // (همان چیزی که مسیر دستی `parseAndStageSanjeshData` می‌نویسد و صفحهٔ
+    // `/admin/admissions` ستون‌های کد رشته/نوع آزمون/مقطع را از آن می‌خواند).
+    // پیش‌تر خط خامِ فایل در این ستون می‌نشست ⇒ JSON.parse می‌شکست و آن
+    // ستون‌ها خالی می‌ماندند. خط خام همچنان در `sanjesh_file_rows.rawLine` است.
+    const rawSanjeshData = JSON.stringify({
+      firstName: f.firstName ?? '',
+      lastName: f.lastName ?? '',
+      sanjeshCode,
+      quota: f.quotaAdmitTitle || f.quotaFinalTitle || 'سهمیه عادی',
+      rank: f.priority ? Number(f.priority) : undefined,
+      mobile: f.mobile || undefined,
+      examType: file.examKind ?? '',
+      degreeLevel: f.degreeLevelTitle ?? '',
+      majorGroup: f.fieldTitle ?? '',
+      universityCode: f.universityCode ?? '',
+    });
+    const payload = {
       nationalCode: r.nationalCode ?? '',
       nationalCodeEnc: r.nationalCodeEnc,
       nationalCodeBlindIndex: r.nationalCodeBlindIndex,
-      // دادهٔ کامل ردیف به‌عنوان مرجع در staging هم نگه داشته می‌شود
-      rawSanjeshData: r.rawLine,
+      rawSanjeshData,
       profileJson: JSON.stringify({ fields: f, columns: (r.dataJson as { columns?: unknown })?.columns ?? {} }),
       fullName: r.fullName,
       mobile: f.mobile ?? null,
@@ -406,13 +428,27 @@ export async function stageMatchedRows(fileId: number): Promise<{ staged: number
       matchedAt: new Date(),
       // دامنهٔ دانشگاه الزامی — staging چنددانشگاهی است
       universityId: file.universityId ?? null,
-    });
+    };
+
+    if (prev) {
+      // نگاشت دستیِ قبلی حفظ می‌شود؛ فقط اگر نگاشت تازه‌ای پیدا شد وضعیت ارتقا می‌یابد
+      await db
+        .update(admissions_staging)
+        .set({
+          ...payload,
+          mappedMajorId: mappedMajorId ?? undefined,
+          status: mappedMajorId ? 'RESOLVED' : prev.status,
+        })
+        .where(eq(admissions_staging.id, prev.id));
+      updated++;
+    } else {
+      values.push(payload);
+    }
   }
 
-  if (values.length === 0) return { staged: 0, skipped: rows.length };
-  await db.insert(admissions_staging).values(values);
+  if (values.length > 0) await db.insert(admissions_staging).values(values);
   await db.update(sanjesh_files).set({ status: 'STAGED', updatedAt: new Date() }).where(eq(sanjesh_files.id, fileId));
-  return { staged: values.length, skipped: rows.length - values.length };
+  return { staged: values.length + updated, skipped: rows.length - values.length - updated };
 }
 
 /** خلاصهٔ شمارنده‌های یک فایل برای کارتابل */

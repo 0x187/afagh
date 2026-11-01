@@ -1,4 +1,5 @@
 import { and, asc, eq, inArray, sql } from 'drizzle-orm';
+import Link from 'next/link';
 
 import { db } from '@/db';
 import { admissions_staging, sanjesh_file_rows, sanjesh_files } from '@/db/schema';
@@ -75,13 +76,19 @@ export default async function SanjeshMatchedPage({
 
       <Flash msg={sp.msg} err={sp.err} />
 
-      <div className="mb-3">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
         <form action={stageMatchedAction}>
           <input type="hidden" name="fileId" value={fileId} />
           <button className="btn-primary !py-1.5 text-xs" disabled={readyCount === 0}>
             انتقال {readyCount.toLocaleString('fa-IR')} ردیف به پذیرش
           </button>
         </form>
+        <Link
+          href="/admin/admissions"
+          className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-[11px] font-bold text-indigo-800 hover:bg-indigo-100"
+        >
+          ادامه: صف پذیرش و نگاشت رشته ←
+        </Link>
       </div>
 
       <div className="max-h-[60vh] overflow-auto rounded-xl border border-slate-200">

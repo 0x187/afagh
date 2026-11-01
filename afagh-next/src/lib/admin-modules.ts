@@ -82,14 +82,17 @@ export const ADMIN_MODULES: AdminModule[] = [
     roles: EDU,
     accent: 'from-sky-950 to-indigo-950 border-sky-700/50',
     iconBg: 'bg-sky-700/80 border-sky-500/50',
-    inNav: true,
-    inGrid: true,
+    // ⚠ عمداً از شبکه و منو پنهان است: این صفحه ادامهٔ جریان «تبدیل اطلاعات
+    // سازمان سنجش» است (صف پذیرش و ثبت قطعی) و از داخل همان ماژول لینک
+    // می‌شود. دو کارت جدا در «آموزش» کاربر را سردرگم می‌کرد. مسیر پابرجاست.
+    inNav: false,
+    inGrid: false,
   },
   {
     href: '/admin/sanjesh',
     icon: '🗂️',
     title: 'تبدیل اطلاعات سازمان سنجش',
-    desc: 'فایل‌ها، تطبیق فیلدها، براورد، لیست سنجش و تخصیص',
+    desc: 'فایل‌ها، تطبیق فیلدها، براورد، تطبیق و صف پذیرش',
     group: 'edu',
     roles: EDU,
     accent: 'from-teal-950 to-cyan-950 border-teal-700/50',

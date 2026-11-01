@@ -52,12 +52,21 @@ export default async function SanjeshFilesPage({
 
   return (
     <div className="mx-auto max-w-6xl p-4">
-      <header className="mb-4">
-        <h1 className="text-lg font-bold text-slate-800">تبدیل اطلاعات سازمان سنجش</h1>
-        <p className="mt-1 text-xs text-slate-500">
-          فایل سنجش را بارگذاری کنید؛ همهٔ ستون‌ها (حتی نگاشت‌نشده‌ها) در دیتابیس ذخیره می‌شوند. سپس تطبیق فیلدها، براورد،
-          تطبیق با دانشجویان و انتقال به پذیرش.
-        </p>
+      <header className="mb-4 flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <h1 className="text-lg font-bold text-slate-800">تبدیل اطلاعات سازمان سنجش</h1>
+          <p className="mt-1 text-xs text-slate-500">
+            فایل سنجش را بارگذاری کنید؛ همهٔ ستون‌ها (حتی نگاشت‌نشده‌ها) در دیتابیس ذخیره می‌شوند. سپس تطبیق فیلدها، براورد،
+            تطبیق با دانشجویان و انتقال به صف پذیرش.
+          </p>
+        </div>
+        {/* ادامهٔ جریان: صف پذیرش در همین ماژول است، نه کارت جداگانه در «آموزش» */}
+        <Link
+          href="/admin/admissions"
+          className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-[11px] font-bold text-indigo-800 hover:bg-indigo-100"
+        >
+          📥 صف پذیرش و ثبت‌نام نهایی ←
+        </Link>
       </header>
 
       <Flash msg={sp.msg} err={sp.err} />

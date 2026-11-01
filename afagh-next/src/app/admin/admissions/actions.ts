@@ -11,7 +11,7 @@ import {
 import { executeIrandocCheck } from '@/lib/api-integrations';
 import { db } from '@/db';
 import { admissions_staging, majors, sanjesh_mappings, student_id_formulas } from '@/db/schema';
-import { and, eq, isNull, or } from 'drizzle-orm';
+import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import { getCurrentUniversity } from '@/lib/university-scope';
 
 export async function stageSanjeshDataAction(rawText: string, entryYear = 1405) {
@@ -80,11 +80,19 @@ export async function saveSanjeshMappingAction(sanjeshCode: string, internalMajo
       });
     }
 
-    // به‌روزرسانی رکوردهای staging متناظر که در حالت انتظار بودند
+    // به‌روزرسانی رکوردهای staging متناظر که در حالت انتظار بودند.
+    // ⚠ فقط ردیف‌های **همین کد رشته** — پیش‌تر شرط کد نداشت و نگاشت یک کد،
+    // همهٔ ردیف‌های در انتظار (حتی رشته‌های دیگر) را به همان رشته می‌چسباند.
     await db
       .update(admissions_staging)
       .set({ mappedMajorId: internalMajorId, status: 'RESOLVED' })
-      .where(and(eq(admissions_staging.status, 'PENDING_MAPPING'), uniScope(admissions_staging.universityId)));
+      .where(
+        and(
+          eq(admissions_staging.status, 'PENDING_MAPPING'),
+          sql`(CASE WHEN ${admissions_staging.rawSanjeshData} LIKE '{%' THEN ${admissions_staging.rawSanjeshData}::jsonb ->> 'sanjeshCode' END) = ${sanjeshCode}`,
+          uniScope(admissions_staging.universityId),
+        ),
+      );
 
     revalidatePath('/admin/admissions');
     return { ok: true };
