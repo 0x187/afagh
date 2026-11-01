@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { ENTRY_METHODS } from '@/lib/entry-methods';
 import { ClientTh, useClientTable, type ColumnDef } from '@/components/DataTable';
 import {
+  assignStudentNumbersAction,
+  finalRegisterStudentsAction,
   importStagedStudentsAction,
   listExistingForStagingAction,
   setStagingDecisionAction,
@@ -14,7 +16,7 @@ import {
   stageSanjeshDataAction,
   testIrandocCheckAction,
 } from './actions';
-import { revertImportedToResolvedAction, revertResolvedToPendingAction, revertStagedToFieldsReadyAction, deleteSanjeshFileAction } from './revert';
+import { revertImportedToResolvedAction, revertResolvedToPendingAction, revertNumberAssignedToResolvedAction, revertStagedToFieldsReadyAction, deleteSanjeshFileAction } from './revert';
 interface StagingItem {
   id: number;
   fileId: number | null;
@@ -124,6 +126,8 @@ export default function AdmissionsClient({
   const [mappingsList, setMappingsList] = useState<SanjeshMappingItem[]>(initialMappings);
   const [isStaging, setIsStaging] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+  const [isFinalizing, setIsFinalizing] = useState(false);
   const [importEntryMethod, setImportEntryMethod] = useState<string>('');
   const [existingItems, setExistingItems] = useState<any[]>([]);
   const [decisionBusy, setDecisionBusy] = useState<number | null>(null);
@@ -152,6 +156,14 @@ export default function AdmissionsClient({
     if (!confirm(`برگشت ${ids.length} ردیف از IMPORTED به RESOLVED؟ (پرونده دانشجویی و ثبت‌نام‌ها دست‌نخورده می‌مانند)`)) return;
     setReverting(true);
     const res = await revertImportedToResolvedAction(ids);
+    setReverting(false);
+    setFeedback({ text: res.ok ? (res.message || 'انجام شد') : (res.error || 'خطا'), type: res.ok ? 'success' : 'error' });
+    if (res.ok) { await loadExisting(); router.refresh(); }
+  };
+  const handleRevertNumberAssigned = async (ids: number[]) => {
+    if (!confirm(`برگشت ${ids.length} ردیف از NUMBER_ASSIGNED به RESOLVED؟ (شمارهٔ صادرشده حفظ می‌شود)`)) return;
+    setReverting(true);
+    const res = await revertNumberAssignedToResolvedAction(ids);
     setReverting(false);
     setFeedback({ text: res.ok ? (res.message || 'انجام شد') : (res.error || 'خطا'), type: res.ok ? 'success' : 'error' });
     if (res.ok) { await loadExisting(); router.refresh(); }
@@ -295,11 +307,11 @@ export default function AdmissionsClient({
     }
   };
 
-  // ثبت‌نام دسته‌جمعی پذیرفته‌شدگان
-  const handleBatchImport = async () => {
+  // مرحله ۱: صدور شماره دانشجویی
+  const handleAssignNumbers = async () => {
     const resolvedIds = stagingList.filter(s => s.status === 'RESOLVED').map(s => s.id);
     if (resolvedIds.length === 0) {
-      setFeedback({ text: 'هیچ رکورد تطبیق‌یافته‌ای (RESOLVED) جهت ثبت‌نام وجود ندارد.', type: 'error' });
+      setFeedback({ text: 'هیچ رکورد تطبیق‌یافته‌ای (RESOLVED) جهت صدور شماره وجود ندارد.', type: 'error' });
       return;
     }
 
@@ -308,16 +320,39 @@ export default function AdmissionsClient({
       return;
     }
 
-    setIsImporting(true);
-    const res = await importStagedStudentsAction(resolvedIds, importEntryMethod);
-    setIsImporting(false);
-    await loadExisting();
+    setIsAssigning(true);
+    const res = await assignStudentNumbersAction(resolvedIds, importEntryMethod);
+    setIsAssigning(false);
     if (res.ok) {
-      const failNote = res.failures?.length ? ` — ${res.failures.length} رکورد ناموفق بود (به‌طور کامل برگشت داده شد؛ جزئیات در لاگ سرور).` : '';
-      setFeedback({ text: `${res.count} دانشجو با موفقیت ثبت قطعی شدند و شماره دانشجویی یکتا برای آنان صادر گردید.${failNote}`, type: res.failures?.length ? 'warning' : 'success' });
+      const failNote = res.failures?.length ? ` — ${res.failures.length} رکورد ناموفق بود.` : '';
+      setFeedback({ text: `${res.count} شماره دانشجویی صادر شد.${failNote}`, type: res.failures?.length ? 'warning' : 'success' });
       setTimeout(() => setFeedback(null), 5000);
+      await loadExisting();
+      router.refresh();
     } else {
-      setFeedback({ text: res.error || 'خطا در ثبت‌نام', type: 'error' });
+      setFeedback({ text: res.error || 'خطا در صدور شماره', type: 'error' });
+    }
+  };
+
+  // مرحله ۲: ثبت قطعی
+  const handleFinalRegister = async () => {
+    const numberAssignedIds = stagingList.filter(s => s.status === 'NUMBER_ASSIGNED').map(s => s.id);
+    if (numberAssignedIds.length === 0) {
+      setFeedback({ text: 'هیچ رکوردی با شماره صادرشده (NUMBER_ASSIGNED) جهت ثبت قطعی وجود ندارد.', type: 'error' });
+      return;
+    }
+
+    setIsFinalizing(true);
+    const res = await finalRegisterStudentsAction(numberAssignedIds);
+    setIsFinalizing(false);
+    if (res.ok) {
+      const failNote = res.failures?.length ? ` — ${res.failures.length} رکورد ناموفق بود.` : '';
+      setFeedback({ text: `${res.count} دانشجو با موفقیت ثبت قطعی شدند.${failNote}`, type: res.failures?.length ? 'warning' : 'success' });
+      setTimeout(() => setFeedback(null), 5000);
+      await loadExisting();
+      router.refresh();
+    } else {
+      setFeedback({ text: res.error || 'خطا در ثبت قطعی', type: 'error' });
     }
   };
 
@@ -582,6 +617,13 @@ export default function AdmissionsClient({
                 ↩ IMPORTED → RESOLVED
               </button>
               <button
+                onClick={() => handleRevertNumberAssigned(stagingList.filter(s => s.status === 'NUMBER_ASSIGNED').map(s => s.id))}
+                disabled={reverting || stagingList.filter(s => s.status === 'NUMBER_ASSIGNED').length === 0}
+                className="px-3 py-1.5 rounded-xl border border-cyan-300 bg-cyan-50 text-cyan-800 font-bold text-[11px] hover:bg-cyan-100 disabled:opacity-50"
+              >
+                ↩ NUMBER_ASSIGNED → RESOLVED
+              </button>
+              <button
                 onClick={() => handleRevertResolved(stagingList.filter(s => s.status === 'RESOLVED').map(s => s.id))}
                 disabled={reverting || stagingList.filter(s => s.status === 'RESOLVED').length === 0}
                 className="px-3 py-1.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-800 font-bold text-[11px] hover:bg-amber-100 disabled:opacity-50"
@@ -633,11 +675,18 @@ export default function AdmissionsClient({
                   ))}
                 </select>
                 <button
-                  onClick={handleBatchImport}
-                  disabled={isImporting}
+                  onClick={handleAssignNumbers}
+                  disabled={isAssigning}
+                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow transition disabled:opacity-50"
+                >
+                  {isAssigning ? 'در حال صدور شماره...' : '1️⃣ صدور شماره دانشجویی'}
+                </button>
+                <button
+                  onClick={handleFinalRegister}
+                  disabled={isFinalizing}
                   className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow transition disabled:opacity-50"
                 >
-                  {isImporting ? 'در حال صدور شماره دانشجویی...' : '🚀 صدور شماره دانشجویی و ثبت قطعی'}
+                  {isFinalizing ? 'در حال ثبت قطعی...' : '2️⃣ ثبت قطعی'}
                 </button>
               </div>
             </div>
@@ -780,7 +829,7 @@ export default function AdmissionsClient({
                   </tr>
                 )}
                 {stagingTable.visible.map(st => {
-                  const isResolved = st.status === 'RESOLVED' || st.status === 'IMPORTED';
+                  const isResolved = st.status === 'RESOLVED' || st.status === 'IMPORTED' || st.status === 'NUMBER_ASSIGNED';
                   const isPending = st.status === 'PENDING_MAPPING';
 
                   return (
@@ -829,7 +878,7 @@ export default function AdmissionsClient({
                               : 'bg-red-100 text-red-900 border border-red-300 dark:border-red-800 dark:bg-red-950 dark:text-red-200'
                           }`}
                         >
-                          {st.status === 'IMPORTED' ? '✓ ثبت‌نام قطعی شد' : isResolved ? 'آماده ثبت‌نام' : 'نیازمند نگاشت'}
+                          {st.status === 'IMPORTED' ? '✓ ثبت‌نام قطعی شد' : st.status === 'NUMBER_ASSIGNED' ? '🔢 شماره صادر شد' : isResolved ? 'آماده ثبت‌نام' : 'نیازمند نگاشت'}
                         </span>
                       </td>
                     </tr>

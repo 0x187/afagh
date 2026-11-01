@@ -11,6 +11,31 @@ import { getCurrentUniversity } from '@/lib/university-scope';
  * مرحلهٔ ۴ → ۳: برگشت ردیف‌های IMPORTED به RESOLVED.
  * پروندهٔ دانشجویی و ثبت‌نام‌ها دست‌نخورده می‌مانند؛ فقط پیوند staging و تصمیم پاک می‌شود.
  */
+/**
+ * مرحلهٔ ۳ → ۲: برگشت ردیف‌های NUMBER_ASSIGNED به RESOLVED.
+ * شمارهٔ صادرشدهٔ دانشجویی دست‌نخورده می‌ماند؛ فقط staging به RESOLVED برمی‌گردد.
+ */
+export async function revertNumberAssignedToResolvedAction(stagingIds: number[]) {
+  await requireRole(['ADMIN', 'EDU_EXPERT']);
+  try {
+    if (stagingIds.length === 0) return { ok: false, error: 'هیچ ردیفی انتخاب نشده است.' };
+    const rows = await db
+      .select({ id: admissions_staging.id, status: admissions_staging.status })
+      .from(admissions_staging)
+      .where(inArray(admissions_staging.id, stagingIds));
+    const eligible = rows.filter(r => r.status === 'NUMBER_ASSIGNED').map(r => r.id);
+    if (eligible.length === 0) return { ok: false, error: 'هیچ ردیف NUMBER_ASSIGNEDی برای برگشت نیست.' };
+    await db
+      .update(admissions_staging)
+      .set({ status: 'RESOLVED', onboardingStatus: 'IMPORTED', decisionNote: null })
+      .where(inArray(admissions_staging.id, eligible));
+    revalidatePath('/admin/admissions');
+    return { ok: true, count: eligible.length, message: `${eligible.length} ردیف به RESOLVED برگشت.` };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'خطا در برگشت.' };
+  }
+}
+
 export async function revertImportedToResolvedAction(stagingIds: number[]) {
   await requireRole(['ADMIN', 'EDU_EXPERT']);
   try {
