@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { faNumber } from '@/lib/fa';
 import { getAdminOfferings, saveEnrollmentWindow, saveOfferingTargeting, saveOfferingType, type AdminOfferingsData } from '@/lib/admin-api';
 
-// ═══ ارائه‌ها و پنجرهٔ انتخاب واحد (ادمین) — پورت admin/offerings ═══
+// ═══ Offerings and enrollment window (admin) — port of admin/offerings ═══
 
 const TYPE_FA: Record<string, string> = { NORMAL: 'عادی', SUMMER: 'تابستان', DIRECTED_READING: 'معرفی به استاد' };
 

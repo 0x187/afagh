@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { faDigits, faNumber } from '@/lib/fa';
 import { getStudentTranscript, type TranscriptRow, type TranscriptTerm } from '@/lib/student-api';
 
-// ═══ کارنامهٔ تحصیلی — پورت student/transcript/page.tsx ═══
+// ═══ Academic transcript — port of student/transcript/page.tsx ═══
 
 function resultLabel(row: TranscriptRow): { text: string; className: string } {
   if (row.emergencyWithdrawal) return { text: 'حذف اضطراری', className: 'text-rose-600 dark:text-rose-400' };
@@ -113,7 +113,7 @@ export function StudentTranscriptPage() {
 
   function doPrint() {
     setPrinting(true);
-    // بعد از یک تیک، کلاس چاپ روی سند اعمال می‌شود و پنجره باز می‌شود.
+    // After one tick, the print class is applied to the document and the window opens.
     window.setTimeout(() => {
       window.print();
       setPrinting(false);
@@ -181,7 +181,7 @@ export function StudentTranscriptPage() {
       </div>
 
       <div className="print-area rounded-xl border-2 border-slate-800 bg-white p-5 text-xs text-slate-900 shadow-xl sm:p-8 dark:border-slate-600">
-        {/* سربرگ */}
+        {/* Header */}
         <div className="mb-4 border-b-2 border-slate-800 pb-4">
           <div className="grid grid-cols-1 items-center gap-3 text-center sm:grid-cols-3">
             <div className="space-y-0.5 text-right">
@@ -211,7 +211,7 @@ export function StudentTranscriptPage() {
           </div>
         </div>
 
-        {/* مشخصات */}
+        {/* Identity */}
         <div className="mb-5 overflow-hidden border border-slate-800">
           <div className="border-b border-slate-800 bg-slate-100 px-3 py-1 text-[11px] font-bold">
             مشخصات فردی، تحصیلی و آیین‌نامهٔ ملاک عمل
@@ -247,7 +247,7 @@ export function StudentTranscriptPage() {
           </table>
         </div>
 
-        {/* ریزنمرات */}
+        {/* Term transcripts */}
         {data.academicYears.length === 0 ? (
           <div className="p-8 text-center text-slate-400">هنوز درسی در پروندهٔ کارنامه ثبت نشده است.</div>
         ) : null}
@@ -269,7 +269,7 @@ export function StudentTranscriptPage() {
           </div>
         ))}
 
-        {/* خلاصه */}
+        {/* Summary */}
         <div className="mt-6 overflow-hidden border-2 border-slate-800">
           <div className="bg-slate-800 px-3 py-1 text-center text-xs font-bold text-white">
             خلاصهٔ وضعیت تحصیلی کل دوره تا تاریخ صدور کارنامه
@@ -305,7 +305,7 @@ export function StudentTranscriptPage() {
           ) : null}
         </div>
 
-        {/* QR اصالت */}
+        {/* Authenticity QR */}
         {data.qr ? (
           <div className="mt-4 flex flex-wrap items-center gap-4 rounded-xl border border-slate-300 bg-slate-50 p-3">
             <div
@@ -328,7 +328,7 @@ export function StudentTranscriptPage() {
           </div>
         ) : null}
 
-        {/* متن حقوقی و امضا */}
+        {/* Legal text and signature */}
         <div className="mt-6 space-y-4 border-t border-slate-400 pt-3 text-[10px] text-slate-600">
           <p className="leading-relaxed">
             <b>تذکر مهم:</b> این کارنامه صرفاً جهت اطلاع از وضعیت تحصیلی دانشجو صادر گردیده و هرگونه خط‌خوردگی

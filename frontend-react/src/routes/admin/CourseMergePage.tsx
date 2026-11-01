@@ -11,7 +11,7 @@ import { faNumber, toEnDigits } from '@/lib/fa';
 import { getConfirmationTerms, type AdminTerm } from '@/lib/enrollment-api';
 import { getCourseMergeGroups, updateCourseMerge, type MergeGroup } from '@/lib/merge-api';
 
-// ═══ ادغام دروس — پورت admin/course-merge ═══
+// ═══ Course merge — port of admin/course-merge ═══
 
 const SOURCE_LABEL: Record<MergeGroup['source'], string> = {
   manual: 'ادغام دستی', auto: 'خودکار', split: 'جدا شده دستی', solo: 'تکی',

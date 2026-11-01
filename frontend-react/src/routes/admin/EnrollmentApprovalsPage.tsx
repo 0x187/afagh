@@ -20,7 +20,7 @@ import {
   type EnrollApprovalRow,
 } from '@/lib/enrollment-api';
 
-// ═══ تأیید انتخاب واحد (دروس زبان) — پورت admin/enrollment-approvals ═══
+// ═══ Enrollment approval (language courses) — port of admin/enrollment-approvals ═══
 
 function statusTone(s: string) {
   if (s === 'APPROVED') return 'border-transparent bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200';

@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { faDigits, faNumber, faRial } from '@/lib/fa';
 import { getFinance, type FinanceTerm } from '@/lib/student-api';
 
-// ═══ امور مالی دانشجو — پورت student/finance ═══
+// ═══ Student finance — port of student/finance ═══
 
 const EVENT_KIND: Record<string, string> = {
   CHARGE: 'بدهی',

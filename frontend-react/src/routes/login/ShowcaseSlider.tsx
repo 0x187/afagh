@@ -2,8 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 
 import type { ShowcaseSlide } from '@/lib/auth-api';
 
-// ═══ اسلایدر صفحهٔ ورود — پورت وفادار ShowcaseSlider.tsx ═══
-// چرخش خودکار ۵ ثانیه‌ای + نقطه و فلش؛ گرادیان‌های جایگزین عین اصلی.
+// ═══ Login page slider — faithful port of ShowcaseSlider.tsx ═══
+// 5s auto-rotation + dot and arrow; alternate gradients identical to the original.
 const GRADIENTS = [
   'from-emerald-700 via-teal-800 to-slate-900',
   'from-indigo-800 via-indigo-900 to-slate-900',
@@ -11,7 +11,7 @@ const GRADIENTS = [
   'from-cyan-700 via-sky-900 to-slate-900',
 ];
 
-/** پیوند فقط http/https — پورت isSafeLinkUrl (نسخهٔ کامل در فاز ۹) */
+/** http/https-only links — port of isSafeLinkUrl (full version in Phase 9) */
 function isSafeLink(url: string): boolean {
   if (!url) return false;
   try {
@@ -33,7 +33,7 @@ export function ShowcaseSlider({ slides }: { slides: ShowcaseSlide[] }) {
     return () => clearInterval(t);
   }, [n]);
 
-  // اگر فهرست کوتاه شد، ایندکس امن شود
+  // If the list shrinks, keep the index in a safe range
   useEffect(() => {
     if (idx >= n && n > 0) setIdx(0);
   }, [idx, n]);

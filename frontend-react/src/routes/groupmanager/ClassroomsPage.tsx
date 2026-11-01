@@ -11,7 +11,7 @@ import { faNumber } from '@/lib/fa';
 import { deleteClassroom, getClassrooms, saveClassroom, type GmClassroom } from '@/lib/groupmanager-api';
 import { GmLayout } from './GmLayout';
 
-// ═══ کلاس‌ها — پورت group-manager/classrooms ═══
+// ═══ Classrooms — port of group-manager/classrooms ═══
 
 function ClassroomRow({ room, faculties }: { room: GmClassroom; faculties: { id: number; name: string }[] }) {
   const qc = useQueryClient();

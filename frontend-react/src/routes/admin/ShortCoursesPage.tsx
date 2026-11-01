@@ -24,7 +24,7 @@ import {
   type ShortTermLearner,
 } from '@/lib/short-courses-api';
 
-// ═══ مدیریت دوره‌های آزاد — پورت admin/short-courses ═══
+// ═══ Open course management — port of admin/short-courses ═══
 
 const COURSE_STATUS: Record<string, string> = { OPEN: 'پذیرش باز', IN_PROGRESS: 'در حال برگزاری', COMPLETED: 'پایان‌یافته' };
 const PAYMENT_STATUS: Record<string, string> = { PENDING: 'در انتظار', PAID: 'پرداخت‌شده', REFUNDED: 'برگشت‌خورده' };

@@ -20,7 +20,7 @@ import {
   type GradeStudent,
 } from '@/lib/professor-api';
 
-// ═══ دفترچهٔ نمرات استاد — پورت professor/grades ═══
+// ═══ Professor gradebook — port of professor/grades ═══
 
 const STATUS_FA: Record<string, string> = {
   PENDING: 'بدون نمره',

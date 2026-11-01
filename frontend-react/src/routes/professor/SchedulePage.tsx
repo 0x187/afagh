@@ -10,7 +10,7 @@ import { collapseCalendarEntries, filterByWeek, type CalendarWeekFilter } from '
 import { faDigits, faNumber } from '@/lib/fa';
 import { getProfessorSchedule } from '@/lib/professor-api';
 
-// ═══ برنامهٔ هفتگی استاد — پورت professor/schedule ═══
+// ═══ Professor weekly schedule — port of professor/schedule ═══
 
 const FILTERS: { key: CalendarWeekFilter; label: string }[] = [
   { key: 'ALL', label: 'همه' },

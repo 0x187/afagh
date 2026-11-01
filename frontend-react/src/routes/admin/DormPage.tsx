@@ -18,7 +18,7 @@ import {
   type DormStudentHit,
 } from '@/lib/dorm-api';
 
-// ═══ کارت سکونت خوابگاه — پورت admin/dorm ═══
+// ═══ Dormitory residence card — port of admin/dorm ═══
 
 const DORM_STATUSES = ['active', 'ended', 'revoked'] as const;
 const STATUS_LABEL: Record<string, string> = { active: 'فعال', ended: 'پایان‌یافته', revoked: 'لغوشده' };

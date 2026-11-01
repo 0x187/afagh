@@ -15,7 +15,7 @@ import {
   type DecreeDetail, type DecreeSigner, type StaffHit,
 } from '@/lib/payroll-api';
 
-// ═══ ابلاغ‌های آموزشی — پورت payroll/decrees ═══
+// ═══ Educational decrees — port of payroll/decrees ═══
 
 const STATUS_FA: Record<string, string> = { DRAFT: 'پیش‌نویس', ISSUED: 'صادرشده' };
 const SECTION_FA: Record<string, string> = {

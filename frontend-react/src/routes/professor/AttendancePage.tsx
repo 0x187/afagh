@@ -19,7 +19,7 @@ import {
   type AttendanceStatus,
 } from '@/lib/professor-api';
 
-// ═══ حضور و غیاب استاد — پورت professor/attendance ═══
+// ═══ Professor attendance — port of professor/attendance ═══
 
 const STATUS_LABEL: Record<AttendanceStatus, string> = {
   PRESENT: 'حاضر',

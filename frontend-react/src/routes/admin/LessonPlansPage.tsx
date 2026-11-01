@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { faNumber } from '@/lib/fa';
 import { getLessonPlans, saveLessonPlanSettings, type LessonPlanRow } from '@/lib/regulation-api';
 
-// ═══ پایش طرح درس ارائه‌ها — پورت admin/lesson-plans ═══
+// ═══ Offering lesson-plan monitoring — port of admin/lesson-plans ═══
 
 function statusBadge(status: string) {
   const s = String(status).toUpperCase();

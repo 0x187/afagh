@@ -44,21 +44,21 @@ import type {
 } from '@/lib/public-extra-api';
 import { useSession } from '@/lib/session';
 
-// ═══ صفحات عمومی/خارج از شل — پورت صفحات باقی‌ماندهٔ Next ═══
-//   verify/[code] (استعلام قدیمی) · verify/search · verify/document/[hash]
+// ═══ Public pages / outside the shell — port of the remaining Next pages ═══
+//   verify/[code] (legacy inquiry) · verify/search · verify/document/[hash]
 //   verify-degree/search · help · manual · alumni · proctor · p/[code]
-// همه بدون AppShell رندر می‌شوند (مثل بقیهٔ صفحات verify در App.tsx).
+// All are rendered without AppShell (like the other verify pages in App.tsx).
 
-// ─────────────────── ابزارهای مشترک ───────────────────
+// ─────────────────── Shared utilities ───────────────────
 
-/** لینک امن برای href — پورت isSafeLinkUrl (مسیر نسبی یا https:// فقط). */
+/** لینک امن برای href — پورت isSafeLinkUrl (مسیر نسبی یا https:// only). */
 function isSafeLinkUrl(s: string): boolean {
   if (typeof s !== 'string') return false;
   if (/[\u0000-\u001f\u007f\\]/.test(s)) return false;
   return /^\/(?!\/)/.test(s) || /^https:\/\/[^\s/?#]/i.test(s);
 }
 
-/** ISO میلادی → تاریخ شمسی (Intl با تقویم فارسی). */
+/** ISO Gregorian → Jalali date (Intl with the Persian calendar). */
 function fmtJalali(iso: string | null | undefined): string {
   if (!iso) return '—';
   try {
@@ -91,7 +91,7 @@ function PublicShell({ children, maxW = 'max-w-2xl' }: { children: ReactNode; ma
   );
 }
 
-/** سربرگ رسمی دانشگاه — مشترک بین صفحه‌های استعلام. */
+/** Official university header — shared between the inquiry pages. */
 function UniversityHeader({ subtitle }: { subtitle: string }) {
   return (
     <div className="text-center">
@@ -104,7 +104,7 @@ function UniversityHeader({ subtitle }: { subtitle: string }) {
   );
 }
 
-// ═══════════════════ ۱) استعلام قدیمی با کد رهگیری — پورت verify/[code] ═══════════════════
+// ═══════════════════ 1) Legacy inquiry by tracking code — port of verify/[code] ═══════════════════
 
 type CertificateVerdict = {
   verdict: string; // VALID | REVOKED | TAMPERED | NOT_FOUND
@@ -271,7 +271,7 @@ export function VerifyCodePage() {
   );
 }
 
-// ═══════════════════ ۲) فرم /verify → /verify/search — پورت verify/page + verify/search ═══════════════════
+// ═══════════════════ 2) /verify → /verify/search form — port of verify/page + verify/search ═══════════════════
 
 export function VerifySearchPage() {
   const [sp] = useSearchParams();
@@ -324,7 +324,7 @@ export function VerifySearchPage() {
   );
 }
 
-// ═══════════════════ ۳) استعلام سند ممهور — پورت verify/document/[hash] ═══════════════════
+// ═══════════════════ 3) Sealed document inquiry — port of verify/document/[hash] ═══════════════════
 
 export function VerifyDocumentPage() {
   const { hash: rawHash } = useParams();
@@ -394,7 +394,7 @@ export function VerifyDocumentPage() {
   );
 }
 
-// ═══════════════════ ۴) /verify-degree/search — پورت verify-degree/search ═══════════════════
+// ═══════════════════ 4) /verify-degree/search — port of verify-degree/search ═══════════════════
 
 export function VerifyDegreeSearchPage() {
   const [sp] = useSearchParams();
@@ -406,7 +406,7 @@ export function VerifyDegreeSearchPage() {
   return null;
 }
 
-// ═══════════════════ ۵) مرکز راهنما — پورت help/page + محتوای کامل راهنما ═══════════════════
+// ═══════════════════ 5) Help center — port of help/page + full help content ═══════════════════
 
 type HelpTopicMeta = { slug: string; title: string; summary: string; keywords: string[]; path: string };
 type HelpSectionMeta = { key: string; title: string; icon: string; blurb: string; topics: HelpTopicMeta[] };
@@ -421,7 +421,7 @@ type HelpGuideMeta = {
   sections: HelpSectionMeta[];
 };
 
-/** محتوای راهنما — پورت کامل متادیتای help/content (عنوان‌ها، خلاصه‌ها، کارهای پرتکرار و کلیدواژه‌ها). */
+/** Help content — full port of the help/content metadata (titles, summaries, common tasks, and keywords). */
 const HELP_GUIDES: HelpGuideMeta[] = [
   {
     role: 'student',
@@ -684,7 +684,7 @@ function helpDefaultGuide(sessionRoles: string[]): string {
   return 'shared';
 }
 
-/** نرمال‌سازی متن جست‌وجو — «ی/ک» عربی، نیم‌فاصله و ارقام فارسی. */
+/** Search text normalization — Arabic yeh/kaf, ZWNJ, and Persian digits. */
 function helpNormalize(s: string): string {
   return s
     .toLowerCase()
@@ -916,7 +916,7 @@ export function HelpPage() {
   );
 }
 
-// ═══════════════════ ۶) مسیر قدیمی manual → help ═══════════════════
+// ═══════════════════ 6) Legacy manual → help route ═══════════════════
 
 export function ManualPage() {
   const navigate = useNavigate();
@@ -926,7 +926,7 @@ export function ManualPage() {
   return null;
 }
 
-// ═══════════════════ ۷) پورتال دانش‌آموختگان — پورت alumni ═══════════════════
+// ═══════════════════ 7) Alumni portal — port of alumni ═══════════════════
 
 const ALUMNI_STATUS_LABEL: Record<string, string> = {
   AWAITING_PAYMENT: 'در انتظار پرداخت', PAID: 'پرداخت‌شده', IN_REVIEW: 'در حال بررسی',
@@ -1071,7 +1071,7 @@ export function AlumniPage() {
           </div>
         )}
 
-        {/* مدارک */}
+        {/* Documents */}
         <div className="rounded-xl border bg-card p-4">
           <h2 className="mb-2 text-sm font-black text-slate-800">مدارک تحصیلی من</h2>
           {!degrees.length && <p className="text-xs font-bold text-slate-500">هنوز مدرکی صادر نشده است.</p>}
@@ -1094,7 +1094,7 @@ export function AlumniPage() {
           </div>
         </div>
 
-        {/* خدمات */}
+        {/* Service desk */}
         <div className="rounded-xl border bg-card p-4">
           <h2 className="mb-2 text-sm font-black text-slate-800">خدمات آنلاین دانش‌آموختگان</h2>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -1155,7 +1155,7 @@ export function AlumniPage() {
           )}
         </div>
 
-        {/* درخواست‌های من */}
+        {/* My requests */}
         <div className="overflow-x-auto rounded-xl border bg-card p-4">
           <h2 className="mb-2 text-sm font-black text-slate-800">پیگیری درخواست‌های من</h2>
           <table className="w-full text-[11px]">
@@ -1216,7 +1216,7 @@ export function AlumniPage() {
           </table>
         </div>
 
-        {/* پروندهٔ دانش‌آموخته */}
+        {/* Alumni dossier */}
         {profile && (
           <div className="space-y-2 rounded-xl border bg-card p-4">
             <h2 className="text-sm font-black text-slate-800">اطلاعات شغلی و ارتباطی من</h2>
@@ -1272,7 +1272,7 @@ export function AlumniPage() {
   );
 }
 
-// ═══════════════════ ۸) پنل مراقب امتحان — پورت proctor ═══════════════════
+// ═══════════════════ 8) Proctor panel — port of proctor ═══════════════════
 
 export function ProctorPage() {
   const { data: session, isLoading: sessionLoading } = useSession();
@@ -1602,7 +1602,7 @@ export function ProctorPage() {
   );
 }
 
-// ═══════════════════ ۹) ثبت حضور استاد با QR سردر — پورت p/[code] ═══════════════════
+// ═══════════════════ 9) Professor attendance via door QR — port of p/[code] ═══════════════════
 
 const ROOM_MSG: Record<string, string> = {
   ok: 'حضور شما با موفقیت ثبت شد.',
@@ -1888,7 +1888,7 @@ export function PublicProfilePage() {
         </>,
       )}
 
-      {/* کارتابل کنترل‌کننده */}
+      {/* Controller cartable */}
       {ctrlCan ? (
         roomCard(
           <details open>
@@ -1952,7 +1952,7 @@ export function PublicProfilePage() {
         )
       ) : null}
 
-      {/* برنامهٔ هفتگی اتاق */}
+      {/* Room weekly schedule */}
       {roomCard(
         <details open>
           <summary className="flex cursor-pointer list-none items-center justify-between gap-2">

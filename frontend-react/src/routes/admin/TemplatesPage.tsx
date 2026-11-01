@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { listTemplates, saveTemplate, sendTemplateTest, type SavedTemplateRow } from '@/lib/templates-api';
 
-// ═══ قالب‌های اعلان و تست کانال‌ها — پورت admin/templates ═══
+// ═══ Notification templates and channel testing — port of admin/templates ═══
 
 const CHANNELS = ['SMS', 'BALE', 'EITAA', 'TELEGRAM', 'SOROUSH', 'IGAP'];
 const CHANNEL_FA: Record<string, string> = {

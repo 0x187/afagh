@@ -10,7 +10,7 @@ import { collapseCalendarEntries } from '@/lib/calendar-layout';
 import { faDigits, faNumber } from '@/lib/fa';
 import { getWeeklyBoard } from '@/lib/admin-api';
 
-// ═══ تختهٔ هفتگی — پورت admin/weekly-board (نمای خواندنی + چاپ) ═══
+// ═══ Weekly board — port of admin/weekly-board (read-only view + print) ═══
 
 const DAYS = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
 

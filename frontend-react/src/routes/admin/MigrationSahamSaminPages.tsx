@@ -16,7 +16,7 @@ import {
   type MigReport, type SahamExportResult,
 } from '@/lib/migration-api';
 
-// ═══ مهاجرت داده / سهام / ثمین — پورت admin/{migration,saham,samin} ═══
+// ═══ Data migration / Saham / Samin — port of admin/{migration,saham,samin} ═══
 
 function Msg({ msg }: { msg: { kind: 'ok' | 'err'; text: string } | null }) {
   if (!msg) return null;
@@ -32,7 +32,7 @@ function downloadCsv(name: string, csv: string) {
   URL.revokeObjectURL(a.href);
 }
 
-// ─── مهاجرت داده ───
+// ─── Data migration ───
 
 const MIG_KINDS = [
   { value: 'students', label: 'دانشجویان' },
@@ -191,7 +191,7 @@ export function AdminMigrationPage() {
   );
 }
 
-// ─── سهام ───
+// ─── Saham ───
 
 export function AdminSahamPage() {
   const data = useQuery({ queryKey: ['saham'], queryFn: getSahamData });
@@ -373,7 +373,7 @@ function SahamSettings({ settings, onMsg }: {
   );
 }
 
-// ─── ثمین ───
+// ─── Samin ───
 
 export function AdminSaminPage() {
   const [uni, setUni] = useState('');

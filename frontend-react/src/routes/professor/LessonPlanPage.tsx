@@ -17,7 +17,7 @@ import {
   type ProfPlanData,
 } from '@/lib/professor-api';
 
-// ═══ ویرایشگر طرح درس استاد — پورت professor/lesson-plan ═══
+// ═══ Professor lesson-plan editor — port of professor/lesson-plan ═══
 
 const KIND_LABEL: Record<string, string> = { THEORY: 'نظری', PRACTICAL: 'عملی', COMBINED: 'ترکیبی' };
 const MODE_LABEL: Record<string, string> = { THEORY: 'نظری', PRACTICAL: 'عملی', COMBINED: 'ترکیبی' };

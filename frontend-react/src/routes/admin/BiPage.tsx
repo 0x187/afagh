@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getBiDashboard, invalidateBi, refreshAllBi, refreshBiDashboards, type TrendPoint } from '@/lib/bi-api';
 import { faDigits, faNumber } from '@/lib/fa';
 
-// ═══ داشبورد هوش تجاری ارزشیابی — پورت admin/bi ═══
+// ═══ Evaluation BI dashboard — port of admin/bi ═══
 
 const scoreText = (v: number | null | undefined) => (v == null ? '—' : faDigits(String(v)));
 const ageText = (s: number | null) => (s == null ? '—' : s < 60 ? `${faNumber(s)} ثانیه` : `${faNumber(Math.round(s / 60))} دقیقه`);

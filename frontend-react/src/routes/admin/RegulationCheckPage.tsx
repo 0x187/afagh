@@ -16,7 +16,7 @@ import {
   type StatusMismatchRow,
 } from '@/lib/regulation-api';
 
-// ═══ بررسی کدهای وضعیت نمرهٔ سما + مغایرت فارغ‌التحصیلی — پورت regulation-check ═══
+// ═══ Sama grade status code check + graduation discrepancy — port of regulation-check ═══
 
 export function AdminRegulationCheckPage() {
   const [rows, setRows] = useState<SamaMismatchRow[]>([]);

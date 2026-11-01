@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getGmMe } from '@/lib/groupmanager-api';
 
-// ═══ شل پنل مدیر گروه ═══
+// ═══ Group manager panel shell ═══
 
 const NAV = [
   { to: '/group-manager/courses', label: 'دروس گروه', icon: BookOpen },

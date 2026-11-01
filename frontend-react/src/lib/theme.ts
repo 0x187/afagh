@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 
-// ═══ تم روشن/تیره — پورت وفادار ThemeToggle سامانهٔ فعلی ═══
-// کلید localStorage «theme» و رفتار prefers-color-scheme دقیقاً یکسان است تا
-// کاربر بین UI قدیم و جدید تم یکسانی ببیند. (فلش اولیه هم در index.html
-// با همان قرارداد قبل از رندر اعمال می‌شود.)
+// ═══ Light/dark theme — faithful port of ThemeToggle from the current system ═══
+// The localStorage "theme" key and the prefers-color-scheme behavior are exactly the same so that
+// users see the same theme in both the old and new UI. (The initial flash in index.html
+// is also applied before render with the same convention.)
 
 export function useTheme() {
-  const [dark, setDark] = useState<boolean | null>(null); // null = هنوز mount نشده
+  const [dark, setDark] = useState<boolean | null>(null); // null = not mounted yet
 
   useEffect(() => {
     const saved = localStorage.getItem('theme');

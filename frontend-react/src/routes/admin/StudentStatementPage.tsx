@@ -12,7 +12,7 @@ import { toEnDigits } from '@/lib/fa';
 import { doPrintTranscript } from '@/lib/print';
 import { getStatementStudents, getStudentStatement, type PickerStudent, type StatementRow } from '@/lib/reports-api';
 
-// ═══ صورت‌حساب / کارنامهٔ مالی دانشجو — پورت finance/reports/student-statement ═══
+// ═══ Student statement / financial transcript — port of finance/reports/student-statement ═══
 
 const fa = (n: number | null | undefined) => Number(n || 0).toLocaleString('fa-IR');
 
@@ -61,7 +61,7 @@ function generateText(data: StatementRow[], studentName: string, studentCode: st
   return `صورت حساب مالی - ${studentName} (${studentCode})\nتاریخ: ${new Date().toLocaleString('fa-IR')}\n\n${headerLine}\n${sepLine}\n${body}\n${sepLine}\n${totals}`;
 }
 
-/** نمودار میله‌ای سبک بدون وابستگی — روند مانده ترم‌به‌ترم. */
+/** Lightweight dependency-free bar chart — term-by-term balance trend. */
 function BalanceChart({ data }: { data: StatementRow[] }) {
   const W = 860;
   const H = 260;

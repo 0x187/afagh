@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { faDigits, faNumber } from '@/lib/fa';
 import { getEnrollConfirm } from '@/lib/student-api';
 
-// ═══ تأییدیهٔ انتخاب واحد (چاپی با QR) — پورت student/enroll-confirm ═══
+// ═══ Enrollment confirmation (printable with QR) — port of student/enroll-confirm ═══
 
 const STATUS_FA: Record<string, string> = {
   REGISTERED: 'ثبت قطعی',

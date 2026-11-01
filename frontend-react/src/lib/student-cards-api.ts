@@ -1,4 +1,4 @@
-// ═══ کلاینت کارت دانشجویی ═══
+// ═══ Student card client ═══
 import { apiGet, apiPost } from './api';
 
 export type StudentCardInfo = {

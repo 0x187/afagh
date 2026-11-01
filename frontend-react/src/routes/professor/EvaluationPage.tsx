@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { faNumber } from '@/lib/fa';
 import { getEvaluation } from '@/lib/professor-api';
 
-// ═══ کارنامهٔ ارزشیابی استاد — پورت professor/evaluation ═══
+// ═══ Professor evaluation report — port of professor/evaluation ═══
 
 function Radar({ axes }: { axes: { label: string; mine: number | null; dept: number | null }[] }) {
   if (axes.length < 3) {

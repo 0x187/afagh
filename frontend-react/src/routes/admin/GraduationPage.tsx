@@ -35,7 +35,7 @@ import {
   type GradStep,
 } from '@/lib/graduation-api';
 
-// ═══ میز کار فارغ‌التحصیلی و صدور مدارک — پورت admin/graduation ═══
+// ═══ Graduation and document issuance desk — port of admin/graduation ═══
 
 const STATUS_STYLE: Record<string, string> = {
   CATALOG_REVIEW: 'border-slate-300 bg-slate-100 text-slate-700',
@@ -537,7 +537,7 @@ function DossierDrawer({ d, steps, busy, onClose, onDossier, onMsg }: {
           </CardContent>
         </Card>
 
-        {/* ۱) تطبیق سرفصل */}
+        {/* 1) Syllabus matching */}
         <Card>
           <CardContent className="space-y-2 pt-4">
             <h3 className="text-xs font-black">۱) تطبیق سرفصل (خودکار)</h3>
@@ -555,7 +555,7 @@ function DossierDrawer({ d, steps, busy, onClose, onDossier, onMsg }: {
           </CardContent>
         </Card>
 
-        {/* ۲) مدیر گروه */}
+        {/* 2) Group manager */}
         <Card>
           <CardContent className="space-y-2 pt-4">
             <h3 className="text-xs font-black">۲) تأیید مدیر گروه</h3>
@@ -575,7 +575,7 @@ function DossierDrawer({ d, steps, busy, onClose, onDossier, onMsg }: {
           </CardContent>
         </Card>
 
-        {/* ۳) ایرانداک */}
+        {/* 3) Irandoc */}
         <Card>
           <CardContent className="space-y-2 pt-4">
             <h3 className="text-xs font-black">۳) همانندجویی ایرانداک {a.thesisRequired ? '(الزامی برای این مقطع)' : '(این مقطع پایان‌نامه ندارد)'}</h3>
@@ -600,7 +600,7 @@ function DossierDrawer({ d, steps, busy, onClose, onDossier, onMsg }: {
           </CardContent>
         </Card>
 
-        {/* ۴) تسویه موازی */}
+        {/* 4) Parallel settlement */}
         <Card>
           <CardContent className="space-y-2 pt-4">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -639,7 +639,7 @@ function DossierDrawer({ d, steps, busy, onClose, onDossier, onMsg }: {
           </CardContent>
         </Card>
 
-        {/* ۵) سجاد */}
+        {/* 5) Sajjad */}
         <Card>
           <CardContent className="space-y-2 pt-4">
             <h3 className="text-xs font-black">۵) درخواست کد صحت در سجاد (اقدام دانشجو)</h3>
@@ -653,7 +653,7 @@ function DossierDrawer({ d, steps, busy, onClose, onDossier, onMsg }: {
           </CardContent>
         </Card>
 
-        {/* ۶) مدارک پایانی و صدور */}
+        {/* 6) Final documents and issuance */}
         <Card>
           <CardContent className="space-y-2 pt-4">
             <h3 className="text-xs font-black">۶) مدارک پایانی و صدور</h3>
@@ -706,7 +706,7 @@ function DossierDrawer({ d, steps, busy, onClose, onDossier, onMsg }: {
           </CardContent>
         </Card>
 
-        {/* ۷) پیام‌ها */}
+        {/* 7) Messages */}
         <Card>
           <CardContent className="space-y-2 pt-4">
             <h3 className="text-xs font-black">۷) پیام‌های ارسال‌شده به دانشجو</h3>

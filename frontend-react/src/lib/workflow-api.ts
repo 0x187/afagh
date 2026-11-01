@@ -1,4 +1,4 @@
-// ═══ کلاینت گردش کار (فاز ۸) ═══
+// ═══ Workflow client (Phase 8) ═══
 import { apiGet, apiPost } from './api';
 
 export type WfStep = {

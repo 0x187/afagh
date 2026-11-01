@@ -12,11 +12,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ApiError, chooseAccount, getLoginShowcase, login, type LoginCandidate } from '@/lib/auth-api';
 import { toEnDigits } from '@/lib/fa';
 
-// ═══ صفحهٔ ورود SPA — پورت وفادار LoginCard + page.tsx سامانهٔ فعلی ═══
+// ═══ SPA login page — faithful port of LoginCard + page.tsx from the current system ═══
 //
-// هویت بصری اصلی (گرادیان تیره + ویترین + فرم) حفظ شده؛ فرم با دیزاین‌سیستم
-// جدید ساخته شده. پیام‌ها، حالت‌ها (انتخاب حساب، تغییر اجباری رمز، خطاهای
-// شبکه) و قواعد ورودی عیناً پورت شده‌اند.
+// The original visual identity (dark gradient + showcase + form) is preserved; the form is built with the
+// new design system. Messages, states (account selection, forced password change, network
+// errors) and input rules are ported verbatim.
 
 const NOTICE_STYLE: Record<string, string> = {
   important: 'border-red-300 bg-red-50 text-red-900 dark:border-red-800 dark:bg-red-950 dark:text-red-200',
@@ -42,7 +42,7 @@ export function LoginPage() {
   const [busy, setBusy] = useState(false);
   const [choice, setChoice] = useState<{ token: string; candidates: LoginCandidate[] } | null>(null);
 
-  // پیام‌های بازگشتی (مثلاً کاربر بدون نقش) — عین LoginCard
+  // Returned messages (e.g. user with no role) — identical to LoginCard
   useEffect(() => {
     const e = new URLSearchParams(window.location.search).get('e');
     if (e === 'norole') setErr('ورود موفق بود، اما برای این حساب هیچ نقشی تعریف نشده است. با مدیر سامانه تماس بگیرید.');
@@ -54,7 +54,7 @@ export function LoginPage() {
       navigate('/change-password', { replace: true });
       return;
     }
-    // فاز ۱: مقصد SPA خانه است؛ کارتابل هر نقش با دکمهٔ Home به مسیر واقعی می‌رود.
+    // Phase 1: the SPA destination is home; each role's inbox goes to its real route via the Home button.
     navigate('/', { replace: true });
   }
 
@@ -75,7 +75,7 @@ export function LoginPage() {
         return;
       }
       if (!res.ok) {
-        // در این نقطه needChoice منتفی است — اتحاد به حالت error باریک می‌شود
+        // At this point needChoice is moot — the union narrows to the error state
         setErr(('error' in res && res.error) || 'خطا');
         setBusy(false);
         return;
@@ -123,7 +123,7 @@ export function LoginPage() {
       className="flex min-h-dvh items-start justify-center bg-gradient-to-bl from-emerald-950 via-slate-900 to-teal-950 p-4 sm:items-center sm:p-8"
     >
       <div className="grid w-full max-w-6xl items-start gap-6 lg:grid-cols-5">
-        {/* ── پنل معرفی / اسلایدر ── */}
+        {/* ── Intro panel / slider ── */}
         <div className="order-2 space-y-4 lg:order-1 lg:col-span-3">
           <div className="flex items-center gap-4">
             {uni?.logoUrl ? (
@@ -189,7 +189,7 @@ export function LoginPage() {
           )}
         </div>
 
-        {/* ── ستون ورود ── */}
+        {/* ── Login column ── */}
         <div className="order-1 space-y-4 lg:sticky lg:top-6 lg:order-2 lg:col-span-2">
           {important.map((n) => (
             <div key={n.id} className={`rounded-2xl border p-3.5 text-xs font-bold leading-6 shadow-sm ${NOTICE_STYLE[n.kind] ?? NOTICE_STYLE.info}`}>

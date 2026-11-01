@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { faDigits, faNumber } from '@/lib/fa';
 import { getLessonPlan } from '@/lib/student-api';
 
-// ═══ طرح درس (سرفصل) دانشجو — پورت student/lesson-plan/[offeringId] ═══
+// ═══ Student lesson plan (syllabus) — port of student/lesson-plan/[offeringId] ═══
 export function StudentLessonPlanPage() {
   const { offeringId } = useParams<{ offeringId: string }>();
   const id = Number(offeringId ?? 0);

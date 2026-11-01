@@ -12,7 +12,7 @@ import {
   type ReportFilters, type ReportResult,
 } from '@/lib/reports-api';
 
-// ═══ مرکز گزارش‌های آموزشی — پورت admin/reports ═══
+// ═══ Education reports center — port of admin/reports ═══
 
 type ReportCat = 'students' | 'program' | 'finance' | 'research';
 type CardDef = {
@@ -27,7 +27,7 @@ const CATEGORIES: { key: ReportCat; label: string }[] = [
   { key: 'research', label: '🎓 پژوهش و فارغ‌التحصیلی' },
 ];
 
-// فقط گزارش‌هایی که منطقشان به Go منتقل شده است؛ بقیه در برش‌های بعد اضافه می‌شوند.
+// Only reports whose logic has been ported to Go; the rest are added in later slices.
 const CARDS: CardDef[] = [
   { kind: 'active-term', cat: 'students', icon: '🧑‍🎓', title: 'گزارش دانشجویان فعال ترم', needsTerm: true },
   { kind: 'status-summary', cat: 'students', icon: '📊', title: 'گزارش خلاصه وضعیت تحصیلی' },

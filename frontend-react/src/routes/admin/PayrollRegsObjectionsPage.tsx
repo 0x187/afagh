@@ -14,7 +14,7 @@ import {
   getOpenObjections, getRegulations, reviewObjection, type OpenObjection,
 } from '@/lib/payroll-api';
 
-// ═══ آیین‌نامه‌ها + اعتراض‌های فیش — پورت payroll/regulations و objections ═══
+// ═══ Regulations + payslip objections — port of payroll/regulations and objections ═══
 
 const OBJ_STATUS_FA: Record<string, string> = { OPEN: 'باز', RESOLVED: 'رسیدگی شد', REJECTED: 'وارد نیست' };
 const OBJ_CLS: Record<string, string> = {

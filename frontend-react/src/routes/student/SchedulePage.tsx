@@ -11,8 +11,8 @@ import { collapseCalendarEntries, filterByWeek, type CalendarWeekFilter } from '
 import { faDigits } from '@/lib/fa';
 import { getStudentSchedule, type StudentScheduleCourse } from '@/lib/student-api';
 
-// ═══ برنامهٔ هفتگی دانشجو — پورت student/schedule (سرور + ScheduleClient) ═══
-// داده از /api/v2/student/schedule؛ چیدمان با هستهٔ calendar-layout.
+// ═══ Student weekly schedule — port of student/schedule (server + ScheduleClient) ═══
+// Data from /api/v2/student/schedule; layout via the calendar-layout core.
 
 const FILTER_LABELS: Record<CalendarWeekFilter, string> = {
   ALL: 'همه',
@@ -80,7 +80,7 @@ export function StudentSchedulePage() {
 
   return (
     <div className="space-y-4">
-      {/* سربرگ اطلاعات */}
+      {/* Info header */}
       <Card>
         <CardContent className="flex flex-wrap items-center gap-x-6 gap-y-3 py-4">
           <div className="flex items-center gap-3">
@@ -116,7 +116,7 @@ export function StudentSchedulePage() {
         </CardContent>
       </Card>
 
-      {/* گرید هفتگی */}
+      {/* Weekly grid */}
       {(data.courses.length === 0 || entries.length === 0) ? (
         <Card>
           <CardContent className="py-8 text-center text-sm text-muted-foreground">
@@ -129,7 +129,7 @@ export function StudentSchedulePage() {
         <WeekGrid entries={entries} />
       )}
 
-      {/* فهرست دروس */}
+      {/* Course list */}
       {data.courses.length > 0 && (
         <Card>
           <CardHeader>
@@ -167,7 +167,7 @@ export function StudentSchedulePage() {
         </Card>
       )}
 
-      {/* امتحان‌ها */}
+      {/* Exams */}
       {data.courses.some((c) => c.exam) && (
         <Card>
           <CardHeader>

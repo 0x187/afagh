@@ -16,7 +16,7 @@ import {
   toggleEvaluationPeriod,
 } from '@/lib/admin-api';
 
-// ═══ دوره‌های ارزشیابی — پورت admin/evaluations ═══
+// ═══ Evaluation periods — port of admin/evaluations ═══
 
 function nowLocal(offsetDays = 0): string {
   const d = new Date(Date.now() + offsetDays * 86400000);

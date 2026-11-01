@@ -41,7 +41,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { faDigits, faNumber } from '@/lib/fa';
 import { getAdminDashboard } from '@/lib/admin-api';
 
-// ═══ داشبورد ادمین — پورت admin/page.tsx (خلاصه) ═══
+// ═══ Admin dashboard — port of admin/page.tsx (summary) ═══
 
 const STATUS_FA: Record<string, string> = {
   SUBMITTED: 'ثبت‌شده', IN_REVIEW: 'در بررسی', APPROVED: 'تأییدشده', REJECTED: 'ردشده', RETURNED: 'بازگشتی',

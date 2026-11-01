@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { faNumber } from '@/lib/fa';
 import { getAvailability, saveAvailability, type AvailabilityCell } from '@/lib/professor-api';
 
-// ═══ ساعات حضور استاد — پورت professor/availability ═══
+// ═══ Professor availability hours — port of professor/availability ═══
 
 const DAYS = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
 const SLOT_LABELS: Record<number, string> = {

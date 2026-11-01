@@ -20,7 +20,7 @@ import {
   type DefenseBoardRow,
 } from '@/lib/defense-api';
 
-// ═══ میز برنامه‌ریزی و ثبت نتیجهٔ دفاع — پورت admin/defense-scheduling ═══
+// ═══ Defense scheduling and result recording desk — port of admin/defense-scheduling ═══
 
 const PROPOSAL_LABEL: Record<string, string> = {
   NOT_STARTED: 'شروع نشده', SUBMITTED: 'ارسال‌شده', SIMILARITY_CHECK: 'بررسی همانندی',

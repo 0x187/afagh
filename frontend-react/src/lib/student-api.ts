@@ -432,7 +432,7 @@ export async function uploadRequestAttachment(file: File): Promise<{ key: string
   return (payload as { attachment: { key: string; name: string; size: number; mimeType: string } }).attachment;
 }
 
-// ───────────────────────── امور مالی ─────────────────────────
+// ───────────────────────── Financial affairs ─────────────────────────
 
 export type FinanceEvent = { kind: string; label: string; amount: number; dateMs: number | null; sign: number };
 
@@ -496,7 +496,7 @@ export async function getFinance(params?: { record?: number | null }): Promise<F
   return res.data;
 }
 
-// ───────────────────────── چارت تحصیلی ─────────────────────────
+// ───────────────────────── Academic chart ─────────────────────────
 
 export type ChartRow = {
   id: number;
@@ -530,7 +530,7 @@ export async function getChart(): Promise<ChartData> {
   return res.data;
 }
 
-// ───────────────────────── فارغ‌التحصیلی و پایان‌نامه ─────────────────────────
+// ───────────────────────── Graduation and thesis ─────────────────────────
 
 export type TrackerData = {
   open: boolean;

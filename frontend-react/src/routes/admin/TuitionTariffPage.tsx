@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { faNumber } from '@/lib/fa';
 import { copyTariffYear, getTariff, maliLabel, saveTariffGroup, type TariffGroup } from '@/lib/tuition-api';
 
-// ═══ تعرفهٔ سالانهٔ شهریهٔ متغیر — پورت admin/tuition/tariff ═══
+// ═══ Annual variable-tuition tariff — port of admin/tuition/tariff ═══
 
 export function AdminTuitionTariffPage() {
   const qc = useQueryClient();

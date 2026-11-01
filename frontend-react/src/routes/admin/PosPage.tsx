@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { faDigits, faNumber } from '@/lib/fa';
 import { getPosTerminals, getPosTransactions, recordPosSale, voidPosTransaction } from '@/lib/admin-api';
 
-// ═══ مدیریت ترمینال‌های POS — پورت admin/finance/pos ═══
+// ═══ POS terminal management — port of admin/finance/pos ═══
 
 const ENTRY_FA: Record<string, string> = {
   CHIP: 'چیپ', CONTACTLESS: 'بی‌تماس', MAGSTRIPE: 'نوار مغناطیسی', FALLBACK: 'فالبک', MANUAL: 'دستی',

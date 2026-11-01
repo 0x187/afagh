@@ -11,7 +11,7 @@ import { faNumber } from '@/lib/fa';
 import { deleteCourse, getCourses, saveCourse, type GmCourse } from '@/lib/groupmanager-api';
 import { GmLayout } from './GmLayout';
 
-// ═══ دروس گروه — پورت group-manager/courses ═══
+// ═══ Group courses — port of group-manager/courses ═══
 
 const TYPES = ['عمومی', 'پایه', 'اصلی', 'تخصصی', 'اختیاری'];
 

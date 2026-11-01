@@ -13,7 +13,7 @@ import {
   archiveFileUrl, getArchiveDocuments, uploadArchiveDocument, verifyArchiveDoc,
 } from '@/lib/admin-api';
 
-// ═══ بایگانی الکترونیک مدارک — پورت admin/archive ═══
+// ═══ Electronic document archive — port of admin/archive ═══
 
 const ST_FA: Record<string, string> = { PENDING: 'در انتظار', VERIFIED: 'تأییدشده', REJECTED: 'ردشده' };
 const ST_CLS: Record<string, string> = {

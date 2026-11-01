@@ -15,7 +15,7 @@ import {
   signDocument,
 } from '@/lib/professor-api';
 
-// ═══ اسناد الکترونیک استاد — پورت professor/documents ═══
+// ═══ Professor electronic documents — port of professor/documents ═══
 
 function faDate(v: string | null): string {
   if (!v) return '—';

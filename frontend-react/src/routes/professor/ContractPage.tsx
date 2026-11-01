@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { faDigits, faNumber, faRial } from '@/lib/fa';
 import { getProfessorContract, sendContractOTP, signContract } from '@/lib/professor-api';
 
-// ═══ قرارداد تدریس استاد — پورت professor/contract ═══
+// ═══ Professor teaching contract — port of professor/contract ═══
 
 export function ProfessorContractPage() {
   const qc = useQueryClient();

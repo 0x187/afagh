@@ -6,9 +6,9 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { changePassword } from '@/lib/auth-api';
 
-// ═══ تغییر رمز — پورت وفادار change-password/page.tsx ═══
-// حلقهٔ «الزام تغییر رمز در اولین ورود» (mustChangePassword)؛ پیام‌های
-// اعتبارسنجی همان رشته‌های auth.ts هستند و از سرور برمی‌گردند.
+// ═══ Change password — faithful port of change-password/page.tsx ═══
+// The "must change password on first login" loop (mustChangePassword); the validation
+// messages are the same strings as auth.ts and come back from the server.
 export function ChangePassword() {
   const navigate = useNavigate();
   const [current, setCurrent] = useState('');

@@ -17,7 +17,7 @@ import {
   getExams,
 } from '@/lib/admin-api';
 
-// ═══ کارتابل امتحانات — پورت admin/exams (زیرمجموعهٔ کاربردی) ═══
+// ═══ Exams inbox — port of admin/exams (functional subset) ═══
 
 export function AdminExamsPage() {
   const qc = useQueryClient();

@@ -11,7 +11,7 @@ import { faDigits } from '@/lib/fa';
 import { decideBypass, getBypass } from '@/lib/groupmanager-api';
 import { GmLayout } from './GmLayout';
 
-// ═══ درخواست‌های بدون پیش‌نیاز/تداخل — پورت group-manager/bypass ═══
+// ═══ Prerequisite/conflict bypass requests — port of group-manager/bypass ═══
 
 const REASONS = [
   { code: 'LOW_GPA_PREV_TERM', label: 'معدل ترم قبل پایین است' },

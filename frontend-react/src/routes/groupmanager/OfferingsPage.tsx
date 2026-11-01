@@ -19,7 +19,7 @@ import {
 } from '@/lib/groupmanager-api';
 import { GmLayout } from './GmLayout';
 
-// ═══ ارائه‌ها و برنامهٔ هفتگی — پورت group-manager/offerings ═══
+// ═══ Offerings and weekly schedule — port of group-manager/offerings ═══
 
 const DAYS = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
 

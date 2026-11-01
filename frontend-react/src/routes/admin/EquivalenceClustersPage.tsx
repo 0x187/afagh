@@ -17,7 +17,7 @@ import {
   type EquivCluster,
 } from '@/lib/merge-api';
 
-// ═══ خوشه‌های دروس هم‌ارز — پورت admin/equivalence-clusters ═══
+// ═══ Equivalent course clusters — port of admin/equivalence-clusters ═══
 
 export function AdminEquivalenceClustersPage() {
   const qc = useQueryClient();

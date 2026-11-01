@@ -15,7 +15,7 @@ import {
   type BankCourse, type GradeStatusCodeItem, type OfferedCourse, type Threshold,
 } from '@/lib/grade-codes-api';
 
-// ═══ مدیریت دروس و کدهای وضعیت نمره — پورت admin/grade-status-codes ═══
+// ═══ Course and grade status code management — port of admin/grade-status-codes ═══
 
 const COURSE_TYPES = ['عمومی', 'پایه', 'اصلی', 'تخصصی', 'اختیاری'];
 const COURSE_NATURES = ['نظری', 'عملی', 'نظری-عملی', 'کارگاهی', 'کارآموزی', 'پروژه', 'پایان‌نامه', 'رساله', 'معرفی به استاد', 'خودخوان'];
@@ -105,7 +105,7 @@ export function AdminGradeCodesPage() {
   );
 }
 
-// ─── تب بانک دروس ───
+// ─── Course bank tab ───
 
 function BankTab({ codes, departments, degreeLevels, clusters, onToast }: {
   codes: GradeStatusCodeItem[];
@@ -186,7 +186,7 @@ function BankTab({ codes, departments, degreeLevels, clusters, onToast }: {
   );
 }
 
-// ─── تب کدهای چارت ───
+// ─── Chart codes tab ───
 
 function ChartCodesTab({ codes, majors, onToast }: {
   codes: GradeStatusCodeItem[];
@@ -276,7 +276,7 @@ function ChartCodesTab({ codes, majors, onToast }: {
   );
 }
 
-// ─── تب نمره کیفی ───
+// ─── Qualitative grade tab ───
 
 function QualitativeTab({ degreeLevels, onToast }: {
   degreeLevels: { id: number; name: string }[];
@@ -351,7 +351,7 @@ function QualitativeTab({ degreeLevels, onToast }: {
   );
 }
 
-// ─── تب دروس ارائه‌شده ───
+// ─── Offered courses tab ───
 
 function OfferedTab({ majors, degreeLevels }: {
   majors: { id: number; code: string; name: string }[];
@@ -422,7 +422,7 @@ function OfferedTab({ majors, degreeLevels }: {
   );
 }
 
-// ─── مودال تعریف/ویرایش درس ───
+// ─── Course define/edit modal ───
 
 type FormState = {
   code: string; title: string; theoreticalUnits: string; practicalUnits: string;

@@ -13,7 +13,7 @@ import {
   type ApprovalStudentHit,
 } from '@/lib/enrollment-api';
 
-// ═══ صدور تأییدیهٔ انتخاب واحد (کارشناس) — پورت admin/enrollment-confirmation ═══
+// ═══ Issuing the enrollment confirmation (education expert) — port of admin/enrollment-confirmation ═══
 
 function jdate(iso: string): string {
   const d = new Date(iso);

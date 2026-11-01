@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { faNumber } from '@/lib/fa';
 import { getAdminDepartments } from '@/lib/admin-api';
 
-// ═══ دانشکده‌ها و گروه‌ها — پورت admin/departments (خواندن) ═══
+// ═══ Faculties and groups — port of admin/departments (read) ═══
 export function AdminDepartmentsPage() {
   const { data, isLoading, isError } = useQuery({ queryKey: ['admin-departments'], queryFn: getAdminDepartments, staleTime: 60_000 });
   if (isLoading) return <Skeleton className="h-64 w-full" />;

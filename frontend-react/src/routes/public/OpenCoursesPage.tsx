@@ -11,7 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { apiGet, apiPost } from '@/lib/api';
 import { faDigits, faRial } from '@/lib/fa';
 
-// ═══ کاتالوگ عمومی دوره‌های آزاد — پورت open-courses ═══
+// ═══ Public open-course catalog — port of open-courses ═══
 
 type OpenCourse = {
   id: number; code: string; title: string; titleEn: string; category: string; description: string;

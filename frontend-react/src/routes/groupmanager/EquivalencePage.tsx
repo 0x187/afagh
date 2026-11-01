@@ -11,7 +11,7 @@ import { faDigits, faNumber } from '@/lib/fa';
 import { getEquivalence, submitEquivalence, type GmEquivItem, type GmEquivRequest } from '@/lib/groupmanager-api';
 import { GmLayout } from './GmLayout';
 
-// ═══ معادل‌سازی — پورت group-manager/equivalence ═══
+// ═══ Equivalency — port of group-manager/equivalence ═══
 
 function RequestCard({ req, ourCourses }: { req: GmEquivRequest; ourCourses: { code: string; title: string; units: number }[] }) {
   const qc = useQueryClient();

@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { faDigits, faNumber } from '@/lib/fa';
 import { getChart, type ChartRow } from '@/lib/student-api';
 
-// ═══ چارت تحصیلی دانشجو — پورت student/chart ═══
+// ═══ Student curriculum chart — port of student/chart ═══
 
 const ROLE_FA: Record<string, string> = {
   CORE: 'اصلی',

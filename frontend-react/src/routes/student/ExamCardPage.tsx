@@ -9,14 +9,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { faDigits, faRial } from '@/lib/fa';
 import { getStudentExamCard } from '@/lib/student-api';
 
-// ═══ کارت آزمون و ورود به جلسه — پورت student/exam-card ═══
+// ═══ Exam card and session entry — port of student/exam-card ═══
 
 function faDate(value: string): string {
   if (!value || value === '—') return '—';
   return faDigits(value.replace(/-/g, '/'));
 }
 
-/** تاریخ امروز به شمسی (Intl تقویم fa-IR در مرورگرهای مدرن). */
+/** Today's date in Jalali (Intl fa-IR calendar in modern browsers). */
 function todayFa(): string {
   try {
     return new Intl.DateTimeFormat('fa-IR', { year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
@@ -103,7 +103,7 @@ export function StudentExamCardPage() {
         </div>
       ) : null}
 
-      {/* برگهٔ کارت */}
+      {/* Card sheet */}
       <div className="print-area overflow-hidden rounded-xl border-2 border-slate-800 bg-white text-slate-900 shadow-xl">
         <div className="border-b-2 border-slate-800 bg-gradient-to-l from-slate-900 to-indigo-900 px-5 py-4 text-white">
           <div className="flex flex-wrap items-center justify-between gap-3">

@@ -18,7 +18,7 @@ import {
   setCourseFinanceType,
 } from '@/lib/admin-api';
 
-// ═══ کارتابل مالی — پورت admin/finance ═══
+// ═══ Finance inbox — port of admin/finance ═══
 
 export function AdminFinancePage() {
   const [search, setSearch] = useState('');
@@ -174,7 +174,7 @@ export function AdminStudentFinancePage({ studentId }: { studentId: number }) {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {/* جمع کل */}
+          {/* Grand total */}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {([
               ['شهریه', t.charges, 'text-rose-700 dark:text-rose-300'],
@@ -193,7 +193,7 @@ export function AdminStudentFinancePage({ studentId }: { studentId: number }) {
             ))}
           </div>
 
-          {/* کارنامهٔ ترم‌به‌ترم — همان موتور کارنامهٔ مالی دانشجو */}
+          {/* Term-by-term statement — same engine as the student financial statement */}
           <div className="overflow-x-auto rounded-xl border border-border">
             <table className="w-full border-collapse text-right text-xs">
               <thead>
@@ -219,7 +219,7 @@ export function AdminStudentFinancePage({ studentId }: { studentId: number }) {
             </table>
           </div>
 
-          {/* فرم تعدیل دستی دفتر */}
+          {/* Manual ledger adjustment form */}
           <div className="flex flex-wrap items-end gap-2 rounded-xl border border-amber-200 bg-amber-50/50 p-3 text-[11px] dark:border-amber-800 dark:bg-amber-950/30">
             <div className="w-44"><Label>نوع تراکنش</Label>
               <select value={adjust.type} onChange={(e) => setAdjust({ ...adjust, type: e.target.value })} className="mt-1 h-8 w-full rounded-lg border border-input bg-transparent px-2">
@@ -237,7 +237,7 @@ export function AdminStudentFinancePage({ studentId }: { studentId: number }) {
           </div>
           {msg ? <p className="text-[11px] text-muted-foreground">{msg}</p> : null}
 
-          {/* ریز دفتر */}
+          {/* Ledger details */}
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-right text-xs">
               <thead><tr className="border-b border-border text-muted-foreground"><th className="p-2">نوع</th><th className="p-2 text-left">مبلغ</th><th className="p-2">توضیح</th><th className="p-2">تاریخ</th></tr></thead>

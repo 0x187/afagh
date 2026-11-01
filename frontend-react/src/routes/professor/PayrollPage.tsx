@@ -12,7 +12,7 @@ import {
   createProfessorObjection, getProfessorObjections, getProfessorPayslip,
 } from '@/lib/payroll-api';
 
-// ═══ فیش حقالتدریس استاد + اعتراض — پورت پورتال استاد ═══
+// ═══ Professor teaching-pay slip + objection — port of the professor portal ═══
 
 export function ProfessorPayrollPage() {
   const qc = useQueryClient();

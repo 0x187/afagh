@@ -15,7 +15,7 @@ import {
   setSessionStatus,
 } from '@/lib/admin-api';
 
-// ═══ تأیید دستی حضور استاد — پورت admin/attendance-manual ═══
+// ═══ Manual professor attendance approval — port of admin/attendance-manual ═══
 
 const SESSION_STATUS: Record<string, string> = {
   SCHEDULED: 'برنامه‌ریزی‌شده', HELD: 'برگزارشده', ABSENT: 'غایب/تشکیل نشد',
@@ -95,7 +95,7 @@ export function AdminManualAttendancePage() {
   );
 }
 
-// ═══ کارتابل کنترل حضور — پورت admin/attendance-control ═══
+// ═══ Attendance control inbox — port of admin/attendance-control ═══
 
 export function AdminAttendanceControlPage() {
   const qc = useQueryClient();

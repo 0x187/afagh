@@ -16,7 +16,7 @@ import {
   type SupervisionItem,
 } from '@/lib/payroll-api';
 
-// ═══ پرداخت‌های امتحانی + دفتر پایان‌نامه — پورت payroll/exam-payments و thesis ═══
+// ═══ Exam payments + thesis ledger — port of payroll/exam-payments and thesis ═══
 
 const SRC_FA: Record<string, string> = { INVIGILATION: 'مراقبت', CORRECTION: 'تصحیح', EXEC: 'اجرا' };
 const STATUS_FA: Record<string, string> = { ONGOING: 'در جریان', COMPLETED: 'تکمیل‌شده', CANCELLED: 'لغوشده' };
@@ -43,7 +43,7 @@ export function PayrollOperationsPage() {
   );
 }
 
-// ─────────────────── پرداخت‌های امتحانی ───────────────────
+// ─────────────────── Exam payments ───────────────────
 
 function ExamPaymentsTab() {
   const qc = useQueryClient();
@@ -170,7 +170,7 @@ function ExamPaymentsTab() {
   );
 }
 
-// ─────────────────── دفتر پایان‌نامه ───────────────────
+// ─────────────────── Thesis ledger ───────────────────
 
 const emptySup = { title: '', totalUnits: 4, role: 'SUPERVISOR', studentNameManual: '', startTermId: '' };
 

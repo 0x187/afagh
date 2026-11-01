@@ -11,7 +11,7 @@ import { faNumber } from '@/lib/fa';
 import { bulkCompensatory, getCompensatory, saveCompensatory, type GmCompensatoryData } from '@/lib/groupmanager-api';
 import { GmLayout } from './GmLayout';
 
-// ═══ دانشجویان جبرانی — پورت group-manager/compensatory ═══
+// ═══ Compensatory students — port of group-manager/compensatory ═══
 
 function StudentRow({ student }: { student: GmCompensatoryData['students'][number] }) {
   const qc = useQueryClient();

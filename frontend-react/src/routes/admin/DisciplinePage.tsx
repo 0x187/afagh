@@ -15,7 +15,7 @@ import {
   type DisciplineCase,
 } from '@/lib/committees-api';
 
-// ═══ کمیتهٔ انضباطی — پورت admin/discipline ═══
+// ═══ Disciplinary committee — port of admin/discipline ═══
 
 const STATUS_BADGE: Record<string, string> = {
   'در حال بررسی': 'border-transparent bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200',

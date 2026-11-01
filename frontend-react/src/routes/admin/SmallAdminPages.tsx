@@ -11,9 +11,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { apiGet, apiPost } from '@/lib/api';
 import { faNumber } from '@/lib/fa';
 
-// ═══ صفحات کوچک باقیمانده: code-hub، student-finance، login-showcase ═══
+// ═══ Remaining small pages: code-hub, student-finance, login-showcase ═══
 
-// ─── code-hub: لانچر دو مرکز کد ───
+// ─── code-hub: launcher for the two code centers ───
 
 export function AdminCodeHubPage() {
   const links = [
@@ -39,7 +39,7 @@ export function AdminCodeHubPage() {
   );
 }
 
-// ─── student-finance: دفتر مالی دانشگاه ───
+// ─── student-finance: university finance ledger ───
 
 type LedgerRow = {
   id: number; studentCode: string; studentName: string; transactionType: string;
@@ -88,7 +88,7 @@ export function AdminStudentFinancePage() {
   );
 }
 
-// ─── login-showcase: ویترین صفحه ورود ───
+// ─── login-showcase: login page showcase ───
 
 type LoginNotice = { id: number; title: string; body: string; kind: string; isActive: number; sortOrder: number };
 type LoginSlide = { id: number; title: string; subtitle: string; imageUrl: string; linkUrl: string | null; isActive: number; sortOrder: number };

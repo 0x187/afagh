@@ -20,7 +20,7 @@ import {
   type WfProcess,
 } from '@/lib/workflow-api';
 
-// ═══ کارتابل گردش کار — پورت admin/workflows ═══
+// ═══ Workflow inbox — port of admin/workflows ═══
 
 const STATUS_FA: Record<string, string> = {
   SUBMITTED: 'ثبت‌شده', IN_REVIEW: 'در بررسی', RETURNED: 'بازگشت برای اصلاح',

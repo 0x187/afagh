@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { faDigits, faNumber } from '@/lib/fa';
 import { verifyPublicToken, type PublicVerifyResult } from '@/lib/public-api';
 
-// ═══ صفحات استعلام عمومی (خارج از شل/نشست) — پورت verify-* ═══
+// ═══ Public verification pages (outside the shell/session) — port of verify-* ═══
 
 function PublicShell({ children }: { children: ReactNode }) {
   return (
@@ -55,7 +55,7 @@ function VerifiedHeader({ title, subtitle }: { title: string; subtitle?: string 
   );
 }
 
-/** معدل با یک رقم اعشار (faNumber برای پول/صحیح گرد می‌کند). */
+/** GPA with one decimal place (faNumber rounds for money/integers). */
 function fmtGpa(v: number | null | undefined): string {
   if (v == null || !Number.isFinite(v)) return '—';
   return faDigits(v.toFixed(1)).replace('.', '٫');
@@ -91,7 +91,7 @@ function LoadingOrInvalid({ data, title, children }: { data?: PublicVerifyResult
   );
 }
 
-// ─────────────────── کارنامهٔ تحصیلی ───────────────────
+// ─────────────────── Academic transcript ───────────────────
 
 type TranscriptDoc = {
   student: { name: string; studentCode: string; majorName: string; degreeTitle: string; entryYear: number };
@@ -166,7 +166,7 @@ function TranscriptBody({ doc }: { doc: TranscriptDoc }) {
   );
 }
 
-// ─────────────────── کارنامهٔ مالی ───────────────────
+// ─────────────────── Finance transcript ───────────────────
 
 type FinanceDoc = {
   student: { fullName: string; studentCode: string; nationalCode: string | null; majorTitle: string | null; degreeTitle: string | null };
@@ -224,7 +224,7 @@ export function VerifyFinancePage() {
   );
 }
 
-// ─────────────────── تأییدیهٔ انتخاب واحد ───────────────────
+// ─────────────────── Enrollment confirmation ───────────────────
 
 type EnrollDoc = {
   blocked?: string | null;
@@ -280,7 +280,7 @@ export function VerifyEnrollmentPage() {
   );
 }
 
-// ─────────────────── کارت ورود به جلسه ───────────────────
+// ─────────────────── Exam entry card ───────────────────
 
 type ExamDoc = {
   card: {

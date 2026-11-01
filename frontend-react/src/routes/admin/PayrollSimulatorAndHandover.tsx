@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { apiGet, apiPost } from '@/lib/api';
 import { faNumber } from '@/lib/fa';
 
-// ═══ صفحهٔ عمومی تحویل اوراق امتحان + شبیه‌ساز حقوق (دادهٔ نمونه) ═══
+// ═══ Public exam-paper delivery page + salary simulator (sample data) ═══
 
 type HandoverVerify = {
   ok: boolean; step: string; title: string;
@@ -92,7 +92,7 @@ export function ExamHandoverPage() {
   );
 }
 
-// ═══ شبیه‌ساز سناریوی حقوق — دادهٔ نمونه صرفاً کلاینتی ═══
+// ═══ Salary scenario simulator — sample data is client-side only ═══
 
 type SimProf = {
   id: number; name: string; staffCode: string; contractType: string; units: number;

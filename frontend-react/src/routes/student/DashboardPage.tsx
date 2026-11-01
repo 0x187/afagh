@@ -21,7 +21,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { faDigits, faNumber, faRial } from '@/lib/fa';
 import { getStudentDashboard } from '@/lib/student-api';
 
-// ═══ داشبورد دانشجو — پورت student/page.tsx ═══
+// ═══ Student dashboard — port of student/page.tsx ═══
 
 type QuickLink = {
   to: string;
@@ -82,7 +82,7 @@ export function StudentDashboardPage() {
 
   return (
     <div className="space-y-5">
-      {/* کارت هویت دانشجو */}
+      {/* Student ID card */}
       <Card className="overflow-hidden border-0 bg-gradient-to-l from-indigo-700 via-indigo-600 to-sky-600 text-white shadow-lg">
         <CardContent className="flex flex-wrap items-center gap-4 p-5">
           <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 ring-1 ring-white/25">
@@ -124,7 +124,7 @@ export function StudentDashboardPage() {
         </div>
       ) : null}
 
-      {/* دسترسی سریع */}
+      {/* Quick links */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
           <h2 className="flex items-center gap-2 text-sm font-black text-foreground">
@@ -160,7 +160,7 @@ export function StudentDashboardPage() {
         </div>
       </section>
 
-      {/* کلاس‌های مجازی + آزمون‌های پیش‌رو */}
+      {/* Virtual classes + upcoming exams */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader className="flex-row items-center justify-between gap-2 border-b border-border/70 pb-3">

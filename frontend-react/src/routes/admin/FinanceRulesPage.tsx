@@ -18,7 +18,7 @@ import {
   type FinanceSponsor, type FinanceSubjectFeeType, type SubjectFeeAssignment,
 } from '@/lib/admin-api';
 
-// ═══ تعاریف موتور مالی — پورت admin/finance/rules ═══
+// ═══ Finance engine definitions — port of admin/finance/rules ═══
 
 type Tab = 'discounts' | 'sponsors' | 'formulas' | 'loans' | 'coefs';
 
@@ -78,7 +78,7 @@ export function AdminFinanceRulesPage() {
 
 type TabProps<T> = { rows: T[]; onOk: (m: string) => void; onErr: (e: Error) => void };
 
-// ─────────────────── تب تخفیف‌ها ───────────────────
+// ─────────────────── Discounts tab ───────────────────
 
 const emptyDiscount = { id: 0, code: '', title: '', kind: 'PERCENT', defaultPercent: 0, defaultAmount: 0, maxPercent: '', requiresApproval: false, requiresDocument: false, isActive: true, note: '' };
 
@@ -156,7 +156,7 @@ function DiscountsTab({ rows, onOk, onErr }: TabProps<FinanceDiscountType>) {
   );
 }
 
-// ─────────────────── تب بنیادها ───────────────────
+// ─────────────────── Foundations tab ───────────────────
 
 const emptySponsor = { id: 0, code: '', title: '', contactInfo: '', settlementMethod: 'DIRECT', isActive: true, note: '' };
 
@@ -209,7 +209,7 @@ function SponsorsTab({ rows, onOk, onErr }: TabProps<FinanceSponsor>) {
   );
 }
 
-// ─────────────────── تب فرمول‌ها ───────────────────
+// ─────────────────── Formulas tab ───────────────────
 
 const emptyFormula = { id: 0, code: '', title: '', degreeLevelId: '', majorId: '', entryYearFrom: '', entryYearTo: '', fixedAmount: 0, perUnitTheory: 0, perUnitPractical: 0, perUnitGeneral: 0, priority: 100, isActive: true, note: '' };
 
@@ -291,7 +291,7 @@ function FormulasTab({ rows, degrees, majors, onOk, onErr }: TabProps<FinanceFor
   );
 }
 
-// ─────────────────── تب وام‌ها ───────────────────
+// ─────────────────── Loans tab ───────────────────
 
 const emptyLoan = { id: 0, code: '', title: '', lender: '', maxAmount: '', defaultAmount: 0, defaultInstallments: 12, isInterestFree: true, requiresApproval: true, isActive: true, note: '' };
 
@@ -352,7 +352,7 @@ function LoansTab({ rows, onOk, onErr }: TabProps<FinanceLoanProduct>) {
   );
 }
 
-// ─────────────────── تب ضرایب/مبالغ موضوعی (ویرایشگر) ───────────────────
+// ─────────────────── Subject coefficients/amounts tab (editor) ───────────────────
 
 function CoefsTab({ terms, onOk, onErr }: { terms: { id: number; termCode: string; termTitle: string }[]; onOk: (m: string) => void; onErr: (e: Error) => void }) {
   const qc = useQueryClient();

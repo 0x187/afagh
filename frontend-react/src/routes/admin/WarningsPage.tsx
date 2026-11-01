@@ -18,7 +18,7 @@ import {
   type WarningStudentHit,
 } from '@/lib/warnings-api';
 
-// ═══ هشدارهای زمان‌بندی‌شده — پورت admin/warnings ═══
+// ═══ Scheduled warnings — port of admin/warnings ═══
 
 const WARNING_STATUSES = ['pending', 'sent', 'cancelled'] as const;
 const WARNING_TYPES = [
@@ -68,7 +68,7 @@ function jalaliDateTime(iso: string | null | undefined): string {
   }
 }
 
-/** ISO → مقدار datetime-local (زمان محلی) */
+/** ISO → datetime-local value (local time) */
 function toLocalInput(iso: string | null | undefined): string {
   if (iso) {
     const d = new Date(iso);
@@ -283,7 +283,7 @@ function WarnForm({ editing, onClose, onSaved }: { editing: WarningRow | null; o
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
-  // جست‌وجوی دانشجو با تأخیر ۳۰۰ms (همان رفتار فرم Next)
+  // Student search with a 300ms delay (same behavior as the Next form)
   useEffect(() => {
     if (editing) return;
     const q = studentQuery.trim();

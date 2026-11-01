@@ -16,7 +16,7 @@ import {
   uploadThesisFile,
 } from '@/lib/student-api';
 
-// ═══ پایان‌نامه و پروپوزال دانشجو — پورت student/thesis-proposal ═══
+// ═══ Student thesis and proposal — port of student/thesis-proposal ═══
 
 const PROPOSAL_FA: Record<string, string> = {
   NOT_STARTED: 'شروع نشده',

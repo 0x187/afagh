@@ -42,7 +42,7 @@ import {
 } from '@/lib/enroll-api';
 import { faDigits, faNumber, faRial } from '@/lib/fa';
 
-// ═══ انتخاب واحد — پورت student/enroll (EnrollClient + actions) ═══
+// ═══ Enrollment — port of student/enroll (EnrollClient + actions) ═══
 
 const CART_TTL_SECONDS = 15 * 60;
 
@@ -100,7 +100,7 @@ export function StudentEnrollPage() {
     staleTime: 3000,
   });
 
-  // مهلت ۱۵ دقیقه‌ای سبد (سند §۲۲۴۳)
+  // 15-minute cart deadline (document §2243)
   useEffect(() => {
     const started = data?.cartStartedAt ?? null;
     if (!started) {
@@ -113,7 +113,7 @@ export function StudentEnrollPage() {
     return () => window.clearInterval(t);
   }, [data?.cartStartedAt]);
 
-  // نظرسنجی وضعیت صف
+  // Poll the queue status
   useEffect(() => {
     if (queuePos === null) return;
     const t = window.setInterval(async () => {
@@ -130,7 +130,7 @@ export function StudentEnrollPage() {
           await qc.invalidateQueries({ queryKey: ['student-enroll'] });
         }
       } catch {
-        /* تلاش بعدی */
+        /* Next attempt */}
       }
     }, 1500);
     return () => window.clearInterval(t);
@@ -253,7 +253,7 @@ export function StudentEnrollPage() {
           return;
         }
       } catch {
-        /* گارد سمت سرور همچنان محکم است */
+        /* Server-side guard stays solid */}
       }
     }
     try {
@@ -300,7 +300,7 @@ export function StudentEnrollPage() {
         </div>
       ) : null}
 
-      {/* بنر چارت */}
+      {/* Chart banner */}
       {data.curriculumScoped ? (
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[11px] text-emerald-900 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-100">
           🗺️ کاتالوگ بر اساس <b>چارت تحصیلی مصوب</b> شما
@@ -319,7 +319,7 @@ export function StudentEnrollPage() {
         </div>
       )}
 
-      {/* نوار آیین‌نامه */}
+      {/* Regulation bar */}
       {data.regulationStatus ? (
         <div className="space-y-3 rounded-2xl bg-slate-900 p-4 text-white shadow">
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -359,7 +359,7 @@ export function StudentEnrollPage() {
         </div>
       ) : null}
 
-      {/* درخواست‌های باز */}
+      {/* Open requests */}
       {data.bypassRequests.length > 0 ? (
         <Card className="border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40">
           <CardContent className="space-y-2 p-4">
@@ -414,7 +414,7 @@ export function StudentEnrollPage() {
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-[1fr_340px]">
-        {/* کاتالوگ */}
+        {/* Catalog */}
         <div className="space-y-3">
           <Card>
             <CardContent className="flex flex-wrap items-center gap-2 p-3">
@@ -564,7 +564,7 @@ export function StudentEnrollPage() {
           )}
         </div>
 
-        {/* سبد */}
+        {/* Cart */}
         <div className="space-y-3 lg:sticky lg:top-4 lg:self-start">
           <Card>
             <CardHeader className="flex-row items-center justify-between border-b border-border/70 pb-3">
@@ -647,7 +647,7 @@ export function StudentEnrollPage() {
         </div>
       </div>
 
-      {/* مودال تداخل امتحانی */}
+      {/* Exam-conflict modal */}
       {conflicts ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="w-full max-w-lg space-y-3 rounded-2xl border border-border bg-card p-5 shadow-2xl">

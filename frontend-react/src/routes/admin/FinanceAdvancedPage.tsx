@@ -15,7 +15,7 @@ import {
 } from '@/lib/admin-api';
 import { getPayrollTerms } from '@/lib/payroll-api';
 
-// ═══ کنترل زمانی ثبت مالی + فرمول ویژهٔ دانشجو ═══
+// ═══ Financial registration time control + student-specific formula ═══
 
 export function AdminFinanceAdvancedPage() {
   const [tab, setTab] = useState<'time' | 'formula'>('time');
@@ -38,7 +38,7 @@ export function AdminFinanceAdvancedPage() {
   );
 }
 
-// ─────────────────── کنترل زمانی ───────────────────
+// ─────────────────── Time control ───────────────────
 
 function toLocalInput(iso: string | null | undefined): string {
   if (!iso) return '';
@@ -120,7 +120,7 @@ function TimeControlTab() {
   );
 }
 
-// ─────────────────── فرمول ویژهٔ دانشجو ───────────────────
+// ─────────────────── Student-specific formula ───────────────────
 
 function FormulaTab() {
   const qc = useQueryClient();

@@ -14,7 +14,7 @@ import {
   type BroadcastReport,
 } from '@/lib/professor-api';
 
-// ═══ پیام به کلاس — پورت professor/broadcast ═══
+// ═══ Message to class — port of professor/broadcast ═══
 
 const CHANNELS = [
   { key: 'INAPP', label: '📥 داخل پورتال' },

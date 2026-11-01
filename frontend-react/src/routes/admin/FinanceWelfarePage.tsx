@@ -14,7 +14,7 @@ import {
   getWelfareLoans, updateWelfareFund, type WelfareFund,
 } from '@/lib/admin-api';
 
-// ═══ صندوق رفاه — صندوق‌ها و انتساب وام — پورت admin/finance/welfare ═══
+// ═══ Welfare fund — funds and loan assignment — port of admin/finance/welfare ═══
 
 const emptyFund = { id: 0, code: '', title: '', description: '', isActive: true };
 

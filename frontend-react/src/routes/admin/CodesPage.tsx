@@ -17,16 +17,16 @@ import {
   setCode, updateCodeRow, updateDegreeRow, updateTermRow,
 } from '@/lib/codes-api';
 
-// ═══ مرکز کدها — پورت admin/codes/page.tsx + CodesClient.tsx ═══
-// کد، سند اصالت هر رکورد است؛ اینجا کد همهٔ جدول‌های مرجع دیده و اصلاح می‌شود
-// و رکوردهای بی‌کد یا دارای کد تکراری پیدا می‌شوند.
+// ═══ Code center — port of admin/codes/page.tsx + CodesClient.tsx ═══
+// The code is the authenticity document of every record; here the codes of all reference tables are viewed and fixed,
+// and records with no code or a duplicate code are found.
 
 const PAGE = 200;
 
-/** جدول‌هایی که با فرم عمومی ویرایش می‌شوند (دانشکده، گروه، رشته، درس) */
+/** Tables edited via the generic form (faculty, group, major, course) */
 const GENERIC_EDIT_TABLES: CodeTable[] = ['faculty', 'department', 'major', 'course'];
 
-// ── نرمال‌سازی جست‌وجوی فارسی — پورت persian-search ──
+// ── Persian search normalization — port of persian-search ──
 const FA_NORM: Record<string, string> = {
   'ي': 'ی', 'ك': 'ک', 'ة': 'ه', 'ؤ': 'و', 'ئ': 'ی', 'أ': 'ا', 'إ': 'ا', 'آ': 'ا', 'ـ': '', '\u200C': ' ',
 };
@@ -46,7 +46,7 @@ function faIncludes(haystack: string, needle: string): boolean {
   return toEnDigits(normalizeFa(haystack)).includes(n);
 }
 
-// ── تبدیل تاریخ میلادی به شمسی برای نمایش (پورت jalaliDateOf) ──
+// ── Gregorian → Jalali date conversion for display (port of jalaliDateOf) ──
 function gregorianToJalali(gy: number, gm: number, gd: number): [number, number, number] {
   const gdm = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
   const div = (a: number, b: number) => Math.trunc(a / b);
@@ -67,7 +67,7 @@ function gregorianToJalali(gy: number, gm: number, gd: number): [number, number,
   return [jy, jm, jd];
 }
 
-/** 'YYYY-MM-DDTHH:mm' یا 'YYYY-MM-DD' → تاریخ شمسی برای نمایش در جدول */
+/** 'YYYY-MM-DDTHH:mm' or 'YYYY-MM-DD' → Jalali date for display in the table */
 function fmtDateFa(v?: string | null): string {
   if (!v) return '—';
   const [y, m, d] = v.slice(0, 10).split('-').map(Number);
@@ -76,10 +76,10 @@ function fmtDateFa(v?: string | null): string {
   return `${jy}/${String(jm).padStart(2, '0')}/${String(jd).padStart(2, '0')}`;
 }
 
-/** ارقام فارسی → لاتین (برای ساخت کد استاندارد از کد ترم) */
+/** Persian digits → Latin (for building the standard code from the term code) */
 const toLatinDigits = (v: string): string => toEnDigits(v);
 
-/** کد استاندارد وزارت برای ترم — پیش‌فرض از روی کد ترم (مثلاً 13831 → TERM-13831) */
+/** Ministry standard code for the term — defaults from the term code (e.g. 13831 → TERM-13831) */
 const defaultTermStandardCode = (code?: string | null): string =>
   code ? `TERM-${toLatinDigits(code)}` : '';
 
@@ -112,7 +112,7 @@ export function AdminCodesPage() {
   const isTerm = table === 'term';
   const newFields = NEW_FIELDS[table] ?? [];
   const elsewhere = CREATE_ELSEWHERE[table];
-  // فرمِ ویرایش ممکن است از فرمِ ساخت متفاوت باشد (ترم: زمان‌بندی کامل)
+  // The edit form may differ from the create form (term: full scheduling)
   const editFields = EDIT_FIELDS[table] ?? newFields;
   const formFields = editingId != null ? editFields : newFields;
 
@@ -122,7 +122,7 @@ export function AdminCodesPage() {
     void qc.invalidateQueries({ queryKey: ['codes-missing-summary'] });
   };
 
-  // با عوض‌شدن جدول، فرمِ باز را ببند و مقادیر پیش‌فرض را بگذار
+  // When the table changes, close the open form and set the default values
   useEffect(() => {
     setAdding(false);
     setEditingId(null);
@@ -138,7 +138,7 @@ export function AdminCodesPage() {
     setForm(Object.fromEntries(newFields.map((f) => [f.name, f.def ?? ''])));
   };
 
-  // ── جهش‌ها ──
+  // ── Mutations ──
 
   const saveCodeMut = useMutation({
     mutationFn: (v: { id: number; code: string; title: string }) => setCode(table, v.id, v.code),
@@ -168,7 +168,7 @@ export function AdminCodesPage() {
     deleteMut.mutate({ id: row.id, title: row.title });
   };
 
-  // ── باز کردن فرم ویرایش (به تفکیک نوع ردیف) ──
+  // ── Opening the edit form (per row type) ──
 
   const startEditDegree = async (row: CodeRow) => {
     try {
@@ -195,7 +195,7 @@ export function AdminCodesPage() {
       }
       setForm(Object.fromEntries(editFields.map((f) => {
         let v = d[f.name] ?? f.def ?? '';
-        // اگر کد استاندارد وزارت خالی است، از کد ترم ساخته می‌شود (قابل تغییر)
+        // If the ministry standard code is empty, it is built from the term code (editable)
         if (f.name === 'standardCode' && !v) v = defaultTermStandardCode(row.code);
         return [f.name, v];
       })));
@@ -223,7 +223,7 @@ export function AdminCodesPage() {
     }
   };
 
-  // ── ثبت فرم افزودن/ویرایش ──
+  // ── Submitting the add/edit form ──
 
   const [savingForm, setSavingForm] = useState(false);
   const submitForm = async () => {
@@ -253,7 +253,7 @@ export function AdminCodesPage() {
     }
   };
 
-  // ── خروجی CSV (دانلود از متن) ──
+  // ── CSV export (download from text) ──
 
   const [exporting, setExporting] = useState(false);
   const downloadCsv = async () => {
@@ -274,7 +274,7 @@ export function AdminCodesPage() {
     }
   };
 
-  // ── فیلتر/مرتب‌سازی/صفحه‌بندی سمت کلاینت (مثل CodesClient) ──
+  // ── Client-side filter/sort/pagination (like CodesClient) ──
 
   const filtered = useMemo(() => {
     const t = normalizeFa(q);
@@ -308,7 +308,7 @@ export function AdminCodesPage() {
 
   return (
     <div className="space-y-4">
-      {/* سربرگ */}
+      {/* Header */}
       <Card className="border-0 bg-gradient-to-l from-indigo-800 to-sky-700 text-white">
         <CardContent className="p-5">
           <h1 className="flex items-center gap-2 text-base font-black"><KeyRound className="size-5" aria-hidden /> مرکز کدها</h1>
@@ -339,7 +339,7 @@ export function AdminCodesPage() {
         </CardContent>
       </Card>
 
-      {/* تب‌های جدول‌های کددار */}
+      {/* Tabs of the coded tables */}
       <div className="flex flex-wrap gap-1.5" role="tablist">
         {CODE_TABLES.map((t) => (
           <button
@@ -359,7 +359,7 @@ export function AdminCodesPage() {
         ))}
       </div>
 
-      {/* کارت‌های سلامت کد */}
+      {/* Code health cards */}
       {statsQ.isLoading ? (
         <Skeleton className="h-24 w-full" />
       ) : (
@@ -400,7 +400,7 @@ export function AdminCodesPage() {
         </div>
       )}
 
-      {/* خلاصهٔ کدهای ناقص */}
+      {/* Summary of incomplete codes */}
       <Card>
         <CardContent className="p-4">
           <h2 className="text-xs font-black text-slate-700 dark:text-slate-200">رکوردهای بی‌کد</h2>
@@ -434,7 +434,7 @@ export function AdminCodesPage() {
         </div>
       )}
 
-      {/* جدول کدها */}
+      {/* Codes table */}
       <Card className="overflow-hidden">
         <div className="flex flex-wrap items-center gap-2 border-b border-border p-3">
           <h2 className="text-sm font-extrabold text-slate-800 dark:text-slate-100">{cur?.title}</h2>
@@ -486,7 +486,7 @@ export function AdminCodesPage() {
           )}
         </div>
 
-        {/* فرم افزودن / ویرایش — مودال */}
+        {/* Add / edit form — modal */}
         {adding && (cur?.creatable || editingId != null) && (
           <div
             className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-900/50 p-3 backdrop-blur-[1px]"

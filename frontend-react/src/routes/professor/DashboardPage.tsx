@@ -18,7 +18,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { faDigits, faNumber } from '@/lib/fa';
 import { getProfessorDashboard, type ProfScheduleRow } from '@/lib/professor-api';
 
-// ═══ داشبورد استاد — پورت professor/page.tsx ═══
+// ═══ Professor dashboard — port of professor/page.tsx ═══
 
 export function scheduleEntries(rows: ProfScheduleRow[]): WeekGridEntry[] {
   return rows

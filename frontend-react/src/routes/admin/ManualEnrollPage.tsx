@@ -30,7 +30,7 @@ import {
   type StudentWarning,
 } from '@/lib/manual-enroll-api';
 
-// ═══ ثبت‌نام به‌جای دانشجو (کارشناس آموزش) — پورت admin/manual-enroll ═══
+// ═══ Enrolling on behalf of a student (education expert) — port of admin/manual-enroll ═══
 
 type Tab = 'single' | 'bulk' | 'activate' | 'history';
 

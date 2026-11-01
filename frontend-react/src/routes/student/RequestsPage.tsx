@@ -19,7 +19,7 @@ import {
   type StudentRequestRow,
 } from '@/lib/student-api';
 
-// ═══ میز خدمات دانشجو — پورت student/requests ═══
+// ═══ Student service desk — port of student/requests ═══
 
 const STATUS_FA: Record<string, string> = {
   SUBMITTED: 'ثبت‌شده و در صف بررسی',

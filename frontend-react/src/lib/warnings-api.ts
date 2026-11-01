@@ -1,4 +1,4 @@
-// ═══ کلاینت هشدارهای زمان‌بندی‌شده ═══
+// ═══ Scheduled warnings client ═══
 import { apiGet, apiPost } from './api';
 
 export type WarningRow = {

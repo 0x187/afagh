@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { faDigits, faNumber } from '@/lib/fa';
 import { getPerformance } from '@/lib/professor-api';
 
-// ═══ کارنامهٔ عملکرد استاد — پورت professor/performance ═══
+// ═══ Professor performance report — port of professor/performance ═══
 
 const BADGE_STYLE: Record<string, string> = {
   DIAMOND: 'border-transparent bg-cyan-300 text-slate-950',

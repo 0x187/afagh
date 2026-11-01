@@ -14,7 +14,7 @@ import {
   setCurriculumRule, syncCurriculumRoles, updateCurriculumCourse, type CurriculumCheck, type CurriculumDetail,
 } from '@/lib/curriculum-api';
 
-// ═══ سرفصل/برنامهٔ درسی — پورت admin/curriculum ═══
+// ═══ Syllabus/curriculum — port of admin/curriculum ═══
 
 const STATUS_FA: Record<string, string> = {
   DRAFT: 'پیش‌نویس', REVIEW: 'در بازبینی', APPROVED: 'تأییدشده', PUBLISHED: 'منتشرشده', ARCHIVED: 'بایگانی',

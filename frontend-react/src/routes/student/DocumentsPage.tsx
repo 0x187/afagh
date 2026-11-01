@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { faDigits } from '@/lib/fa';
 import { getStudentDocuments } from '@/lib/student-api';
 
-// ═══ مدارک من — پورت student/documents ═══
+// ═══ My documents — port of student/documents ═══
 const STATUS_FA: Record<string, string> = {
   PENDING: 'در انتظار بررسی',
   VERIFIED: 'تأییدشده',

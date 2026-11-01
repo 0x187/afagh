@@ -15,7 +15,7 @@ import {
   uploadGraduationPhoto,
 } from '@/lib/student-api';
 
-// ═══ ردیاب فارغ‌التحصیلی دانشجو — پورت student/graduation ═══
+// ═══ Student graduation tracker — port of student/graduation ═══
 
 const STEP_STATE = {
   DONE: { icon: '✅', cls: 'bg-emerald-50 border-emerald-200 dark:bg-emerald-950/40 dark:border-emerald-800' },

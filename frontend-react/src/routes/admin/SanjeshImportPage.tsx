@@ -7,7 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { faNumber } from '@/lib/fa';
 import { commitSanjesh, previewSanjesh, type SanjeshCommitResult, type SanjeshPreview } from '@/lib/sanjesh-api';
 
-// ═══ درون‌ریزی رشتهٔ قبلی از فایل ثابت‌عرض سنجش — پورت admin/sanjesh-import ═══
+// ═══ Import of previous majors from the Sanjesh fixed-width file — port of admin/sanjesh-import ═══
 
 const DEFAULT_STRUCTURE = JSON.stringify([
   { name: 'nationalCode', start: 0, length: 10, target: 'nationalCode' },

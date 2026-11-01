@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { faDigits, faNumber } from '@/lib/fa';
 import { getVirtualClasses, joinVirtualClass } from '@/lib/student-api';
 
-// ═══ کلاس‌های آنلاین دانشجو — پورت student/virtual-classes ═══
+// ═══ Student online classes — port of student/virtual-classes ═══
 export function StudentVirtualClassesPage() {
   const [error, setError] = useState<string | null>(null);
   const { data, isLoading, isError } = useQuery({

@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { faDigits, faNumber } from '@/lib/fa';
 import { getAdminStaff } from '@/lib/admin-api';
 
-// ═══ کارکنان و اساتید — پورت admin/staff (خواندن) ═══
+// ═══ Staff and professors — port of admin/staff (read) ═══
 export function AdminStaffPage() {
   const [search, setSearch] = useState('');
   const [query, setQuery] = useState('');

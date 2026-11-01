@@ -1,4 +1,4 @@
-// ═══ کلاینت موتور شهریه و تعرفهٔ سالانه ═══
+// ═══ Tuition engine and annual tariff client ═══
 import { apiGet, apiPost } from './api';
 
 export const MALI_TYPE_LABELS: Record<number, string> = {

@@ -1,4 +1,4 @@
-// ═══ کلاینت قالب‌های اعلان ═══
+// ═══ Notification templates client ═══
 import { apiGet, apiPost } from './api';
 
 export type TemplateVars = { tag: string; label: string; sampleValue: string };

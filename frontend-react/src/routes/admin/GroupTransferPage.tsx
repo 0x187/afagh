@@ -19,7 +19,7 @@ import {
   type TransferRosterOffer,
 } from '@/lib/group-transfer-api';
 
-// ═══ انتقال دانشجو بین گروه‌های یک درس — پورت admin/group-transfer ═══
+// ═══ Moving a student between groups of one course — port of admin/group-transfer ═══
 
 const STATUS_LABEL: Record<string, string> = {
   REGISTERED: 'ثبت‌شده', WAITLISTED: 'لیست انتظار', PENDING_COUNCIL: 'حکم شورا',

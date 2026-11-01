@@ -9,7 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { faDigits } from '@/lib/fa';
 import { getStudentCardPrint } from '@/lib/student-cards-api';
 
-// ═══ کارت دانشجویی چاپی با QR گیت حراست — پورت admin/student-cards/card/[studentId] ═══
+// ═══ Printed student card with security-gate QR — port of admin/student-cards/card/[studentId] ═══
 
 function Row({ label, value, strong, mono }: { label: string; value: string; strong?: boolean; mono?: boolean }) {
   return (

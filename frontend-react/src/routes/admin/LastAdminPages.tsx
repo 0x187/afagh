@@ -21,7 +21,7 @@ import {
   type OfferingEditorRow, type ScheduleConflictReport,
 } from '@/lib/last-pages-api';
 
-// ═══ شش صفحهٔ باقی‌ماندهٔ ادمین — پورت afagh-next/src/app/admin/{broadcast,
+// ═══ Six remaining admin pages — port of afagh-next/src/app/admin/{broadcast,
 // bypass,class-sessions,exams/handover,offering-editor,schedule-conflicts} ═══
 
 type Msg = { kind: 'ok' | 'err'; text: string } | null;
@@ -42,7 +42,7 @@ const faDateTime = (v: string | null | undefined) => {
 };
 const minutesToHm = (v: number) => `${String(Math.floor(v / 60)).padStart(2, '0')}:${String(v % 60).padStart(2, '0')}`;
 
-// ─── تبدیل تاریخ شمسی (برای فیلد تاریخ امتحان در ویرایشگر ارائه) ───
+// ─── Jalali date conversion (for the exam date field in the offering editor) ───
 
 const div = (a: number, b: number) => Math.floor(a / b);
 
@@ -94,7 +94,7 @@ function gregorianToJalali(gy: number, gm: number, gd: number): [number, number,
   return [jy, jm, jd];
 }
 
-/** 'YYYY-MM-DD' میلادی → 'YYYY/MM/DD' شمسی برای نمایش در فرم */
+/** 'YYYY-MM-DD' Gregorian → 'YYYY/MM/DD' Jalali for display in the form */
 function gregToJalaliInput(iso: string | null | undefined): string {
   const v = String(iso ?? '').trim().slice(0, 10);
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v);
@@ -103,7 +103,7 @@ function gregToJalaliInput(iso: string | null | undefined): string {
   return `${jy}/${String(jm).padStart(2, '0')}/${String(jd).padStart(2, '0')}`;
 }
 
-/** 'YYYY/MM/DD' شمسی (ارقام فارسی هم قبول است) → 'YYYY-MM-DD' میلادی، وگرنه null */
+/** 'YYYY/MM/DD' Jalali (Persian digits also accepted) → 'YYYY-MM-DD' Gregorian, otherwise null */
 function jalaliInputToGreg(value: string): string | null {
   const m = /^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/.exec(toEnDigits(value).trim());
   if (!m) return null;
@@ -117,7 +117,7 @@ function jalaliInputToGreg(value: string): string | null {
 
 const DAY_NAMES = ['شنبه', 'یک‌شنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنج‌شنبه', 'جمعه'];
 
-// ═══════════════════════════ ۱) پیام همگانی ═══════════════════════════
+// ═══════════════════════════ 1) Broadcast message ═══════════════════════════
 
 const BROADCAST_CHANNELS: { key: BroadcastChannel; label: string }[] = [
   { key: 'INAPP', label: '📥 داخل پورتال' },
@@ -255,7 +255,7 @@ export function AdminBroadcastPage() {
 
       <Msg msg={msg} />
 
-      {/* ── مخاطبان ── */}
+      {/* ── Audiences ── */}
       <Card><CardContent className="space-y-3 pt-4">
         <h2 className="text-sm font-black">۱️⃣ مخاطبان</h2>
         <div className="flex flex-wrap gap-2">
@@ -308,7 +308,7 @@ export function AdminBroadcastPage() {
           <input type="checkbox" checked={activeOnly} onChange={(e) => { setActiveOnly(e.target.checked); setCount(null); }} className="size-4" />
           فقط فعال‌ها (دانشجوی در حال تحصیل / پروندهٔ پرسنلی فعال)
         </label>
-        {/* ── فیلتر کلاس درس در ترم ── */}
+        {/* ── Course class filter for the term ── */}
         <div className="grid gap-2 rounded-xl border border-dashed border-indigo-300 bg-indigo-50/40 p-2.5 sm:grid-cols-2 dark:border-indigo-800 dark:bg-indigo-950/20">
           <label className="text-[11px] font-bold text-muted-foreground">🎓 ترم (برای انتخاب کلاس)
             <select value={termId} onChange={(e) => { setTermId(e.target.value); setCount(null); }} className={sel}>
@@ -362,7 +362,7 @@ export function AdminBroadcastPage() {
         </div>
       </CardContent></Card>
 
-      {/* ── کانال + متن ── */}
+      {/* ── Channel + text ── */}
       <Card><CardContent className="space-y-3 pt-4">
         <h2 className="text-sm font-black">۲️⃣ کانال و متن پیام</h2>
         <div className="flex flex-wrap gap-2">
@@ -400,7 +400,7 @@ export function AdminBroadcastPage() {
         </div>
       )}
 
-      {/* ── تاریخچهٔ ارسال‌ها ── */}
+      {/* ── Send history ── */}
       <Card>
         <button type="button" onClick={() => setHistoryOpen((v) => !v)}
           className="flex w-full items-center justify-between p-4 text-sm font-black">
@@ -431,7 +431,7 @@ export function AdminBroadcastPage() {
   );
 }
 
-// ═══════════════════════════ ۲) تأیید bypass ═══════════════════════════
+// ═══════════════════════════ 2) Bypass approval ═══════════════════════════
 
 const BYPASS_KIND_LABEL: Record<string, string> = { PREREQ: 'پیش‌نیاز', EXAM_CONFLICT: 'تداخل امتحانی' };
 const BYPASS_REASON_LABEL: Record<string, string> = {
@@ -661,7 +661,7 @@ function SettingsForm({ t, onSave, onSaved, onError }: {
   );
 }
 
-// ═══════════════════════════ ۳) مدیریت جلسات کلاس ═══════════════════════════
+// ═══════════════════════════ 3) Class session management ═══════════════════════════
 
 const SESSION_STATUS_FA: Record<string, string> = {
   SCHEDULED: 'برنامه‌ریزی‌شده', HELD: 'برگزار‌شده', ABSENT: 'غیبت استاد', CANCELLED: 'لغو‌شده',
@@ -787,7 +787,7 @@ export function AdminClassSessionsPage() {
   );
 }
 
-// ═══════════════════════════ ۴) زنجیرهٔ تحویل اوراق امتحان ═══════════════════════════
+// ═══════════════════════════ 4) Exam paper delivery chain ═══════════════════════════
 
 export function AdminExamHandoverPage() {
   const [termId, setTermId] = useState(0);
@@ -954,7 +954,7 @@ export function AdminExamHandoverPage() {
   );
 }
 
-// ═══════════════════════════ ۵) ویرایشگر ارائه ═══════════════════════════
+// ═══════════════════════════ 5) Offering editor ═══════════════════════════
 
 export function AdminOfferingEditorPage() {
   const qc = useQueryClient();
@@ -1088,7 +1088,7 @@ export function AdminOfferingEditorPage() {
         <div className="space-y-3 rounded-2xl border-2 border-indigo-500 bg-indigo-50/50 p-4 dark:bg-indigo-950/20">
           <h3 className="text-sm font-black">✏️ {draft.code} {draft.title} (گروه {faNum(draft.groupNumber)})</h3>
 
-          {/* کارشناسان آموزش این کلاس — جدا از ذخیرهٔ اصلی */}
+          {/* Education experts of this class — separate from the main store */}
           <div className="space-y-2 rounded-xl border border-indigo-200 bg-card p-3 dark:border-indigo-900">
             <p className="text-xs font-black text-indigo-800 dark:text-indigo-300">👤 کارشناسان آموزشِ این کلاس</p>
             <div className="flex flex-wrap items-center gap-1.5">
@@ -1170,7 +1170,7 @@ export function AdminOfferingEditorPage() {
   );
 }
 
-// ═══════════════════════════ ۶) رفع تداخل برنامهٔ هفتگی ═══════════════════════════
+// ═══════════════════════════ 6) Weekly schedule conflict resolution ═══════════════════════════
 
 const CONFLICT_REASON_LABELS: Record<string, string> = {
   MERGED_OK: 'کلاس ادغامی است (یک جلسهٔ واقعی)',

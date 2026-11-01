@@ -16,7 +16,7 @@ import {
   type CouncilDecision, type CouncilMeeting,
 } from '@/lib/committees-api';
 
-// ═══ شورای آموزشی — پورت admin/council ═══
+// ═══ Education council — port of admin/council ═══
 
 const IMPL_BADGE: Record<string, string> = {
   'در انتظار اجرا': 'border-transparent bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200',

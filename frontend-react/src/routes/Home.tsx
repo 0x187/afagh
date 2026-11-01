@@ -10,10 +10,10 @@ import { faDigits } from '@/lib/fa';
 import { homeFor } from '@/lib/home-route';
 import { useSession } from '@/lib/session';
 
-// ═══ خانهٔ فاز ۰ — اثبات اتصال سالم هر دو سمت ═══
-// معیار پایان فاز ۰: این صفحه با سشن مشترک (لاگین از UI قدیم) نام کاربر و
-// نقش‌ها را از بکند Go نشان می‌دهد و سلامت زیرساخت را گزارش می‌کند.
-// در فاز ۱ این صفحه جای داشبورد واقعی هر نقش را می‌گیرد.
+// ═══ Phase 0 home — proof of healthy connectivity on both sides ═══
+// Phase 0 exit criteria: with a shared session (login from the old UI), this page shows the username and
+// roles from the Go backend and reports infrastructure health.
+// In Phase 1 this page takes the place of each role's real dashboard.
 
 function CheckBadge({ label, status }: { label: string; status: string }) {
   if (status === 'ok') {

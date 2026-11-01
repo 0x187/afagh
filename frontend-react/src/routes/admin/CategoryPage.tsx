@@ -3,10 +3,10 @@ import { Link, useParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { MODULES } from '@/routes/admin/DashboardPage';
 
-// ═══ کاشی‌های یک دسته — پورت /admin/c/[group] (نسخهٔ React) ═══
+// ═══ Tiles of one category — port of /admin/c/[group] (React version) ═══
 //
-// دسته‌بندی همان هشت گروه Next است؛ کاشی‌هایی که هنوز به React منتقل نشده‌اند
-// در این صفحه نمایش داده نمی‌شوند (بدون کاشی الکی).
+// The categories are the same eight Next groups; tiles not yet ported to React
+// are not shown on this page (no fake tiles).
 
 const GROUPS: { key: string; title: string; icon: string; desc: string; hrefs: string[] }[] = [
   {

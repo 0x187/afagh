@@ -23,7 +23,7 @@ import {
   type OverviewItem,
 } from '@/lib/payroll-api';
 
-// ═══ میز کار حق‌التدریس — پورت admin/payroll (محاسبهٔ واقعی) ═══
+// ═══ Teaching pay desk — port of admin/payroll (real calculation) ═══
 
 const STATUS_FA: Record<string, string> = {
   NOT_COMPUTED: 'محاسبه‌نشده',

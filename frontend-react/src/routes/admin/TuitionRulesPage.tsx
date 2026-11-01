@@ -18,7 +18,7 @@ import {
   type TuitionRuleRow,
 } from '@/lib/tuition-api';
 
-// ═══ موتور شهریه: قواعد و سیاست معادل‌سازی — پورت admin/tuition ═══
+// ═══ Tuition engine: equivalency rules and policy — port of admin/tuition ═══
 
 const TERM_TYPES = [
   { value: '', label: 'همهٔ ترم‌ها' },

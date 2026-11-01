@@ -15,14 +15,14 @@ import {
 } from '@/lib/messenger-api';
 import { ApiError } from '@/lib/api';
 
-// ═══ صفحهٔ اتصال پیام‌رسان — پورت /messenger (page.tsx + MessengerConnectClient) ═══
+// ═══ Messenger connection page — port of /messenger (page.tsx + MessengerConnectClient) ═══
 //
-// اتصال با کد یک‌بارمصرف (بدون رمز عبور در چت) — همهٔ نقش‌ها؛ صفحهٔ عمومی
-// بدون شل ولی نیازمند نشست (بدون ورود → /login، همان redirect در Next).
+// Connection via a one-time code (no password in chat) — all roles; public page
+// without the shell but session required (not logged in → /login, same redirect as Next).
 
-/** فاصلهٔ هر polling وضعیت جفت‌سازی (میلی‌ثانیه) */
+/*Interval between pairing-status polls (milliseconds) */
 const POLL_MS = 2500;
-/** حداکثر مدت polling — کمی بیشتر از TTL توکن (۱۰ دقیقه) */
+/*Maximum polling duration — slightly more than the token TTL (10 minutes) */
 const POLL_MAX_MS = 11 * 60 * 1000;
 
 type Msg = { kind: 'ok' | 'err'; text: string } | null;
@@ -30,10 +30,10 @@ type Msg = { kind: 'ok' | 'err'; text: string } | null;
 export function MessengerPage() {
   const { data, isLoading } = useSession();
   const location = useLocation();
-  // پس از هر تأیید اتصال، فهرست کانال‌ها دوباره خوانده می‌شود.
+  // After each successful link confirmation, the channel list is re-read.
   const [channelsVersion, setChannelsVersion] = useState(0);
 
-  // گارد نشست — همان redirect('/login') در page.tsx
+  // Session guard — same redirect('/login') as in page.tsx
   if (!isLoading && !data?.user) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
@@ -57,7 +57,7 @@ export function MessengerPage() {
   );
 }
 
-// ─────────────────── کارت اتصال (mint → poll → confirm) ───────────────────
+// ─────────────────── Connection card (mint → poll → confirm) ───────────────────
 
 function MessengerConnectCard({ onConfirmed }: { onConfirmed?: () => void }) {
   const [channel, setChannel] = useState<MessengerChannelKey>('SOROUSH');
@@ -68,13 +68,13 @@ function MessengerConnectCard({ onConfirmed }: { onConfirmed?: () => void }) {
   const [waiting, setWaiting] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const pollStartRef = useRef(0);
-  // ── قفل «در حال پاسخ»: setInterval با بدنهٔ async اگر پاسخ کندتر از POLL_MS
-  //    برسد، tick بعدی روی همان درخواست قبلی سوار می‌شود؛ آن‌وقت دو بار
-  //    confirmLink صدا زده می‌شود و دومی خطای «کد مصرف‌شده» نشان می‌دهد —
-  //    با اینکه اتصال درست برقرار شده است. این قفل اجازهٔ یک درخواست هم‌زمان می‌دهد.
+  // ── "answering" lock: setInterval with an async body — if a response takes longer than POLL_MS
+  //    to arrive, the next tick rides on the same previous request; then confirmLink
+  //    is called twice and the second call shows the "code already consumed" error —
+  //    even though the link was actually established. This lock allows one concurrent request.
   const pollBusyRef = useRef(false);
 
-  // توقف polling هنگام unmount یا تغییر کد
+  // Stop polling on unmount or code change
   useEffect(
     () => () => {
       if (pollRef.current) clearInterval(pollRef.current);
@@ -95,7 +95,7 @@ function MessengerConnectCard({ onConfirmed }: { onConfirmed?: () => void }) {
     setWaiting(true);
     pollStartRef.current = Date.now();
     pollRef.current = setInterval(async () => {
-      // توقف خودکار پس از سقف زمانی
+      // Auto-stop after the time cap
       if (Date.now() - pollStartRef.current > POLL_MAX_MS) {
         stopPolling();
         setMsg({ kind: 'err', text: 'مهلت انتظار تمام شد. کد جدیدی بگیرید و دوباره تلاش کنید.' });
@@ -117,7 +117,7 @@ function MessengerConnectCard({ onConfirmed }: { onConfirmed?: () => void }) {
           }
         }
       } catch {
-        /* polling بعدی تلاش می‌کند */
+        /* next polling attempt retries */
       } finally {
         pollBusyRef.current = false;
       }
@@ -129,10 +129,10 @@ function MessengerConnectCard({ onConfirmed }: { onConfirmed?: () => void }) {
     setMsg(null);
     setCode('');
     stopPolling();
-    // ── تلاش خودکار دوباره (فقط خطای حمل‌ونقل، نه خطای منطقی) ──
-    // اگر پاسخ اول در راه گم شود (شبکه/پروکسی)، کاربر نباید «حتی یک‌بار» خطا
-    // ببیند؛ یک‌بار دیگر پس از مکث کوتاه تلاش می‌کنیم. صدور تکراری بی‌ضرر است
-    // (قبلی ۱۰ دقیقه اعتبار دارد). خطای منطقی (ok:false) همان‌جا نشان داده می‌شود.
+    // ── Automatic retry (transport errors only, not logic errors) ──
+    // If the first response gets lost on the way (network/proxy), the user must not see the error
+    // even once; we try once more after a short pause. Re-issuing is harmless
+    // (the previous one is valid for 10 minutes). A logic error (ok:false) is shown right there.
     const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
     let res: Awaited<ReturnType<typeof mintLinkToken>> | null = null;
     let transportFailed = false;
@@ -182,7 +182,7 @@ function MessengerConnectCard({ onConfirmed }: { onConfirmed?: () => void }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // fallback: انتخاب متن
+      // fallback: text selection
       const el = document.getElementById('link-code');
       if (el) {
         const r = document.createRange();
@@ -269,7 +269,7 @@ function MessengerConnectCard({ onConfirmed }: { onConfirmed?: () => void }) {
   );
 }
 
-// ─────────────────── کارت وضعیت کانال‌ها + لغو اتصال ───────────────────
+// ─────────────────── Channel status card + disconnect ───────────────────
 
 function MyChannelsCard({ reloadKey }: { reloadKey: number }) {
   const [channels, setChannels] = useState<UserChannel[] | null>(null);

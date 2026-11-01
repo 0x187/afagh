@@ -22,7 +22,7 @@ import {
   type StagingItem,
 } from '@/lib/admissions-api';
 
-// ═══ پذیرش: سنجش، فرمول شماره دانشجویی، ثبت دستی و تست ایرانداک — پورت admin/admissions ═══
+// ═══ Admissions: Sanjesh, student-number formula, manual entry, and Irandoc test — port of admin/admissions ═══
 
 const SAMPLE = `0011223344, علیرضا, پیروزمند, 11204, منطقه ۱, 09121111111, 1420, کنکور, کارشناسی, مهندسی, 1
 0022334455, نگین, شجاعی, 11205, منطقه ۲, 09122222222, 2150, کنکور, کارشناسی, مهندسی, 1

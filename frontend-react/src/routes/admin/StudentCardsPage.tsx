@@ -16,7 +16,7 @@ import {
   type StudentCardRow,
 } from '@/lib/student-cards-api';
 
-// ═══ صدور و مدیریت کارت دانشجویی — پورت admin/student-cards ═══
+// ═══ Student card issuance and management — port of admin/student-cards ═══
 
 const STATUS_TONE: Record<string, string> = {
   PRINTED: 'border-emerald-300 bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200',

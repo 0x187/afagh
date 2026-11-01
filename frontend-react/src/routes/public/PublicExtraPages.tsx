@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { apiGet } from '@/lib/api';
 import { faDigits, faNumber } from '@/lib/fa';
 
-// ═══ استعلام کارت دانشجویی / مدرک / گواهینامهٔ دورهٔ آزاد ═══
+// ═══ Student card / degree / open-course certificate inquiry ═══
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -34,7 +34,7 @@ function VerdictCard({ ok, title, subtitle }: { ok: boolean; title: string; subt
   );
 }
 
-/** ISO میلادی → تاریخ شمسی (Intl با تقویم فارسی). */
+/** ISO Gregorian → Jalali date (Intl with the Persian calendar). */
 function fmtJalali(iso: string | null | undefined): string {
   if (!iso) return '—';
   try {
@@ -55,7 +55,7 @@ function Field({ k, v, mono }: { k: string; v: React.ReactNode; mono?: boolean }
   );
 }
 
-// ─────────────────── کارت دانشجویی (گیت حراست) ───────────────────
+// ─────────────────── Student card (security gate) ───────────────────
 
 type CardData = {
   verdict: string; allowed: boolean; reason: string; studentCode: string; fullName: string;
@@ -108,7 +108,7 @@ export function StudentIdCardPage() {
   );
 }
 
-// ─────────────────── مدرک (verify-degree) ───────────────────
+// ─────────────────── Degree (verify-degree) ───────────────────
 
 type DegreeData = {
   found: boolean; valid: boolean; revoked: boolean; revokeReason: string | null;
@@ -171,7 +171,7 @@ export function VerifyDegreePage() {
   );
 }
 
-// ─────────────────── گواهینامهٔ دورهٔ آزاد ───────────────────
+// ─────────────────── Open-course certificate ───────────────────
 
 type CertData = {
   verdict: string; certificateNumber: string; fullNameFa: string | null; fullNameEn: string | null;
@@ -233,5 +233,5 @@ export function VerifyCertificatePage() {
   );
 }
 
-// نگه‌داشتن آیکن XCircle برای حالت‌های آینده
+// Keeping the XCircle icon for future states
 export const _icons = { XCircle };

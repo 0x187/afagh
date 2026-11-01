@@ -12,7 +12,7 @@ import { faDigits, faNumber } from '@/lib/fa';
 import { getGrants, saveGrant } from '@/lib/groupmanager-api';
 import { GmLayout } from './GmLayout';
 
-// ═══ تخصیص درس ترم بالاتر — پورت group-manager/grants ═══
+// ═══ Higher-term course grant — port of group-manager/grants ═══
 
 export function GmGrantsPage() {
   const qc = useQueryClient();

@@ -16,7 +16,7 @@ import {
   type ReportResult,
 } from '@/lib/reports-api';
 
-// ═══ مرکز گزارش‌های مالی — پورت admin/finance/reports ═══
+// ═══ Financial reports center — port of admin/finance/reports ═══
 
 type CardDef = {
   kind: string;
@@ -39,7 +39,7 @@ const CARDS: CardDef[] = [
   { kind: 'bi-facilities', icon: '🏫', title: 'امکانات کلاس‌ها (BI)' },
 ];
 
-/** گزارش‌های سطح درس/استاد: فیلترهای دانشجویی برایشان معنا ندارد. */
+/** Course/professor-level reports: student filters make no sense for them. */
 const COURSE_LEVEL_KINDS = new Set([
   'tuition-tariff', 'payroll-overview', 'bi-teaching-quality', 'bi-facilities',
 ]);
@@ -167,7 +167,7 @@ export function AdminFinanceReportsPage() {
 
   return (
     <div className="space-y-4">
-      {/* ── سربرگ premium ── */}
+      {/* ── Premium header ── */}
       <Card className="border-0 bg-gradient-to-l from-emerald-700 via-teal-700 to-slate-900 text-white">
         <CardContent className="p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
@@ -191,7 +191,7 @@ export function AdminFinanceReportsPage() {
         </CardContent>
       </Card>
 
-      {/* ── کاشی‌های دسترسی سریع ── */}
+      {/* ── Quick access tiles ── */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         {DOCKS.map((d) => (
           <Link key={d.title} to={d.href} className="group rounded-xl border border-border bg-card p-3 shadow-xs transition-all hover:-translate-y-0.5 hover:border-emerald-400 hover:shadow-md">
@@ -208,10 +208,10 @@ export function AdminFinanceReportsPage() {
         مرکز گزارش‌های مالی
       </p>
 
-      {/* ── جست‌وجوی گزارش‌ها ── */}
+      {/* ── Report search ── */}
       <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`🔍 جست‌وجو در گزارش‌ها… (${CARDS.length} گزارش)`} />
 
-      {/* ── کارت‌های گزارش ── */}
+      {/* ── Report cards ── */}
       {visibleCards.length === 0 ? (
         <p className="rounded-xl border border-border bg-card p-6 text-center text-sm text-muted-foreground">گزارشی با این عبارت یافت نشد.</p>
       ) : (
@@ -234,7 +234,7 @@ export function AdminFinanceReportsPage() {
         </div>
       )}
 
-      {/* ── نوار فیلتر ── */}
+      {/* ── Filter bar ── */}
       <Card>
         <CardContent className="flex flex-wrap items-end gap-2 p-3 text-xs">
           {card?.needsTerm ? (
@@ -306,7 +306,7 @@ export function AdminFinanceReportsPage() {
         </CardContent>
       </Card>
 
-      {/* ── نتیجه ── */}
+      {/* ── Result ── */}
       <Card className="overflow-hidden">
         {err ? (
           <p className="bg-rose-50 p-8 text-center text-sm font-bold text-rose-700 dark:bg-rose-950/40 dark:text-rose-200">خطا: {err}</p>

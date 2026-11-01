@@ -15,7 +15,7 @@ import {
   searchPayrollStaff, unassignStaffTermRole, updateDutyRole, updateRoleDef,
 } from '@/lib/payroll-api';
 
-// ═══ سمتهای موظفی + انتساب ترمی + نقشهای تدریس — پورت payroll/roles و teaching-roles ═══
+// ═══ Position appointments + semester assignment + teaching roles — port of payroll/roles and teaching-roles ═══
 
 const emptyRole = { code: '', title: '', dutyUnits: '', reductionUnits: 0, isTeaching: false, sortOrder: 0 };
 
@@ -102,7 +102,7 @@ export function PayrollRolesPage() {
 
       {msg ? <div className="rounded-xl border border-border bg-card px-4 py-2 text-xs shadow-xs">{msg}</div> : null}
 
-      {/* انتساب ترمی */}
+      {/* Semester assignment */}
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-sm">انتساب سمت به استاد در ترم</CardTitle></CardHeader>
         <CardContent className="space-y-3">
@@ -169,7 +169,7 @@ export function PayrollRolesPage() {
         </CardContent>
       </Card>
 
-      {/* کاتالوگ سمت‌ها */}
+      {/* Position catalog */}
       <Card>
         <CardHeader className="pb-2"><CardTitle className="text-sm">کاتالوگ سمت‌های موظفی</CardTitle></CardHeader>
         <CardContent className="space-y-3">
@@ -218,7 +218,7 @@ export function PayrollRolesPage() {
   );
 }
 
-// ═══ نقش‌های تدریس قابل‌تعریف ═══
+// ═══ Definable teaching roles ═══
 
 const emptyDef = { code: '', title: '', description: '', isActive: true };
 
@@ -298,7 +298,7 @@ export function TeachingRolesPage() {
   );
 }
 
-// ═══ پوشش فرمول‌ها ═══
+// ═══ Formula coverage ═══
 
 const MISS_DIM_FA: Record<string, string> = {
   none: 'قانونی ثبت نشده', offeringType: 'نوع درس', professorRole: 'نقش استاد',

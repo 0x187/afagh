@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { faDigits, faNumber } from '@/lib/fa';
 import { getAdminStudents, resetStudentPassword, setStudentActive } from '@/lib/admin-api';
 
-// ═══ مدیریت دانشجویان — پورت admin/students ═══
+// ═══ Student management — port of admin/students ═══
 
 const STATUS_FA: Record<string, string> = {
   ACTIVE: 'مجاز به ادامه تحصیل', GRADUATED: 'فارغ‌التحصیل', PROBATION: 'مشروط',

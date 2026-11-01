@@ -1,7 +1,7 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-/** ترکیب کلاس‌های شرطی + حل تعارض تیلویند — استاندارد shadcn/ui */
+/** Conditional class merging + Tailwind conflict resolution — shadcn/ui standard */
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
