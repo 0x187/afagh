@@ -1,6 +1,9 @@
 // ═══ Afagh Go Backend Service — Entry Point ═══
 //
-// Phase 0 (infrastructure): strangler routing edge + shared session with Next.js + health.
+// The binary only loads configuration, builds the application graph
+// (internal/app), and manages the process lifecycle. Everything else
+// lives in internal/* — see docs/ENGINEERING-GUIDE.md.
+//
 // Running locally:
 //
 //	AFAGH_NEXT_UPSTREAM=http://127.0.0.1:8080 PORT=8090 go run ./cmd/afagh
@@ -8,47 +11,13 @@ package main
 
 import (
 	"context"
-	"errors"
-	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
-	"time"
 
-	"github.com/gin-gonic/gin"
-	"github.com/redis/go-redis/v9"
-
-	"backend-go/internal/admin"
-	"backend-go/internal/archive"
-	"backend-go/internal/authn"
-	"backend-go/internal/bi"
+	"backend-go/internal/app"
 	"backend-go/internal/config"
-	"backend-go/internal/cron"
-	"backend-go/internal/db"
-	"backend-go/internal/edge"
-	"backend-go/internal/enroll"
-	"backend-go/internal/graduation"
-	"backend-go/internal/groupmanager"
-	"backend-go/internal/httpapi"
 	"backend-go/internal/logger"
-	"backend-go/internal/messaging"
-	"backend-go/internal/opencourses"
-	"backend-go/internal/payroll"
-	"backend-go/internal/professor"
-	"backend-go/internal/publicverify"
-	"backend-go/internal/ratelimit"
-	"backend-go/internal/reports"
-	"backend-go/internal/scope"
-	"backend-go/internal/session"
-	"backend-go/internal/sessionlock"
-	"backend-go/internal/settings"
-	"backend-go/internal/student"
-	"backend-go/internal/tuition"
-	"backend-go/internal/verification"
-	"backend-go/internal/workflow"
 )
 
 func main() {
@@ -67,250 +36,30 @@ func main() {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
-	database, err := db.Connect(ctx, cfg.DatabaseURL, cfg.DatabaseURLApp)
+	application, err := app.New(ctx, cfg)
 	if err != nil {
-		log.Error("db_connect_failed", logger.Fields{"error": err.Error()})
-		os.Exit(1)
-	}
-	defer database.Close()
-
-	store := session.NewStore(database.Pool)
-
-	// ── Phase 1 services: settings, rate-limit, token signing, lock, scope ──
-	settingsStore := settings.New(database.Pool, settings.PhaseOneDefs)
-
-	var rdb *redis.Client
-	if cfg.RedisURL != "" {
-		opt, err := redis.ParseURL(cfg.RedisURL)
-		if err != nil {
-			log.Error("redis_url_invalid", logger.Fields{"error": err.Error()})
-			os.Exit(1)
-		}
-		rdb = redis.NewClient(opt)
-		defer rdb.Close()
-	}
-	limiter := ratelimit.New(rdb)
-	signer := verification.New(settingsStore)
-	locks := sessionlock.New(rdb, settingsStore)
-	authCfg := authn.ConfigFromEnv()
-	authSvc := authn.NewService(database.Pool, authCfg, limiter, signer, locks)
-	scopeSvc := scope.New(database.Pool)
-
-	// ── gin API (/api/v2) ──
-	if cfg.IsProduction() {
-		gin.SetMode(gin.ReleaseMode)
-	}
-	ginEngine := gin.New()
-	ginEngine.Use(gin.Recovery())
-	healthAPI := &httpapi.Health{
-		DB:         database,
-		RedisURL:   cfg.RedisURL,
-		S3Endpoint: cfg.S3Endpoint, S3Bucket: cfg.S3Bucket,
-		S3AccessKey: cfg.S3AccessKey, S3SecretKey: cfg.S3SecretKey,
-		Version: cfg.Version,
-	}
-	ginEngine.GET("/health", healthAPI.HealthGET)
-	sessionAPI := &httpapi.SessionAPI{Store: store}
-	sessionAPI.Register(ginEngine.Group(""))
-
-	authAPI := &httpapi.AuthAPI{Svc: authSvc}
-	authAPI.Register(ginEngine.Group(""))
-	lockAPI := &httpapi.SessionLockAPI{
-		Store: store, Locks: locks, Limiter: limiter, Verifier: authSvc,
-	}
-	lockAPI.Register(ginEngine.Group(""))
-	stepUpAPI := &httpapi.StepUpAPI{
-		Store: store, Signer: signer, Verifier: authSvc, Limiter: limiter,
-		Secure: cfg.IsProduction(),
-	}
-	stepUpAPI.Register(ginEngine.Group(""))
-	scopeAPI := &httpapi.ScopeAPI{Store: store, Svc: scopeSvc, Production: cfg.IsProduction()}
-	scopeAPI.Register(ginEngine.Group(""))
-	studentSvc := student.New(database.Pool, scopeSvc, settingsStore, signer)
-	var arStore *archive.Store
-	if ar, err := archive.New(cfg.S3Endpoint, cfg.S3AccessKey, cfg.S3SecretKey, cfg.S3Bucket); err == nil {
-		studentSvc.Archive = ar
-		arStore = ar
-	}
-	enrollSvc := enroll.NewService(database, rdb, settingsStore, scopeSvc, cfg.IsProduction())
-	enrollSvc.StartWorker()
-	studentAPI := &httpapi.StudentAPI{Svc: studentSvc, Store: store, Settings: settingsStore}
-	studentAPI.Register(ginEngine.Group(""))
-	studentAPI.RegisterEnrollRoutes(ginEngine.Group(""), enrollSvc)
-	professorSvc := professor.New(database, settingsStore, scopeSvc)
-	professorSvc.Production = cfg.IsProduction()
-	professorAPI := &httpapi.ProfessorAPI{Svc: professorSvc, Store: store}
-	professorAPI.Register(ginEngine.Group(""))
-	gmSvc := groupmanager.New(database, settingsStore, scopeSvc)
-	gmAPI := &httpapi.GroupManagerAPI{Svc: gmSvc, Store: store}
-	gmAPI.Register(ginEngine.Group(""))
-	adminSvc := admin.New(database, scopeSvc)
-	adminSvc.SetStore(&settingsStoreAdapter{store: settingsStore})
-	adminAPI := &httpapi.AdminAPI{Svc: adminSvc, Store: store, StudentFinance: studentSvc, Archive: arStore, Signer: signer}
-	adminAPI.Register(ginEngine.Group(""))
-	(&httpapi.CodesAPI{Svc: adminSvc, Store: store}).Register(ginEngine.Group(""))
-	(&httpapi.MigrationAdminAPI{Admin: adminAPI}).Register(ginEngine.Group(""))
-	(&httpapi.SmallAdminAPI{Admin: adminAPI}).Register(ginEngine.Group(""))
-	(&httpapi.RegulationsAPI{Svc: adminSvc, Store: store}).Register(ginEngine.Group(""))
-	(&httpapi.EduExpertAPI{Svc: adminSvc, Store: store}).Register(ginEngine.Group(""))
-	(&httpapi.SchedulingSuiteAPI{Admin: adminAPI}).Register(ginEngine.Group(""))
-	(&httpapi.LastPagesAPI{Admin: adminAPI}).Register(ginEngine.Group(""))
-	(&httpapi.ExamHandoverPublicAPI{Admin: adminAPI}).Register(ginEngine.Group(""))
-	adminAPI.Graduation = graduation.New(database.Pool, settingsStore, studentSvc)
-	payrollEngine := payroll.New(database.Pool, settingsStore)
-	payrollApprovals := payroll.NewApprovals(payrollEngine)
-	payrollApprovals.StaffByUser = func(ctx context.Context, userID int64) (*payroll.StaffRef, error) {
-		var ref payroll.StaffRef
-		err := database.Pool.QueryRow(ctx, `select id, "departmentId", "universityId" from staff where "userId" = $1 limit 1`, userID).
-			Scan(&ref.StaffID, &ref.DepartmentID, &ref.UniversityID)
-		if err != nil {
-			return nil, err
-		}
-		return &ref, nil
-	}
-	payrollApprovals.HeadedDepts = func(ctx context.Context, staffID int64, ownDeptID *int64) ([]int64, error) {
-		out := []int64{}
-		rows, err := database.Pool.Query(ctx, `select id from departments where "headStaffId" = $1 order by name`, staffID)
-		if err == nil {
-			for rows.Next() {
-				var id int64
-				if err := rows.Scan(&id); err == nil {
-					out = append(out, id)
-				}
-			}
-			rows.Close()
-		}
-		if len(out) == 0 && ownDeptID != nil {
-			out = append(out, *ownDeptID)
-		}
-		return out, nil
-	}
-	payrollApprovals.CanActUni = func(ctx context.Context, u *payroll.SessionUser, universityID int64) bool {
-		su := &session.User{ID: u.ID, Roles: u.Roles}
-		return scopeSvc.CanActOnUniversity(ctx, su, &universityID)
-	}
-	payrollAPI := &httpapi.PayrollAPI{Engine: payrollEngine, Approvals: payrollApprovals, Store: store, Pool: database.Pool, Scope: scopeSvc, Admin: adminSvc}
-	payrollAPI.Register(ginEngine.Group(""))
-	biSvc := bi.New(database.Pool, settingsStore)
-	adminAPI.BI = biSvc
-	adminAPI.Reports = reports.New(database.Pool, adminSvc, payrollEngine, biSvc)
-	adminAPI.Reports.Graduation = adminAPI.Graduation
-	messagingSvc := messaging.New(database.Pool, settingsStore)
-	messaging.Default = messagingSvc
-	messaging.SetRateLimiter(limiter)
-	go messagingSvc.StartAllPolling(rdb)
-	adminAPI.Messaging = messagingSvc
-	adminAPI.Pool = database.Pool
-	tuitionEngine := tuition.New(database.Pool, settingsStore)
-	studentSvc.Tuition = tuitionEngine
-	workflowEngine := workflow.New(database.Pool, settingsStore)
-	workflowEngine.RegisterDefaultHandlers(tuitionEngine)
-	workflowEngine.Notify = func(ctx context.Context, userID int64, eventCode, text string) {
-		payload := `{"text":` + strconv.Quote(text) + `}`
-		_, _ = database.Pool.Exec(ctx, `insert into notifications ("userId","eventCode",payload) values ($1,$2,$3)`, userID, eventCode, payload)
-	}
-	workflowAPI := &httpapi.WorkflowAPI{Engine: workflowEngine, Store: store, Admin: adminSvc}
-	workflowAPI.Register(ginEngine.Group(""))
-	cronEngine := cron.New(database.Pool, settingsStore, workflowEngine)
-	cronAPI := &httpapi.CronAPI{Engine: cronEngine, Limiter: limiter}
-	cronAPI.Register(ginEngine.Group(""))
-	cron.SetGraduationService(adminAPI.Graduation)
-	cronExtraAPI := &httpapi.CronExtraAPI{Engine: cronEngine, Limiter: limiter}
-	cronExtraAPI.Register(ginEngine.Group(""))
-	messengerAPI := &httpapi.MessengerAPI{Store: store, Svc: messagingSvc, Limiter: limiter}
-	messengerAPI.Register(ginEngine.Group(""))
-	publicAPI := &httpapi.PublicAPI{Pool: database.Pool, Settings: settingsStore,
-		Verify:  &publicverify.Service{Student: studentSvc, Signer: signer, Pool: database.Pool},
-		Open:    &opencourses.Service{Pool: database.Pool},
-		Limiter: limiter}
-	publicAPI.Register(ginEngine.Group(""))
-	publicExtraAPI := &httpapi.PublicExtraAPI{Pool: database.Pool, Store: store,
-		Settings: settingsStore, Limiter: limiter, Signer: signer}
-	publicExtraAPI.Register(ginEngine.Group(""))
-
-	// ── SPA: proxy (dev/Vite) or dist files (production) ──
-	var spaHandler http.Handler
-	if cfg.SpaUpstream != "" {
-		u, err := url.Parse(cfg.SpaUpstream)
-		if err != nil {
-			log.Error("spa_upstream_invalid", logger.Fields{"error": err.Error()})
-			os.Exit(1)
-		}
-		p := newHostPreservingProxy(u)
-		spaHandler = p
-	}
-
-	nextUpstream, err := url.Parse(cfg.NextUpstream)
-	if err != nil {
-		log.Error("next_upstream_invalid", logger.Fields{"error": err.Error()})
+		log.Error("startup_failed", logger.Fields{"error": err.Error()})
 		os.Exit(1)
 	}
 
-	root := edge.Root(cfg.OwnedPrefixes, ginEngine, spaHandler, cfg.SpaDist, nextUpstream, cfg.AllowedExtraOrigins)
+	serveErr := application.Serve()
 
-	srv := &http.Server{
-		Addr:              ":" + cfg.Port,
-		Handler:           root,
-		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       60 * time.Second,
-		WriteTimeout:      120 * time.Second,
-		IdleTimeout:       120 * time.Second,
-	}
-
-	go func() {
-		log.Info("listening", logger.Fields{"addr": srv.Addr})
-		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	select {
+	case err := <-serveErr:
+		if err != nil {
 			log.Error("listen_failed", logger.Fields{"error": err.Error()})
 			os.Exit(1)
 		}
-	}()
+		return
+	case <-ctx.Done():
+	}
 
-	<-ctx.Done()
 	log.Info("shutting_down", nil)
-	shutCtx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	shutCtx, cancel := context.WithTimeout(context.Background(), app.DefaultShutdownTimeout)
 	defer cancel()
-	if err := srv.Shutdown(shutCtx); err != nil {
+	if err := application.Shutdown(shutCtx); err != nil {
 		log.Error("shutdown_failed", logger.Fields{"error": err.Error()})
 	}
 	log.Info("stopped", nil)
-}
-
-func newHostPreservingProxy(u *url.URL) http.Handler {
-	p := httputil.NewSingleHostReverseProxy(u)
-	orig := p.Director
-	p.Director = func(req *http.Request) {
-		orig(req)
-		req.Host = u.Host
-	}
-	return p
-}
-
-// settingsStoreAdapter adapts settings.Store to the admin package interface.
-type settingsStoreAdapter struct {
-	store *settings.Store
-}
-
-func (a *settingsStoreAdapter) Get(ctx context.Context, key string) (string, error) {
-	return a.store.Get(ctx, key)
-}
-
-func (a *settingsStoreAdapter) Save(ctx context.Context, key, value string) error {
-	return a.store.Save(ctx, key, value)
-}
-
-func (a *settingsStoreAdapter) Delete(ctx context.Context, key string) error {
-	return a.store.Delete(ctx, key)
-}
-
-func (a *settingsStoreAdapter) AllDefs() []admin.SettingsDef {
-	defs := a.store.AllDefs()
-	out := make([]admin.SettingsDef, 0, len(defs))
-	for _, d := range defs {
-		out = append(out, admin.SettingsDef{Key: d.Key, Env: d.Env, Default: d.Default, EnvOnly: d.EnvOnly})
-	}
-	return out
-}
-
-func (a *settingsStoreAdapter) Invalidate() {
-	a.store.Invalidate()
+	application.Close()
 }

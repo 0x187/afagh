@@ -105,6 +105,16 @@ Caddy ─▶ Go edge (:8091)
   با راستی‌آزمایی توکن‌به‌توکن Go و `tsc`/`vitest`/`vite build`؛ خروجی نهایی اسکن: صفر
   کامنت فارسی در کد). پیامهای کاربر/UI طبق قرارداد فارسی ماندند.
 
+### بازسازی ساختاری (۲۰۲۶-۱۱-۰۱) — الگوی پروژههای بزرگ Go
+
+- سیمکشی از `cmd/afagh/main.go` به پکیج [`internal/app`](../backend-go/internal/app/app.go) منتقل شد
+  (`app.go` lifecycle، `infra.go`، `services.go`، `http.go`، `adapters.go`، `spa.go`)؛
+  `main.go` فقط config/logger/lifecycle است.
+- **راهنمای مهندسی و دستور پخت افزودن قابلیت:** [`docs/ENGINEERING-GUIDE.md`](./ENGINEERING-GUIDE.md)
+  (نقشهٔ ریپو، قوانین طلایی، افزودن فیچر بک‌اند/فرانت، تعریف تمامشده، فهرست بدهی فنی ساختاری).
+- راستیآزمایی: `go build/vet/test` سبز (۲۶ بسته)، ریویو مستقل برابری رفتار (PARITY OK)،
+  دود runtime واقعی (health، لاگین ادمین، API نقش‌دار، خاموشی نرم با همان رویدادهای لاگ).
+
 ## سطوح API
 
 - مسیرهای Go: **۵۱۵** در ۴۶ فایل `internal/httpapi/*.go` (auth، scope،
