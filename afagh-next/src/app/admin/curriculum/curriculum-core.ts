@@ -338,10 +338,16 @@ export function depWarningBadge(warns: DepWarning[]): { icon: string; label: str
   const codes = [...new Set(warns.flatMap(w => [...w.missing, ...w.unassigned, ...w.badOrder]))];
   // اگر دو کدِ مختلف نامِ یکسان داشته باشند (مثلاً «مبانی فیزیولوژی» با دو کد),
   // نمایش فقط نام گمراه‌کننده است — پس کد را هم می‌نویسیم.
+  // ⚠ اصلاح TDZ: ارجاع به `titles` داخل مقداردهی خودش خطای «Cannot access
+  // 'titles' before initialization» می‌داد (فقط وقتی warns غیرخالی بود).
+  // ردیابی نام‌های تکراری با یک Set جداگانه انجام می‌شود.
+  const seenTitles = new Set<string>();
   const titles = [...new Set(codes.map(c => {
     const w = warns.find(x => x.names[c]);
     const t = w ? w.names[c] : c;
-    return titles.has(t) ? `${t} (${c})` : t;
+    if (seenTitles.has(t)) return `${t} (${c})`;
+    seenTitles.add(t);
+    return t;
   }))];
   const titleCounts = new Map<string, number>();
   for (const t of titles) titleCounts.set(t, (titleCounts.get(t) ?? 0) + 1);
