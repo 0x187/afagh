@@ -10,6 +10,7 @@ import { ensureBaseReferenceData } from '@/lib/base-data';
 import { clearPermissionCache } from '@/lib/permissions-enforcer';
 import { getRateLimitCount, progressiveDelay, rateLimit, releaseRateLimit } from '@/lib/rateLimit';
 import { requestClientIp } from '@/lib/request-context';
+import { checkNewPassword, PASSWORD_MIN_LENGTH_STAFF, PASSWORD_MIN_LENGTH_STUDENT } from '@/lib/password-policy';
 import {
   degree_level_configs,
   educational_regulations,
@@ -652,10 +653,12 @@ export async function changePassword(currentPassword: string, newPassword: strin
       return { ok: false, error: 'رمز فعلی نادرست است.' };
   }
   const trimmed = newPassword.trim();
-  if (trimmed.length < 10) return { ok: false, error: 'رمز جدید باید حداقل ۱۰ کاراکتر باشد.' };
-  if (trimmed.length > 128) return { ok: false, error: 'رمز جدید باید حداکثر ۱۲۸ کاراکتر باشد.' };
-  if (!/[A-Za-z]/.test(trimmed) || !/[0-9]/.test(trimmed))
-    return { ok: false, error: 'رمز جدید باید حداقل یک حرف و یک رقم داشته باشد.' };
+  const isEndUser = me.roles.length > 0 && me.roles.every(r => r === 'STUDENT' || r === 'PROFESSOR');
+  const policyError = checkNewPassword(trimmed, {
+    minLength: isEndUser ? PASSWORD_MIN_LENGTH_STUDENT : PASSWORD_MIN_LENGTH_STAFF,
+    identifiers: [u.nationalCode],
+  });
+  if (policyError) return { ok: false, error: policyError };
   if (trimmed === currentPassword) return { ok: false, error: 'رمز جدید نباید با رمز فعلی یکسان باشد.' };
   const passwordHash = await hashPassword(trimmed);
   await db.update(users).set({ passwordHash, mustChangePassword: 0 }).where(eq(users.id, u.id));

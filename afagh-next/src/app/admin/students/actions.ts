@@ -16,6 +16,7 @@ import { toGregorian } from '@/lib/calendar';
 import { legacyRowOfSource, legacySourceCodeFor } from './transcript-utils';
 import type { StaffItem } from './types';
 import { execRowCount, execRows } from '@/lib/db-result';
+import { checkNewPassword, PASSWORD_MIN_LENGTH_STUDENT } from '@/lib/password-policy';
 
 /**
  * 🔐 رمز یکبارمصرف تصادفی با آنتروپی کافی (۹۶ بیت).
@@ -504,7 +505,8 @@ export async function resetUserPasswordAction(
   }
   const pw = String(newPassword || '').trim();
   if (!userId) return { ok: false, error: 'کاربر نامعتبر است.' };
-  if (pw.length < 10 || pw.length > 128) return { ok: false, error: 'رمز باید بین ۱۰ تا ۱۲۸ کاراکتر باشد.' };
+  const policyError = checkNewPassword(pw, { minLength: PASSWORD_MIN_LENGTH_STUDENT });
+  if (policyError) return { ok: false, error: policyError };
   try {
     const passwordHash = await hashPassword(pw);
     // 🔒 ریست رمز = ابطال نشست‌ها در همان تراکنش (الگوی setUserActiveAction)
@@ -612,8 +614,9 @@ export async function bulkResetPasswordsAction(
     return { ok: false, error: 'فقط مدیر سیستم (ADMIN) اجازه این عملیات را دارد.' };
   }
   const pw = String(newPassword || '').trim();
-  // 🔒 همان استاندارد سامانه (۱۰ تا ۱۲۸) — رمز مشترک گروهی هم نباید ضعیف باشد.
-  if (pw.length < 10 || pw.length > 128) return { ok: false, error: 'رمز باید بین ۱۰ تا ۱۲۸ کاراکتر باشد.' };
+  // 🔒 همان استاندارد سامانه — رمز مشترک گروهی هم نباید ضعیف باشد.
+  const policyError = checkNewPassword(pw, { minLength: PASSWORD_MIN_LENGTH_STUDENT });
+  if (policyError) return { ok: false, error: policyError };
   const scopeWhere = scope === 'professor'
     ? `EXISTS (SELECT 1 FROM staff st WHERE st."userId" = users.id)`
     : `EXISTS (SELECT 1 FROM students st WHERE st."userId" = users.id)`;

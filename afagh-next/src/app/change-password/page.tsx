@@ -45,7 +45,7 @@ export default function ChangePasswordPage() {
           <p className="text-xs text-slate-500">برای حساب شما رمز اولیه (پیش‌فرض) تعیین شده است؛ پیش از ورود به سامانه باید آن را تغییر دهید.</p>
         </div>
         <input className="input text-left" dir="ltr" type="password" placeholder="رمز فعلی" value={current} onChange={e => setCurrent(e.target.value)} />
-        <input className="input text-left" dir="ltr" type="password" placeholder="رمز جدید (حداقل ۸ کاراکتر)" value={next} onChange={e => setNext(e.target.value)} />
+        <input className="input text-left" dir="ltr" type="password" placeholder="رمز جدید (حداقل ۱۰ کاراکتر)" value={next} onChange={e => setNext(e.target.value)} />
         <input className="input text-left" dir="ltr" type="password" placeholder="تکرار رمز جدید" value={confirm} onChange={e => setConfirm(e.target.value)} />
         {err && <p className="rounded-xl bg-red-50 p-2 text-center text-sm text-red-700 dark:border dark:border-red-800 dark:bg-red-950 dark:text-red-200">{err}</p>}
         {ok && <p className="rounded-xl bg-emerald-50 p-2 text-center text-sm text-emerald-700 dark:border dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">✓ رمز با موفقیت تغییر کرد. در حال انتقال…</p>}
