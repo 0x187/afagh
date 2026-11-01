@@ -152,6 +152,31 @@ console.log('\n▶ سراسری ۱۴۰۴ (فایل واقعی)');
   ok(row.fields.academicRecordRef === 'mkgjk3qi-njdwei43-0v7jbafz', 'کد پیگیری سوابق تحصیلی حفظ شد');
 }
 
+console.log('\n▶ ناپیوستهٔ کاردانی به کارشناسی ۱۴۰۵ (فایل واقعی)');
+{
+  const t = SANJESH_TEMPLATE_MAP.K2K_1405;
+  const r = parseSanjeshFile(read('k2k-1405.txt'), t);
+  ok(r.colCount === 69, `۶۹ ستون (${r.colCount})`);
+  ok(r.rowCount === 5, `۵ ردیف (${r.rowCount})`);
+  ok(r.extraColumns.length === 0 && r.missingColumns.length === 0, 'تطبیق کامل با قالب');
+  ok(r.rows.every((x) => x.lengthIssues.length === 0), 'هیچ ردیفی تخلف طول ندارد');
+  ok(r.rows.every((x) => x.nationalCodeValid), 'کد ملی همهٔ ردیف‌ها معتبر است');
+  ok(r.rows.every((x) => !!x.fullName), 'نام کامل همهٔ ردیف‌ها استخراج شد');
+
+  // هیچ ستونی نگاشت‌نشده نماند — قالب کل ۶۹ ستون را پوشش می‌دهد
+  const extras = r.rows[0].fields;
+  ok(!Object.keys(extras).some((k) => k.startsWith('extra_')), 'ستون نگاشت‌نشده وجود ندارد');
+
+  const row = r.rows[0];
+  ok(row.nationalCode === '2742005021', `کد ملی: ${row.nationalCode}`);
+  ok(row.fullName === 'محمد اسمعيلي بند', `نام: ${row.fullName}`);
+  ok(row.applicantNo === '438706', `شمارهٔ داوطلبی: ${row.applicantNo}`);
+  ok(row.normalized.birthDate === '1381-09-23', `تاریخ تولد → ${row.normalized.birthDate}`);
+  // کلید نگاشت پذیرش: کد رشتهٔ محل قبولی
+  ok(row.fields.fieldPlaceCode === '1526', `کد رشته محل قبولی: ${row.fields.fieldPlaceCode}`);
+  ok(row.fields.fieldCode === '204', `کد رشتهٔ امتحانی: ${row.fields.fieldCode}`);
+}
+
 console.log('\n▶ تغییر تعداد ستون‌ها (سال‌های آینده) شکست نمی‌آورد');
 {
   const t = SANJESH_TEMPLATE_MAP.FANI_1405;
