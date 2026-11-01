@@ -130,7 +130,7 @@ export function StudentEnrollPage() {
           await qc.invalidateQueries({ queryKey: ['student-enroll'] });
         }
       } catch {
-        /* Next attempt */}
+        /* Next attempt */
       }
     }, 1500);
     return () => window.clearInterval(t);
@@ -253,7 +253,7 @@ export function StudentEnrollPage() {
           return;
         }
       } catch {
-        /* Server-side guard stays solid */}
+        /* Server-side guard stays solid */
       }
     }
     try {

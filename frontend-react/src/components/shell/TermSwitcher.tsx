@@ -20,7 +20,7 @@ export function TermSwitcher() {
     try {
       await setTerm(termId);
     } catch {
-      /* Error → cookie unchanged; a refresh is pointless too */}
+      /* Error → cookie unchanged; a refresh is pointless too */
       return;
     }
     window.location.reload();

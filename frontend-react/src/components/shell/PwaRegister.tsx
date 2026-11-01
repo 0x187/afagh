@@ -6,7 +6,7 @@ export function PwaRegister() {
   useEffect(() => {
     if (import.meta.env.PROD && 'serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(() => {
-        /* Missing SW doesn't break the main experience */}
+        /* Missing SW doesn't break the main experience */
       });
     }
   }, []);

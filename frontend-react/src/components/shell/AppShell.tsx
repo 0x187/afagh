@@ -38,7 +38,7 @@ export function AppShell() {
     try {
       await logout();
     } catch {
-      /* Even on error, the client-side session is cleared */}
+      /* Even on error, the client-side session is cleared */
     }
     await queryClient.invalidateQueries({ queryKey: ['session'] });
     setBusy(false);
