@@ -5,6 +5,7 @@ import { requireRole } from '@/lib/auth';
 import {
   ensureDefaultSanjeshMappings,
   importStagedToStudents,
+  findExistingRecordsForStaging,
   parseAndStageSanjeshData,
   registerManualStudent,
 } from '@/lib/admissions-engine';
@@ -28,16 +29,49 @@ export async function stageSanjeshDataAction(rawText: string, entryYear = 1405) 
   }
 }
 
-export async function importStagedStudentsAction(
-  stagingIds: number[],
-  entryMethod: string,
-  allowDuplicates: boolean = false,
+export async function listExistingForStagingAction() {
+  await requireRole(['ADMIN', 'EDU_EXPERT']);
+  try {
+    const uni = await getCurrentUniversity().catch(() => null);
+    const items = await findExistingRecordsForStaging(uni?.id ?? null);
+    return { ok: true, items };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'خطا در بارگذاری پرونده‌های موجود.', items: [] };
+  }
+}
+
+export async function setStagingDecisionAction(
+  stagingId: number,
+  decision: 'ALLOW_DUPLICATE' | 'REJECT' | 'CLEAR',
 ) {
+  await requireRole(['ADMIN', 'EDU_EXPERT']);
+  try {
+    if (decision === 'REJECT') {
+      await db.update(admissions_staging)
+        .set({ status: 'REJECTED', decisionNote: 'REJECTED_BY_ADMIN' })
+        .where(eq(admissions_staging.id, stagingId));
+    } else if (decision === 'ALLOW_DUPLICATE') {
+      await db.update(admissions_staging)
+        .set({ status: 'RESOLVED', decisionNote: 'ALLOW_DUPLICATE' })
+        .where(eq(admissions_staging.id, stagingId));
+    } else {
+      await db.update(admissions_staging)
+        .set({ status: 'RESOLVED', decisionNote: null })
+        .where(eq(admissions_staging.id, stagingId));
+    }
+    revalidatePath('/admin/admissions');
+    return { ok: true };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'ثبت تصمیم انجام نشد.' };
+  }
+}
+
+export async function importStagedStudentsAction(stagingIds: number[], entryMethod: string) {
   await requireRole(['ADMIN', 'EDU_EXPERT']);
 
   try {
     if (!isEntryMethod(entryMethod)) return { ok: false, error: 'روش ورود را انتخاب کنید.' };
-    const result = await importStagedToStudents(stagingIds, { entryMethod, allowDuplicates });
+    const result = await importStagedToStudents(stagingIds, { entryMethod });
     revalidatePath('/admin/admissions');
     revalidatePath('/admin/students');
     return {

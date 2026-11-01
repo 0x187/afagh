@@ -391,7 +391,7 @@ export async function parseAndStageSanjeshData(rawText: string, entryYear = 1405
  */
 export async function importStagedToStudents(
   stagingIds: number[],
-  opts: { entryMethod: EntryMethod; allowDuplicates?: boolean },
+  opts: { entryMethod: EntryMethod },
 ) {
   if (!isEntryMethod(opts.entryMethod)) throw new Error('روش ورود نامعتبر یا انتخاب‌نشده است.');
   const stagedRows = await db
@@ -448,8 +448,8 @@ export async function importStagedToStudents(
         }
 
         // ۲. هر پذیرش یک پروندهٔ تازه با شماره دانشجویی جدید می‌گیرد؛ پرونده‌های قبلی دست‌نخورده می‌مانند.
-        //    پروندهٔ فعال با همان رشته و ورودی فقط با تأیید صریح ادمین (allowDuplicates) ثبت می‌شود.
-        if (!opts.allowDuplicates) {
+        //    پروندهٔ فعال با همان رشته و ورودی فقط با تصمیم صریح ادمین روی همان ردیف (ALLOW_DUPLICATE) ثبت می‌شود.
+        if (row.decisionNote !== 'ALLOW_DUPLICATE') {
           const [dup] = await tx
             .select({ studentCode: students.studentCode })
             .from(students)
@@ -620,4 +620,74 @@ export async function registerManualStudent(params: {
       fullName: `${user.firstName} ${user.lastName}`,
     };
   });
+}
+
+/**
+ * مرحلهٔ تصمیم: برای ردیف‌های آمادهٔ انتقال، پرونده‌های دانشجویی موجودِ همان کد ملی را برمی‌گرداند.
+ * `sameMajorYearActive` = آیا پرونده‌ای فعال با همان رشته و ورودیِ این پذیرش وجود دارد (تکراری احتمالی).
+ */
+export async function findExistingRecordsForStaging(universityId: number | null) {
+  const rows = await db
+    .select({
+      id: admissions_staging.id,
+      nationalCode: admissions_staging.nationalCode,
+      fullName: admissions_staging.fullName,
+      mappedMajorId: admissions_staging.mappedMajorId,
+      entryYear: admissions_staging.entryYear,
+      decisionNote: admissions_staging.decisionNote,
+      status: admissions_staging.status,
+    })
+    .from(admissions_staging)
+    .where(inArray(admissions_staging.status, ['RESOLVED', 'REJECTED']));
+
+  const ncs = [...new Set(rows.map(r => r.nationalCode))];
+  if (ncs.length === 0) return [];
+
+  const found = await db
+    .select({
+      nationalCode: users.nationalCode,
+      studentCode: students.studentCode,
+      majorId: students.majorId,
+      majorName: majors.name,
+      entryYear: students.entryYear,
+      entryTerm: students.entryTerm,
+      status: students.status,
+      admissionSource: students.admissionSource,
+      acceptanceType: students.acceptanceType,
+    })
+    .from(students)
+    .innerJoin(users, eq(users.id, students.userId))
+    .leftJoin(majors, eq(majors.id, students.majorId))
+    .where(and(
+      inArray(users.nationalCode, ncs),
+      universityId != null ? eq(users.universityId, universityId) : sql`true`,
+    ));
+
+  const byNc = new Map<string, typeof found>();
+  for (const f of found) {
+    const list = byNc.get(f.nationalCode) ?? [];
+    list.push(f);
+    byNc.set(f.nationalCode, list);
+  }
+
+  return rows
+    .map(r => {
+      const existing = byNc.get(r.nationalCode) ?? [];
+      const entryYear = r.entryYear || 1405;
+      return {
+        stagingId: r.id,
+        nationalCode: r.nationalCode,
+        fullName: r.fullName,
+        newMajorId: r.mappedMajorId,
+        newEntryYear: entryYear,
+        decision: r.status === 'REJECTED'
+          ? 'REJECT'
+          : r.decisionNote === 'ALLOW_DUPLICATE' ? 'ALLOW_DUPLICATE' : null,
+        sameMajorYearActive: existing.some(
+          e => e.majorId === r.mappedMajorId && e.entryYear === entryYear && e.status === 'ACTIVE',
+        ),
+        existing,
+      };
+    })
+    .filter(x => x.existing.length > 0);
 }

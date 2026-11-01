@@ -6,6 +6,8 @@ import { ENTRY_METHODS } from '@/lib/entry-methods';
 import { ClientTh, useClientTable, type ColumnDef } from '@/components/DataTable';
 import {
   importStagedStudentsAction,
+  listExistingForStagingAction,
+  setStagingDecisionAction,
   registerManualStudentAction,
   saveSanjeshMappingAction,
   saveStudentIdFormulaAction,
@@ -122,7 +124,27 @@ export default function AdmissionsClient({
   const [isStaging, setIsStaging] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importEntryMethod, setImportEntryMethod] = useState<string>('');
-  const [importAllowDuplicates, setImportAllowDuplicates] = useState(false);
+  const [existingItems, setExistingItems] = useState<any[]>([]);
+  const [decisionBusy, setDecisionBusy] = useState<number | null>(null);
+
+  const loadExisting = async () => {
+    const res = await listExistingForStagingAction();
+    if (res.ok) setExistingItems(res.items ?? []);
+  };
+
+  useEffect(() => { loadExisting(); }, [initialStaging]);
+
+  const decide = async (stagingId: number, decision: 'ALLOW_DUPLICATE' | 'REJECT' | 'CLEAR') => {
+    setDecisionBusy(stagingId);
+    const res = await setStagingDecisionAction(stagingId, decision);
+    setDecisionBusy(null);
+    if (!res.ok) {
+      setFeedback({ text: res.error || 'ثبت تصمیم انجام نشد.', type: 'error' });
+      return;
+    }
+    await loadExisting();
+    router.refresh();
+  };
 
   // ── نگاشت «کد رشتهٔ سنجش» → «رشتهٔ دانشگاه» ─────────────────────────────
   // هر ردیفِ «نیازمند نگاشت» یک کد رشتهٔ سنجش دارد؛ نگاشت یک کد، همهٔ
@@ -252,8 +274,9 @@ export default function AdmissionsClient({
     }
 
     setIsImporting(true);
-    const res = await importStagedStudentsAction(resolvedIds, importEntryMethod, importAllowDuplicates);
+    const res = await importStagedStudentsAction(resolvedIds, importEntryMethod);
     setIsImporting(false);
+    await loadExisting();
     if (res.ok) {
       const failNote = res.failures?.length ? ` — ${res.failures.length} رکورد ناموفق بود (به‌طور کامل برگشت داده شد؛ جزئیات در لاگ سرور).` : '';
       setFeedback({ text: `${res.count} دانشجو با موفقیت ثبت قطعی شدند و شماره دانشجویی یکتا برای آنان صادر گردید.${failNote}`, type: res.failures?.length ? 'warning' : 'success' });
@@ -404,6 +427,97 @@ export default function AdmissionsClient({
       {/* TAB 1: پردازش فایل متنی سنجش و Staging */}
       {activeTab === 'SANJESH_STAGING' && (
         <div className="space-y-6">
+          {existingItems.length > 0 && (
+            <div className="card p-6 bg-amber-50 border border-amber-300 rounded-2xl space-y-4 shadow-sm dark:bg-amber-950 dark:border-amber-800">
+              <div className="border-b pb-3 border-amber-200">
+                <h2 className="text-sm font-black text-amber-900 dark:text-amber-200">
+                  ⚠️ داوطلبان با پرونده دانشجویی موجود ({existingItems.length.toLocaleString('fa-IR')} نفر)
+                </h2>
+                <p className="text-xs text-amber-800 mt-0.5 dark:text-amber-300">
+                  برای هر داوطلب تصمیم بگیرید: «ثبت پرونده جدید» یا «رد». پرونده‌های قبلی هیچ تغییری نمی‌کنند.
+                </p>
+              </div>
+              <div className="space-y-3 max-h-[60vh] overflow-auto">
+                {existingItems.map((it: any) => (
+                  <div key={it.stagingId} className={`rounded-xl border p-3 bg-white dark:bg-slate-900 ${it.sameMajorYearActive ? 'border-red-400' : 'border-amber-200'}`}>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-xs">
+                        <span className="font-black text-slate-900">{it.fullName}</span>
+                        <span className="text-slate-500 mr-2 tabular-nums" dir="ltr">{it.nationalCode}</span>
+                        {it.sameMajorYearActive && (
+                          <span className="mr-2 px-1.5 py-0.5 rounded bg-red-100 text-red-800 font-bold text-[10px]">احتمال تکرار: پرونده فعال با همین رشته و ورودی</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {it.decision === 'REJECT' && (
+                          <span className="px-2 py-1 rounded-lg bg-rose-100 text-rose-800 text-[11px] font-bold">✗ رد شد</span>
+                        )}
+                        {it.decision === 'ALLOW_DUPLICATE' ? (
+                          <span className="px-2 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-[11px] font-bold">✓ ثبت پرونده جدید</span>
+                        ) : it.decision !== 'REJECT' && (
+                          <button
+                            onClick={() => decide(it.stagingId, 'ALLOW_DUPLICATE')}
+                            disabled={decisionBusy === it.stagingId}
+                            className="px-2 py-1 rounded-lg border border-emerald-300 bg-white text-[11px] font-bold text-emerald-800 hover:bg-emerald-50 disabled:opacity-50"
+                          >
+                            ثبت پرونده جدید
+                          </button>
+                        )}
+                        {it.decision !== 'REJECT' && (
+                          <button
+                            onClick={() => decide(it.stagingId, 'REJECT')}
+                            disabled={decisionBusy === it.stagingId}
+                            className="px-2 py-1 rounded-lg border border-rose-300 bg-white text-[11px] font-bold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                          >
+                            رد
+                          </button>
+                        )}
+                        {it.decision && (
+                          <button
+                            onClick={() => decide(it.stagingId, 'CLEAR')}
+                            disabled={decisionBusy === it.stagingId}
+                            className="px-2 py-1 rounded-lg border border-slate-300 bg-white text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                          >
+                            لغو تصمیم
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-2 text-[11px] text-slate-600 dark:text-slate-300">
+                      <span className="font-bold">پذیرش جدید:</span> ورودی {it.newEntryYear}
+                      <span className="mx-2 text-slate-400">|</span>
+                      <span className="font-bold">پرونده‌های موجود:</span>
+                    </div>
+                    <table className="w-full mt-1 text-right text-[11px]">
+                      <thead className="text-slate-500">
+                        <tr>
+                          <th className="p-1 font-medium">شماره</th>
+                          <th className="p-1 font-medium">رشته</th>
+                          <th className="p-1 font-medium">ورودی/ترم</th>
+                          <th className="p-1 font-medium">وضعیت</th>
+                          <th className="p-1 font-medium">منبع</th>
+                          <th className="p-1 font-medium">روش ورود</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {it.existing.map((e: any) => (
+                          <tr key={e.studentCode} className="border-t border-slate-100">
+                            <td className="p-1 font-mono tabular-nums" dir="ltr">{e.studentCode}</td>
+                            <td className="p-1">{e.majorName ?? '—'}</td>
+                            <td className="p-1 tabular-nums">{e.entryYear} / {e.entryTerm ?? '—'}</td>
+                            <td className="p-1">{e.status}</td>
+                            <td className="p-1">{e.admissionSource ?? 'LEGACY'}</td>
+                            <td className="p-1">{e.acceptanceType ?? '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="card p-6 bg-white border border-slate-200 rounded-2xl space-y-4 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
               <div>
@@ -433,14 +547,6 @@ export default function AdmissionsClient({
                     <option key={m.value} value={m.value}>{m.label}</option>
                   ))}
                 </select>
-                <label className="flex items-center gap-1 text-[11px] text-amber-800">
-                  <input
-                    type="checkbox"
-                    checked={importAllowDuplicates}
-                    onChange={e => setImportAllowDuplicates(e.target.checked)}
-                  />
-                  اجازهٔ ثبت پرونده تکراری (با آگاهی)
-                </label>
                 <button
                   onClick={handleBatchImport}
                   disabled={isImporting}
