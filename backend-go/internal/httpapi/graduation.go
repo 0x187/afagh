@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های میز فارغ‌التحصیلی و صدور مدارک ═══
+// ═══ Graduation desk and document issuance endpoints ═══
 package httpapi
 
 import (
@@ -45,7 +45,7 @@ func (a *AdminAPI) gradDossier(c *gin.Context, auditID int64) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"dossier": d}})
 }
 
-// graduationSeed دادهٔ اولیهٔ صفحه.
+// graduationSeed initial page data.
 func (a *AdminAPI) graduationSeed(c *gin.Context) {
 	user := a.requireGraduationUser(c)
 	if user == nil {

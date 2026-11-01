@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های پورتال استاد (فاز ۴) ═══
+// ═══ Professor portal endpoints (phase 4) ═══
 package httpapi
 
 import (
@@ -12,7 +12,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// ProfessorAPI هندلرهای استاد.
+// ProfessorAPI professor handlers.
 type ProfessorAPI struct {
 	Svc   *professor.Service
 	Store *session.Store

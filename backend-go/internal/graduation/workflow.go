@@ -1,4 +1,4 @@
-// ═══ عملیات گردش‌کار فارغ‌التحصیلی — تأیید، ایرانداک، تسویه، صدور ═══
+// ═══ Graduation workflow operations — approval, Irandoc, clearance, issuance ═══
 package graduation
 
 import (
@@ -23,7 +23,7 @@ import (
 	"backend-go/internal/money"
 )
 
-// ApproveByHead تأیید مدیر گروه و پیشروی خودکار.
+// ApproveByHead approves by the department head and advances automatically.
 func (s *Service) ApproveByHead(ctx context.Context, auditID, userID int64, note *string) error {
 	tag, err := s.Pool.Exec(ctx, `
 		update graduation_audits set "headApprovalStatus" = 1, "headApprovedBy" = $2,
@@ -38,7 +38,7 @@ func (s *Service) ApproveByHead(ctx context.Context, auditID, userID int64, note
 	return s.Students.AdvanceDossierByID(ctx, auditID)
 }
 
-// Hold توقف پرونده با دلیل.
+// Hold pauses the dossier with a reason.
 func (s *Service) Hold(ctx context.Context, auditID int64, reason string) error {
 	reason = strings.TrimSpace(reason)
 	if reason == "" {
@@ -60,7 +60,7 @@ func (s *Service) Hold(ctx context.Context, auditID int64, reason string) error 
 	return nil
 }
 
-// Resume رفع توقف و ورود دوباره به چرخهٔ خودکار.
+// Resume clears the hold and re-enters the automatic cycle.
 func (s *Service) Resume(ctx context.Context, auditID int64) error {
 	if _, err := s.Pool.Exec(ctx, `
 		update graduation_audits set "workflowStatus" = 'CATALOG_REVIEW', note = null, "lastEventAt" = now()
@@ -70,7 +70,7 @@ func (s *Service) Resume(ctx context.Context, auditID int64) error {
 	return s.Students.AdvanceDossierByID(ctx, auditID)
 }
 
-// Advance بازمحاسبهٔ وضعیت.
+// Advance recomputes the status.
 func (s *Service) Advance(ctx context.Context, auditID int64) (map[string]any, error) {
 	before, _ := s.dossierStatus(ctx, auditID)
 	if err := s.Students.AdvanceDossierByID(ctx, auditID); err != nil {
@@ -86,16 +86,16 @@ func (s *Service) dossierStatus(ctx context.Context, auditID int64) (string, err
 	return st, err
 }
 
-// ─────────────────── ایرانداک ───────────────────
+// ─────────────────── Irandoc ───────────────────
 
-// IrandocOutcome نتیجهٔ استعلام همانندجویی.
+// IrandocOutcome is the similarity-check result.
 type IrandocOutcome struct {
 	Passed     bool    `json:"passed"`
 	Similarity float64 `json:"similarity"`
 	Message    string  `json:"message"`
 }
 
-// RunIrandoc پورت runIrandoc.
+// RunIrandoc ports runIrandoc.
 func (s *Service) RunIrandoc(ctx context.Context, auditID int64, trackingCode, thesisTitle string) (*IrandocOutcome, error) {
 	var studentID int64
 	var thesisRequired int
@@ -167,7 +167,7 @@ func (s *Service) RunIrandoc(ctx context.Context, auditID int64, trackingCode, t
 	return res, nil
 }
 
-// safeJSONPost POST با گارد مقصد عمومی (بدون localhost/آی‌پی خصوصی).
+// safeJSONPost is a POST with a public-destination guard (no localhost/private IP).
 func safeJSONPost(ctx context.Context, rawURL string, body []byte, headers map[string]string) ([]byte, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil || (u.Scheme != "https" && u.Scheme != "http") {
@@ -203,9 +203,9 @@ func safeJSONPost(ctx context.Context, rawURL string, body []byte, headers map[s
 	return raw, nil
 }
 
-// ─────────────────── تسویه‌حساب ───────────────────
+// ─────────────────── Clearance ───────────────────
 
-// StartClearance ساخت چک‌لیست، اطلاع‌رسانی و بررسی خودکار.
+// StartClearance builds the checklist, sends notifications and triggers the automatic check.
 func (s *Service) StartClearance(ctx context.Context, auditID int64) (map[string]any, error) {
 	var studentID int64
 	if err := s.Pool.QueryRow(ctx, `select "studentId" from graduation_audits where id = $1`, auditID).Scan(&studentID); err != nil {
@@ -235,13 +235,13 @@ func (s *Service) StartClearance(ctx context.Context, auditID int64) (map[string
 	return s.RunAutoClearance(ctx, auditID)
 }
 
-// AutoClearanceResult نتیجهٔ بررسی خودکار.
+// AutoClearanceResult is the automatic check result.
 type AutoClearanceResult struct {
 	AutoCleared int `json:"autoCleared"`
 	WithDebt    int `json:"withDebt"`
 }
 
-// RunAutoClearance پورت runAutoClearance.
+// RunAutoClearance ports runAutoClearance.
 func (s *Service) RunAutoClearance(ctx context.Context, auditID int64) (map[string]any, error) {
 	var studentID int64
 	if err := s.Pool.QueryRow(ctx, `select "studentId" from graduation_audits where id = $1`, auditID).Scan(&studentID); err != nil {
@@ -430,7 +430,7 @@ func faThousands(v float64) string {
 }
 
 func moneyFormat(v float64) string {
-	// جداکنندهٔ هزارگان با ارقام فارسی — بدون وابستگی به locale.
+	// Thousands separator with Persian digits — no locale dependency.
 	n := int64(v + 0.5)
 	neg := n < 0
 	if neg {
@@ -463,7 +463,7 @@ func faDigits(s string) string {
 	return b.String()
 }
 
-// SetClearance ثبت دستی وضعیت یک ردیف تسویه.
+// SetClearance manually records the status of one clearance row.
 func (s *Service) SetClearance(ctx context.Context, checklistID int64, status string, detail *string, amountDue *float64, userID int64) error {
 	switch status {
 	case "CLEARED", "HAS_DEBT", "WAIVED", "PENDING":
@@ -505,7 +505,7 @@ func (s *Service) SetClearance(ctx context.Context, checklistID int64, status st
 	return nil
 }
 
-// ─────────────────── سجاد و کد صحت ───────────────────
+// ─────────────────── Sajjad and verification code ───────────────────
 
 func (s *Service) sajjadPending(ctx context.Context, auditID int64) bool {
 	require := s.Settings != nil && s.Settings.GetBool(ctx, "GRAD_REQUIRE_SAJJAD")
@@ -521,7 +521,7 @@ func (s *Service) sajjadPending(ctx context.Context, auditID int64) bool {
 	return code == nil || strings.TrimSpace(*code) == ""
 }
 
-// WaiveSajjad معاف‌کردن از گام سجاد.
+// WaiveSajjad waives the Sajjad step.
 func (s *Service) WaiveSajjad(ctx context.Context, auditID int64, note *string) error {
 	if note != nil && strings.TrimSpace(*note) != "" {
 		_, _ = s.Pool.Exec(ctx, `
@@ -534,13 +534,13 @@ func (s *Service) WaiveSajjad(ctx context.Context, auditID int64, note *string) 
 	return s.Students.AdvanceDossierByID(ctx, auditID)
 }
 
-// MinistryCodeResult نتیجهٔ دریافت کد صحت.
+// MinistryCodeResult is the result of obtaining the verification code.
 type MinistryCodeResult struct {
 	Code   string `json:"code"`
 	Online bool   `json:"online"`
 }
 
-// RequestMinistryCode پورت requestMinistryCode.
+// RequestMinistryCode ports requestMinistryCode.
 func (s *Service) RequestMinistryCode(ctx context.Context, auditID int64) (*MinistryCodeResult, error) {
 	var studentID int64
 	if err := s.Pool.QueryRow(ctx, `select "studentId" from graduation_audits where id = $1`, auditID).Scan(&studentID); err != nil {
@@ -612,9 +612,9 @@ func deref(p *string) string {
 	return *p
 }
 
-// ─────────────────── تمبر و صدور ───────────────────
+// ─────────────────── Stamp and issuance ───────────────────
 
-// SettleStampFee ثبت پرداخت هزینهٔ تمبر توسط واحد مالی (اتمیک + ممیزی).
+// SettleStampFee records the stamp fee payment by the finance unit (atomic + audited).
 func (s *Service) SettleStampFee(ctx context.Context, auditID, actorUserID int64) (int64, float64, error) {
 	tx, err := s.Pool.Begin(ctx)
 	if err != nil {
@@ -674,13 +674,13 @@ func randHex(n int) string {
 	return hex.EncodeToString(b)
 }
 
-// DegreeIssued نتیجهٔ صدور.
+// DegreeIssued is the issuance result.
 type DegreeIssued struct {
 	SerialNo   string `json:"serialNo"`
 	VerifyCode string `json:"verifyCode"`
 }
 
-// IssueDegree پورت issueDegree.
+// IssueDegree ports issueDegree.
 func (s *Service) IssueDegree(ctx context.Context, auditID int64, degreeType string, userID int64, ministryCode *string) (*DegreeIssued, error) {
 	switch degreeType {
 	case "TEMPORARY", "PERMANENT", "TRANSCRIPT":
@@ -820,7 +820,7 @@ func (s *Service) IssueDegree(ctx context.Context, auditID int64, degreeType str
 	return &DegreeIssued{SerialNo: serialNo, VerifyCode: verifyCode}, nil
 }
 
-// MarkDelivered ثبت تحویل مدرک.
+// MarkDelivered records degree delivery.
 func (s *Service) MarkDelivered(ctx context.Context, degreeID int64, deliveredTo string) error {
 	if strings.TrimSpace(deliveredTo) == "" {
 		deliveredTo = "شخص دانش‌آموخته"
@@ -853,8 +853,8 @@ func mustJSON(v any) string {
 	return string(raw)
 }
 
-// canonicalOf پرتوی canonical: کلیدهای مرتب، بدون فاصله، بدون escape HTML و با
-// json.Number تا اعداد اعشاری دقیقاً مثل سند بازخوانی شوند.
+// canonicalOf returns the canonical form: sorted keys, no spaces, no HTML escaping and
+// json.Number so decimal numbers are read back exactly as in the document.
 func canonicalOf(v any) string {
 	raw, err := json.Marshal(v)
 	if err != nil {
@@ -880,7 +880,7 @@ func degreeHash(serialNo, verifyCode string, snapshot map[string]any, ministryCo
 	return hex.EncodeToString(h[:])
 }
 
-// writeAuditTx درج حسابرسی زنجیره‌هش (همان قرارداد جدول audit_logs).
+// writeAuditTx inserts a hash-chain audit record (same contract as the audit_logs table).
 func writeAuditTx(ctx context.Context, tx pgx.Tx, actorUserID *int64, action, entityType string, entityID int64, details string) error {
 	var prev string
 	if err := tx.QueryRow(ctx, `select coalesce(hash,'') from audit_logs order by id desc limit 1 for update`).Scan(&prev); err != nil && err != pgx.ErrNoRows {

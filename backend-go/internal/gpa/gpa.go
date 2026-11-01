@@ -273,7 +273,7 @@ type AuditCore struct {
 }
 
 // AggregateAuditTranscript port of aggregateAuditTranscript: policy for dropping failed courses and
-// dedupe ندارد؛ نمرهٔ ردیف مردود را وارد معدل نمی‌کند.
+// No dedupe; does not include the failed row's mark in the GPA.
 func AggregateAuditTranscript(rows []Row, passing float64) AuditCore {
 	thresholdOf := thresholdFactory(passing)
 	passedIDs := map[int64]bool{}

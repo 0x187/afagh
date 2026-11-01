@@ -1,12 +1,12 @@
-// ═══ کدهای وضع نمرهٔ سما — پورت grade-status-codes.ts ═══
+// ═══ Sama grade status codes — port of grade-status-codes.ts ═══
 //
-// جدول مرجع رسمی; تنها تعریف «این ردیف نمره‌اش را به معدل نمی‌دهد» در
-// rowCountsTowardGpa است تا «معدل رسمی» و «معدل دروازهٔ فارغ‌التحصیلی» واگرا نشوند.
+// Official reference table; the only definition of "this row does not contribute its mark to the GPA" is
+// in rowCountsTowardGpa so that the "official GPA" and the "graduation-gate GPA" do not diverge.
 package gradestatus
 
 import "strings"
 
-// Code یک ردیف جدول مرجع کدهای وضع نمره.
+// Code is one row of the grade status code reference table.
 type Code struct {
 	Code           string
 	Title          string
@@ -16,7 +16,7 @@ type Code struct {
 	IsDropped      bool
 }
 
-// Codes جدول مرجع (ترتیب منبع حفظ شده).
+// Codes is the reference table (source order preserved).
 var Codes = []Code{
 	{"-91", "حذف آيين نامه 91 (کارداني _ کارشناسي)", false, false, false, false},
 	{"-6", "تقلبهاي مشكوك", false, false, false, false},
@@ -78,7 +78,7 @@ var byCode = func() map[string]Code {
 	return m
 }()
 
-// NonGpaCodes کدهای بدون اثر در معدل کل.
+// NonGpaCodes are codes with no effect on the overall GPA.
 var NonGpaCodes = func() map[string]bool {
 	m := map[string]bool{}
 	for _, c := range Codes {
@@ -89,7 +89,7 @@ var NonGpaCodes = func() map[string]bool {
 	return m
 }()
 
-// NonGpaPassCodes کدهای قبولی که نمره‌شان در معدل اثر ندارد.
+// NonGpaPassCodes are passing codes whose mark has no effect on the GPA.
 var NonGpaPassCodes = func() map[string]bool {
 	m := map[string]bool{}
 	for _, c := range Codes {
@@ -100,7 +100,7 @@ var NonGpaPassCodes = func() map[string]bool {
 	return m
 }()
 
-// NonTermGpaCodes کدهای بدون اثر در معدل نیمسال.
+// NonTermGpaCodes are codes with no effect on the semester GPA.
 var NonTermGpaCodes = func() map[string]bool {
 	m := map[string]bool{}
 	for _, c := range Codes {
@@ -111,7 +111,7 @@ var NonTermGpaCodes = func() map[string]bool {
 	return m
 }()
 
-// DroppedCodes کدهای دروس حذف‌شده.
+// DroppedCodes are codes of dropped courses.
 var DroppedCodes = func() map[string]bool {
 	m := map[string]bool{}
 	for _, c := range Codes {
@@ -122,10 +122,10 @@ var DroppedCodes = func() map[string]bool {
 	return m
 }()
 
-// OptionLabel «کد — عنوان» برای dropdown.
+// OptionLabel is "code — title" for the dropdown.
 func OptionLabel(c Code) string { return c.Code + " — " + c.Title }
 
-// TitleOf عنوان از روی کد (nil اگر ناشناخته).
+// TitleOf returns the title for a code (nil if unknown).
 func TitleOf(code string) *string {
 	c, ok := byCode[strings.TrimSpace(code)]
 	if !ok {
@@ -135,22 +135,22 @@ func TitleOf(code string) *string {
 	return &t
 }
 
-// IsPassed آیا کد قبولی است؟
+// IsPassed reports whether the code is a pass.
 func IsPassed(code string) bool {
 	c, ok := byCode[strings.TrimSpace(code)]
 	return ok && c.Passed
 }
 
-// IsDropped آیا کد حذف درس است؟
+// IsDropped reports whether the code is a course drop.
 func IsDropped(code string) bool { return DroppedCodes[strings.TrimSpace(code)] }
 
-// IsNonGpaPass آیا قبولیِ بدون احتساب در معدل است؟
+// IsNonGpaPass reports whether it is a pass not counted in the GPA.
 func IsNonGpaPass(code string) bool { return NonGpaPassCodes[strings.TrimSpace(code)] }
 
-// RowCountsTowardGpa قاعدهٔ مرجع ورود نمره به معدل — سه شرط AND:
-//  1. کد سما در NON_GPA_CODES نباشد
-//  2. سوییچ courses.affectsGpa صفر نباشد
-//  3. درس توصیفی نباشد
+// RowCountsTowardGpa is the reference rule for a mark counting toward the GPA — three AND conditions:
+//  1. the Sama code is not in NON_GPA_CODES
+//  2. the courses.affectsGpa switch is not zero
+//  3. the course is not descriptive
 func RowCountsTowardGpa(samaCode string, courseAffectsGpa *int, gradingType string) bool {
 	if gradingType == "DESCRIPTIVE" {
 		return false
@@ -165,7 +165,7 @@ func RowCountsTowardGpa(samaCode string, courseAffectsGpa *int, gradingType stri
 	return true
 }
 
-// ResolveRetakeBar حد نصاب قبولی مجدد — فقط EXCLUDE_IF_PASSED_1391.
+// ResolveRetakeBar is the retake pass threshold — only EXCLUDE_IF_PASSED_1391.
 func ResolveRetakeBar(policy string, retakeMinGrade *float64, passingGrade float64) *float64 {
 	if policy != "EXCLUDE_IF_PASSED_1391" {
 		return nil
@@ -180,7 +180,7 @@ func ResolveRetakeBar(policy string, retakeMinGrade *float64, passingGrade float
 	return nil
 }
 
-// RegulationFrozenCodes کدهایی که منطق آیین‌نامه هرگز نباید بازنویسی کند.
+// RegulationFrozenCodes are codes that regulation logic must never override.
 var RegulationFrozenCodes = func() map[string]bool {
 	list := []string{
 		"3", "4", "5", "6", "7", "8", "9", "10", "13", "14", "15", "16", "17", "18", "19", "20",

@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های برنامهٔ درسی (سرفصل) ═══
+// ═══ Curriculum (syllabus) endpoints ═══
 package httpapi
 
 import (

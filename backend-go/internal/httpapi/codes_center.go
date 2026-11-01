@@ -1,6 +1,6 @@
-// ═══ مرکز کدها — هندلرهای HTTP (پورت admin/codes در Next) ═══
+// ═══ Codes center — HTTP handlers (port of admin/codes in Next) ═══
 //
-// struct مستقل CodesAPI — رجیستری در main.go:
+// Standalone CodesAPI struct — registry in main.go:
 //
 //	codesAPI := &httpapi.CodesAPI{Svc: adminSvc, Store: store}
 //	codesAPI.Register(ginEngine.Group(""))
@@ -17,21 +17,21 @@ import (
 	"backend-go/internal/session"
 )
 
-// codesViewRoles / codesEditRoles — همان نقش‌های اکشن‌های Next:
-// خواندن: ADMIN/VICE_EDU/EDU_EXPERT · نوشتن: ADMIN/VICE_EDU
-// (استثنا: ویرایش زمان‌بندی ترم در Next با نقش‌های خواندن باز است — همان‌طور حفظ شد.)
+// codesViewRoles / codesEditRoles — the same roles as the Next actions:
+// read: ADMIN/VICE_EDU/EDU_EXPERT · write: ADMIN/VICE_EDU
+// (exception: term schedule editing in Next is open to read roles — preserved as is.)
 var (
 	codesViewRoles = []string{"ADMIN", "VICE_EDU", "EDU_EXPERT"}
 	codesEditRoles = []string{"ADMIN", "VICE_EDU"}
 )
 
-// CodesAPI هندلرهای مرکز کدها.
+// CodesAPI is the codes center handlers.
 type CodesAPI struct {
 	Svc   *admin.Service
 	Store *session.Store
 }
 
-// Register مسیرهای مرکز کدها — همه زیر /admin/codes/*.
+// Register registers the codes center routes — all under /admin/codes/*.
 func (a *CodesAPI) Register(r gin.IRouter) {
 	r.GET("/admin/codes/stats", a.codesStats)
 	r.GET("/admin/codes/rows", a.codesRows)
@@ -50,7 +50,7 @@ func (a *CodesAPI) Register(r gin.IRouter) {
 	r.POST("/admin/codes/delete", a.codesDelete)
 }
 
-// requireRoles — الگوی student_cards.go.
+// requireRoles — the student_cards.go pattern.
 func (a *CodesAPI) requireRoles(c *gin.Context, roles []string) *session.User {
 	token := session.ReadToken(parseCookies(c.Request))
 	if token == "" {
@@ -89,7 +89,7 @@ func codesQueryID(c *gin.Context) int64 {
 	return n
 }
 
-// codesStats آمار سلامت کدها (کارت‌های بالای صفحه).
+// codesStats returns code health stats (cards at the top of the page).
 func (a *CodesAPI) codesStats(c *gin.Context) {
 	user := a.requireRoles(c, codesViewRoles)
 	if user == nil {
@@ -103,7 +103,7 @@ func (a *CodesAPI) codesStats(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"stats": stats}})
 }
 
-// codesRows فهرست کدهای یک جدول (با جست‌وجوی اختیاری q).
+// codesRows lists the codes of a table (with optional q search).
 func (a *CodesAPI) codesRows(c *gin.Context) {
 	user := a.requireRoles(c, codesViewRoles)
 	if user == nil {
@@ -117,7 +117,7 @@ func (a *CodesAPI) codesRows(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"rows": rows}})
 }
 
-// codesMissingSummary خلاصهٔ رکوردهای بی‌کد.
+// codesMissingSummary summarizes records without a code.
 func (a *CodesAPI) codesMissingSummary(c *gin.Context) {
 	user := a.requireRoles(c, codesViewRoles)
 	if user == nil {
@@ -131,7 +131,7 @@ func (a *CodesAPI) codesMissingSummary(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"missing": summary}})
 }
 
-// codesExport خروجی CSV یک جدول (دانلود از متن).
+// codesExport exports a table as CSV (download from text).
 func (a *CodesAPI) codesExport(c *gin.Context) {
 	user := a.requireRoles(c, codesViewRoles)
 	if user == nil {
@@ -145,7 +145,7 @@ func (a *CodesAPI) codesExport(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"csv": csv}})
 }
 
-// codesCount شمار رکوردهای یک جدول بدون بارگذاری کامل.
+// codesCount counts a table's records without loading them all.
 func (a *CodesAPI) codesCount(c *gin.Context) {
 	user := a.requireRoles(c, codesViewRoles)
 	if user == nil {
@@ -159,7 +159,7 @@ func (a *CodesAPI) codesCount(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"count": n}})
 }
 
-// codesFormOptions گزینه‌های والد فرم ساخت.
+// codesFormOptions are the parent options for the create form.
 func (a *CodesAPI) codesFormOptions(c *gin.Context) {
 	user := a.requireRoles(c, codesViewRoles)
 	if user == nil {
@@ -173,7 +173,7 @@ func (a *CodesAPI) codesFormOptions(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": options})
 }
 
-// codesGetRow خواندن یک سطر برای فرم ویرایش عمومی.
+// codesGetRow reads one row for the generic edit form.
 func (a *CodesAPI) codesGetRow(c *gin.Context) {
 	user := a.requireRoles(c, codesViewRoles)
 	if user == nil {
@@ -187,7 +187,7 @@ func (a *CodesAPI) codesGetRow(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"row": row}})
 }
 
-// codesSetCode ویرایش کد یک رکورد (با بررسی یکتایی).
+// codesSetCode edits a record's code (with a uniqueness check).
 func (a *CodesAPI) codesSetCode(c *gin.Context) {
 	user := a.requireRoles(c, codesEditRoles)
 	if user == nil {
@@ -211,7 +211,7 @@ type codesRowValuesInput struct {
 	Values map[string]string `json:"values"`
 }
 
-// codesCreate ساخت رکورد مرجع تازه (مقطع/دانشکده/رشته/ترم).
+// codesCreate creates a new reference record (degree/faculty/major/term).
 func (a *CodesAPI) codesCreate(c *gin.Context) {
 	user := a.requireRoles(c, codesEditRoles)
 	if user == nil {
@@ -230,7 +230,7 @@ func (a *CodesAPI) codesCreate(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"id": id}})
 }
 
-// codesUpdateRow ویرایش عمومی سطر (دانشکده/گروه/رشته/درس).
+// codesUpdateRow edits a row generically (faculty/group/major/course).
 func (a *CodesAPI) codesUpdateRow(c *gin.Context) {
 	user := a.requireRoles(c, codesEditRoles)
 	if user == nil {
@@ -248,7 +248,7 @@ func (a *CodesAPI) codesUpdateRow(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// codesGetDegree خواندن یک مقطع برای فرم ویرایش.
+// codesGetDegree reads a degree level for the edit form.
 func (a *CodesAPI) codesGetDegree(c *gin.Context) {
 	user := a.requireRoles(c, codesViewRoles)
 	if user == nil {
@@ -262,7 +262,7 @@ func (a *CodesAPI) codesGetDegree(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"degree": d}})
 }
 
-// codesUpdateDegree ویرایش مقطع — همهٔ فیلدهای فرم ساخت.
+// codesUpdateDegree edits a degree level — all fields of the create form.
 func (a *CodesAPI) codesUpdateDegree(c *gin.Context) {
 	user := a.requireRoles(c, codesEditRoles)
 	if user == nil {
@@ -280,7 +280,7 @@ func (a *CodesAPI) codesUpdateDegree(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// codesGetTerm خواندن یک ترم برای فرم ویرایش زمان‌بندی.
+// codesGetTerm reads a term for the schedule edit form.
 func (a *CodesAPI) codesGetTerm(c *gin.Context) {
 	user := a.requireRoles(c, codesViewRoles)
 	if user == nil {
@@ -294,8 +294,8 @@ func (a *CodesAPI) codesGetTerm(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"term": row}})
 }
 
-// codesUpdateTerm ویرایش زمان‌بندی ترم — در Next با نقش‌های خواندن باز است
-// (requireRole(['ADMIN','VICE_EDU','EDU_EXPERT'])) — عیناً حفظ شد.
+// codesUpdateTerm edits the term schedule — in Next it is open to read roles
+// (requireRole(['ADMIN','VICE_EDU','EDU_EXPERT'])) — preserved exactly.
 func (a *CodesAPI) codesUpdateTerm(c *gin.Context) {
 	user := a.requireRoles(c, codesViewRoles)
 	if user == nil {
@@ -313,7 +313,7 @@ func (a *CodesAPI) codesUpdateTerm(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// codesDelete حذف رکورد مرجع (فقط وقتی استفاده نشده باشد).
+// codesDelete deletes a reference record (only when unused).
 func (a *CodesAPI) codesDelete(c *gin.Context) {
 	user := a.requireRoles(c, codesEditRoles)
 	if user == nil {

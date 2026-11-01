@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های هوش تجاری ارزشیابی (BI) ═══
+// ═══ Evaluation business intelligence (BI) endpoints ═══
 package httpapi
 
 import (

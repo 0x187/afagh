@@ -27,7 +27,7 @@ func TestParseGradeUnits(t *testing.T) {
 
 func TestAccumulatorPrecision(t *testing.T) {
 	acc := &Accumulator{}
-	acc.Add(15.12, 3) // نمره با دو رقم اعشار
+	acc.Add(15.12, 3) // Mark with two decimal places
 	acc.Add(18.34, 2)
 	if !acc.HasUnits() || acc.Units() != 5 {
 		t.Fatalf("units=%v", acc.Units())
@@ -62,7 +62,7 @@ func TestOfficialGpaBasics(t *testing.T) {
 		t.Fatalf("gpa پایه: %+v", core)
 	}
 
-	// نمرهٔ ۹ با کف ۱۰: قبول نیست ولی چون در معدل اثر دارد وارد معدل می‌شود
+	// Mark 9 with a floor of 10: not a pass, but it counts toward the GPA because it affects it
 	failRow := AggregateOfficialGpaRows([]Row{
 		row(func(r *Row) { r.GradeValue = 20 }),
 		row(func(r *Row) { r.Code = "C2"; r.GradeValue = 9; r.Units = 2; r.CourseID = i64(2) }),
@@ -75,7 +75,7 @@ func TestOfficialGpaBasics(t *testing.T) {
 		t.Fatalf("gpa با مردودی: %v", failRow.GPA)
 	}
 
-	// حد نصاب درس (minMark=18 روی ردیف)
+	// Course threshold (minMark=18 on the row)
 	minMark := AggregateOfficialGpaRows([]Row{
 		row(func(r *Row) { r.GradeValue = 17; r.CourseMinMark = 18 }),
 	}, OfficialInput{PassingGrade: 10, Policy: ""})
@@ -85,7 +85,7 @@ func TestOfficialGpaBasics(t *testing.T) {
 }
 
 func TestOfficialGpaRules(t *testing.T) {
-	// کد ۱۲ (بدون احتساب): واحد قبولی دارد ولی نمره وارد معدل نمی‌شود
+	// Code 12 (not counted): has passing credits but the mark does not count toward the GPA
 	nonGpa := AggregateOfficialGpaRows([]Row{
 		row(func(r *Row) { r.GradeValue = 18; r.SamaGradeStatusCode = s("12") }),
 	}, OfficialInput{PassingGrade: 10, Policy: ""})
@@ -93,7 +93,7 @@ func TestOfficialGpaRules(t *testing.T) {
 		t.Fatalf("کد ۱۲: %+v", nonGpa)
 	}
 
-	// درس توصیفی: نمرهٔ ۱ قبولی، بدون اثر در معدل
+	// Descriptive course: mark 1 is a pass, no effect on the GPA
 	desc := AggregateOfficialGpaRows([]Row{
 		row(func(r *Row) { r.GradeValue = 1; r.GradingType = s("DESCRIPTIVE") }),
 	}, OfficialInput{PassingGrade: 10, Policy: ""})
@@ -107,7 +107,7 @@ func TestOfficialGpaRules(t *testing.T) {
 		t.Fatalf("توصیفی ۰ نباید قبول شود: %+v", descFail)
 	}
 
-	// affectsGpa=0 → بدون اثر در معدل، واحد قبولی حفظ
+	// affectsGpa=0 → no effect on the GPA, passing credits retained
 	noAffect := AggregateOfficialGpaRows([]Row{
 		row(func(r *Row) { r.GradeValue = 16; r.AffectsGpa = i(0) }),
 	}, OfficialInput{PassingGrade: 10, Policy: ""})
@@ -115,7 +115,7 @@ func TestOfficialGpaRules(t *testing.T) {
 		t.Fatalf("affectsGpa=0: %+v", noAffect)
 	}
 
-	// EXEMPT بدون نمره: نه واحد قبولی (در این هسته) و نه معدل
+	// EXEMPT without a mark: neither passing credits (in this core) nor GPA
 	exempt := AggregateOfficialGpaRows([]Row{
 		row(func(r *Row) { r.GradeValue = nil; r.GradeStatus = s("EXEMPT") }),
 	}, OfficialInput{PassingGrade: 10, Policy: ""})
@@ -125,7 +125,7 @@ func TestOfficialGpaRules(t *testing.T) {
 }
 
 func TestOfficialGpaRetakePolicies(t *testing.T) {
-	// قبولی بعدی، مردودی قبلی را حذف می‌کند (EXCLUDE_IF_PASSED)
+	// A later pass removes the earlier failure (EXCLUDE_IF_PASSED)
 	rows := []Row{
 		row(func(r *Row) { r.Code = "C1"; r.GradeValue = 8; r.CourseID = i64(1) }),
 		row(func(r *Row) { r.Code = "C1"; r.GradeValue = 15; r.CourseID = i64(1) }),
@@ -135,7 +135,7 @@ func TestOfficialGpaRetakePolicies(t *testing.T) {
 		t.Fatalf("EXCLUDE_IF_PASSED: %+v", core)
 	}
 
-	// تبصره ۱۳۹۱: کف قبولی مجدد ۱۴؛ قبولی ۱۲ ردیف مردود را حذف نمی‌کند
+	// Note 1391: retake pass floor is 14; a pass of 12 does not remove the failed row
 	lowPass := AggregateOfficialGpaRows([]Row{
 		row(func(r *Row) { r.Code = "C1"; r.GradeValue = 8 }),
 		row(func(r *Row) { r.Code = "C1"; r.GradeValue = 12 }),
@@ -169,11 +169,11 @@ func TestAuditTranscript(t *testing.T) {
 		row(func(r *Row) { r.GradeValue = nil; r.Units = 4; r.GradeStatus = s("EXEMPT"); r.CourseID = i64(3) }),
 		row(func(r *Row) { r.GradeValue = 16; r.Units = 3; r.SamaGradeStatusCode = s("12"); r.CourseID = i64(4) }),
 	}, 10)
-	// قبولی‌ها: ردیف ۱، ۳ (EXEMPT)، ۴ (کد ۱۲) → ۳+۴+۳ = ۱۰
+	// Passes: rows 1, 3 (EXEMPT), 4 (code 12) → 3+4+3 = 10
 	if core.PassedUnits != 10 {
 		t.Fatalf("passedUnits=%v want 10", core.PassedUnits)
 	}
-	// فقط نمرهٔ ردیف ۱ وارد معدل می‌شود
+	// Only the mark from row 1 counts toward the GPA
 	if core.GPA == nil || *core.GPA != 18 {
 		t.Fatalf("gpa=%v", core.GPA)
 	}
@@ -182,10 +182,10 @@ func TestAuditTranscript(t *testing.T) {
 	}
 }
 
-// پارتی دو موتور برای ردیف‌های ساده (بدون سیاست حذف/dedupe) — همان قاعدهٔ
-// rowCountsTowardGpa، پس معدل باید یکسان باشد. (تفاوت مستند: موتور audit
-// ردیف مردود را اصلاً وارد معدل نمی‌کند، پس این تست فقط ردیف‌های قبول را
-// مقایسه می‌کند.)
+// Parity of the two engines for simple rows (no exclude/dedupe policy) — the same
+// rowCountsTowardGpa rule, so the GPA must be identical. (Documented difference: the audit engine
+// does not count failed rows toward the GPA at all, so this test only
+// compares passing rows.)
 func TestEngineParity(t *testing.T) {
 	rows := []Row{
 		row(func(r *Row) { r.Code = "C1"; r.GradeValue = 17.5; r.Units = 3 }),

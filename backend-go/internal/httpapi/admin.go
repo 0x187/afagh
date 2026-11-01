@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های پنل ادمین (فاز ۶) ═══
+// ═══ Admin panel endpoints (phase 6) ═══
 package httpapi
 
 import (
@@ -25,7 +25,7 @@ import (
 	"backend-go/internal/verification"
 )
 
-// AdminAPI هندلرهای ادمین.
+// AdminAPI is the admin handlers.
 type AdminAPI struct {
 	Svc            *admin.Service
 	Store          *session.Store
@@ -1131,7 +1131,7 @@ func (a *AdminAPI) staff(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "rows": rows})
 }
 
-// ─────────────────── کمیتهٔ انضباطی / شورا ───────────────────
+// ─────────────────── Disciplinary committee / council ───────────────────
 
 func (a *AdminAPI) disciplineList(c *gin.Context) {
 	user := a.requireAdmin(c)
@@ -1326,7 +1326,7 @@ func (a *AdminAPI) councilDecisionDelete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// ─────────────────── بایگانی مدارک ───────────────────
+// ─────────────────── Document archive ───────────────────
 
 func (a *AdminAPI) archiveDocuments(c *gin.Context) {
 	user := a.requireAdmin(c)
@@ -1423,7 +1423,7 @@ func (a *AdminAPI) archiveUpload(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"docId": id}})
 }
 
-// archiveFile سرو امن فایل — فقط نوع‌های مجاز رندر، بقیه attachment.
+// archiveFile securely serves a file — only allowed types render, the rest as attachment.
 func (a *AdminAPI) archiveFile(c *gin.Context) {
 	user := a.requireAdmin(c)
 	if user == nil {
@@ -1471,7 +1471,7 @@ func (a *AdminAPI) archiveFile(c *gin.Context) {
 	c.Data(http.StatusOK, mime, data)
 }
 
-// ─────────────────── ضرایب نیمسال + مبالغ موضوعی ───────────────────
+// ─────────────────── Semester coefficients + subject amounts ───────────────────
 
 func (a *AdminAPI) financeCoefficients(c *gin.Context) {
 	user := a.requireAdmin(c)
@@ -1625,7 +1625,7 @@ func (a *AdminAPI) financeSubjectFeeAssignDelete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// ─────────────────── کنترل زمانی ثبت مالی ───────────────────
+// ─────────────────── Financial registration time control ───────────────────
 
 func (a *AdminAPI) financeTimeControl(c *gin.Context) {
 	user := a.requireAdmin(c)
@@ -1658,7 +1658,7 @@ func (a *AdminAPI) financeTimeControlSave(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": state})
 }
 
-// ─────────────────── فرمول ویژهٔ دانشجو ───────────────────
+// ─────────────────── Student-specific formula ───────────────────
 
 func (a *AdminAPI) financeStudentFormula(c *gin.Context) {
 	user := a.requireAdmin(c)
@@ -1733,7 +1733,7 @@ func (a *AdminAPI) financeStudentFormulaDelete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// ─────────────────── صندوق رفاه ───────────────────
+// ─────────────────── Welfare fund ───────────────────
 
 func (a *AdminAPI) financeWelfareFunds(c *gin.Context) {
 	user := a.requireAdmin(c)

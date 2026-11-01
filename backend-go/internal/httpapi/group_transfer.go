@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های انتقال بین گروه‌ها ═══
+// ═══ Inter-group transfer endpoints ═══
 package httpapi
 
 import (

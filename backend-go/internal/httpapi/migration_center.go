@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های مهاجرت داده، سهام و ثمین ═══
+// ═══ Data migration, stocks and Thamin endpoints ═══
 package httpapi
 
 import (
@@ -20,7 +20,7 @@ func (a *MigrationAdminAPI) require(c *gin.Context) *session.User {
 	return a.Admin.requireRoles(c, migrationAdminRoles)
 }
 
-// MigrationAdminAPI هندلرهای مهاجرت/سهام/ثمین (فقط ADMIN).
+// MigrationAdminAPI migration/stocks/Thamin handlers (ADMIN only).
 type MigrationAdminAPI struct {
 	Admin *AdminAPI
 }
@@ -28,7 +28,7 @@ type MigrationAdminAPI struct {
 func (a *MigrationAdminAPI) Register(r gin.IRouter) {
 	g := r.Group("")
 	m := a
-	// ── مهاجرت ──
+	// ── Migration ──
 	g.GET("/admin/migration/overview", m.migrationOverview)
 	g.GET("/admin/migration/sources", m.migrationSources)
 	g.POST("/admin/migration/sources", m.migrationSourceSave)
@@ -53,13 +53,13 @@ func (a *MigrationAdminAPI) Register(r gin.IRouter) {
 	g.POST("/admin/migration/formulas/accept-balance", m.migrationFormulasAcceptBalance)
 	g.GET("/admin/migration/audit", m.migrationAudit)
 	g.POST("/admin/migration/rollback", m.migrationRollback)
-	// ── سهام ──
+	// ── Stocks ──
 	g.GET("/admin/saham", m.sahamDashboard)
 	g.GET("/admin/saham/settings", m.sahamSettings)
 	g.POST("/admin/saham/settings", m.sahamSettingsSave)
 	g.POST("/admin/saham/settings/delete", m.sahamSettingsDelete)
 	g.POST("/admin/saham/export", m.sahamExport)
-	// ── ثمین ──
+	// ── Thamin ──
 	g.GET("/admin/samin", m.saminOverview)
 	g.POST("/admin/samin/enqueue", m.saminEnqueue)
 	g.POST("/admin/samin/send", m.saminSend)
@@ -67,7 +67,7 @@ func (a *MigrationAdminAPI) Register(r gin.IRouter) {
 	g.POST("/admin/samin/trace", m.saminTrace)
 }
 
-// ── مهاجرت ──
+// ── Migration ──
 
 func (a *MigrationAdminAPI) migrationOverview(c *gin.Context) {
 	if a.require(c) == nil {
@@ -492,7 +492,7 @@ func (a *MigrationAdminAPI) migrationRollback(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": res})
 }
 
-// ── سهام ──
+// ── Stocks ──
 
 func (a *MigrationAdminAPI) sahamDashboard(c *gin.Context) {
 	if a.require(c) == nil {
@@ -618,7 +618,7 @@ func (a *MigrationAdminAPI) sahamExport(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": res})
 }
 
-// ── ثمین ──
+// ── Thamin ──
 
 func (a *MigrationAdminAPI) saminOverview(c *gin.Context) {
 	user := a.require(c)

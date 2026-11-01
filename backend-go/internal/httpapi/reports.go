@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های مرکز گزارش‌های مالی و صورت‌حساب دانشجو ═══
+// ═══ Finance reports center and student statement endpoints ═══
 package httpapi
 
 import (
@@ -16,7 +16,7 @@ var financeReportRoles = []string{
 	"FINANCE_EXPERT", "FINANCE", "CASHIER",
 }
 
-// requireFinanceReport گیت مرکز گزارش‌های مالی — همان ROLES در actions.ts.
+// requireFinanceReport finance reports center gate — same ROLES as in actions.ts.
 func (a *AdminAPI) requireFinanceReport(c *gin.Context) *session.User {
 	token := session.ReadToken(parseCookies(c.Request))
 	if token == "" {
@@ -122,7 +122,7 @@ func (a *AdminAPI) financeStatementStudents(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"students": rows}})
 }
 
-// financeStudentStatement صورت‌حساب رسمی یک دانشجو — همان موتور کارنامهٔ مالی.
+// financeStudentStatement official statement for a student — same financial statement engine.
 func (a *AdminAPI) financeStudentStatement(c *gin.Context) {
 	user := a.requireFinanceReport(c)
 	if user == nil {

@@ -1,4 +1,4 @@
-// ═══ تخصیص درس، جبرانی، بایپس و معادل‌سازی — پیکربندی مدیر گروه ═══
+// ═══ Course assignment, compensatory, bypass and equivalence — department head configuration ═══
 package groupmanager
 
 import (
@@ -13,9 +13,9 @@ import (
 	"backend-go/internal/messaging"
 )
 
-// ───────────────────────── تخصیص درس ترم بالاتر ─────────────────────────
+// ───────────────────────── Higher-term course assignment ─────────────────────────
 
-// GrantStudent دانشجو در فهرست.
+// GrantStudent is a student in the list.
 type GrantStudent struct {
 	ID          int64  `json:"id"`
 	StudentCode string `json:"studentCode"`
@@ -25,7 +25,7 @@ type GrantStudent struct {
 	FullName    string `json:"fullName"`
 }
 
-// GrantChartRow ردیف چارت.
+// GrantChartRow is a chart row.
 type GrantChartRow struct {
 	CourseID    int64   `json:"courseId"`
 	Code        string  `json:"code"`
@@ -36,7 +36,7 @@ type GrantChartRow struct {
 	IsHigher    bool    `json:"isHigher"`
 }
 
-// GrantsData پاسخ صفحه.
+// GrantsData is the page response.
 type GrantsData struct {
 	Majors        []MajorOption   `json:"majors"`
 	Years         []int           `json:"years"`
@@ -50,7 +50,7 @@ type GrantsData struct {
 	ChartResolved bool            `json:"chartResolved"`
 }
 
-// GetGrants پورت group-manager/grants (خواندن).
+// GetGrants ports group-manager/grants (read).
 func (s *Service) GetGrants(ctx context.Context, c *Ctx, majorID *int64, year *int, studentID *int64) (*GrantsData, error) {
 	resp := &GrantsData{Majors: []MajorOption{}, Years: []int{}, Students: []GrantStudent{}, ChartRows: []GrantChartRow{}}
 	rows, err := s.DB.Pool.Query(ctx, `select id, name from majors where "departmentId" = any($1) order by name`, c.deptIDs())
@@ -136,7 +136,7 @@ func (s *Service) GetGrants(ctx context.Context, c *Ctx, majorID *int64, year *i
 	}
 
 	if resp.Selected != nil {
-		// شمارهٔ ترم جاری دانشجو.
+		// The student's current term number.
 		var termCode string
 		if c.Staff.UniversityID != nil {
 			_ = s.DB.Pool.QueryRow(ctx, `
@@ -182,7 +182,7 @@ func (s *Service) GetGrants(ctx context.Context, c *Ctx, majorID *int64, year *i
 	return resp, nil
 }
 
-// SaveGrant پورت grantCourseAction / revokeGrantAction.
+// SaveGrant ports grantCourseAction / revokeGrantAction.
 func (s *Service) SaveGrant(ctx context.Context, c *Ctx, studentID, courseID int64, reason string, revoke bool) error {
 	var majorID *int64
 	if err := s.DB.Pool.QueryRow(ctx, `select "majorId" from students where id = $1`, studentID).Scan(&majorID); err != nil {
@@ -224,9 +224,9 @@ func (s *Service) SaveGrant(ctx context.Context, c *Ctx, studentID, courseID int
 	return err
 }
 
-// ───────────────────────── دانشجویان جبرانی ─────────────────────────
+// ───────────────────────── Compensatory students ─────────────────────────
 
-// CompensatoryRow ردیف دانشجوی جبرانی.
+// CompensatoryRow is a compensatory student row.
 type CompensatoryRow struct {
 	ID                    int64   `json:"id"`
 	StudentCode           string  `json:"studentCode"`
@@ -240,7 +240,7 @@ type CompensatoryRow struct {
 	HonorsOverride        *int    `json:"honorsOverride"`
 }
 
-// CompensatoryData پاسخ صفحه.
+// CompensatoryData is the page response.
 type CompensatoryData struct {
 	Majors   []MajorOption     `json:"majors"`
 	Years    []int             `json:"years"`
@@ -248,7 +248,7 @@ type CompensatoryData struct {
 	Students []CompensatoryRow `json:"students"`
 }
 
-// GetCompensatory پورت group-manager/compensatory.
+// GetCompensatory ports group-manager/compensatory.
 func (s *Service) GetCompensatory(ctx context.Context, c *Ctx, year *int) (*CompensatoryData, error) {
 	resp := &CompensatoryData{Majors: []MajorOption{}, Years: []int{}, Students: []CompensatoryRow{}}
 	rows, err := s.DB.Pool.Query(ctx, `select id, name from majors where "departmentId" = any($1) order by name`, c.deptIDs())
@@ -312,7 +312,7 @@ func (s *Service) GetCompensatory(ctx context.Context, c *Ctx, year *int) (*Comp
 	return resp, nil
 }
 
-// SaveCompensatory ورودی تنظیم جبرانی.
+// SaveCompensatory is the compensatory setting input.
 type SaveCompensatory struct {
 	StudentID             int64  `json:"studentId"`
 	PreviousMajorCode     string `json:"previousMajorCode"`
@@ -322,7 +322,7 @@ type SaveCompensatory struct {
 	HonorsOverride        *int   `json:"honorsOverride"`
 }
 
-// SaveCompensatoryAction پورت saveCompensatoryAction.
+// SaveCompensatoryAction ports saveCompensatoryAction.
 func (s *Service) SaveCompensatoryAction(ctx context.Context, c *Ctx, in SaveCompensatory) error {
 	var majorID *int64
 	if err := s.DB.Pool.QueryRow(ctx, `select "majorId" from students where id = $1`, in.StudentID).Scan(&majorID); err != nil {
@@ -353,7 +353,7 @@ func (s *Service) SaveCompensatoryAction(ctx context.Context, c *Ctx, in SaveCom
 	return err
 }
 
-// BulkCompensatory پورت bulkCompensatoryAction.
+// BulkCompensatory ports bulkCompensatoryAction.
 func (s *Service) BulkCompensatory(ctx context.Context, c *Ctx, year, units int) error {
 	majorIDs := []int64{}
 	rows, err := s.DB.Pool.Query(ctx, `select id from majors where "departmentId" = any($1)`, c.deptIDs())
@@ -377,9 +377,9 @@ func (s *Service) BulkCompensatory(ctx context.Context, c *Ctx, year, units int)
 	return err
 }
 
-// ───────────────────────── بایپس پیش‌نیاز / تداخل ─────────────────────────
+// ───────────────────────── Prerequisite / conflict bypass ─────────────────────────
 
-// BypassRow درخواست بایپس.
+// BypassRow is a bypass request.
 type BypassRow struct {
 	ID          int64   `json:"id"`
 	StudentID   int64   `json:"studentId"`
@@ -393,7 +393,7 @@ type BypassRow struct {
 	CreatedAt   *string `json:"createdAt"`
 }
 
-// GetBypass پورت bypassInboxForManager.
+// GetBypass ports bypassInboxForManager.
 func (s *Service) GetBypass(ctx context.Context, c *Ctx) ([]BypassRow, error) {
 	rows, err := s.DB.Pool.Query(ctx, `
 		select r.id, r."studentId", st."studentCode",
@@ -441,7 +441,7 @@ func (s *Service) bypassInScope(ctx context.Context, c *Ctx, requestID int64) (s
 	return studentID, offeringID, kind, status, seatReserved, nil
 }
 
-// DecideBypass پورت approveBypassAction/rejectBypassAction.
+// DecideBypass ports approveBypassAction/rejectBypassAction.
 func (s *Service) DecideBypass(ctx context.Context, c *Ctx, requestID int64, approve bool, reasonCode, reasonText string) error {
 	studentID, offeringID, kind, status, seatReserved, err := s.bypassInScope(ctx, c, requestID)
 	if err != nil {
@@ -549,9 +549,9 @@ func (s *Service) notifyStudent(ctx context.Context, studentID int64, eventCode,
 	messaging.NotifyExternalDefault(ctx, userID, eventCode, text)
 }
 
-// ───────────────────────── معادل‌سازی ─────────────────────────
+// ───────────────────────── Equivalence ─────────────────────────
 
-// EquivRequest درخواست معادل‌سازی.
+// EquivRequest is an equivalence request.
 type EquivRequest struct {
 	ID                 int64       `json:"id"`
 	TrackingCode       string      `json:"trackingCode"`
@@ -566,7 +566,7 @@ type EquivRequest struct {
 	Items              []EquivItem `json:"items"`
 }
 
-// EquivItem نگاشت.
+// EquivItem is a mapping.
 type EquivItem struct {
 	SourceTitle       string   `json:"sourceTitle"`
 	SourceUnits       *float64 `json:"sourceUnits"`
@@ -576,7 +576,7 @@ type EquivItem struct {
 	HeadComment       string   `json:"headComment"`
 }
 
-// EquivData پاسخ صفحه.
+// EquivData is the page response.
 type EquivData struct {
 	Requests   []EquivRequest `json:"requests"`
 	OurCourses []struct {
@@ -586,7 +586,7 @@ type EquivData struct {
 	} `json:"ourCourses"`
 }
 
-// GetEquivalence پورت group-manager/equivalence.
+// GetEquivalence ports group-manager/equivalence.
 func (s *Service) GetEquivalence(ctx context.Context, c *Ctx) (*EquivData, error) {
 	resp := &EquivData{Requests: []EquivRequest{}}
 	resp.OurCourses = []struct {
@@ -677,7 +677,7 @@ func (s *Service) GetEquivalence(ctx context.Context, c *Ctx) (*EquivData, error
 	return resp, nil
 }
 
-// SubmitEquivalence پورت submitEquivalenceMappingAction.
+// SubmitEquivalence ports submitEquivalenceMappingAction.
 func (s *Service) SubmitEquivalence(ctx context.Context, c *Ctx, requestID int64, items []EquivItem, note string) error {
 	valid := []EquivItem{}
 	for _, it := range items {
@@ -721,7 +721,7 @@ func (s *Service) SubmitEquivalence(ctx context.Context, c *Ctx, requestID int64
 	if _, err := s.DB.Pool.Exec(ctx, `update student_requests set "formData" = $1 where id = $2`, string(raw), requestID); err != nil {
 		return err
 	}
-	// گام بعدی گردش‌کار.
+	// The next workflow step.
 	var currentStepID *int64
 	var processID int64
 	if err := s.DB.Pool.QueryRow(ctx, `select "currentStepId", "processId" from student_requests where id = $1`, requestID).

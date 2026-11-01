@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های دروس، چارت و کدهای وضعیت نمره ═══
+// ═══ Courses, chart and grade status code endpoints ═══
 package httpapi
 
 import (

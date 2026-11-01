@@ -1,4 +1,4 @@
-// ═══ پنل مدیر گروه (فاز ۵) ═══
+// ═══ Department head panel (phase 5) ═══
 package groupmanager
 
 import (
@@ -13,14 +13,14 @@ import (
 	"backend-go/internal/scope"
 )
 
-// Settings حداقل تنظیمات.
+// Settings is the minimal settings.
 type Settings interface {
 	Get(ctx context.Context, key string) (string, error)
 	GetNumber(ctx context.Context, key string, fallback float64) float64
 	GetBool(ctx context.Context, key string) bool
 }
 
-// Service سرویس مدیر گروه.
+// Service is the department head service.
 type Service struct {
 	DB       *db.DB
 	Settings Settings
@@ -31,7 +31,7 @@ func New(database *db.DB, settings Settings, scopeSvc *scope.Service) *Service {
 	return &Service{DB: database, Settings: settings, Scope: scopeSvc}
 }
 
-// Staff پروندهٔ کارمندی.
+// Staff is the staff record.
 type Staff struct {
 	ID           int64
 	UserID       int64
@@ -41,7 +41,7 @@ type Staff struct {
 	Name         string
 }
 
-// Dept گروه آموزشی.
+// Dept is the academic department.
 type Dept struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
@@ -49,7 +49,7 @@ type Dept struct {
 	Via  string `json:"via"`
 }
 
-// Ctx زمینهٔ مدیر گروه.
+// Ctx is the department head context.
 type Ctx struct {
 	Staff *Staff
 	Depts []Dept
@@ -59,7 +59,7 @@ type Ctx struct {
 var errNoStaff = errors.New("پروندهٔ کارمندی شما ساخته نشده است.")
 var errNoDept = errors.New("پروندهٔ شما به گروه آموزشی وصل نیست.")
 
-// Resolve پورت requireDepHead.
+// Resolve ports requireDepHead.
 func (s *Service) Resolve(ctx context.Context, userID int64, wantedDeptID *int64) (*Ctx, error) {
 	var st Staff
 	err := s.DB.Pool.QueryRow(ctx, `
@@ -74,8 +74,8 @@ func (s *Service) Resolve(ctx context.Context, userID int64, wantedDeptID *int64
 	st.Name = strings.TrimSpace(st.Name)
 
 	depts := []Dept{}
-	// ستون‌های headStaffId/kind/isActive در همهٔ نصب‌ها موجود نیستند؛ در نبودشان
-	// به عضویت کارمندی تکیه می‌کنیم (رفتار امن و سازگار با اسکیمای فعلی).
+	// The headStaffId/kind/isActive columns are not present in all installations; when they are missing
+	// we rely on staff membership (a safe behavior compatible with the current schema).
 	rows, err := s.DB.Pool.Query(ctx, `
 		select id, name from departments where "headStaffId" = $1 order by name`, st.ID)
 	if err == nil {
@@ -130,7 +130,7 @@ func (c *Ctx) hasDept(id int64) bool {
 	return false
 }
 
-// Course درس گروه.
+// Course is a department course.
 type Course struct {
 	ID               int64    `json:"id"`
 	Code             string   `json:"code"`
@@ -144,13 +144,13 @@ type Course struct {
 	LegacyMaliType   *int     `json:"legacyMaliType"`
 }
 
-// CoursesData پاسخ صفحهٔ دروس.
+// CoursesData is the courses page response.
 type CoursesData struct {
 	DeptName string   `json:"deptName"`
 	Courses  []Course `json:"courses"`
 }
 
-// ListCourses پورت group-manager/courses.
+// ListCourses ports group-manager/courses.
 func (s *Service) ListCourses(ctx context.Context, c *Ctx) (*CoursesData, error) {
 	var deptName string
 	_ = s.DB.Pool.QueryRow(ctx, `select name from departments where id = $1`, c.Dept.ID).Scan(&deptName)
@@ -173,7 +173,7 @@ func (s *Service) ListCourses(ctx context.Context, c *Ctx) (*CoursesData, error)
 	return &CoursesData{DeptName: deptName, Courses: out}, nil
 }
 
-// SaveCourse ورودی درس.
+// SaveCourse is the course input.
 type SaveCourse struct {
 	ID         *int64  `json:"id"`
 	Code       string  `json:"code"`
@@ -186,7 +186,7 @@ type SaveCourse struct {
 	MaliType   *int    `json:"maliType"`
 }
 
-// CreateCourse پورت createCourseAction.
+// CreateCourse ports createCourseAction.
 func (s *Service) CreateCourse(ctx context.Context, c *Ctx, in SaveCourse) error {
 	in.Code = strings.TrimSpace(in.Code)
 	in.Title = strings.TrimSpace(in.Title)
@@ -228,7 +228,7 @@ func (s *Service) CreateCourse(ctx context.Context, c *Ctx, in SaveCourse) error
 	return err
 }
 
-// UpdateCourse پورت updateCourseAction.
+// UpdateCourse ports updateCourseAction.
 func (s *Service) UpdateCourse(ctx context.Context, c *Ctx, in SaveCourse) error {
 	if in.ID == nil || *in.ID <= 0 {
 		return errors.New("درس نامعتبر است.")
@@ -264,7 +264,7 @@ func (s *Service) UpdateCourse(ctx context.Context, c *Ctx, in SaveCourse) error
 	return err
 }
 
-// DeleteCourse پورت deleteCourseAction.
+// DeleteCourse ports deleteCourseAction.
 func (s *Service) DeleteCourse(ctx context.Context, c *Ctx, courseID int64) error {
 	if !s.courseInDept(ctx, courseID, c) {
 		return errors.New("این درس متعلق به گروه شما نیست.")
@@ -286,7 +286,7 @@ func (s *Service) courseInDept(ctx context.Context, courseID int64, c *Ctx) bool
 	return deptID != nil && c.hasDept(*deptID)
 }
 
-// Classroom کلاس.
+// Classroom is a classroom.
 type Classroom struct {
 	ID          int64   `json:"id"`
 	Name        string  `json:"name"`
@@ -301,7 +301,7 @@ type Classroom struct {
 	IsActive    int     `json:"isActive"`
 }
 
-// ClassroomsData پاسخ صفحهٔ کلاس‌ها.
+// ClassroomsData is the classrooms page response.
 type ClassroomsData struct {
 	Classrooms []Classroom `json:"classrooms"`
 	Faculties  []struct {
@@ -310,7 +310,7 @@ type ClassroomsData struct {
 	} `json:"faculties"`
 }
 
-// ListClassrooms پورت group-manager/classrooms.
+// ListClassrooms ports group-manager/classrooms.
 func (s *Service) ListClassrooms(ctx context.Context, c *Ctx) (*ClassroomsData, error) {
 	resp := &ClassroomsData{Classrooms: []Classroom{}}
 	if c.Staff.UniversityID == nil {
@@ -355,7 +355,7 @@ func (s *Service) ListClassrooms(ctx context.Context, c *Ctx) (*ClassroomsData, 
 	return resp, nil
 }
 
-// SaveClassroom ورودی کلاس.
+// SaveClassroom is the classroom input.
 type SaveClassroom struct {
 	ID        *int64 `json:"id"`
 	Name      string `json:"name"`
@@ -369,7 +369,7 @@ type SaveClassroom struct {
 	IsActive  *int   `json:"isActive"`
 }
 
-// SaveClassroomAction پورت saveClassroomAction.
+// SaveClassroomAction ports saveClassroomAction.
 func (s *Service) SaveClassroomAction(ctx context.Context, c *Ctx, in SaveClassroom) error {
 	if strings.TrimSpace(in.Name) == "" || in.Capacity <= 0 {
 		return errors.New("نام کلاس و ظرفیت مثبت الزامی است.")
@@ -421,7 +421,7 @@ func (s *Service) SaveClassroomAction(ctx context.Context, c *Ctx, in SaveClassr
 	return err
 }
 
-// DeleteClassroom پورت deleteClassroomAction.
+// DeleteClassroom ports deleteClassroomAction.
 func (s *Service) DeleteClassroom(ctx context.Context, c *Ctx, classID int64) error {
 	var uni *int64
 	if err := s.DB.Pool.QueryRow(ctx, `select "universityId" from classrooms where id = $1`, classID).Scan(&uni); err != nil {

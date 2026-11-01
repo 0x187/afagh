@@ -1,4 +1,4 @@
-// ═══ ارائه‌ها و برنامهٔ هفتگی — پورت group-manager/offerings ═══
+// ═══ Offerings and weekly schedule — port of group-manager/offerings ═══
 package groupmanager
 
 import (
@@ -8,13 +8,13 @@ import (
 	"strings"
 )
 
-// TermInfo ترم جاری.
+// TermInfo is the current term.
 type TermInfo struct {
 	ID    *int64 `json:"id"`
 	Title string `json:"title"`
 }
 
-// OfferingRow ارائه با جزئیات.
+// OfferingRow is an offering with details.
 type OfferingRow struct {
 	ID                  int64      `json:"id"`
 	CourseID            int64      `json:"courseId"`
@@ -33,7 +33,7 @@ type OfferingRow struct {
 	Schedules           []Schedule `json:"schedules"`
 }
 
-// Schedule جلسهٔ هفتگی.
+// Schedule is a weekly session.
 type Schedule struct {
 	ID       int64   `json:"id"`
 	Day      *int    `json:"dayOfWeek"`
@@ -43,25 +43,25 @@ type Schedule struct {
 	RoomName *string `json:"roomName"`
 }
 
-// OfferingOption گزینهٔ استاد/سالن.
+// OfferingOption is a professor/room option.
 type OfferingOption struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
 }
 
-// DegreeOption مقطع.
+// DegreeOption is a degree level.
 type DegreeOption struct {
 	ID    int64  `json:"id"`
 	Title string `json:"title"`
 }
 
-// MajorOption رشته.
+// MajorOption is a major.
 type MajorOption struct {
 	ID   int64  `json:"id"`
 	Name string `json:"name"`
 }
 
-// OfferingsData پاسخ صفحه.
+// OfferingsData is the page response.
 type OfferingsData struct {
 	Term         TermInfo         `json:"term"`
 	DeptName     string           `json:"deptName"`
@@ -74,7 +74,7 @@ type OfferingsData struct {
 	RequireChart bool             `json:"requireChart"`
 }
 
-// CourseOption درس قابل ارائه.
+// CourseOption is an offerable course.
 type CourseOption struct {
 	ID    int64  `json:"id"`
 	Code  string `json:"code"`
@@ -97,7 +97,7 @@ func (s *Service) currentTerm(ctx context.Context, c *Ctx) TermInfo {
 	return info
 }
 
-// ListOfferings پورت group-manager/offerings.
+// ListOfferings ports group-manager/offerings.
 func (s *Service) ListOfferings(ctx context.Context, c *Ctx) (*OfferingsData, error) {
 	resp := &OfferingsData{
 		Term: s.currentTerm(ctx, c), Courses: []CourseOption{}, Offerings: []OfferingRow{},
@@ -243,7 +243,7 @@ func clock5(v string) string {
 	return v
 }
 
-// SaveOffering ورودی ایجاد/ویرایش ارائه.
+// SaveOffering is the create/edit offering input.
 type SaveOffering struct {
 	ID             *int64 `json:"id"`
 	CourseID       int64  `json:"courseId"`
@@ -299,7 +299,7 @@ func (s *Service) duplicateOffering(ctx context.Context, termID, courseID int64,
 	return s.DB.Pool.QueryRow(ctx, q+" limit 1", args...).Scan(&id) == nil
 }
 
-// CreateOffering پورت createOfferingAction.
+// CreateOffering ports createOfferingAction.
 func (s *Service) CreateOffering(ctx context.Context, c *Ctx, in SaveOffering) error {
 	if in.CourseID <= 0 || !s.courseInDept(ctx, in.CourseID, c) {
 		return errors.New("درس انتخاب‌شده متعلق به گروه شما نیست.")
@@ -344,7 +344,7 @@ func (s *Service) CreateOffering(ctx context.Context, c *Ctx, in SaveOffering) e
 	return err
 }
 
-// UpdateOffering پورت updateOfferingAction.
+// UpdateOffering ports updateOfferingAction.
 func (s *Service) UpdateOffering(ctx context.Context, c *Ctx, in SaveOffering) error {
 	if in.ID == nil {
 		return errors.New("ارائه نامعتبر است.")
@@ -396,7 +396,7 @@ func (s *Service) UpdateOffering(ctx context.Context, c *Ctx, in SaveOffering) e
 	return err
 }
 
-// DeactivateOffering پورت deactivateOfferingAction.
+// DeactivateOffering ports deactivateOfferingAction.
 func (s *Service) DeactivateOffering(ctx context.Context, c *Ctx, offeringID int64) (string, error) {
 	if _, ok := s.offeringInDept(ctx, offeringID, c); !ok {
 		return "", errors.New("این ارائه متعلق به گروه شما نیست.")
@@ -420,7 +420,7 @@ func (s *Service) DeactivateOffering(ctx context.Context, c *Ctx, offeringID int
 	return "ارائه بدون ثبت‌نام بود → کاملاً حذف شد.", nil
 }
 
-// ScheduleInput ورودی برنامه.
+// ScheduleInput is the schedule input.
 type ScheduleInput struct {
 	OfferingID int64  `json:"offeringId"`
 	ScheduleID *int64 `json:"scheduleId"`
@@ -441,7 +441,7 @@ func hm(v string) (int, bool) {
 	return h*60 + m, true
 }
 
-// AddSchedule پورت addScheduleAction (با گاردهای سالن، استاد، تداخل).
+// AddSchedule ports addScheduleAction (with room, professor and conflict guards).
 func (s *Service) AddSchedule(ctx context.Context, c *Ctx, in ScheduleInput) (string, error) {
 	if _, ok := s.offeringInDept(ctx, in.OfferingID, c); !ok {
 		return "", errors.New("این ارائه متعلق به گروه شما نیست.")
@@ -477,7 +477,7 @@ func (s *Service) AddSchedule(ctx context.Context, c *Ctx, in ScheduleInput) (st
 		roomCapacity = cap
 	}
 
-	// تداخل با سایر ارائه‌های ترم.
+	// Conflict with other offerings in the term.
 	rows, err := s.DB.Pool.Query(ctx, `
 		select s."dayOfWeek", s."startTime"::text, s."endTime"::text, s."roomId", o."professorId", c2.title
 		  from schedules s
@@ -526,7 +526,7 @@ func (s *Service) AddSchedule(ctx context.Context, c *Ctx, in ScheduleInput) (st
 	return "برنامهٔ هفتگی ثبت شد.", nil
 }
 
-// DeleteSchedule پورت deleteScheduleAction.
+// DeleteSchedule ports deleteScheduleAction.
 func (s *Service) DeleteSchedule(ctx context.Context, c *Ctx, scheduleID int64) error {
 	var offeringID int64
 	if err := s.DB.Pool.QueryRow(ctx, `select "offeringId" from schedules where id = $1`, scheduleID).Scan(&offeringID); err != nil {

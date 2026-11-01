@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های درون‌ریزی فایل سنجش ═══
+// ═══ Assessment file import endpoints ═══
 package httpapi
 
 import (

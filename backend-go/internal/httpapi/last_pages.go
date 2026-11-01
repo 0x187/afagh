@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های شش صفحهٔ باقی‌ماندهٔ ادمین ═══
+// ═══ Endpoints for the six remaining admin pages ═══
 // broadcast · bypass · class-sessions · exams/handover · offering-editor · schedule-conflicts
 package httpapi
 
@@ -20,7 +20,7 @@ var lpHandoverFinalizeRoles = []string{"ADMIN", "EDU_EXPERT"}
 var lpEditorRoles = []string{"ADMIN", "EDU_EXPERT"}
 var lpConflictsRoles = []string{"ADMIN", "EDU_EXPERT", "VICE_EDU"}
 
-// LastPagesAPI هندلرهای صفحات آخر — struct مستقل با دسترسی به AdminAPI.
+// LastPagesAPI handlers for the last pages — standalone struct with access to AdminAPI.
 type LastPagesAPI struct {
 	Admin *AdminAPI
 }
@@ -33,35 +33,35 @@ func (a *LastPagesAPI) uniID(c *gin.Context, user *session.User) *int64 {
 	return a.Admin.Svc.UniversityID(c.Request.Context(), user, a.Admin.uniCookie(c))
 }
 
-// Register مسیرهای هر شش ماژول.
+// Register routes for all six modules.
 func (a *LastPagesAPI) Register(r gin.IRouter) {
-	// ── پیام همگانی ──
+	// ── Broadcast message ──
 	r.GET("/admin/broadcast/filters", a.lpBroadcastFilters)
 	r.GET("/admin/broadcast/offerings", a.lpBroadcastOfferings)
 	r.POST("/admin/broadcast/preview", a.lpBroadcastPreview)
 	r.POST("/admin/broadcast/send", a.lpBroadcastSend)
 	r.GET("/admin/broadcast/history", a.lpBroadcastHistory)
-	// ── تأیید bypass ──
+	// ── Bypass approval ──
 	r.GET("/admin/bypass/board", a.lpBypassBoard)
 	r.POST("/admin/bypass/approve", a.lpBypassApprove)
 	r.POST("/admin/bypass/reject", a.lpBypassReject)
 	r.POST("/admin/bypass/return", a.lpBypassReturn)
 	r.POST("/admin/bypass/settings", a.lpBypassSettings)
-	// ── مدیریت جلسات کلاس ──
+	// ── Class session management ──
 	r.GET("/admin/class-sessions/board", a.lpClassSessionsBoard)
 	r.POST("/admin/class-sessions/toggle-flag", a.lpClassSessionsToggle)
-	// ── زنجیرهٔ تحویل اوراق امتحان ──
+	// ── Exam paper handover chain ──
 	r.GET("/admin/exams/handover/board", a.lpHandoverBoard)
 	r.GET("/admin/exams/handover/qr", a.lpHandoverQR)
 	r.POST("/admin/exams/handover/finalize", a.lpHandoverFinalize)
-	// ── ویرایشگر ارائه ──
+	// ── Offering editor ──
 	r.GET("/admin/offering-editor/terms", a.lpEditorTerms)
 	r.GET("/admin/offering-editor/offerings", a.lpEditorOfferings)
 	r.GET("/admin/offering-editor/meta", a.lpEditorMeta)
 	r.POST("/admin/offering-editor/save", a.lpEditorSave)
 	r.POST("/admin/offering-editor/expert/add", a.lpEditorExpertAdd)
 	r.POST("/admin/offering-editor/expert/remove", a.lpEditorExpertRemove)
-	// ── رفع تداخل برنامه ──
+	// ── Schedule conflict resolution ──
 	r.GET("/admin/schedule-conflicts/terms", a.lpConflictsTerms)
 	r.POST("/admin/schedule-conflicts/load", a.lpConflictsLoad)
 	r.POST("/admin/schedule-conflicts/review", a.lpConflictsReview)
@@ -72,7 +72,7 @@ func (a *LastPagesAPI) Register(r gin.IRouter) {
 	r.POST("/admin/schedule-conflicts/merge-bulk", a.lpConflictsMergeBulk)
 }
 
-// ─────────────────────────── پیام همگانی ───────────────────────────
+// ─────────────────────────── Broadcast message ───────────────────────────
 
 func (a *LastPagesAPI) lpBroadcastFilters(c *gin.Context) {
 	user := a.require(c, lpBroadcastRoles)
@@ -159,7 +159,7 @@ func (a *LastPagesAPI) lpBroadcastHistory(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"records": res}})
 }
 
-// lpParseAudience پارس امن مخاطبان از JSON عمومی.
+// lpParseAudience safe parsing of the audience from public JSON.
 func lpParseAudience(in map[string]any) (aud admin.BroadcastAudience) {
 	role, _ := in["role"].(string)
 	aud.Role = role
@@ -195,7 +195,7 @@ func lpAudienceID(v any) *int64 {
 	return nil
 }
 
-// ─────────────────────────── تأیید bypass ───────────────────────────
+// ─────────────────────────── Bypass approval ───────────────────────────
 
 func (a *LastPagesAPI) lpBypassBoard(c *gin.Context) {
 	user := a.require(c, lpBypassRoles)
@@ -293,7 +293,7 @@ func (a *LastPagesAPI) lpBypassSettings(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// ─────────────────────────── مدیریت جلسات کلاس ───────────────────────────
+// ─────────────────────────── Class session management ───────────────────────────
 
 func (a *LastPagesAPI) lpClassSessionsBoard(c *gin.Context) {
 	user := a.require(c, lpClassSessionsRoles)
@@ -332,7 +332,7 @@ func (a *LastPagesAPI) lpClassSessionsToggle(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"value": value}})
 }
 
-// ─────────────────────────── زنجیرهٔ تحویل اوراق ───────────────────────────
+// ─────────────────────────── Exam paper handover chain ───────────────────────────
 
 func (a *LastPagesAPI) lpHandoverBoard(c *gin.Context) {
 	user := a.require(c, lpHandoverRoles)
@@ -385,7 +385,7 @@ func (a *LastPagesAPI) lpHandoverFinalize(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": res})
 }
 
-// ─────────────────────────── ویرایشگر ارائه ───────────────────────────
+// ─────────────────────────── Offering editor ───────────────────────────
 
 func (a *LastPagesAPI) lpEditorTerms(c *gin.Context) {
 	user := a.require(c, lpEditorRoles)
@@ -490,7 +490,7 @@ func (a *LastPagesAPI) lpEditorExpertRemove(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"userIds": ids}})
 }
 
-// ─────────────────────────── رفع تداخل برنامه ───────────────────────────
+// ─────────────────────────── Schedule conflict resolution ───────────────────────────
 
 func (a *LastPagesAPI) lpConflictsTerms(c *gin.Context) {
 	user := a.require(c, lpConflictsRoles)

@@ -1,4 +1,4 @@
-// ═══ پیکربندی دپارتمان‌های تسویه و کارتابل دانش‌آموختگان ═══
+// ═══ Clearance departments and alumni inbox configuration ═══
 package graduation
 
 import (
@@ -13,7 +13,7 @@ import (
 	"backend-go/internal/safeurl"
 )
 
-// DeptInput ورودی ذخیرهٔ دپارتمان.
+// DeptInput is the department save input.
 type DeptInput struct {
 	ID                  *int64  `json:"id"`
 	Code                string  `json:"code"`
@@ -45,7 +45,7 @@ func assertSafeHTTP(raw string) error {
 	return nil
 }
 
-// SaveDepartment پورت saveDepartmentAction.
+// SaveDepartment ports saveDepartmentAction.
 func (s *Service) SaveDepartment(ctx context.Context, universityID *int64, in DeptInput) ([]Dept, error) {
 	code := strings.ToUpper(strings.TrimSpace(in.Code))
 	if !deptCodeRe.MatchString(code) {
@@ -124,7 +124,7 @@ func (s *Service) SaveDepartment(ctx context.Context, universityID *int64, in De
 	return s.Departments(ctx, universityID, false)
 }
 
-// DeleteDepartment غیرفعال‌سازی دپارتمان.
+// DeleteDepartment deactivates a department.
 func (s *Service) DeleteDepartment(ctx context.Context, universityID *int64, id int64) error {
 	var rowUni *int64
 	if err := s.Pool.QueryRow(ctx, `select "universityId" from clearance_departments where id = $1`, id).Scan(&rowUni); err != nil {
@@ -137,9 +137,9 @@ func (s *Service) DeleteDepartment(ctx context.Context, universityID *int64, id 
 	return err
 }
 
-// ─────────────────── دانش‌آموختگان ───────────────────
+// ─────────────────── Alumni ───────────────────
 
-// AlumniService تعرفهٔ خدمات.
+// AlumniService is the service tariff.
 type AlumniService struct {
 	Code             string  `json:"code"`
 	Title            string  `json:"title"`
@@ -160,7 +160,7 @@ var alumniServiceDefs = []alumniServiceDef{
 	{"DUPLICATE_DEGREE", "صدور المثنی مدرک", "ALUMNI_FEE_DUPLICATE", "در صورت مفقودی؛ نیازمند بررسی اداره آموزش", false},
 }
 
-// ServiceCatalog پورت serviceCatalog.
+// ServiceCatalog ports serviceCatalog.
 func (s *Service) ServiceCatalog(ctx context.Context) []AlumniService {
 	out := make([]AlumniService, 0, len(alumniServiceDefs))
 	for _, d := range alumniServiceDefs {
@@ -173,7 +173,7 @@ func (s *Service) ServiceCatalog(ctx context.Context) []AlumniService {
 	return out
 }
 
-// AlumniRow درخواست خدمت دانش‌آموخته.
+// AlumniRow is an alumnus service request.
 type AlumniRow struct {
 	ID           int64      `json:"id"`
 	RequestType  string     `json:"requestType"`
@@ -189,7 +189,7 @@ type AlumniRow struct {
 	CreatedAt    *time.Time `json:"createdAt"`
 }
 
-// AllRequests پورت allRequests.
+// AllRequests ports allRequests.
 func (s *Service) AllRequests(ctx context.Context, status string) ([]AlumniRow, error) {
 	args := []any{}
 	where := ""
@@ -221,7 +221,7 @@ func (s *Service) AllRequests(ctx context.Context, status string) ([]AlumniRow, 
 	return out, nil
 }
 
-// ResolveAlumniInput ورودی پاسخ به درخواست.
+// ResolveAlumniInput is the request resolution input.
 type ResolveAlumniInput struct {
 	RequestID     int64   `json:"requestId"`
 	Status        string  `json:"status"`
@@ -230,7 +230,7 @@ type ResolveAlumniInput struct {
 	UserID        int64   `json:"-"`
 }
 
-// ResolveRequest پورت resolveRequest.
+// ResolveRequest ports resolveRequest.
 func (s *Service) ResolveRequest(ctx context.Context, in ResolveAlumniInput) error {
 	switch in.Status {
 	case "IN_REVIEW", "DONE", "REJECTED":

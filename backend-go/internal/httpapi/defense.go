@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های میز دفاع پایان‌نامه ═══
+// ═══ Thesis defense desk endpoints ═══
 package httpapi
 
 import (

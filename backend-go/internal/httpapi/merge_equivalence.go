@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های ادغام دروس و خوشه‌های هم‌ارز ═══
+// ═══ Course merge and equivalent cluster endpoints ═══
 package httpapi
 
 import (

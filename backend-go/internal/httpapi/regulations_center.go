@@ -1,6 +1,6 @@
-// ═══ مرکز مدیریت آیین‌نامه‌ها — هندلرهای HTTP (پورت admin/regulations در Next) ═══
+// ═══ Regulations management center — HTTP handlers (port of admin/regulations in Next) ═══
 //
-// struct مستقل RegulationsAPI — رجیستری در main.go:
+// Standalone RegulationsAPI struct — registered in main.go:
 //
 //	(&httpapi.RegulationsAPI{Svc: adminSvc, Store: store}).Register(ginEngine.Group(""))
 package httpapi
@@ -15,16 +15,16 @@ import (
 	"backend-go/internal/session"
 )
 
-// regulationsRoles نقش‌های خواندن/نوشتن آیین‌نامه (requireRole(['ADMIN','EDU_EXPERT'])).
+// regulationsRoles regulation read/write roles (requireRole(['ADMIN','EDU_EXPERT'])).
 var regulationsRoles = []string{"ADMIN", "EDU_EXPERT"}
 
-// RegulationsAPI هندلرهای مرکز مدیریت آیین‌نامه‌ها.
+// RegulationsAPI regulations management center handlers.
 type RegulationsAPI struct {
 	Svc   *admin.Service
 	Store *session.Store
 }
 
-// Register مسیرهای مرکز آیین‌نامه‌ها — همه زیر /admin/regulations/*.
+// Register regulations center routes — all under /admin/regulations/*.
 func (a *RegulationsAPI) Register(r gin.IRouter) {
 	r.GET("/admin/regulations", a.regulationsList)
 	r.GET("/admin/regulations/presets", a.regulationsPresets)
@@ -32,7 +32,7 @@ func (a *RegulationsAPI) Register(r gin.IRouter) {
 	r.POST("/admin/regulations/delete", a.regulationsDelete)
 }
 
-// requireRoles — الگوی student_cards.go.
+// requireRoles — pattern from student_cards.go.
 func (a *RegulationsAPI) requireRoles(c *gin.Context, roles []string) *session.User {
 	token := session.ReadToken(parseCookies(c.Request))
 	if token == "" {
@@ -62,7 +62,7 @@ func (a *RegulationsAPI) uniCookie(c *gin.Context) string {
 	return ""
 }
 
-// regulationsList فهرست آیین‌نامه‌ها + مقاطع + پریست‌ها.
+// regulationsList regulations list + degree levels + presets.
 func (a *RegulationsAPI) regulationsList(c *gin.Context) {
 	user := a.requireRoles(c, regulationsRoles)
 	if user == nil {
@@ -76,7 +76,7 @@ func (a *RegulationsAPI) regulationsList(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": res})
 }
 
-// regulationsPresets فقط پریست‌های آماده (الگوهای وزارتی).
+// regulationsPresets ready-made presets only (ministry templates).
 func (a *RegulationsAPI) regulationsPresets(c *gin.Context) {
 	user := a.requireRoles(c, regulationsRoles)
 	if user == nil {
@@ -85,7 +85,7 @@ func (a *RegulationsAPI) regulationsPresets(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"presets": admin.EducationalRegulationPresets()}})
 }
 
-// regulationsSave ساخت یا ویرایش آیین‌نامه (پورت saveRegulationAction).
+// regulationsSave create or edit a regulation (port of saveRegulationAction).
 func (a *RegulationsAPI) regulationsSave(c *gin.Context) {
 	user := a.requireRoles(c, regulationsRoles)
 	if user == nil {
@@ -103,7 +103,7 @@ func (a *RegulationsAPI) regulationsSave(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "message": "آیین‌نامه با موفقیت ذخیره گردید."})
 }
 
-// regulationsDelete حذف آیین‌نامه — فقط ADMIN (پورت deleteRegulationAction).
+// regulationsDelete delete a regulation — ADMIN only (port of deleteRegulationAction).
 func (a *RegulationsAPI) regulationsDelete(c *gin.Context) {
 	user := a.requireRoles(c, []string{"ADMIN"})
 	if user == nil {

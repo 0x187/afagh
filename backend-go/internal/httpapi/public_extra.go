@@ -1,13 +1,13 @@
-// ═══ اندپوینت‌های تکمیلی صفحات عمومی/سشن — پورت صفحات باقی‌ماندهٔ Next ═══
+// ═══ Supplementary public/session page endpoints — port of the remaining Next pages ═══
 //
-// پوشش:
-//   - استعلام عمومی سند ممهور با امضای محتوا (verify/document/[hash])
-//   - پورتال دانش‌آموختگان (alumni) — سشن STUDENT با پروندهٔ GRADUATED
-//   - پنل مراقب امتحان (proctor) — سشن PROCTOR/ADMIN/EDU_EXPERT
-//   - ثبت حضور استاد با اسکن QR سردر کلاس (p/[code]) + کارتابل کنترل‌کننده
+// Coverage:
+//   - public verification of a sealed document with content signature (verify/document/[hash])
+//   - alumni portal — STUDENT session with a GRADUATED record
+//   - exam proctor panel (proctor) — PROCTOR/ADMIN/EDU_EXPERT session
+//   - professor check-in via classroom door QR scan (p/[code]) + controller worklist
 //
-// همهٔ پاسخ‌ها {"ok":true,"data":...} یا {"ok":false,"error":"فارسی"}.
-// صفحه‌های استعلام عمومی بدون نشست‌اند و fail-closed با سقف نرخ حفظ می‌شوند.
+// All responses are {"ok":true,"data":...} or {"ok":false,"error":"فارسی"}.
+// Public verification pages are sessionless and kept fail-closed with rate limiting.
 package httpapi
 
 import (
@@ -35,7 +35,7 @@ import (
 	"backend-go/internal/verification"
 )
 
-// PublicExtraAPI اندپوینت‌های تکمیلی — struct مستقل تا با PublicAPI/AdminAPI قاطی نشود.
+// PublicExtraAPI supplementary endpoints — standalone struct so it doesn't mix with PublicAPI/AdminAPI.
 type PublicExtraAPI struct {
 	Pool     *pgxpool.Pool
 	Store    *session.Store
@@ -44,30 +44,30 @@ type PublicExtraAPI struct {
 	Signer   *verification.Signer
 }
 
-// Register مسیرها را روی روتر می‌بندد.
+// Register binds the routes on the router.
 func (a *PublicExtraAPI) Register(r gin.IRouter) {
-	// عمومی (بدون نشست)
+	// Public (sessionless)
 	r.GET("/public/document/:hash", a.extraVerifyDocument)
 	r.GET("/public/room/:code", a.extraRoomPublic)
 
-	// پورتال دانش‌آموختگان (سشن)
+	// Alumni portal (session)
 	r.GET("/alumni/summary", a.extraAlumniSummary)
 	r.POST("/alumni/profile", a.extraAlumniSaveProfile)
 	r.POST("/alumni/requests", a.extraAlumniSubmitRequest)
 	r.POST("/alumni/requests/:id/pay", a.extraAlumniPayRequest)
 
-	// پنل مراقب امتحان (سشن)
+	// Exam proctor panel (session)
 	r.GET("/proctor/sessions", a.extraProctorSessions)
 	r.POST("/proctor/clock-in", a.extraProctorClockIn)
 	r.POST("/proctor/verify", a.extraProctorVerify)
 	r.POST("/proctor/scan", a.extraProctorScan)
 
-	// ثبت حضور با QR سردر کلاس (سشن)
+	// Check-in via classroom door QR (session)
 	r.GET("/room-checkin/:code", a.extraRoomCheckinState)
 	r.POST("/room-checkin/:code/record", a.extraRoomCheckinRecord)
 }
 
-// ─────────────────────────── کمک‌کارهای مشترک ───────────────────────────
+// ─────────────────────────── Shared helpers ───────────────────────────
 
 func (a *PublicExtraAPI) extraAllow(c *gin.Context, key string, limit, windowSec int) bool {
 	if a.Limiter == nil {
@@ -127,7 +127,7 @@ func (a *PublicExtraAPI) extraSettingNumber(ctx context.Context, key string, fal
 	return a.Settings.GetNumber(ctx, key, fallback)
 }
 
-// extraAudit — همان زنجیرهٔ ممیزی (auditChain): هش زنجیره‌ای روی ردیف قبلی.
+// extraAudit — same audit chain (auditChain): chained hash over the previous row.
 func (a *PublicExtraAPI) extraAudit(ctx context.Context, tx pgx.Tx, actorUserID int64, action, entityType string, entityID int64, details map[string]any, ip string) {
 	var prev string
 	_ = tx.QueryRow(ctx, `select coalesce(hash,'') from audit_logs order by id desc limit 1`).Scan(&prev)
@@ -152,8 +152,8 @@ func extraClientIP(c *gin.Context) string {
 	return fwd
 }
 
-// tehranNowExtra — «اکنون» به وقت تهران (+۳:۳۰ ثابت؛ ایران از ۱۴۰۱ ساعت تابستانی ندارد).
-// خروجی: تاریخ شمسی 'YYYY/MM/DD' (همان قالب class_sessions.sessionDate) و دقیقهٔ روز.
+// tehranNowExtra — «اکنون» in Tehran time (fixed +3:30; Iran has had no daylight saving since 1401).
+// Output: Jalali date 'YYYY/MM/DD' (same class_sessions.sessionDate format) and minute of day.
 func tehranNowExtra(now time.Time) (string, int) {
 	tehran := now.UTC().Add(3*time.Hour + 30*time.Minute)
 	j := jalali.ToJalaliFromTime(tehran)
@@ -197,7 +197,7 @@ func min2(a, b int) int {
 	return b
 }
 
-// extraCheckinState — پورت checkinState؛ جلسهٔ بی‌ساعتِ معتبر «بسته» است (fail-closed).
+// extraCheckinState — port of checkinState; a valid session without a time is «بسته» (fail-closed).
 func extraCheckinState(startTime, endTime string, nowMinutes int) string {
 	start := extraHMToMinutes(startTime)
 	end := extraHMToMinutes(endTime)
@@ -213,7 +213,7 @@ func extraCheckinState(startTime, endTime string, nowMinutes int) string {
 	return "OPEN"
 }
 
-// extraIranDow — روز هفتهٔ ایرانی از تاریخ شمسی (شنبه=۰ … جمعه=۶).
+// extraIranDow — Iranian weekday from the Jalali date (Saturday=0 … Friday=6).
 func extraIranDow(jalaliDate string) int {
 	m := extraJalaliRe.FindStringSubmatch(strings.TrimSpace(jalaliDate))
 	if m == nil {
@@ -226,12 +226,12 @@ func extraIranDow(jalaliDate string) int {
 		return -1
 	}
 	g := jalali.ToGregorian(jy, jm, jd)
-	// getUTCDay: یکشنبه=۰ … شنبه=۶ → شیفت تا شنبه=۰
+	// getUTCDay: Sunday=0 … Saturday=6 → shift so Saturday=0
 	jsDay := int(time.Date(g.Y, time.Month(g.M), g.D, 0, 0, 0, 0, time.UTC).Weekday())
 	return (jsDay + 1) % 7
 }
 
-// ───────────────── ۱) استعلام عمومی سند ممهور (QR فرم رسمی) ─────────────────
+// ───────────────── 1) Public verification of a sealed document (official form QR) ─────────────────
 
 type extraDocumentInfo struct {
 	ID                 int64  `json:"id"`
@@ -244,7 +244,7 @@ type extraDocumentInfo struct {
 	StudentCode        string `json:"studentCode"`
 }
 
-// extraVerifyDocument — پورت verify/document/[hash]/page.tsx؛ عمومی و بدون نشست.
+// extraVerifyDocument — port of verify/document/[hash]/page.tsx; public and sessionless.
 func (a *PublicExtraAPI) extraVerifyDocument(c *gin.Context) {
 	if !a.extraAllow(c, "verify-document:"+c.ClientIP(), 20, 600) {
 		return
@@ -296,7 +296,7 @@ func extraStr(s *string) string {
 	return *s
 }
 
-// ───────────────── ۲) پورتال دانش‌آموختگان ─────────────────
+// ───────────────── 2) Alumni portal ─────────────────
 
 type extraAlumniService struct {
 	Code             string  `json:"code"`
@@ -307,7 +307,7 @@ type extraAlumniService struct {
 	FeeKey           string  `json:"-"`
 }
 
-// همان ALUMNI_SERVICES در src/lib/alumni.ts
+// Same ALUMNI_SERVICES as in src/lib/alumni.ts
 var extraAlumniServices = []extraAlumniService{
 	{Code: "OFFICIAL_TRANSCRIPT", Title: "ریزنمرات رسمی (مهر و موم‌شده)", Hint: "صدور ریزنمرات رسمی جهت ارائه به دانشگاه/سازمان", FeeKey: "ALUMNI_FEE_TRANSCRIPT"},
 	{Code: "TRANSLATION_CONFIRM", Title: "تأییدیهٔ تحصیلی برای دارالترجمه", Hint: "نام دارالترجمه یا سازمان مقصد را بنویسید", NeedsDestination: true, FeeKey: "ALUMNI_FEE_TRANSLATION"},
@@ -327,7 +327,7 @@ type extraAlumniMe struct {
 	UniversityID *int64  `json:"-"`
 }
 
-// extraAlumniOf — پورت alumniOf: پروندهٔ GRADUATED اول، بعد جدیدترین.
+// extraAlumniOf — port of alumniOf: GRADUATED record first, then the newest.
 func (a *PublicExtraAPI) extraAlumniOf(ctx context.Context, userID int64) *extraAlumniMe {
 	var m extraAlumniMe
 	var status string
@@ -394,7 +394,7 @@ func (a *PublicExtraAPI) extraAlumniRequests(ctx context.Context, studentID int6
 	return out
 }
 
-// extraIsoPtr — timestamp::text را به ISO کامل تبدیل می‌کند (سازگار با new Date()).
+// extraIsoPtr — converts timestamp::text to a full ISO string (compatible with new Date()).
 func extraIsoPtr(ts *string) *string {
 	if ts == nil {
 		return nil
@@ -410,7 +410,7 @@ func extraIsoPtr(ts *string) *string {
 	return ts
 }
 
-// extraAlumniSummary — یک نما از همهٔ داده‌های پورتال (پورت موازی‌بار صفحهٔ Next).
+// extraAlumniSummary — a single view of all portal data (port of the parallel-loaded Next page).
 func (a *PublicExtraAPI) extraAlumniSummary(c *gin.Context) {
 	user := a.extraRequireRoles(c, []string{"STUDENT"})
 	if user == nil {
@@ -451,7 +451,7 @@ func (a *PublicExtraAPI) extraAlumniSummary(c *gin.Context) {
 		}
 	}
 
-	// پروفایل (upsert-less read)
+	// Profile (upsert-less read)
 	profile := gin.H{"employmentStatus": "", "organization": "", "jobTitle": "",
 		"contactEmail": "", "contactMobile": "", "linkedinUrl": "", "allowContact": true}
 	var emp, org, job, email, mobile, linkedin *string
@@ -477,7 +477,7 @@ func (a *PublicExtraAPI) extraAlumniSummary(c *gin.Context) {
 	}})
 }
 
-// extraAlumniSaveProfile — پورت saveProfileAction/upsert.
+// extraAlumniSaveProfile — port of saveProfileAction/upsert.
 func (a *PublicExtraAPI) extraAlumniSaveProfile(c *gin.Context) {
 	user := a.extraRequireRoles(c, []string{"STUDENT"})
 	if user == nil {
@@ -523,7 +523,7 @@ func (a *PublicExtraAPI) extraAlumniSaveProfile(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// extraAlumniSubmitRequest — پورت submitRequestAction (بدون پرداخت از سمت دانشجو).
+// extraAlumniSubmitRequest — port of submitRequestAction (no payment on the student side).
 func (a *PublicExtraAPI) extraAlumniSubmitRequest(c *gin.Context) {
 	user := a.extraRequireRoles(c, []string{"STUDENT"})
 	if user == nil {
@@ -564,7 +564,7 @@ func (a *PublicExtraAPI) extraAlumniSubmitRequest(c *gin.Context) {
 	if fee > 0 {
 		status = "AWAITING_PAYMENT"
 	}
-	// کد رهگیری 'AL-' + ۸ نیم‌بایت هگز (همان tracking در TS)
+	// Tracking code 'AL-' + 8 hex nibbles (same tracking as in TS)
 	rnd := make([]byte, 4)
 	_, _ = rand.Read(rnd)
 	tracking := "AL-" + strings.ToUpper(hex.EncodeToString(rnd))
@@ -581,7 +581,7 @@ func (a *PublicExtraAPI) extraAlumniSubmitRequest(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"requests": a.extraAlumniRequests(c.Request.Context(), me.StudentID)}})
 }
 
-// extraAlumniPayRequest — ⛔ پورت payRequest: تسویه فقط با تأیید واحد مالی؛ fail-closed.
+// extraAlumniPayRequest — ⛔ port of payRequest: settlement only with finance unit approval; fail-closed.
 func (a *PublicExtraAPI) extraAlumniPayRequest(c *gin.Context) {
 	user := a.extraRequireRoles(c, []string{"STUDENT"})
 	if user == nil {
@@ -611,7 +611,7 @@ func (a *PublicExtraAPI) extraAlumniPayRequest(c *gin.Context) {
 	c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "پرداخت هزینه باید از طریق واحد مالی انجام و تأیید شود."})
 }
 
-// ───────────────── ۳) پنل مراقب امتحان ─────────────────
+// ───────────────── 3) Exam proctor panel ─────────────────
 
 type extraProctorRosterItem struct {
 	StudentID          int64   `json:"studentId"`
@@ -642,7 +642,7 @@ type extraProctorSession struct {
 	Roster       []extraProctorRosterItem  `json:"roster"`
 }
 
-// extraUserUniScope — فهرست دانشگاه‌های مجاز؛ nil = نامحدود (حساب پلتفرمی ADMIN).
+// extraUserUniScope — list of allowed universities; nil = unlimited (platform ADMIN account).
 func (a *PublicExtraAPI) extraUserUniScope(ctx context.Context, user *session.User) []int64 {
 	ids := map[int64]bool{}
 	if user.UniversityID != nil {
@@ -688,7 +688,7 @@ func (a *PublicExtraAPI) extraUserUniScope(ctx context.Context, user *session.Us
 
 func (a *PublicExtraAPI) extraCanActOnUni(ctx context.Context, user *session.User, universityID *int64) bool {
 	if universityID == nil {
-		return false // رکورد بدون دانشگاه: مجهول → رد
+		return false // Record without a university: unknown → reject
 	}
 	allowed := a.extraUserUniScope(ctx, user)
 	if allowed == nil {
@@ -711,14 +711,14 @@ func extraHasRole(user *session.User, role string) bool {
 	return false
 }
 
-// extraStaffIDOf — پروندهٔ هیئت علمی کاربر.
+// extraStaffIDOf — user's faculty staff record.
 func (a *PublicExtraAPI) extraStaffIDOf(ctx context.Context, userID int64) (int64, bool) {
 	var id int64
 	err := a.Pool.QueryRow(ctx, `select id from staff where "userId" = $1 limit 1`, userID).Scan(&id)
 	return id, err == nil
 }
 
-// extraProctorSessions — پورت proctor/page.tsx: جلسات تخصیصی + صندلی‌های واقعی.
+// extraProctorSessions — port of proctor/page.tsx: assigned sessions + actual seats.
 func (a *PublicExtraAPI) extraProctorSessions(c *gin.Context) {
 	user := a.extraRequireRoles(c, []string{"PROCTOR", "ADMIN", "EDU_EXPERT"})
 	if user == nil {
@@ -826,7 +826,7 @@ func (a *PublicExtraAPI) extraProctorSessions(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"staffName": user.Name, "sessions": sessions}})
 }
 
-// extraExamSessionTenant — universityId جلسه (با fallback به ترم) — پورت assertSessionTenant.
+// extraExamSessionTenant — session universityId (with fallback to the term) — port of assertSessionTenant.
 func (a *PublicExtraAPI) extraExamSessionTenant(ctx context.Context, sessionID int64) (*int64, error) {
 	var uni, termUni *int64
 	var termID int64
@@ -845,7 +845,7 @@ func (a *PublicExtraAPI) extraExamSessionTenant(ctx context.Context, sessionID i
 	return uni, nil
 }
 
-// extraProctorClockIn — پورت proctorClockIn: ثبت ورود مراقب زیر قفل توافقی.
+// extraProctorClockIn — port of proctorClockIn: proctor clock-in under advisory lock.
 func (a *PublicExtraAPI) extraProctorClockIn(c *gin.Context) {
 	user := a.extraRequireRoles(c, []string{"PROCTOR", "ADMIN", "EDU_EXPERT"})
 	if user == nil {
@@ -915,7 +915,7 @@ type extraCheckIn struct {
 
 var extraCheckinMethods = map[string]bool{"QR_SCAN": true, "MANUAL_BY_INVIGILATOR": true, "SYSTEM_EXCUSE": true}
 
-// extraValidateCheckIns — پورت validateCheckIns: وایت‌لیستِ سخت پیش از SQL.
+// extraValidateCheckIns — port of validateCheckIns: strict whitelist before SQL.
 func extraValidateCheckIns(raw []extraCheckIn) ([]extraCheckIn, error) {
 	if len(raw) == 0 {
 		return nil, errors.New("ردیف تأییدی برای بررسی ارسال نشده است.")
@@ -943,7 +943,7 @@ func extraValidateCheckIns(raw []extraCheckIn) ([]extraCheckIn, error) {
 	return out, nil
 }
 
-// extraProctorVerify — پورت proctorVerifyAttendance: به‌روزرسانی دسته‌ای زیر قفل.
+// extraProctorVerify — port of proctorVerifyAttendance: batch update under lock.
 func (a *PublicExtraAPI) extraProctorVerify(c *gin.Context) {
 	user := a.extraRequireRoles(c, []string{"PROCTOR", "ADMIN", "EDU_EXPERT"})
 	if user == nil {
@@ -1009,7 +1009,7 @@ func (a *PublicExtraAPI) extraProctorVerify(c *gin.Context) {
 	defer tx.Rollback(ctx)
 	_, _ = tx.Exec(ctx, `select pg_advisory_xact_lock(hashtext('exam_attendance'), $1)`, in.SessionID)
 
-	// VALUES کاملاً پارامتری (همان الگوی TS) — هیچ رشته‌ای مستقیم به SQL نمی‌رود.
+	// VALUES fully parameterized (same TS pattern) — no string goes directly into SQL.
 	n := len(checkIns)
 	var sb strings.Builder
 	args := make([]any, 0, n*4)
@@ -1050,7 +1050,7 @@ func (a *PublicExtraAPI) extraProctorVerify(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"verified": upd.RowsAffected()}})
 }
 
-// extraProctorScan — پورت examProctorScanAction: اسکن QR کارت آزمون با امضای سامانه.
+// extraProctorScan — port of examProctorScanAction: exam card QR scan with system signature.
 func (a *PublicExtraAPI) extraProctorScan(c *gin.Context) {
 	user := a.extraRequireRoles(c, []string{"PROCTOR", "ADMIN", "EDU_EXPERT"})
 	if user == nil {
@@ -1101,7 +1101,7 @@ func (a *PublicExtraAPI) extraProctorScan(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "دانشجویی با این کارت یافت نشد."})
 		return
 	}
-	// ثبت حضور همان دانشجو در همان جلسه/سالن (هویت مراقب از نشست، نه payload)
+	// Check-in of the same student in the same session/hall (proctor identity from session, not payload)
 	checkIns := []extraCheckIn{{StudentID: studentID, IsPresent: 1, Method: "QR_SCAN", HasTemporaryPermit: 0}}
 	ctx := c.Request.Context()
 	expectedUni, err := a.extraExamSessionTenant(ctx, in.SessionID)
@@ -1115,7 +1115,7 @@ func (a *PublicExtraAPI) extraProctorScan(c *gin.Context) {
 	}
 	verified := a.extraVerifyAttendanceCore(ctx, user, staffID, in.SessionID, in.HallID, checkIns, c)
 	if verified < 0 {
-		return // پاسخ خطا قبلاً نوشته شده
+		return // Error response already written
 	}
 	if verified == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": fullName + " در این جلسه/سالن ثبت‌نام نشده است (کارت سالن دیگری است).", "studentName": fullName})
@@ -1131,7 +1131,7 @@ func extraStrPtr(v any) string {
 	return s
 }
 
-// extraResolveStudent — پورت resolveStudent در publicverify: شناسهٔ دانشجو از payload.
+// extraResolveStudent — port of resolveStudent in publicverify: student ID from payload.
 func (a *PublicExtraAPI) extraResolveStudent(ctx context.Context, payload map[string]any) int64 {
 	uid := toExtraInt(payload["uid"])
 	sid := toExtraInt(payload["sid"])
@@ -1177,7 +1177,7 @@ func toExtraInt(v any) int64 {
 	return 0
 }
 
-// extraVerifyAttendanceCore — هستهٔ مشترک ثبت حضور سالن؛ -1 یعنی پاسخ خطا نوشته شده.
+// extraVerifyAttendanceCore — shared hall attendance core; -1 means the error response was already written.
 func (a *PublicExtraAPI) extraVerifyAttendanceCore(ctx context.Context, user *session.User, staffID, sessionID, hallID int64, checkIns []extraCheckIn, c *gin.Context) int64 {
 	var hallUni *int64
 	if err := a.Pool.QueryRow(ctx, `select "universityId" from exam_halls where id = $1`, hallID).Scan(&hallUni); err != nil {
@@ -1248,7 +1248,7 @@ func (a *PublicExtraAPI) extraVerifyAttendanceCore(ctx context.Context, user *se
 	return upd.RowsAffected()
 }
 
-// ───────────────── ۴) ثبت حضور استاد با QR سردر کلاس (p/[code]) ─────────────────
+// ───────────────── 4) Professor check-in via classroom door QR (p/[code]) ─────────────────
 
 type extraRoomSessionRow struct {
 	ID                    int64   `json:"id"`
@@ -1262,7 +1262,7 @@ type extraRoomSessionRow struct {
 	GroupNumber           int     `json:"groupNumber"`
 	RoomID                int64   `json:"roomId"`
 	SharedScheduleGroupKey *string `json:"sharedScheduleGroupKey"`
-	// موقت برای هسته
+	// Temporary for the core
 	explicitRoomID *int64
 }
 
@@ -1303,7 +1303,7 @@ type extraMergedGroup struct {
 	Members          []extraRoomSessionRow
 }
 
-// extraGroupMerged — پورت groupSessionsIntoMerged: ردیف‌های جلسه → «کلاس فیزیکی».
+// extraGroupMerged — port of groupSessionsIntoMerged: session rows → «کلاس فیزیکی».
 func extraGroupMerged(rows []extraRoomSessionRow) []extraMergedGroup {
 	groups := []extraMergedGroup{}
 	byKey := map[string]*extraMergedGroup{}
@@ -1329,7 +1329,7 @@ func extraGroupMerged(rows []extraRoomSessionRow) []extraMergedGroup {
 	for _, g := range groups {
 		if len(g.Members) > 1 {
 			g.Merged = true
-			// مرتب‌سازی اعضا بر اساس sessionId
+			// Sort members by sessionId
 			for i := 0; i < len(g.Members); i++ {
 				for j := i + 1; j < len(g.Members); j++ {
 					if g.Members[j].ID < g.Members[i].ID {
@@ -1400,7 +1400,7 @@ func (a *PublicExtraAPI) extraRoomOf(ctx context.Context, roomID int64) *extraRo
 	return &r
 }
 
-// extraRoomSlots — اسلات‌های هفتگی یک اتاق در یک روز؛ کلید «offeringId|HH:MM».
+// extraRoomSlots — weekly slots of a room on a given day; key «offeringId|HH:MM».
 func (a *PublicExtraAPI) extraRoomSlots(ctx context.Context, roomID int64, dow int) (map[string]bool, []int64) {
 	keys := map[string]bool{}
 	ids := []int64{}
@@ -1426,7 +1426,7 @@ func (a *PublicExtraAPI) extraRoomSlots(ctx context.Context, roomID int64, dow i
 	return keys, ids
 }
 
-// extraSessionsInRoom — پورت listSessionsInRoom: جلسات امروزِ اتاق از برنامهٔ هفتگی.
+// extraSessionsInRoom — port of listSessionsInRoom: today's room sessions from the weekly schedule.
 func (a *PublicExtraAPI) extraSessionsInRoom(ctx context.Context, roomID int64, jalaliDate string) []extraRoomSessionRow {
 	out := []extraRoomSessionRow{}
 	dow := extraIranDow(jalaliDate)
@@ -1489,7 +1489,7 @@ type extraWeeklySlot struct {
 	GroupNumber   int    `json:"groupNumber"`
 }
 
-// extraWeeklyInRoom — پورت listWeeklySessionsInRoom: همان چیزی که روی پوستر سردر چاپ شده.
+// extraWeeklyInRoom — port of listWeeklySessionsInRoom: exactly what is printed on the door poster.
 func (a *PublicExtraAPI) extraWeeklyInRoom(ctx context.Context, roomID int64, termID *int64) []extraWeeklySlot {
 	out := []extraWeeklySlot{}
 	q := `
@@ -1561,7 +1561,7 @@ func (a *PublicExtraAPI) extraWeeklyInRoom(ctx context.Context, roomID int64, te
 	return out
 }
 
-// extraTermForUniversity — پورت currentTermFor (انتخاب ترم مؤثر تاریخ‌محور).
+// extraTermForUniversity — port of currentTermFor (date-driven effective term selection).
 func (a *PublicExtraAPI) extraTermForUniversity(ctx context.Context, universityID *int64) *int64 {
 	q := `select id, coalesce("isCurrent",0), "startDate", "endDate" from academic_terms`
 	args := []any{}
@@ -1593,7 +1593,7 @@ func (a *PublicExtraAPI) extraTermForUniversity(ctx context.Context, universityI
 		return nil
 	}
 	now := time.Now().UTC()
-	// ۱) ترمی که امروز در بازهٔ اوست
+	// 1) the term whose range includes today
 	var best *termRow
 	for i := range terms {
 		t := &terms[i]
@@ -1606,7 +1606,7 @@ func (a *PublicExtraAPI) extraTermForUniversity(ctx context.Context, universityI
 	if best != nil {
 		return &best.id
 	}
-	// ۲) پرچم isCurrent
+	// 2) the isCurrent flag
 	for i := range terms {
 		if terms[i].isCurrent == 1 {
 			if best == nil || terms[i].id > best.id {
@@ -1617,7 +1617,7 @@ func (a *PublicExtraAPI) extraTermForUniversity(ctx context.Context, universityI
 	if best != nil {
 		return &best.id
 	}
-	// ۳) شروع‌شدهٔ اخیر
+	// 3) most recently started
 	for i := range terms {
 		t := &terms[i]
 		if t.start != nil && !t.start.After(now) {
@@ -1629,7 +1629,7 @@ func (a *PublicExtraAPI) extraTermForUniversity(ctx context.Context, universityI
 	if best != nil {
 		return &best.id
 	}
-	// ۴) نزدیک‌ترین آینده
+	// 4) nearest upcoming
 	for i := range terms {
 		t := &terms[i]
 		if t.start != nil && t.start.After(now) {
@@ -1644,7 +1644,7 @@ func (a *PublicExtraAPI) extraTermForUniversity(ctx context.Context, universityI
 	return &best.id
 }
 
-// extraRecorderPolicy — پورت getRecorderPolicy (تنظیم مدیر؛ مقدار ناشناخته = BOTH).
+// extraRecorderPolicy — port of getRecorderPolicy (admin setting; unknown value = BOTH).
 func (a *PublicExtraAPI) extraRecorderPolicy(ctx context.Context) (mode string, profAllowed, ctrlAllowed, roomScoped bool) {
 	mode = strings.ToUpper(strings.TrimSpace(a.extraSetting(ctx, "ATTENDANCE_RECORDER_MODE", "BOTH")))
 	if mode != "PROFESSOR" && mode != "CONTROLLER" {
@@ -1663,7 +1663,7 @@ func (a *PublicExtraAPI) extraRecorderPolicy(ctx context.Context) (mode string, 
 	return mode, mode != "CONTROLLER", mode != "PROFESSOR", roomScoped
 }
 
-// extraCanControlRoom — پورت canControlRoom: دامنهٔ کنترل‌کننده از دقیق به کلی.
+// extraCanControlRoom — port of canControlRoom: controller scope from specific to general.
 func (a *PublicExtraAPI) extraCanControlRoom(ctx context.Context, user *session.User, roomID int64) (bool, string) {
 	if extraHasRole(user, "ADMIN") {
 		return true, "admin"
@@ -1677,7 +1677,7 @@ func (a *PublicExtraAPI) extraCanControlRoom(ctx context.Context, user *session.
 	if room == nil {
 		return false, ""
 	}
-	// ۱) تخصیص مستقیم اتاق
+	// 1) direct room assignment
 	var one int64
 	err := a.Pool.QueryRow(ctx, `
 		select id from classroom_edu_experts where "classroomId" = $1 and "userId" = $2 limit 1`,
@@ -1685,7 +1685,7 @@ func (a *PublicExtraAPI) extraCanControlRoom(ctx context.Context, user *session.
 	if err == nil {
 		return true, "room"
 	}
-	// ۲) استثنای درس
+	// 2) course exception
 	offeringIDs := []int64{}
 	orows, err := a.Pool.Query(ctx, `
 		select distinct "offeringId" from schedules where "roomId" = $1 and "scheduleType" <> 'EXAM' and "offeringId" is not null`, roomID)
@@ -1706,7 +1706,7 @@ func (a *PublicExtraAPI) extraCanControlRoom(ctx context.Context, user *session.
 			return true, "offering"
 		}
 	}
-	// ۳) دامنهٔ نقش: دانشکده یا دانشگاه اتاق
+	// 3) role scope: the room's faculty or university
 	var one2 int64
 	err = a.Pool.QueryRow(ctx, `
 		select 1 from expert_scopes
@@ -1722,7 +1722,7 @@ func (a *PublicExtraAPI) extraCanControlRoom(ctx context.Context, user *session.
 			return true, "university"
 		}
 	}
-	// ۴) دانشگاه خود کاربر اگر «محدود به اتاق» خاموش باشد
+	// 4) the user's own university if «محدود به اتاق» is off
 	_, _, _, roomScoped := a.extraRecorderPolicy(ctx)
 	if !roomScoped && user.UniversityID != nil && (room.UniversityID == nil || *room.UniversityID == *user.UniversityID) {
 		return true, "university"
@@ -1737,7 +1737,7 @@ func extraNullInt(v *int64) any {
 	return *v
 }
 
-// extraRoomPublic — سرصفحهٔ عمومی صفحهٔ QR (بدون نشست، مثل Next که هدر را به همه نشان می‌دهد).
+// extraRoomPublic — public header of the QR page (sessionless, like Next which shows the header to everyone).
 func (a *PublicExtraAPI) extraRoomPublic(c *gin.Context) {
 	roomID := extraRoomCode(c.Param("code"))
 	if roomID == 0 {
@@ -1763,7 +1763,7 @@ func (a *PublicExtraAPI) extraRoomPublic(c *gin.Context) {
 	}})
 }
 
-// extraRoomCheckinState — کل وضعیت صفحهٔ QR برای کاربر واردشده.
+// extraRoomCheckinState — full QR page state for the logged-in user.
 func (a *PublicExtraAPI) extraRoomCheckinState(c *gin.Context) {
 	user := a.extraUser(c)
 	if user == nil {
@@ -1781,7 +1781,7 @@ func (a *PublicExtraAPI) extraRoomCheckinState(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"notfound": true}})
 		return
 	}
-	// مرز بین‌دانشگاهی: QR یک اتاق نباید برنامهٔ دانشگاه دیگر را نشان دهد.
+	// Cross-university boundary: a room's QR must not show another university's schedule.
 	myUni := user.UniversityID
 	staffID, hasStaff := a.extraStaffIDOf(ctx, user.ID)
 	if myUni == nil && hasStaff {
@@ -1804,7 +1804,7 @@ func (a *PublicExtraAPI) extraRoomCheckinState(c *gin.Context) {
 
 	today := a.extraSessionsInRoom(ctx, roomID, jalaliToday)
 
-	// استاد مشترک (offering_professors)
+	// Shared professor (offering_professors)
 	sharedSet := map[int64]bool{}
 	sharedOfferings := []int64{}
 	nonMine := []int64{}
@@ -1820,7 +1820,7 @@ func (a *PublicExtraAPI) extraRoomCheckinState(c *gin.Context) {
 		return hasStaff && ((r.ProfessorID != nil && *r.ProfessorID == staffID) || sharedSet[r.OfferingID])
 	}
 
-	// ردیف‌های ثبت‌شدهٔ من
+	// My recorded rows
 	recordedMine := map[int64]*time.Time{}
 	if hasStaff && len(today) > 0 {
 		ids := make([]int64, 0, len(today))
@@ -1842,7 +1842,7 @@ func (a *PublicExtraAPI) extraRoomCheckinState(c *gin.Context) {
 			rrows.Close()
 		}
 	}
-	// ثبت‌های هرکس (غیرِ باطل‌شده) برای هر جلسهٔ امروز
+	// Everyone's (non-voided) check-ins for each of today's sessions
 	recordedAny := map[int64]*time.Time{}
 	if len(today) > 0 {
 		ids := make([]int64, 0, len(today))
@@ -1868,10 +1868,10 @@ func (a *PublicExtraAPI) extraRoomCheckinState(c *gin.Context) {
 		}
 	}
 
-	// گروه‌بندی ادغامیِ امروزِ اتاق
+	// Today's merged grouping of the room
 	groups := extraGroupMerged(today)
 
-	// جلسهٔ «تمرکز»: اولین OPEN ثبت‌نشدهٔ من ← OPEN ← BEFORE ← آخرین
+	// «تمرکز» session: my first unchecked OPEN ← OPEN ← BEFORE ← last
 	type focusRow struct {
 		row     extraRoomSessionRow
 		state   string
@@ -1961,7 +1961,7 @@ func (a *PublicExtraAPI) extraRoomCheckinState(c *gin.Context) {
 		return h
 	}
 
-	// جلسات آیندهٔ همان استاد در این اتاق (وقتی امروز کلاس ندارد)
+	// Upcoming sessions of the same professor in this room (when there is no class today)
 	upcoming := []gin.H{}
 	if focus == nil && hasStaff {
 		up := a.extraUpcomingInRoom(ctx, roomID, jalaliToday, staffID, sharedSet, 3)
@@ -1973,7 +1973,7 @@ func (a *PublicExtraAPI) extraRoomCheckinState(c *gin.Context) {
 		}
 	}
 
-	// کارتابل کنترل‌کننده — گروه‌های امروزِ اتاق
+	// Controller worklist — today's room groups
 	ctrlGroups := []gin.H{}
 	if ctrlCan {
 		for i := range groups {
@@ -1997,7 +1997,7 @@ func (a *PublicExtraAPI) extraRoomCheckinState(c *gin.Context) {
 		}
 	}
 
-	// برنامهٔ هفتگی + اتاق‌های هم‌نام
+	// Weekly schedule + same-name rooms
 	termID := a.extraTermForUniversity(ctx, room.UniversityID)
 	weekly := a.extraWeeklyInRoom(ctx, roomID, termID)
 	weeklyShared := map[int64]bool{}
@@ -2021,13 +2021,13 @@ func (a *PublicExtraAPI) extraRoomCheckinState(c *gin.Context) {
 		}
 	}
 
-	// اتاق‌های هم‌نام با برنامه (وقتی این اتاق برنامه ندارد)
+	// Same-name rooms with a schedule (when this room has none)
 	twinRooms := []gin.H{}
 	if len(weekly) == 0 {
 		twinRooms = a.extraTwinRooms(ctx, roomID, room.Name)
 	}
 
-	// نقشهٔ امروز برای اتصال اسلات هفتگی به جلسه (کلید «offeringId|HH:MM»)
+	// Today's map for linking a weekly slot to a session (key «offeringId|HH:MM»)
 	todayBySlot := map[string]gin.H{}
 	for _, r := range today {
 		key := fmt.Sprintf("%d|%s", r.OfferingID, r.StartTime)
@@ -2050,7 +2050,7 @@ func (a *PublicExtraAPI) extraRoomCheckinState(c *gin.Context) {
 		}
 	}
 
-	// امروزِ تهران برای نمایش
+	// Tehran today for display
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{
 		"roomId": roomID, "todayJalali": jalaliToday, "todayDow": extraIranDow(jalaliToday),
 		"room": gin.H{"id": room.ID, "name": room.Name, "buildingName": room.BuildingName,
@@ -2086,10 +2086,10 @@ func (a *PublicExtraAPI) extraCollectShared(ctx context.Context, staffID int64, 
 	}
 }
 
-// extraUpcomingInRoom — پورت listUpcomingSessionsInRoom (فقط جلسات خود استاد/مشترک).
+// extraUpcomingInRoom — port of listUpcomingSessionsInRoom (only the professor's own/shared sessions).
 func (a *PublicExtraAPI) extraUpcomingInRoom(ctx context.Context, roomID int64, afterJalali string, staffID int64, sharedSet map[int64]bool, limit int) []extraRoomSessionRow {
 	out := []extraRoomSessionRow{}
-	// اسلات‌های همهٔ روزها
+	// Slots of all days
 	slotsByDow := map[int]map[string]bool{}
 	allOfferings := []int64{}
 	seen := map[int64]bool{}
@@ -2153,7 +2153,7 @@ func (a *PublicExtraAPI) extraUpcomingInRoom(ctx context.Context, roomID int64, 
 	return out
 }
 
-// extraTwinRooms — اتاق‌های هم‌نامِ دارای برنامه (پورت twinRooms).
+// extraTwinRooms — same-name rooms with a schedule (port of twinRooms).
 func (a *PublicExtraAPI) extraTwinRooms(ctx context.Context, roomID int64, name string) []gin.H {
 	same := []int64{}
 	rows, err := a.Pool.Query(ctx, `
@@ -2189,7 +2189,7 @@ func (a *PublicExtraAPI) extraTwinRooms(ctx context.Context, roomID int64, name 
 			out = append(out, gin.H{"id": id, "slots": counts[id]})
 		}
 	}
-	// مرتب‌سازی نزولی بر اساس تعداد سانس
+	// Sort descending by session count
 	for i := 0; i < len(out); i++ {
 		for j := i + 1; j < len(out); j++ {
 			if out[j]["slots"].(int) > out[i]["slots"].(int) {
@@ -2200,7 +2200,7 @@ func (a *PublicExtraAPI) extraTwinRooms(ctx context.Context, roomID int64, name 
 	return out
 }
 
-// extraRoomCheckinRecord — پورت recordCore/recordRoomAttendance؛ تصمیم نهایی فقط اینجاست.
+// extraRoomCheckinRecord — port of recordCore/recordRoomAttendance; the final decision is only here.
 func (a *PublicExtraAPI) extraRoomCheckinRecord(c *gin.Context) {
 	user := a.extraUser(c)
 	if user == nil {
@@ -2262,7 +2262,7 @@ func (a *PublicExtraAPI) extraRoomCheckinRecord(c *gin.Context) {
 		c.JSON(http.StatusForbidden, gin.H{"ok": false, "error": "این اتاق به دانشگاه دیگری تعلق دارد."})
 		return
 	}
-	// مسیر الف: استادِ خودِ درس
+	// Path A: the course's own professor
 	owns := offeringProfessorID != nil && *offeringProfessorID == staffID
 	if !owns {
 		var one int64
@@ -2292,7 +2292,7 @@ func (a *PublicExtraAPI) extraRoomCheckinRecord(c *gin.Context) {
 		return
 	}
 
-	// گسترش به کل کلاس ادغامی (پورت resolveMergedSessionTargets)
+	// Expand to the whole merged class (port of resolveMergedSessionTargets)
 	groups := extraGroupMerged(today)
 	var mine *extraMergedGroup
 	for i := range groups {
@@ -2309,7 +2309,7 @@ func (a *PublicExtraAPI) extraRoomCheckinRecord(c *gin.Context) {
 		sessionIDs = append([]int64{}, mine.MemberSessionIDs...)
 		merged = mine.Merged
 	}
-	// تکمیل عضوهای بی‌جلسه (فقط ادغام دستی K:)
+	// Fill in members without a session (manual merge K: only)
 	manualKey := ""
 	_ = a.Pool.QueryRow(ctx, `select coalesce("sharedScheduleGroupKey",'') from course_offerings where id = $1`, sess.OfferingID).Scan(&manualKey)
 	manualKey = strings.TrimSpace(manualKey)
@@ -2338,7 +2338,7 @@ func (a *PublicExtraAPI) extraRoomCheckinRecord(c *gin.Context) {
 			if present[oid] || offeringPresent[oid] || dow < 0 {
 				continue
 			}
-			// آیا این ارائه در این اتاق/روز/ساعت برنامه دارد؟
+			// Does this offering have a schedule in this room/day/hour?
 			var slotID int64
 			err := a.Pool.QueryRow(ctx, `
 				select id from schedules where "offeringId" = $1 and "roomId" = $2 and "scheduleType" = 'CLASS'
@@ -2361,7 +2361,7 @@ func (a *PublicExtraAPI) extraRoomCheckinRecord(c *gin.Context) {
 		}
 	}
 
-	// استادی که برای هر جلسه باید ثبت شود
+	// The professor who must be recorded for each session
 	staffFor := map[int64]*int64{}
 	for _, sid := range sessionIDs {
 		var profID *int64

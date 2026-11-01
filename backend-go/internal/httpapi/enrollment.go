@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های تأیید انتخاب واحد و صدور تأییدیه ═══
+// ═══ Enrollment confirmation and certificate issuance endpoints ═══
 package httpapi
 
 import (
@@ -115,7 +115,7 @@ func (a *AdminAPI) enrollmentApprovalDelete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// enrollmentConfirmation صدور تأییدیهٔ انتخاب واحد (کارشناس آموزش).
+// enrollmentConfirmation issue the course enrollment certificate (education expert).
 func (a *AdminAPI) enrollmentConfirmation(c *gin.Context) {
 	user := a.requireRoles(c, enrollmentAdminRoles)
 	if user == nil {

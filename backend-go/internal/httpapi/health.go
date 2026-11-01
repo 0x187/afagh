@@ -1,11 +1,11 @@
-// ═══ /api/v2/health — پورت وفادار از src/app/api/health/route.ts ═══
+// ═══ /api/v2/health — faithful port of src/app/api/health/route.ts ═══
 //
-// سه زیرساخت بررسی می‌شود (همان وضعیت‌ها: ok | down | skipped):
-//   - db    → همیشه (select 1)
-//   - redis → فقط اگر REDIS_URL تنظیم باشد (PING)
-//   - minio → فقط اگر S3_ENDPOINT/S3_BUCKET تنظیم باشد (bucketExists)
+// Three backends are checked (same statuses: ok | down | skipped):
+//   - db    → always (select 1)
+//   - redis → only if REDIS_URL is set (PING)
+//   - minio → only if S3_ENDPOINT/S3_BUCKET is set (bucketExists)
 //
-// هیچ دادهٔ حساسی برنمی‌گردد. هر بررسی ۳ ثانیه مهلت دارد تا زیر بار LB معلق نماند.
+// No sensitive data is returned. Each check has a 3-second timeout so it doesn't hang under LB load.
 package httpapi
 
 import (
@@ -40,7 +40,7 @@ func healthStatus(c *gin.Context) string {
 	return c.GetString("status")
 }
 
-// HealthGET پاسخ JSON با شکل یکسان: {ok, checks:{db,redis,minio}, version}.
+// HealthGET JSON response with a uniform shape: {ok, checks:{db,redis,minio}, version}.
 func (h *Health) HealthGET(c *gin.Context) {
 	c.Header("Cache-Control", "no-store")
 
@@ -62,7 +62,7 @@ func (h *Health) HealthGET(c *gin.Context) {
 		}
 		ctx, cancel := context.WithTimeout(c.Request.Context(), checkTimeout)
 		defer cancel()
-		// یک تلاش سریع — شکست = down (همان سیاست healthRedis در route.ts)
+		// A single quick attempt — failure = down (same healthRedis policy as route.ts)
 		opt, err := redis.ParseURL(h.RedisURL)
 		if err != nil {
 			checks["redis"] = "down"

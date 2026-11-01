@@ -1,12 +1,12 @@
-// ═══ اندپوینت‌های صفحهٔ اتصال پیام‌رسان (/messenger) ═══
+// ═══ Messenger connection page endpoints (/messenger) ═══
 //
-//	پورت server actionهای messenger-link-actions.ts به REST:
-//	  ۱) POST /messenger/link/token   — صدور کد اتصال (۱۰ دقیقه اعتبار)
-//	  ۲) GET  /messenger/link/status  — بررسی سبک وضعیت جفت‌سازی (تأیید خودکار کلاینت)
-//	  ۳) POST /messenger/link/confirm — تأیید نهایی پس از /start در بات
-//	  ۴) GET  /messenger/channels     — کانال‌های ثبت‌شدهٔ کاربر (وضعیت اتصال)
-//	  ۵) POST /messenger/channels/revoke — لغو اتصال یک پیام‌رسان
-//	همه نیازمند نشست پورتال‌اند (همهٔ نقش‌ها — همان redirect('/login') در Next).
+//	Port of the server actions in messenger-link-actions.ts to REST:
+//	  1) POST /messenger/link/token   — issue a link code (valid for 10 minutes)
+//	  2) GET  /messenger/link/status  — lightweight pairing status check (client auto-confirm)
+//	  3) POST /messenger/link/confirm — final confirmation after /start in the bot
+//	  4) GET  /messenger/channels     — user's registered channels (connection status)
+//	  5) POST /messenger/channels/revoke — revoke a messenger connection
+//	All require a portal session (all roles — same redirect('/login') as in Next).
 package httpapi
 
 import (
@@ -19,14 +19,14 @@ import (
 	"backend-go/internal/session"
 )
 
-// MessengerAPI هندلرهای اتصال پیام‌رسان.
+// MessengerAPI messenger connection handlers.
 type MessengerAPI struct {
 	Store   *session.Store
 	Svc     *messaging.Service
 	Limiter *ratelimit.Limiter
 }
 
-// Register ثبت مسیرها.
+// Register route registration.
 func (a *MessengerAPI) Register(r gin.IRouter) {
 	r.POST("/messenger/link/token", a.mintToken)
 	r.GET("/messenger/link/status", a.pairingStatus)
@@ -35,7 +35,7 @@ func (a *MessengerAPI) Register(r gin.IRouter) {
 	r.POST("/messenger/channels/revoke", a.revokeChannel)
 }
 
-// requireUser نشست پورتال — همان «ابتدا وارد سامانه شوید» در کنش‌های Next.
+// requireUser portal session — same «ابتدا وارد سامانه شوید» as in the Next actions.
 func (a *MessengerAPI) requireUser(c *gin.Context) *session.User {
 	token := session.ReadToken(parseCookies(c.Request))
 	if token == "" {
@@ -50,7 +50,7 @@ func (a *MessengerAPI) requireUser(c *gin.Context) *session.User {
 	return user
 }
 
-// mintToken صدور کد اتصال برای یک کانال — پورت mintLinkTokenAction.
+// mintToken issue a link code for a channel — port of mintLinkTokenAction.
 func (a *MessengerAPI) mintToken(c *gin.Context) {
 	user := a.requireUser(c)
 	if user == nil {
@@ -65,7 +65,7 @@ func (a *MessengerAPI) mintToken(c *gin.Context) {
 	}
 	res := a.Svc.MintLinkToken(c.Request.Context(), user.ID, in.Channel)
 	if !res.OK {
-		// خطای منطقی (کانال فریز / سقف نرخ) — همان پاکت کنش سروری.
+		// Business error (frozen channel / rate limit) — same server action envelope.
 		c.JSON(http.StatusOK, gin.H{"ok": false, "error": res.Error})
 		return
 	}
@@ -79,7 +79,7 @@ func (a *MessengerAPI) mintToken(c *gin.Context) {
 	})
 }
 
-// pairingStatus بررسی اینکه آیا بات /start را دریافت کرده (بدون تأیید نهایی).
+// pairingStatus check whether the bot received /start (without final confirmation).
 func (a *MessengerAPI) pairingStatus(c *gin.Context) {
 	user := a.requireUser(c)
 	if user == nil {
@@ -97,7 +97,7 @@ func (a *MessengerAPI) pairingStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, out)
 }
 
-// confirmLink تأیید نهایی اتصال پس از ارسال /start در بات.
+// confirmLink final connection confirmation after sending /start in the bot.
 func (a *MessengerAPI) confirmLink(c *gin.Context) {
 	user := a.requireUser(c)
 	if user == nil {
@@ -118,7 +118,7 @@ func (a *MessengerAPI) confirmLink(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "channel": res.Channel})
 }
 
-// listChannels وضعیت کانال‌های ثبت‌شدهٔ کاربر.
+// listChannels status of the user's registered channels.
 func (a *MessengerAPI) listChannels(c *gin.Context) {
 	user := a.requireUser(c)
 	if user == nil {
@@ -132,8 +132,8 @@ func (a *MessengerAPI) listChannels(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": rows})
 }
 
-// revokeChannel لغو اتصال یک پیام‌رسان — حذف نشانی کانال (معادل
-// saveUserChannel با رشتهٔ خالی)؛ فقط برای پنج پیام‌رسان مجاز است.
+// revokeChannel revoke a messenger connection — remove the channel address (equivalent to
+// saveUserChannel with an empty string); allowed only for the five messengers.
 func (a *MessengerAPI) revokeChannel(c *gin.Context) {
 	user := a.requireUser(c)
 	if user == nil {

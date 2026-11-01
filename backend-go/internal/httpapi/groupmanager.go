@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های پنل مدیر گروه (فاز ۵) ═══
+// ═══ Group manager panel endpoints (phase 5) ═══
 package httpapi
 
 import (
@@ -12,7 +12,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// GroupManagerAPI هندلرهای مدیر گروه.
+// GroupManagerAPI group manager handlers.
 type GroupManagerAPI struct {
 	Svc   *groupmanager.Service
 	Store *session.Store

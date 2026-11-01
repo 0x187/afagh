@@ -1,7 +1,7 @@
-// ═══ میز فارغ‌التحصیلی (ادمین) — پورت lib/graduation-engine.ts (بخش مدیریتی) ═══
+// ═══ Graduation desk (admin) — port of lib/graduation-engine.ts (admin section) ═══
 //
-// موتور دانشجو (auditStudent/advanceDossier/startClearance/GetTracker) در
-// پکیج student پیاده شده و این‌جا فقط بازاستفاده می‌شود تا منطق دو نسخه نشود.
+// The student engine (auditStudent/advanceDossier/startClearance/GetTracker) is implemented in
+// the student package and is only reused here so the logic does not exist in two versions.
 package graduation
 
 import (
@@ -19,33 +19,33 @@ import (
 	"backend-go/internal/student"
 )
 
-// Settings حداقل وابستگی تنظیمات.
+// Settings is the minimal settings dependency.
 type Settings interface {
 	Get(ctx context.Context, key string) (string, error)
 	GetNumber(ctx context.Context, key string, fallback float64) float64
 	GetBool(ctx context.Context, key string) bool
 }
 
-// Service سرویس فارغ‌التحصیلی ادمین.
+// Service is the admin graduation service.
 type Service struct {
 	Pool     *pgxpool.Pool
 	Settings Settings
 	Students *student.Service
 }
 
-// New ساخت سرویس.
+// New constructs the service.
 func New(pool *pgxpool.Pool, settings Settings, students *student.Service) *Service {
 	return &Service{Pool: pool, Settings: settings, Students: students}
 }
 
-// Step یک مرحلهٔ گردش‌کار.
+// Step is one workflow step.
 type Step struct {
 	Code  string `json:"code"`
 	Title string `json:"title"`
 	Actor string `json:"actor"`
 }
 
-// WorkflowSteps مراحل گردش‌کار (پورت WORKFLOW_STEPS).
+// WorkflowSteps are the workflow steps (port of WORKFLOW_STEPS).
 var WorkflowSteps = []Step{
 	{Code: "CATALOG_REVIEW", Title: "تطبیق سرفصل و بررسی واحدها", Actor: "سیستم"},
 	{Code: "HEAD_APPROVAL", Title: "تأیید مدیر گروه", Actor: "مدیر گروه"},
@@ -57,7 +57,7 @@ var WorkflowSteps = []Step{
 	{Code: "ISSUED", Title: "مدرک صادر شد", Actor: "—"},
 }
 
-// StepsFor مراحل واقعی بر اساس الزام پایان‌نامه/سجاد.
+// StepsFor returns the actual steps based on the thesis/Sajjad requirement.
 func StepsFor(thesisRequired, sajjadRequired bool) []Step {
 	out := []Step{}
 	for _, s := range WorkflowSteps {
@@ -72,7 +72,7 @@ func StepsFor(thesisRequired, sajjadRequired bool) []Step {
 	return out
 }
 
-// DefaultDept دپارتمان تسویهٔ پیش‌فرض.
+// DefaultDept is the default clearance department.
 type DefaultDept struct {
 	Code, Title, AutoCheck string
 	SortOrder              int
@@ -80,7 +80,7 @@ type DefaultDept struct {
 	Hint                   string
 }
 
-// DefaultDepartments هم‌تراز DEFAULT_DEPARTMENTS در Next.
+// DefaultDepartments is aligned with DEFAULT_DEPARTMENTS in Next.
 var DefaultDepartments = []DefaultDept{
 	{"FINANCE", "امور مالی و شهریه", "FINANCE_LEDGER", 10, "FINANCE_EXPERT", "مانده بدهی از دفتر مالی دانشجو محاسبه می‌شود."},
 	{"LIBRARY", "کتابخانه مرکزی", "NONE", 20, "LIBRARIAN", "در صورت وجود سرویس کتابخانه، نشانی API را در همین صفحه ثبت کنید."},
@@ -91,7 +91,7 @@ var DefaultDepartments = []DefaultDept{
 	{"MILITARY", "نظام وظیفه", "NONE", 70, "MILITARY_OFFICER", "فقط برای مشمولان — در غیر این صورت «معاف از بررسی» بزنید."},
 }
 
-// Dept دپارتمان تسویه (نمای مدیریتی).
+// Dept is a clearance department (admin view).
 type Dept struct {
 	ID                  int64   `json:"id"`
 	Code                string  `json:"code"`
@@ -105,7 +105,7 @@ type Dept struct {
 	UniversityID        *int64  `json:"universityId"`
 }
 
-// EnsureDepartments فقط بار اول دپارتمان‌های پیش‌فرض را می‌سازد.
+// EnsureDepartments creates the default departments only on the first run.
 func (s *Service) EnsureDepartments(ctx context.Context) error {
 	var n int
 	if err := s.Pool.QueryRow(ctx, `select count(*)::int from clearance_departments`).Scan(&n); err != nil {
@@ -127,7 +127,7 @@ func (s *Service) EnsureDepartments(ctx context.Context) error {
 	return nil
 }
 
-// Departments فهرست دپارتمان‌ها؛ universityId ⇒ همان دانشگاه + عمومی (NULL).
+// Departments lists departments; universityId ⇒ that university plus generic (NULL).
 func (s *Service) Departments(ctx context.Context, universityID *int64, activeOnly bool) ([]Dept, error) {
 	if err := s.EnsureDepartments(ctx); err != nil {
 		return nil, err
@@ -166,7 +166,7 @@ func (s *Service) Departments(ctx context.Context, universityID *int64, activeOn
 	return out, nil
 }
 
-// Row ردیف خط لولهٔ پرونده‌ها.
+// Row is a dossier pipeline row.
 type Row struct {
 	ID             int64      `json:"id"`
 	StudentID      int64      `json:"studentId"`
@@ -185,7 +185,7 @@ type Row struct {
 	LastEventAt    *time.Time `json:"lastEventAt"`
 }
 
-// ListDossiers پورت listDossiers (حداکثر ۳۰۰ ردیف، مرتب آخرین رویداد).
+// ListDossiers ports listDossiers (at most 300 rows, sorted by latest event).
 func (s *Service) ListDossiers(ctx context.Context, universityID *int64, status, q string) ([]Row, error) {
 	args := []any{}
 	conds := []string{}
@@ -243,14 +243,14 @@ func (s *Service) ListDossiers(ctx context.Context, universityID *int64, status,
 	return filtered, nil
 }
 
-// StepCount شمارش مرحله.
+// StepCount counts steps.
 type StepCount struct {
 	Code  string `json:"code"`
 	Title string `json:"title"`
 	Count int    `json:"count"`
 }
 
-// Stats آمار خط لوله.
+// Stats is the pipeline statistics.
 type Stats struct {
 	Steps       []StepCount `json:"steps"`
 	OnHold      int         `json:"onHold"`
@@ -258,7 +258,7 @@ type Stats struct {
 	Undelivered int         `json:"undelivered"`
 }
 
-// PipelineStats پورت pipelineStats.
+// PipelineStats ports pipelineStats.
 func (s *Service) PipelineStats(ctx context.Context, universityID *int64) (*Stats, error) {
 	args := []any{}
 	where := ""
@@ -292,7 +292,7 @@ func (s *Service) PipelineStats(ctx context.Context, universityID *int64) (*Stat
 	return &Stats{Steps: steps, OnHold: counts["ON_HOLD"], IssuedDocs: issued, Undelivered: undelivered}, nil
 }
 
-// DossierAudit پروندهٔ کامل (نمای ادمین).
+// DossierAudit is a full dossier (admin view).
 type DossierAudit struct {
 	ID                     int64                   `json:"id"`
 	StudentID              int64                   `json:"studentId"`
@@ -325,7 +325,7 @@ type DossierAudit struct {
 	CompletedAt            *time.Time              `json:"completedAt"`
 }
 
-// DossierStudent هویت دانشجو در پرونده.
+// DossierStudent is the student identity in a dossier.
 type DossierStudent struct {
 	StudentCode string  `json:"studentCode"`
 	FullName    string  `json:"fullName"`
@@ -334,7 +334,7 @@ type DossierStudent struct {
 	Status      string  `json:"status"`
 }
 
-// ChecklistItem ردیف تسویه.
+// ChecklistItem is a clearance row.
 type ChecklistItem struct {
 	ID          int64      `json:"id"`
 	Department  string     `json:"department"`
@@ -346,7 +346,7 @@ type ChecklistItem struct {
 	ResolvedAt  *time.Time `json:"resolvedAt"`
 }
 
-// DegreeItem مدرک صادرشده.
+// DegreeItem is an issued degree.
 type DegreeItem struct {
 	ID                       int64     `json:"id"`
 	DegreeType               string    `json:"degreeType"`
@@ -358,7 +358,7 @@ type DegreeItem struct {
 	DocumentHash             string    `json:"documentHash"`
 }
 
-// DeliveryItem تحویل پیام بیرونی.
+// DeliveryItem is an outbound message delivery.
 type DeliveryItem struct {
 	ID           int64      `json:"id"`
 	EventCode    string     `json:"eventCode"`
@@ -370,7 +370,7 @@ type DeliveryItem struct {
 	CreatedAt    *time.Time `json:"createdAt"`
 }
 
-// Dossier پاسخ کامل یک پرونده.
+// Dossier is the full response for one dossier.
 type Dossier struct {
 	Audit      DossierAudit    `json:"audit"`
 	Student    DossierStudent  `json:"student"`
@@ -379,7 +379,7 @@ type Dossier struct {
 	Deliveries []DeliveryItem  `json:"deliveries"`
 }
 
-// GetDossier پورت getDossier.
+// GetDossier ports getDossier.
 func (s *Service) GetDossier(ctx context.Context, auditID int64) (*Dossier, error) {
 	var a DossierAudit
 	var missingJSON string
@@ -494,7 +494,7 @@ func channelLabel(ch string) string {
 	return ch
 }
 
-// ─────────────────── اعلان‌ها ───────────────────
+// ─────────────────── Notifications ───────────────────
 
 func (s *Service) notifyUser(ctx context.Context, userID int64, eventCode, text string) {
 	if userID <= 0 {
@@ -534,9 +534,9 @@ func (s *Service) notifyRole(ctx context.Context, roleCode, eventCode, text stri
 	}
 }
 
-// ─────────────────── پویش و باز کردن پرونده ───────────────────
+// ─────────────────── Scan and open dossier ───────────────────
 
-// ScanResult نتیجهٔ پویش.
+// ScanResult is the scan result.
 type ScanResult struct {
 	Scanned     int           `json:"scanned"`
 	Opened      int           `json:"opened"`
@@ -545,7 +545,7 @@ type ScanResult struct {
 	Opinions    []ScanOpinion `json:"opinions"`
 }
 
-// ScanOpinion یادداشت یک دانشجو.
+// ScanOpinion is one student's note.
 type ScanOpinion struct {
 	StudentCode string `json:"studentCode"`
 	FullName    string `json:"fullName"`
@@ -553,7 +553,7 @@ type ScanOpinion struct {
 	Note        string `json:"note"`
 }
 
-// Scan پورت runGraduationScan.
+// Scan ports runGraduationScan.
 func (s *Service) Scan(ctx context.Context, studentIDs []int64, majorID *int64, force bool) (*ScanResult, error) {
 	res := &ScanResult{Opinions: []ScanOpinion{}}
 	enabled := s.Settings != nil && s.Settings.GetBool(ctx, "GRAD_AUTO_SCAN")
@@ -642,7 +642,7 @@ func boolInt(v bool) int {
 	return 0
 }
 
-// openDossier ساخت پرونده و ارجاع به کارتابل مدیر گروه.
+// openDossier creates the dossier and refers it to the department head inbox.
 func (s *Service) openDossier(ctx context.Context, audit *student.AuditResult) (int64, error) {
 	thesisRequired := false
 	codes := "MSC,PHD"
@@ -710,9 +710,9 @@ func trimFloat(v float64) string {
 	return strings.TrimRight(strings.TrimRight(fmt.Sprintf("%.2f", v), "0"), ".")
 }
 
-// ─────────────────── اعتبارسنجی کد دپارتمان ───────────────────
+// ─────────────────── Department code validation ───────────────────
 
 var deptCodeRe = regexp.MustCompile(`^[A-Z0-9_]{2,40}$`)
 
-// ErrDeptCode کد نامعتبر.
+// ErrDeptCode is an invalid code.
 var ErrDeptCode = errors.New("کد فقط حروف لاتین بزرگ/عدد/زیرخط.")

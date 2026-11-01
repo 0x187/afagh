@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های پایش طرح درس و بررسی آیین‌نامه ═══
+// ═══ Lesson plan monitoring and regulation review endpoints ═══
 package httpapi
 
 import (

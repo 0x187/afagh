@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های کارت سکونت خوابگاه ═══
+// ═══ Dormitory residence card endpoints ═══
 package httpapi
 
 import (
@@ -83,7 +83,7 @@ func (a *AdminAPI) dormDelete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// adminStudentSearch جست‌وجوی دانشجو برای انتخاب‌گرهای ادمین (حداقل ۲ حرف).
+// adminStudentSearch searches students for admin selectors (at least 2 letters).
 func (a *AdminAPI) adminStudentSearch(c *gin.Context) {
 	user := a.requireRoles(c, dormRoles)
 	if user == nil {

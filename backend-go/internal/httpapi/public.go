@@ -1,8 +1,8 @@
-// ═══ ویترین صفحهٔ ورود — پورت getLoginShowcase از src/lib/login-showcase.ts ═══
+// ═══ Login page showcase — port of getLoginShowcase from src/lib/login-showcase.ts ═══
 //
-// عمومی و بدون نشست: دانشگاه منتخب + اطلاعیه‌ها و اسلایدهای فعال (سراسری +
-// همان دانشگاه). اگر جدول‌ها هنوز میگریت نشده باشند، خالیِ امن برمی‌گرداند
-// تا صفحهٔ ورود نخوابد (همان catch در TS).
+// Public and sessionless: selected university + active notices and slides (global +
+// same university). If the tables are not migrated yet, returns a safe empty result
+// so the login page doesn't crash (same catch as in TS).
 package httpapi
 
 import (
@@ -19,7 +19,7 @@ import (
 	"backend-go/internal/settings"
 )
 
-// ShowcaseUniversity / ShowcaseNotice / ShowcaseSlide — همان انواع TS.
+// ShowcaseUniversity / ShowcaseNotice / ShowcaseSlide — same TS types.
 type ShowcaseUniversity struct {
 	ID      int64   `json:"id"`
 	Code    string  `json:"code"`
@@ -49,7 +49,7 @@ type LoginShowcase struct {
 	Slides       []ShowcaseSlide      `json:"slides"`
 }
 
-// PublicAPI اندپوینت‌های عمومی بدون نشست.
+// PublicAPI public sessionless endpoints.
 type PublicAPI struct {
 	Pool     *pgxpool.Pool
 	Settings *settings.Store
@@ -161,7 +161,7 @@ func (a *PublicAPI) verifyCertificate(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": a.Verify.VerifyCertificate(c.Request.Context(), c.Param("code"))})
 }
 
-// verifyToken استعلام عمومی توکن امضاشده (کارنامه/مالی/انتخاب واحد/کارت آزمون).
+// verifyToken public verification of a signed token (transcript/finance/enrollment/exam card).
 func (a *PublicAPI) verifyToken(c *gin.Context) {
 	if a.Verify == nil {
 		c.JSON(http.StatusServiceUnavailable, gin.H{"ok": false, "error": "استعلام در دسترس نیست."})
@@ -178,7 +178,7 @@ func (a *PublicAPI) verifyToken(c *gin.Context) {
 
 var fallbackShowcaseUni = ShowcaseUniversity{ID: 0, Code: "AFAGH", Title: "دانشگاه آفاق"}
 
-// loginShowcase پورت getLoginShowcase با پارامتر ?u=CODE.
+// loginShowcase port of getLoginShowcase with the ?u=CODE parameter.
 func (a *PublicAPI) loginShowcase(c *gin.Context) {
 	ctx := c.Request.Context()
 	empty := LoginShowcase{Universities: []ShowcaseUniversity{}, University: fallbackShowcaseUni, Notices: []ShowcaseNotice{}, Slides: []ShowcaseSlide{}}
@@ -206,7 +206,7 @@ func (a *PublicAPI) loginShowcase(c *gin.Context) {
 		}
 	}
 
-	// ارم سراسری (تنظیم UNIVERSITY_LOGO) وقتی دانشگاه ارم اختصاصی ندارد.
+	// Global emblem (UNIVERSITY_LOGO setting) when the university has no custom emblem.
 	globalLogo := ""
 	if a.Settings != nil {
 		globalLogo, _ = a.Settings.Get(ctx, "UNIVERSITY_LOGO")

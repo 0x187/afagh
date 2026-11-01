@@ -1,11 +1,11 @@
-// ═══ تخصیص کارشناس آموزشی — هندلرهای HTTP (پورت admin/edu-expert-assign در Next) ═══
+// ═══ Educational Expert Assignment — HTTP handlers (port of admin/edu-expert-assign in Next) ═══
 //
-// struct مستقل EduExpertAPI — رجیستری در main.go:
+// Standalone EduExpertAPI struct — registered in main.go:
 //
 //	(&httpapi.EduExpertAPI{Svc: adminSvc, Store: store}).Register(ginEngine.Group(""))
 //
-// دسترسی مرجع: requireRoleOrPermission(['ADMIN','EDU_EXPERT'], ['scheduling:manage_chart'])
-// — بکند Go سیستم پرمیشن ندارد؛ همان دو نقش بررسی می‌شود.
+// Reference access: requireRoleOrPermission(['ADMIN','EDU_EXPERT'], ['scheduling:manage_chart'])
+// — the Go backend has no permission system; only these two roles are checked.
 package httpapi
 
 import (
@@ -22,13 +22,13 @@ import (
 
 var eduExpertRoles = []string{"ADMIN", "EDU_EXPERT"}
 
-// EduExpertAPI هندلرهای تخصیص کارشناس آموزشی.
+// EduExpertAPI educational expert assignment handlers.
 type EduExpertAPI struct {
 	Svc   *admin.Service
 	Store *session.Store
 }
 
-// Register مسیرهای تخصیص کارشناس — همه زیر /admin/edu-expert-assign/*.
+// Register expert assignment routes — all under /admin/edu-expert-assign/*.
 func (a *EduExpertAPI) Register(r gin.IRouter) {
 	r.GET("/admin/edu-expert-assign", a.eduExpertInit)
 	r.POST("/admin/edu-expert-assign/classroom/department", a.eduExpertSetClassroomDept)
@@ -45,7 +45,7 @@ func (a *EduExpertAPI) Register(r gin.IRouter) {
 	r.POST("/admin/edu-expert-assign/term/clear", a.eduExpertClearTerm)
 }
 
-// requireRoles — الگوی student_cards.go.
+// requireRoles — pattern from student_cards.go.
 func (a *EduExpertAPI) requireRoles(c *gin.Context, roles []string) *session.User {
 	token := session.ReadToken(parseCookies(c.Request))
 	if token == "" {
@@ -79,7 +79,7 @@ func (a *EduExpertAPI) fail(c *gin.Context, err error) {
 	c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
 }
 
-// eduExpertInit دادهٔ اولیهٔ کامل صفحه (ترم‌ها، کاندیدها، گروه‌ها، اتاق‌ها، استثناها).
+// eduExpertInit full initial page data (terms, candidates, groups, rooms, exceptions).
 func (a *EduExpertAPI) eduExpertInit(c *gin.Context) {
 	user := a.requireRoles(c, eduExpertRoles)
 	if user == nil {
@@ -99,7 +99,7 @@ func (a *EduExpertAPI) eduExpertInit(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": res})
 }
 
-// eduExpertSetClassroomDept تعیین/برداشتنِ گروهِ مسئولِ اتاق.
+// eduExpertSetClassroomDept set/clear the room's responsible group.
 func (a *EduExpertAPI) eduExpertSetClassroomDept(c *gin.Context) {
 	user := a.requireRoles(c, eduExpertRoles)
 	if user == nil {
@@ -120,7 +120,7 @@ func (a *EduExpertAPI) eduExpertSetClassroomDept(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// eduExpertAddClassroom افزودن یک کارشناس به یک یا چند اتاق.
+// eduExpertAddClassroom add an expert to one or more rooms.
 func (a *EduExpertAPI) eduExpertAddClassroom(c *gin.Context) {
 	user := a.requireRoles(c, eduExpertRoles)
 	if user == nil {
@@ -142,7 +142,7 @@ func (a *EduExpertAPI) eduExpertAddClassroom(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"updated": updated}})
 }
 
-// eduExpertRemoveClassroom حذف یک کارشناس از یک اتاق.
+// eduExpertRemoveClassroom remove an expert from a room.
 func (a *EduExpertAPI) eduExpertRemoveClassroom(c *gin.Context) {
 	user := a.requireRoles(c, eduExpertRoles)
 	if user == nil {
@@ -164,7 +164,7 @@ func (a *EduExpertAPI) eduExpertRemoveClassroom(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"userIds": userIDs}})
 }
 
-// eduExpertSetClassroom جایگزینی کامل فهرست کارشناسان یک اتاق.
+// eduExpertSetClassroom fully replace a room's expert list.
 func (a *EduExpertAPI) eduExpertSetClassroom(c *gin.Context) {
 	user := a.requireRoles(c, eduExpertRoles)
 	if user == nil {
@@ -186,7 +186,7 @@ func (a *EduExpertAPI) eduExpertSetClassroom(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"userIds": userIDs}})
 }
 
-// eduExpertClearAllClassroom آزاد کردن همهٔ تخصیص‌های سطح اتاق.
+// eduExpertClearAllClassroom release all room-level assignments.
 func (a *EduExpertAPI) eduExpertClearAllClassroom(c *gin.Context) {
 	user := a.requireRoles(c, eduExpertRoles)
 	if user == nil {
@@ -200,7 +200,7 @@ func (a *EduExpertAPI) eduExpertClearAllClassroom(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"updated": updated}})
 }
 
-// eduExpertSetOffering تخصیص یک کلاس به یک کارشناس (یا آزاد کردن با userId = null).
+// eduExpertSetOffering assign a class to an expert (or release it with userId = null).
 func (a *EduExpertAPI) eduExpertSetOffering(c *gin.Context) {
 	user := a.requireRoles(c, eduExpertRoles)
 	if user == nil {
@@ -221,7 +221,7 @@ func (a *EduExpertAPI) eduExpertSetOffering(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// eduExpertSetOfferingList جایگزینی کامل فهرست کارشناسان یک کلاس (چند‌کارشناسه).
+// eduExpertSetOfferingList fully replace a class's expert list (multi-expert).
 func (a *EduExpertAPI) eduExpertSetOfferingList(c *gin.Context) {
 	user := a.requireRoles(c, eduExpertRoles)
 	if user == nil {
@@ -243,7 +243,7 @@ func (a *EduExpertAPI) eduExpertSetOfferingList(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"userIds": userIDs}})
 }
 
-// eduExpertAddOffering افزودن یک کارشناس به یک کلاس بدون دست‌زدن به بقیه.
+// eduExpertAddOffering add an expert to a class without touching the others.
 func (a *EduExpertAPI) eduExpertAddOffering(c *gin.Context) {
 	user := a.requireRoles(c, eduExpertRoles)
 	if user == nil {
@@ -264,7 +264,7 @@ func (a *EduExpertAPI) eduExpertAddOffering(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// eduExpertRemoveOffering حذف یک کارشناس از یک کلاس (بقیه می‌مانند).
+// eduExpertRemoveOffering remove an expert from a class (the rest remain).
 func (a *EduExpertAPI) eduExpertRemoveOffering(c *gin.Context) {
 	user := a.requireRoles(c, eduExpertRoles)
 	if user == nil {
@@ -286,7 +286,7 @@ func (a *EduExpertAPI) eduExpertRemoveOffering(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"userIds": userIDs}})
 }
 
-// eduExpertBulkSetOffering تخصیص گروهی — جایگزینی کامل.
+// eduExpertBulkSetOffering bulk assignment — full replacement.
 func (a *EduExpertAPI) eduExpertBulkSetOffering(c *gin.Context) {
 	user := a.requireRoles(c, eduExpertRoles)
 	if user == nil {
@@ -308,7 +308,7 @@ func (a *EduExpertAPI) eduExpertBulkSetOffering(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"updated": updated}})
 }
 
-// eduExpertBulkAddOffering تخصیص گروهی — افزودنی.
+// eduExpertBulkAddOffering bulk assignment — additive.
 func (a *EduExpertAPI) eduExpertBulkAddOffering(c *gin.Context) {
 	user := a.requireRoles(c, eduExpertRoles)
 	if user == nil {
@@ -330,7 +330,7 @@ func (a *EduExpertAPI) eduExpertBulkAddOffering(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"updated": updated}})
 }
 
-// eduExpertClearTerm آزاد کردن همهٔ تخصیص‌های یک ترم.
+// eduExpertClearTerm release all assignments of a term.
 func (a *EduExpertAPI) eduExpertClearTerm(c *gin.Context) {
 	user := a.requireRoles(c, eduExpertRoles)
 	if user == nil {

@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های کرون (فاز ۱۰) — x-cron-secret، GET وضعیت، POST اجرا ═══
+// ═══ Cron endpoints (phase 10) — x-cron-secret, GET status, POST run ═══
 package httpapi
 
 import (
@@ -12,7 +12,7 @@ import (
 	"backend-go/internal/ratelimit"
 )
 
-// CronAPI هندلرهای پس‌زمینه.
+// CronAPI is the background handlers.
 type CronAPI struct {
 	Engine  *cron.Engine
 	Limiter *ratelimit.Limiter
@@ -24,7 +24,7 @@ func (a *CronAPI) Register(r gin.IRouter) {
 }
 
 func (a *CronAPI) authorize(c *gin.Context, job *cron.Job) bool {
-	// محدودیت نرخ سبک پیش از بررسی راز.
+	// Light rate limit before the secret check.
 	if a.Limiter != nil {
 		if ok, _, err := a.Limiter.Allow(c.Request.Context(), job.RateKey+":"+c.ClientIP(), 30, 60); err == nil && !ok {
 			c.JSON(http.StatusTooManyRequests, gin.H{"ok": false, "error": "تعداد درخواست‌ها بیش از حد مجاز است."})

@@ -1,11 +1,11 @@
-// ═══ چهار کرون افزوده — پورت api/cron/{greetings, graduation-scan, ═══
+// ═══ Four extra crons — port of api/cron/{greetings, graduation-scan, ═══
 // ═══ messenger-link-purge, bi-refresh} ═══
 //
-//	احراز فقط ماشین‌به‌ماشین با هدر x-cron-secret و راز اختصاصی هر جاب
-//	(اولویت: جدول system_settings → ENV — fail-closed بدون راز). GET فقط
-//	وضعیت است (بدون اثر جانبی)؛ اجرای واقعی فقط با POST. مقایسهٔ هدر با
-//	کلید زمان‌ثابت است (cron.SecretMatches). مسیرهای دقیق این‌جا ثبت می‌شوند
-//	و gin مسیر ایستا را بر /cron/:job عمومی مقدم می‌کند — بدون دست‌زدن به
+//	Authentication is machine-to-machine only via the x-cron-secret header and each job's dedicated secret
+//	(priority: system_settings table → ENV — fail-closed without a secret). GET only
+//	returns status (no side effects); the real run is POST only. Header comparison uses
+//	a constant-time key (cron.SecretMatches). Exact routes are registered here
+//	and gin gives the static route precedence over the generic /cron/:job — without touching
 //	internal/httpapi/cron.go.
 package httpapi
 
@@ -22,14 +22,14 @@ import (
 	"backend-go/internal/ratelimit"
 )
 
-// cronExtraJob تعریف یک کرون افزوده.
+// cronExtraJob defines an extra cron.
 type cronExtraJob struct {
-	SecretKey  string // کلید تنظیم حاوی راز
-	EnvName    string // نام ENV همان کلید (چون هنوز در PhaseOneDefs نیست)
-	RateKey    string // پیشوند محدودیت نرخ
-	Audit      string // اکشن ممیزی (عیناً مطابق Next)
-	RunError   string // پیام ۵۰۰
-	StatusHint string // پیام GET
+	SecretKey  string // settings key holding the secret
+	EnvName    string // ENV name is the same key (since it is not yet in PhaseOneDefs)
+	RateKey    string // rate limit prefix
+	Audit      string // audit action (exactly matching Next)
+	RunError   string // 500 message
+	StatusHint string // GET message
 }
 
 var cronExtraJobs = map[string]cronExtraJob{
@@ -55,13 +55,13 @@ var cronExtraJobs = map[string]cronExtraJob{
 	},
 }
 
-// CronExtraAPI هندلرهای کرون‌های افزوده.
+// CronExtraAPI is the extra cron handlers.
 type CronExtraAPI struct {
 	Engine  *cron.Engine
 	Limiter *ratelimit.Limiter
 }
 
-// Register مسیرهای دقیق هر چهار جاب را ثبت می‌کند (ایستا، مقدم بر /cron/:job).
+// Register registers the exact routes of all four jobs (static, ahead of /cron/:job).
 func (a *CronExtraAPI) Register(r gin.IRouter) {
 	for name := range cronExtraJobs {
 		n := name
@@ -70,7 +70,7 @@ func (a *CronExtraAPI) Register(r gin.IRouter) {
 	}
 }
 
-// authorize راز و محدودیت نرخ — fail-closed.
+// authorize checks the secret and rate limit — fail-closed.
 func (a *CronExtraAPI) authorize(c *gin.Context, job cronExtraJob) bool {
 	if a.Limiter != nil {
 		if ok, _, err := a.Limiter.Allow(c.Request.Context(), job.RateKey+":"+c.ClientIP(), 30, 60); err == nil && !ok {
@@ -97,7 +97,7 @@ func (a *CronExtraAPI) status(c *gin.Context, name string) {
 	}
 	out := gin.H{"ok": true, "dryRun": true, "status": "آماده", "hint": job.StatusHint}
 	if name == "bi-refresh" {
-		// فقط وضعیت کش — خواندن، بدون بازسازی و بدون هیچ نوشتن.
+		// Cache status only — read, no rebuild and no writes.
 		cache, err := a.Engine.BiCacheStatus(c.Request.Context())
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "error": "خواندن وضعیت کش ناموفق بود؛ دوباره تلاش کنید."})
@@ -141,7 +141,7 @@ func (a *CronExtraAPI) run(c *gin.Context, name string) {
 	if err != nil {
 		a.Engine.Audit(ctx, job.Audit, map[string]any{"durationMs": durationMs, "error": err.Error()})
 		if name == "bi-refresh" {
-			// بازسازیBI خطای منطقی (مثل «ترم جاری مشخص نیست») → ۴۰۰ با همان پیام.
+			// RebuildBI logical error (such as «ترم جاری مشخص نیست») → 400 with the same message.
 			c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
 			return
 		}

@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های انتخاب واحد (فاز ۳) ═══
+// ═══ Course enrollment endpoints (phase 3) ═══
 package httpapi
 
 import (
@@ -11,7 +11,7 @@ import (
 	"backend-go/internal/enroll"
 )
 
-// RegisterEnrollRoutes مسیرها را روی گروه API ثبت می‌کند.
+// RegisterEnrollRoutes registers the routes on the API group.
 func (a *StudentAPI) RegisterEnrollRoutes(r gin.IRouter, svc *enroll.Service) {
 	a.Enroll = svc
 	r.GET("/student/enroll", a.enrollPage)

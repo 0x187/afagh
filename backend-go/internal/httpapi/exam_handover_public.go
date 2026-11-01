@@ -1,4 +1,4 @@
-// ═══ عمومی: تحویل اوراق امتحان (verify + confirm) ═══
+// ═══ Public: exam paper handover (verify + confirm) ═══
 package httpapi
 
 import (
@@ -9,7 +9,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// ExamHandoverPublicAPI توکن تحویل اوراق — verify عمومی + confirm با نشست.
+// ExamHandoverPublicAPI exam handover token — public verify + confirm with session.
 type ExamHandoverPublicAPI struct {
 	Admin *AdminAPI
 }

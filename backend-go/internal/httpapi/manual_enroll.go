@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های ثبت‌نام دستی کارشناس ═══
+// ═══ Manual expert enrollment endpoints ═══
 package httpapi
 
 import (

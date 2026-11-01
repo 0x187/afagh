@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های حق‌التدریس (فاز ۷ — حقوق و دستمزد) ═══
+// ═══ Teaching pay (phase 7 — payroll) endpoints ═══
 package httpapi
 
 import (
@@ -17,7 +17,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// PayrollAPI هندلرهای موتور حق‌التدریس.
+// PayrollAPI teaching pay engine handlers.
 type PayrollAPI struct {
 	Engine    *payroll.Engine
 	Approvals *payroll.Approvals
@@ -27,7 +27,7 @@ type PayrollAPI struct {
 	Admin     *admin.Service
 }
 
-// uniCookie دانشگاه فعال از کوکی.
+// uniCookie active university from the cookie.
 func (a *PayrollAPI) uniCookie(c *gin.Context) string {
 	if v, err := c.Cookie(scope.UniversityCookie); err == nil {
 		return v
@@ -67,7 +67,7 @@ func (a *PayrollAPI) requireRoles(c *gin.Context, roles []string) *session.User 
 	return user
 }
 
-// requirePayrollUser گیت نشست + نقش‌های پنل (همان مجموعهٔ adminRoles).
+// requirePayrollUser session gate + panel roles (same adminRoles set).
 func (a *PayrollAPI) requirePayrollUser(c *gin.Context) *session.User {
 	token := session.ReadToken(parseCookies(c.Request))
 	if token == "" {
@@ -138,7 +138,7 @@ func (a *PayrollAPI) Register(r gin.IRouter) {
 	r.POST("/professor/payroll/objections", a.professorObjectionCreate)
 }
 
-// ─────────────────── مدیریت حقوق (سمت‌ها/نقش‌ها/پوشش) ───────────────────
+// ─────────────────── Payroll management (positions/roles/coverage) ───────────────────
 
 func (a *PayrollAPI) dutyRoles(c *gin.Context) {
 	user := a.requireRoles(c, payrollViewRoles)
@@ -414,7 +414,7 @@ func (a *PayrollAPI) payrollCoverage(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"rows": rows}})
 }
 
-// staffRefOf پروندهٔ کارمندی کاربر — برای دامنهٔ مدیر گروه.
+// staffRefOf user's staff record — for the group manager scope.
 func (a *PayrollAPI) staffRefOf(ctx context.Context, userID int64) (*payroll.StaffRef, error) {
 	var ref payroll.StaffRef
 	err := a.Pool.QueryRow(ctx, `select id, "departmentId", "universityId" from staff where "userId" = $1 limit 1`, userID).
@@ -425,8 +425,8 @@ func (a *PayrollAPI) staffRefOf(ctx context.Context, userID int64) (*payroll.Sta
 	return &ref, nil
 }
 
-// headedDeptIDs گروه‌های زیر نظر یک استاد (همان منطق headedDepartments؛
-// در نبود ستون headStaffId به عضویت کارمندی تکیه می‌کنیم).
+// headedDeptIDs departments headed by a professor (same headedDepartments logic;
+// in the absence of a headStaffId column we rely on staff membership).
 func (a *PayrollAPI) headedDeptIDs(ctx context.Context, staffID int64, ownDeptID *int64) ([]int64, error) {
 	out := []int64{}
 	rows, err := a.Pool.Query(ctx, `select id from departments where "headStaffId" = $1 order by name`, staffID)
@@ -448,13 +448,13 @@ func (a *PayrollAPI) headedDeptIDs(ctx context.Context, staffID int64, ownDeptID
 	return out, nil
 }
 
-// canActUni مرز دانشگاهی کاربر.
+// canActUni user's university boundary.
 func (a *PayrollAPI) canActUni(ctx context.Context, user *session.User, universityID int64) bool {
 	id := universityID
 	return a.Scope.CanActOnUniversity(ctx, user, &id)
 }
 
-// getScopedOverview پورت getScopedOverview: نمای دامنه‌دار.
+// getScopedOverview port of getScopedOverview: scoped view.
 func (a *PayrollAPI) getScopedOverview(ctx context.Context, user *session.User) (*payroll.Overview, bool, error) {
 	ov, err := a.Engine.GetOverview(ctx, nil)
 	if err != nil {
@@ -485,7 +485,7 @@ func (a *PayrollAPI) getScopedOverview(ctx context.Context, user *session.User) 
 			filtered = append(filtered, x)
 			continue
 		}
-		// مانده‌ها از جمع حذف می‌شوند تا اعداد کارتابل با فهرست بخواند
+		// Remaining balances are excluded from totals so the worklist numbers match the list
 		ov.Totals.Budget -= x.Net
 		ov.Totals.Paid -= x.MidtermPaid + x.FinalPaid
 		ov.Totals.Remaining -= x.Remaining
@@ -532,7 +532,7 @@ func (a *PayrollAPI) payrollPayslip(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "شناسهٔ استاد نامعتبر است."})
 		return
 	}
-	// 🔒 مرز دانشگاه: فیش هر استاد فقط برای کاربران مجاز همان دانشگاه
+	// 🔒 University boundary: each professor's payslip only for authorized users of the same university
 	var uniID *int64
 	if err := a.Pool.QueryRow(c.Request.Context(), `select "universityId" from staff where id = $1`, staffID).Scan(&uniID); err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"ok": false, "error": "استاد یافت نشد."})
@@ -700,7 +700,7 @@ func (a *PayrollAPI) payrollFail(c *gin.Context, err error) {
 	c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
 }
 
-// ─────────────────── ابلاغ‌های آموزشی ───────────────────
+// ─────────────────── Teaching assignment notices ───────────────────
 
 func (a *PayrollAPI) payrollDecrees(c *gin.Context) {
 	user := a.requireRoles(c, payrollViewRoles)
@@ -806,7 +806,7 @@ func (a *PayrollAPI) payrollDecreeDelete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// ─────────────────── اعتراض به فیش + آیین‌نامه‌ها ───────────────────
+// ─────────────────── Payslip objections + regulations ───────────────────
 
 func (a *PayrollAPI) payrollObjectionsOpen(c *gin.Context) {
 	user := a.requireRoles(c, payrollViewRoles)
@@ -943,7 +943,7 @@ func (a *PayrollAPI) payrollRegulationDelete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// professorObjections اعتراض‌های استاد (فیش خودش).
+// professorObjections professor's objections (their own payslip).
 func (a *PayrollAPI) professorObjections(c *gin.Context) {
 	user := a.requireProfessorUser(c)
 	if user == nil {
@@ -968,7 +968,7 @@ func (a *PayrollAPI) professorObjections(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"objections": rows}})
 }
 
-// professorObjectionCreate ثبت اعتراض به فیش خودش.
+// professorObjectionCreate submit an objection to their own payslip.
 func (a *PayrollAPI) professorObjectionCreate(c *gin.Context) {
 	user := a.requireProfessorUser(c)
 	if user == nil {
@@ -999,7 +999,7 @@ func (a *PayrollAPI) professorObjectionCreate(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": gin.H{"id": id}})
 }
 
-// requireProfessorUser گیت نقش استاد برای مسیرهای پورتال استاد.
+// requireProfessorUser professor role gate for professor portal routes.
 func (a *PayrollAPI) requireProfessorUser(c *gin.Context) *session.User {
 	token := session.ReadToken(parseCookies(c.Request))
 	if token == "" {
@@ -1024,7 +1024,7 @@ func (a *PayrollAPI) requireProfessorUser(c *gin.Context) *session.User {
 	return user
 }
 
-// payrollStaffOf staff.id کاربر.
+// payrollStaffOf user's staff.id.
 func (a *PayrollAPI) payrollStaffOf(ctx context.Context, user *session.User) (int64, error) {
 	var id int64
 	err := a.Pool.QueryRow(ctx, `select id from staff where "userId" = $1 limit 1`, user.ID).Scan(&id)
@@ -1034,7 +1034,7 @@ func (a *PayrollAPI) payrollStaffOf(ctx context.Context, user *session.User) (in
 	return id, nil
 }
 
-// professorPayslip فیش حق‌التدریس استاد (پورت getStaffPayslip پورتال استاد).
+// professorPayslip professor's teaching pay slip (port of getStaffPayslip in the professor portal).
 func (a *PayrollAPI) professorPayslip(c *gin.Context) {
 	user := a.requireProfessorUser(c)
 	if user == nil {
@@ -1053,7 +1053,7 @@ func (a *PayrollAPI) professorPayslip(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
 }
 
-// ─────────────────── پرداخت‌های امتحانی ───────────────────
+// ─────────────────── Exam payments ───────────────────
 
 func (a *PayrollAPI) payrollExamPayments(c *gin.Context) {
 	user := a.requireRoles(c, payrollViewRoles)
@@ -1128,7 +1128,7 @@ func (a *PayrollAPI) payrollExamPaymentDelete(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// ─────────────────── دفتر پایان‌نامه ───────────────────
+// ─────────────────── Thesis office ───────────────────
 
 func (a *PayrollAPI) payrollThesis(c *gin.Context) {
 	user := a.requireRoles(c, payrollViewRoles)

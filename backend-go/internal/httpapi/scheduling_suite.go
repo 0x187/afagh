@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های سوئیت برنامه‌ریزی درسی — پورت admin/scheduling ═══
+// ═══ Course scheduling suite endpoints — port of admin/scheduling ═══
 package httpapi
 
 import (
@@ -11,7 +11,7 @@ import (
 	"backend-go/internal/session"
 )
 
-// SchedulingSuiteAPI هندلرهای سوئیت برنامه‌ریزی.
+// SchedulingSuiteAPI scheduling suite handlers.
 type SchedulingSuiteAPI struct {
 	Admin *AdminAPI
 }

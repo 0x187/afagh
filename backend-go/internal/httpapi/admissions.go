@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های پذیرش (سنجش، ورود دسته‌ای، ثبت دستی) ═══
+// ═══ Admission endpoints (assessment, bulk import, manual registration) ═══
 package httpapi
 
 import (

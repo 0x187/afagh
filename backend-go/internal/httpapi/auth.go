@@ -1,7 +1,7 @@
-// ═══ اندپوینت‌های /api/v2/auth/* — پورت login.actions.ts به REST ═══
+// ═══ /api/v2/auth/* endpoints — port of login.actions.ts to REST ═══
 //
-// قرارداد (docs/rewrite/phase1-contracts.md): پاکت {ok, error?, ...}، پیام‌های
-// فارسی عیناً afagh-next، سقف ورود = 429 با پیام عمومی login.actions.ts.
+// Contract (docs/rewrite/phase1-contracts.md): envelope {ok, error?, ...}, messages
+// in Persian exactly as in afagh-next, login cap = 429 with the login.actions.ts generic message.
 package httpapi
 
 import (
@@ -14,10 +14,10 @@ import (
 	"backend-go/internal/session"
 )
 
-// AuthAPI هندلرهای احراز هویت.
+// AuthAPI is the authentication handlers.
 type AuthAPI struct {
 	Svc *authn.Service
-	// ClientIP هویت کلاینت — پیش‌فرض gin؛ لایهٔ proxy-trust در ادامهٔ فاز وصل می‌شود.
+	// ClientIP is the client identity — gin default; the proxy-trust layer is wired later in the phase.
 	ClientIP func(c *gin.Context) string
 }
 
@@ -178,7 +178,7 @@ func (a *AuthAPI) siblings(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "accounts": accounts})
 }
 
-// asLoginRateLimit type-assert بدون ایمپورت errors در امضای هندلر.
+// asLoginRateLimit is a type assert without importing errors in the handler signature.
 func asLoginRateLimit(err error, out **authn.LoginRateLimitError) bool {
 	if e, ok := err.(*authn.LoginRateLimitError); ok {
 		*out = e

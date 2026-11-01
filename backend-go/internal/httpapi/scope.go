@@ -1,8 +1,8 @@
-// ═══ /api/v2/scope — سوییچر دانشگاه/نیمسال (پورت /api/scope/*) ═══
+// ═══ /api/v2/scope — university/semester switcher (port of /api/scope/*) ═══
 //
-// تفاوت عمدی با نسخهٔ Next: آن مسیرها فرم POST + ریدایرکت ۳۰۳ برمی‌گرداندند؛
-// این‌جا JSON {ok:true} با Set-Cookie برمی‌گردد و SPA خودش رفرش می‌کند.
-// نام کوکی‌ها، اعتبارسنجی هدف و طول عمر (۳۶۵ روز) عیناً حفظ شده‌اند.
+// Intentional difference from the Next version: those routes returned a POST form + 303 redirect;
+// here it returns JSON {ok:true} with Set-Cookie and the SPA refreshes itself.
+// Cookie names, target validation and lifetime (365 days) are preserved exactly.
 package httpapi
 
 import (
@@ -17,18 +17,18 @@ import (
 	"backend-go/internal/session"
 )
 
-// areaRoles — همان AREA_ROLES در api/scope/university/route.ts: فقط این نقش‌ها
-// مجاز به تغییر دانشگاه فعال‌اند.
+// areaRoles — same AREA_ROLES as in api/scope/university/route.ts: only these roles
+// are allowed to change the active university.
 var areaRoles = map[string]bool{
 	"ADMIN": true, "EDU_EXPERT": true, "ARCHIVE_EXPERT": true, "FINANCE_EXPERT": true,
 	"FINANCE": true, "MILITARY_OFFICER": true, "VAULT_MANAGER": true, "DEP_HEAD": true, "VICE_EDU": true,
 }
 
-// ScopeAPI هندلرهای scope.
+// ScopeAPI scope handlers.
 type ScopeAPI struct {
 	Store      *session.Store
 	Svc        *scope.Service
-	Production bool // برای secure کوکی (همان secureCookie سادهٔ مسیرهای scope)
+	Production bool // for the cookie secure flag (same simple secureCookie of the scope routes)
 }
 
 func (a *ScopeAPI) Register(r gin.IRouter) {
@@ -37,7 +37,7 @@ func (a *ScopeAPI) Register(r gin.IRouter) {
 	r.POST("/scope/term", a.setTerm)
 }
 
-// secureCookie پورت secureCookie مسیرهای scope: true/false صریح، وگرنه production.
+// secureCookie port of the scope routes' secureCookie: explicit true/false, otherwise production.
 func (a *ScopeAPI) secureCookie() bool {
 	switch strings.ToLower(strings.TrimSpace(os.Getenv("AFAGH_COOKIE_SECURE"))) {
 	case "true":
@@ -57,7 +57,7 @@ func (a *ScopeAPI) currentUser(c *gin.Context) *session.User {
 	return u
 }
 
-// getScope وضعیت جاری + فهرست مجاز برای سوییچرها.
+// getScope current state + allowed list for the switchers.
 func (a *ScopeAPI) getScope(c *gin.Context) {
 	user := a.currentUser(c)
 	if user == nil {
@@ -94,10 +94,10 @@ func (a *ScopeAPI) getScope(c *gin.Context) {
 
 type setUniversityBody struct {
 	Code         string `json:"code"`
-	UniversityID *int64 `json:"universityId"` // سازگاری با کلاینت SPA
+	UniversityID *int64 `json:"universityId"` // SPA client compatibility
 }
 
-// setUniversity پورت POST /api/scope/university.
+// setUniversity port of POST /api/scope/university.
 func (a *ScopeAPI) setUniversity(c *gin.Context) {
 	user := a.currentUser(c)
 	if user == nil {
@@ -126,7 +126,7 @@ func (a *ScopeAPI) setUniversity(c *gin.Context) {
 		code = code[:20]
 	}
 	if code == "" && body.UniversityID != nil && *body.UniversityID > 0 {
-		// کلاینت SPA شناسه می‌فرستد؛ به کد تبدیل می‌شود (مرز واحد یکی است).
+		// The SPA client sends an ID; it is converted to a code (the single boundary is the same).
 		universities, _ := a.Svc.ListUniversities(c.Request.Context(), user)
 		for i := range universities {
 			if universities[i].ID == *body.UniversityID {
@@ -140,7 +140,7 @@ func (a *ScopeAPI) setUniversity(c *gin.Context) {
 		return
 	}
 
-	// مرز واحد: همان محاسبه‌ای که CurrentUniversity بر پایهٔ آن تصمیم می‌گیرد.
+	// Single boundary: the same computation CurrentUniversity bases its decision on.
 	universities, _ := a.Svc.ListUniversities(c.Request.Context(), user)
 	var target *scope.UniScope
 	for i := range universities {
@@ -159,10 +159,10 @@ func (a *ScopeAPI) setUniversity(c *gin.Context) {
 }
 
 type setTermBody struct {
-	TermID *int64 `json:"termId"` // null/0 = «همهٔ نیمسال‌ها» (پاک‌کردن کوکی)
+	TermID *int64 `json:"termId"` // null/0 = «همهٔ نیمسال‌ها» (clear the cookie)
 }
 
-// setTerm پورت POST /api/scope/term.
+// setTerm port of POST /api/scope/term.
 func (a *ScopeAPI) setTerm(c *gin.Context) {
 	user := a.currentUser(c)
 	if user == nil {
@@ -182,7 +182,7 @@ func (a *ScopeAPI) setTerm(c *gin.Context) {
 	}
 
 	if body.TermID == nil || *body.TermID <= 0 {
-		// «همهٔ نیمسال‌ها» = پاک کردن کوکی
+		// «همهٔ نیمسال‌ها» = clear the cookie
 		c.SetCookie(scope.TermCookie, "", -1, "/", "", a.secureCookie(), true)
 		c.JSON(http.StatusOK, gin.H{"ok": true, "termId": nil})
 		return
