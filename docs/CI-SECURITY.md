@@ -119,7 +119,7 @@
    - `npm audit fix` داخل `afagh-next` (فقط اگر بدون شکستن قیود version باشد).
    - ارتقای هدفمند خود بسته با PR جدا + اجرای `npm test` و تست دستی مسیر مرتبط.
    - اگر رفع بالادستی وجود ندارد و ریسک واقعی نیست، آن را در
-     `docs/security-phase4-dependency-audit.md` مستند کنید (ریسک پذیرفته‌شده) و از
+     `docs/archive/security-phase4-dependency-audit.md` مستند کنید (ریسک پذیرفته‌شده) و از
      مسیر `overrides` در `package.json` استفاده کنید — الگوی پیشین: `source-map-js`.
 3. پس از رفع، `npm ci && npm audit --omit=dev --audit-level=high` را محلی اجرا و
    سبزی را تأیید کنید؛ سپس PR بفرستید تا Dependabot هم‌زمان redundant نشود.
@@ -170,7 +170,7 @@ npm run typecheck
 - `docs/SECRETS-MANAGEMENT-REVIEW.md` — بازبینی مدیریت رازها
 - `docs/DEPLOY-SECURITY-CHECKLIST.md` — چک‌لیست استقرار
 - `docs/INCIDENT-RESPONSE-RUNBOOK.md` — واکنش به رخداد
-- `docs/security-phase4-dependency-audit.md` — ممیزی وابستگی‌ها
+- `docs/archive/security-phase4-dependency-audit.md` — ممیزی وابستگی‌ها
 - `docs/CI-BASELINE.md` — وضعیت پایهٔ CI
 - `.github/workflows/ci.yml` — دروازهٔ صحت کد (دست‌نخورده)
 - `.github/workflows/security.yml` — همین گردش‌کار امنیتی

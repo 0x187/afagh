@@ -1,5 +1,7 @@
 # سامانه جامع آموزشی دانشگاه آفاق
 
+> **وضعیت فعلی (۲۰۲۶-۱۱-۰۱):** بازنویسی کامل بک‌ند **Go** (`backend-go/`) و فرانت **React** (`frontend-react/`) با الگوی strangler انجام شده است — نقشهٔ مستندات: [`docs/README.md`](docs/README.md) · وضعیت: [`docs/REWRITE-STATUS.md`](docs/REWRITE-STATUS.md) · راهنمای توسعه: [`docs/ENGINEERING-GUIDE.md`](docs/ENGINEERING-GUIDE.md)
+
 پروژهٔ کامل یک سیستم دانشگاهی مدرن در دو نسل — هر دو از یک طراحی واحد (سند اصلی) پیاده‌سازی شده‌اند و E2E تست‌اند:
 
 | | مسیر | پشته | توضیح |

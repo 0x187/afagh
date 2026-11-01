@@ -1,7 +1,7 @@
 # راهنمای جامع کاربری و راهبری سامانه دانشگاهی آفاق (Afagh Enterprise ERP User Manual)
 
 > **نسخه مستند:** ۲.۰ (ویرایش جامع سازمانی ۱۴۰۵)  
-> **فایل رسمی پی‌دی‌اف:** [`docs/Afagh_ERP_Comprehensive_User_Manual.pdf`](./docs/Afagh_ERP_Comprehensive_User_Manual.pdf) / [`/Afagh_ERP_Comprehensive_User_Manual.pdf`](./Afagh_ERP_Comprehensive_User_Manual.pdf)
+> **فایل رسمی پی‌دی‌اف:** [`Afagh_ERP_Comprehensive_User_Manual.pdf`](./Afagh_ERP_Comprehensive_User_Manual.pdf)
 
 ---
 
