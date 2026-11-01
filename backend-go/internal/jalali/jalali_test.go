@@ -2,7 +2,7 @@ package jalali
 
 import "testing"
 
-// تبدیل‌های شناخته‌شده + رفت‌وبرگشت ۲۰هزار روز.
+// Known conversions + 20,000-day round trip.
 func TestKnownConversions(t *testing.T) {
 	cases := []struct {
 		g        GregorianDate
@@ -49,7 +49,7 @@ func TestMonthLength(t *testing.T) {
 	if MonthLength(1405, 1) != 31 || MonthLength(1405, 7) != 30 {
 		t.Fatal("طول ماه‌های ثابت نادرست است")
 	}
-	// ۱۴۰۳ کبیسه: اسفند ۳۰ روز
+	// 1403 is a leap year: Esfand has 30 days
 	if MonthLength(1403, 12) != 30 {
 		t.Fatal("اسفند ۱۴۰۳ باید ۳۰ روز باشد")
 	}

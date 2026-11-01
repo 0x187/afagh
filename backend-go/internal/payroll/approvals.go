@@ -1,12 +1,12 @@
-// ═══ زنجیرهٔ تأیید فیش حق‌التدریس — پورت lib/payroll-approvals.ts ═══
+// ═══ teaching-fee statement approval chain — port of lib/payroll-approvals.ts ═══
 //
-//  ماشین وضعیت (روی payroll_statements.status):
+//  State machine (on payroll_statements.status):
 //    DRAFT ─┬─→ MID_TERM_PAID ─┬─→ DEPT_HEAD_APPROVED
-//           └─→ DEPT_HEAD_APPROVED  (مدیر گروه)
-//                 → DEAN_APPROVED (معاونت آموزشی)
-//                 → FINAL_SETTLED (تسویهٔ مالی — موتور، با پیش‌شرط)
-//    DEPT_HEAD_APPROVED|DEAN_APPROVED ─(RETURN)→ DRAFT یا MID_TERM_PAID
-//    * ─(REJECT)→ REJECTED (پایانی)
+//           └─→ DEPT_HEAD_APPROVED  (department head)
+//                 → DEAN_APPROVED (academic deputy)
+//                 → FINAL_SETTLED (financial settlement — engine, with precondition)
+//    DEPT_HEAD_APPROVED|DEAN_APPROVED ─(RETURN)→ DRAFT or MID_TERM_PAID
+//    * ─(REJECT)→ REJECTED (terminal)
 package payroll
 
 import (
@@ -22,13 +22,13 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// SessionUser کاربر مجری — حداقل نقش‌ها و شناسه.
+// SessionUser is the acting user — minimal roles and ID.
 type SessionUser struct {
 	ID    int64
 	Roles []string
 }
 
-// ToPayrollUser تبدیل session.User به کاربر مجری زنجیرهٔ تأیید.
+// ToPayrollUser converts session.User to an approval-chain acting user.
 func ToPayrollUser(id int64, roles []string) *SessionUser {
 	return &SessionUser{ID: id, Roles: roles}
 }
@@ -42,7 +42,7 @@ func hasRole(u *SessionUser, role string) bool {
 	return false
 }
 
-// actingRole نقش مجری — ADMIN همیشه غالب.
+// actingRole is the acting role — ADMIN always wins.
 func actingRole(u *SessionUser, candidates []string) string {
 	if hasRole(u, "ADMIN") {
 		return "ADMIN"
@@ -64,23 +64,23 @@ var (
 	returnRoles = []string{"DEP_HEAD", "VICE_EDU", "EDU_EXPERT"}
 )
 
-// HeadedDepartments دامنهٔ مدیر گروه — تزریق‌شونده از بیرون (groupmanager).
+// HeadedDepartments: department-head scope — injected from outside (groupmanager).
 type HeadedDepartments func(ctx context.Context, staffID int64, ownDeptID *int64) ([]int64, error)
 
-// StaffRef مرجع کارمند برای scope.
+// StaffRef is the staff reference for scope.
 type StaffRef struct {
 	StaffID       int64
 	DepartmentID  *int64
 	UniversityID  *int64
 }
 
-// StaffByUser مرجع‌یابی کارمند از کاربر — تزریق‌شونده.
+// StaffByUser resolves the staff member from the user — injected.
 type StaffByUser func(ctx context.Context, userID int64) (*StaffRef, error)
 
-// CanActOnUniversity مرز دانشگاهی — تزریق‌شونده (scope) با کاربر مجری.
+// CanActOnUniversity: university boundary — injected (scope) with the acting user.
 type CanActOnUniversity func(ctx context.Context, user *SessionUser, universityID int64) bool
 
-// Approvals سرویس زنجیرهٔ تأیید.
+// Approvals is the approval-chain service.
 type Approvals struct {
 	Engine     *Engine
 	HeadedDepts HeadedDepartments
@@ -88,19 +88,19 @@ type Approvals struct {
 	CanActUni   CanActOnUniversity
 }
 
-// NewApprovals ساخت سرویس.
+// NewApprovals constructs the service.
 func NewApprovals(engine *Engine) *Approvals {
 	return &Approvals{Engine: engine}
 }
 
-// ApprovalResult نتیجهٔ گام تأیید.
+// ApprovalResult is the approval-step result.
 type ApprovalResult struct {
 	Ok     bool    `json:"ok"`
 	Info   *string `json:"info,omitempty"`
 	Amount *float64 `json:"amount,omitempty"`
 }
 
-// ApprovalError پیام خطای گام.
+// ApprovalError is the step error message.
 type ApprovalError struct{ Msg string }
 
 func (e *ApprovalError) Error() string { return e.Msg }
@@ -141,7 +141,7 @@ func loadStatementTx(ctx context.Context, tx pgx.Tx, statementID int64) (*statem
 	return &c, nil
 }
 
-// writeApprovalAudit زنجیرهٔ هش — همان الگوی موتور.
+// writeApprovalAudit: hash chain — same pattern as the engine.
 func writeApprovalAudit(ctx context.Context, tx pgx.Tx, actorUserID int64, action string, entityID int64, details map[string]any) error {
 	var prev string
 	if err := tx.QueryRow(ctx, `select coalesce(hash,'') from audit_logs order by id desc limit 1 for update`).Scan(&prev); err != nil && err != pgx.ErrNoRows {
@@ -168,7 +168,7 @@ func recordApprovalTx(ctx context.Context, tx pgx.Tx, statementID int64, stage s
 	})
 }
 
-// assertDeptScope دامنهٔ مدیر گروه: فیش باید متعلق به گروه زیر نظرش باشد (ADMIN معاف).
+// assertDeptScope: department-head scope — the statement must belong to a department under their supervision (ADMIN exempt).
 func (a *Approvals) assertDeptScope(ctx context.Context, user *SessionUser, c *statementCtx) error {
 	if hasRole(user, "ADMIN") {
 		return nil
@@ -198,7 +198,7 @@ func (a *Approvals) assertDeptScope(ctx context.Context, user *SessionUser, c *s
 	return errF("این فیش متعلق به گروه آموزشی شما نیست.")
 }
 
-// assertUniScope مرز دانشگاهی fail-closed.
+// assertUniScope: fail-closed university boundary.
 func (a *Approvals) assertUniScope(ctx context.Context, user *SessionUser, c *statementCtx) error {
 	if c.universityID == nil {
 		return errF("دانشگاه استادِ این فیش مشخص نیست؛ تأیید ممکن نیست.")
@@ -209,7 +209,7 @@ func (a *Approvals) assertUniScope(ctx context.Context, user *SessionUser, c *st
 	return nil
 }
 
-// ApproveDept گام ۱ — تأیید مدیر گروه.
+// ApproveDept step 1 — department-head approval.
 func (a *Approvals) ApproveDept(ctx context.Context, user *SessionUser, statementID int64, note *string) (*ApprovalResult, error) {
 	if !hasRole(user, "ADMIN") && !hasRole(user, "DEP_HEAD") {
 		return nil, errF("دسترسی غیرمجاز.")
@@ -256,7 +256,7 @@ func (a *Approvals) ApproveDept(ctx context.Context, user *SessionUser, statemen
 	return &ApprovalResult{Ok: true}, nil
 }
 
-// ApproveDean گام ۲ — تأیید معاونت آموزشی.
+// ApproveDean step 2 — academic deputy approval.
 func (a *Approvals) ApproveDean(ctx context.Context, user *SessionUser, statementID int64, note *string) (*ApprovalResult, error) {
 	if !hasRole(user, "ADMIN") && !hasRole(user, "VICE_EDU") && !hasRole(user, "EDU_EXPERT") {
 		return nil, errF("دسترسی غیرمجاز.")
@@ -302,7 +302,7 @@ func (a *Approvals) ApproveDean(ctx context.Context, user *SessionUser, statemen
 	return &ApprovalResult{Ok: true}, nil
 }
 
-// Return بازگشت برای اصلاح — یادداشت الزامی.
+// Return: send back for correction — note required.
 func (a *Approvals) Return(ctx context.Context, user *SessionUser, statementID int64, note string) (*ApprovalResult, error) {
 	if strings.TrimSpace(note) == "" {
 		return nil, errF("برای بازگشت، درج یادداشت اصلاح الزامی است.")
@@ -351,7 +351,7 @@ func (a *Approvals) Return(ctx context.Context, user *SessionUser, statementID i
 	return &ApprovalResult{Ok: true}, nil
 }
 
-// Reject ردّ نهایی — پایانی؛ یادداشت الزامی.
+// Reject: final rejection — terminal; note required.
 func (a *Approvals) Reject(ctx context.Context, user *SessionUser, statementID int64, note string) (*ApprovalResult, error) {
 	if strings.TrimSpace(note) == "" {
 		return nil, errF("برای ردّ نهایی، درج دلیل الزامی است.")
@@ -400,7 +400,7 @@ func (a *Approvals) Reject(ctx context.Context, user *SessionUser, statementID i
 	return &ApprovalResult{Ok: true}, nil
 }
 
-// SettleApproved گام ۳ — تسویهٔ مالی با پیش‌شرط مرحله (settleFinal موتور).
+// SettleApproved step 3 — financial settlement with the stage precondition (engine settleFinal).
 func (a *Approvals) SettleApproved(ctx context.Context, user *SessionUser, staffID int64) (*ApprovalResult, error) {
 	if !hasRole(user, "ADMIN") {
 		return nil, errF("دسترسی غیرمجاز.")
@@ -446,7 +446,7 @@ func (a *Approvals) SettleApproved(ctx context.Context, user *SessionUser, staff
 	return &ApprovalResult{Ok: true, Amount: &amount}, nil
 }
 
-// ApprovalHistoryRow ردیف تاریخچهٔ تأیید.
+// ApprovalHistoryRow is an approval-history row.
 type ApprovalHistoryRow struct {
 	ID          int64    `json:"id"`
 	StatementID int64    `json:"statementId"`
@@ -458,7 +458,7 @@ type ApprovalHistoryRow struct {
 	CreatedAt   *string  `json:"createdAt"`
 }
 
-// GetApprovalHistory تاریخچهٔ تأیید یک فیش (با مرز دانشگاه).
+// GetApprovalHistory: approval history of a statement (with university boundary).
 func (a *Approvals) GetApprovalHistory(ctx context.Context, user *SessionUser, statementID int64) ([]ApprovalHistoryRow, error) {
 	var uniID *int64
 	err := a.Engine.Pool.QueryRow(ctx, `

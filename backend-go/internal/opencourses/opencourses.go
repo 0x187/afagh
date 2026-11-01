@@ -1,4 +1,4 @@
-// ═══ کاتالوگ و ثبت‌نام عمومی دوره‌های آزاد — پورت open-courses ═══
+// ═══ open-course catalog and public registration — open-courses port ═══
 package opencourses
 
 import (
@@ -14,12 +14,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Service سرویس دوره‌های آزاد.
+// Service is the open-course service.
 type Service struct {
 	Pool *pgxpool.Pool
 }
 
-// Course دورهٔ عمومی.
+// Course is a public course.
 type Course struct {
 	ID             int64   `json:"id"`
 	Code           string  `json:"code"`
@@ -40,7 +40,7 @@ type Course struct {
 	PassingGrade   float64 `json:"passingGrade"`
 }
 
-// List کاتالوگ زندهٔ دوره‌های آزاد — فقط OPEN.
+// List: live open-course catalog — OPEN only.
 func (s *Service) List(ctx context.Context) ([]Course, error) {
 	rows, err := s.Pool.Query(ctx, `
 		select id, code, title, coalesce("titleEn",''), coalesce(category,'مهندسی و فناوری'),
@@ -74,14 +74,14 @@ func (s *Service) List(ctx context.Context) ([]Course, error) {
 	return out, nil
 }
 
-// DiscountResult پیش‌نمایش اعتبار کد تخفیف.
+// DiscountResult is the discount-code validity preview.
 type DiscountResult struct {
 	OK             bool    `json:"ok"`
 	DiscountAmount float64 `json:"discountAmount,omitempty"`
 	Error          string  `json:"error,omitempty"`
 }
 
-// ValidateDiscount پورت validateDiscountCodeAction.
+// ValidateDiscount ports validateDiscountCodeAction.
 func (s *Service) ValidateDiscount(ctx context.Context, courseID int64, rawCode string) *DiscountResult {
 	code := strings.ToUpper(strings.TrimSpace(rawCode))
 	if code == "" {
@@ -121,7 +121,7 @@ func (s *Service) ValidateDiscount(ctx context.Context, courseID int64, rawCode 
 	return &DiscountResult{OK: true, DiscountAmount: amount}
 }
 
-// RegisterInput ورودی ثبت‌نام عمومی.
+// RegisterInput is the public registration input.
 type RegisterInput struct {
 	CourseID     int64  `json:"courseId"`
 	FullName     string `json:"fullName"`
@@ -131,7 +131,7 @@ type RegisterInput struct {
 	DiscountCode string `json:"discountCode"`
 }
 
-// RegisterResult نتیجهٔ ثبت‌نام.
+// RegisterResult is the registration result.
 type RegisterResult struct {
 	OK             bool    `json:"ok"`
 	TrackingCode   string  `json:"trackingCode,omitempty"`
@@ -164,7 +164,7 @@ func validNationalID(n string) bool {
 	return true
 }
 
-// Register پورت registerOpenCourseAction — ثبت PENDING با کد رهگیری سمت سرور.
+// Register ports registerOpenCourseAction — creates a PENDING record with a server-side tracking code.
 func (s *Service) Register(ctx context.Context, in RegisterInput) *RegisterResult {
 	fullName := strings.TrimSpace(in.FullName)
 	mobile := strings.TrimSpace(in.Mobile)
@@ -235,7 +235,7 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) *RegisterResul
 	}
 	defer tx.Rollback(ctx)
 
-	// یادگیرنده: upsert با شمارهٔ همراه (کد ملی فقط در صورت خالی‌بودن).
+	// Learner: upsert by mobile number (national ID only if empty).
 	var learnerID int64
 	var existingNational *string
 	err = tx.QueryRow(ctx, `select id, "nationalId" from short_term_learners where mobile = $1 limit 1`, mobile).
@@ -281,7 +281,7 @@ func (s *Service) Register(ctx context.Context, in RegisterInput) *RegisterResul
 		return &RegisterResult{Error: "ثبت‌نام ناموفق بود."}
 	}
 
-	// مصرف سهمیهٔ کد تخفیف — شرط در WHERE برای همزمانی.
+	// consume the discount-code quota — condition in WHERE for concurrency.
 	if usedDiscountID > 0 {
 		tag, err := tx.Exec(ctx, `
 			update short_term_discounts

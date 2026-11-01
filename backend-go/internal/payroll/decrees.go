@@ -1,4 +1,4 @@
-// ═══ ابلاغ‌های آموزشی — پورت lib/payroll-decrees.ts ═══
+// ═══ teaching decrees — port of lib/payroll-decrees.ts ═══
 package payroll
 
 import (
@@ -14,7 +14,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// DecreeListItem ردیف فهرست ابلاغ.
+// DecreeListItem is a decree list row.
 type DecreeListItem struct {
 	ID            int64   `json:"id"`
 	StaffID       int64   `json:"staffId"`
@@ -28,7 +28,7 @@ type DecreeListItem struct {
 	CreatedAt     *string `json:"createdAt"`
 }
 
-// ListDecrees فهرست ابلاغ‌های یک ترم (اختیاری: فقط یک استاد).
+// ListDecrees lists a term's decrees (optionally: just one instructor).
 func (e *Engine) ListDecrees(ctx context.Context, termID int64, universityID, staffID *int64) ([]DecreeListItem, error) {
 	args := []any{termID}
 	where := ` where d."termId" = $1`
@@ -68,7 +68,7 @@ func (e *Engine) ListDecrees(ctx context.Context, termID int64, universityID, st
 	return out, nil
 }
 
-// DecreeItemRow اقلام ۷ بخش.
+// DecreeItemRow: items of the 7 sections.
 type DecreeItemRow struct {
 	ID      int64    `json:"id"`
 	Section string   `json:"section"`
@@ -77,13 +77,13 @@ type DecreeItemRow struct {
 	Amount  *float64 `json:"amount"`
 }
 
-// DecreeSigner امضاکننده.
+// DecreeSigner is the signatory.
 type DecreeSigner struct {
 	Title string `json:"title"`
 	Name  string `json:"name"`
 }
 
-// DecreeDetail جزئیات ابلاغ.
+// DecreeDetail is the decree details.
 type DecreeDetail struct {
 	DecreeListItem
 	Snapshot      map[string]any   `json:"snapshot"`
@@ -92,7 +92,7 @@ type DecreeDetail struct {
 	IssuedByName  *string          `json:"issuedByName"`
 }
 
-// GetDecreeDetail جزئیات یک ابلاغ + اقلام.
+// GetDecreeDetail: details of a decree + items.
 func (e *Engine) GetDecreeDetail(ctx context.Context, id int64) (*DecreeDetail, error) {
 	var d DecreeDetail
 	var snapshotJSON, signersJSON *string
@@ -151,7 +151,7 @@ func (e *Engine) GetDecreeDetail(ctx context.Context, id int64) (*DecreeDetail, 
 	return &d, nil
 }
 
-// nextSecretariatNo شمارهٔ دبیرخانهٔ بعدی (اتمیک: upsert شمارنده).
+// nextSecretariatNo is the next secretariat number (atomic: counter upsert).
 func (e *Engine) nextSecretariatNo(ctx context.Context, tx pgx.Tx, universityID int64) (int, error) {
 	var lastNo int
 	err := tx.QueryRow(ctx, `
@@ -161,7 +161,7 @@ func (e *Engine) nextSecretariatNo(ctx context.Context, tx pgx.Tx, universityID 
 	return lastNo, err
 }
 
-// IssueDecree صدور ابلاغ: اسنپ‌شات محاسبه + اقلام بخش‌ها + شمارهٔ دبیرخانه.
+// IssueDecree issues a decree: calculation snapshot + section items + secretariat number.
 func (e *Engine) IssueDecree(ctx context.Context, staffID, termID, universityID int64, signers []DecreeSigner) (int64, error) {
 	var dupID int64
 	var dupStatus string
@@ -175,7 +175,7 @@ func (e *Engine) IssueDecree(ctx context.Context, staffID, termID, universityID 
 		return 0, errors.New("برای این استاد در این ترم پیش‌نویس ابلاغ وجود دارد؛ ابتدا آن را نهایی یا حذف کنید.")
 	}
 
-	// محاسبهٔ زندهٔ فیش → مبنای اسنپ‌شات (fail-closed).
+	// Live statement calculation → snapshot basis (fail-closed).
 	calc, err := CalcStaffPayrollFromTerm(ctx, e, staffID, termID)
 	if err != nil {
 		return 0, fmt.Errorf("محاسبهٔ فیش ناموفق بود: %w", err)
@@ -223,7 +223,7 @@ func (e *Engine) IssueDecree(ctx context.Context, staffID, termID, universityID 
 		return 0, err
 	}
 
-	// اقلام بخش‌ها از همان محاسبه.
+	// Section items from the same calculation.
 	type itemRow struct {
 		section  string
 		title    string
@@ -248,7 +248,7 @@ func (e *Engine) IssueDecree(ctx context.Context, staffID, termID, universityID 
 		items = append(items, itemRow{section: section, title: fmt.Sprintf("%s (گروه %s)", r.CourseTitle, group),
 			units: &units, amount: amount, metaJSON: string(meta)})
 	}
-	// فعالیت‌های تأییدشدهٔ ترم.
+	// Approved term activities.
 	acts, err := e.Pool.Query(ctx, `
 		select t.title, a.quantity::float8, t."quantFactor"::float8
 		  from staff_activity_entries a
@@ -268,7 +268,7 @@ func (e *Engine) IssueDecree(ctx context.Context, staffID, termID, universityID 
 		}
 		acts.Close()
 	}
-	// پرداخت‌های امتحانی ترم.
+	// Term exam payments.
 	srcFA := map[string]string{"INVIGILATION": "مراقبت", "CORRECTION": "تصحیح", "EXEC": "اجرا"}
 	pays, err := e.Pool.Query(ctx, `
 		select source, coalesce("sessionCount",0), amount::float8
@@ -291,7 +291,7 @@ func (e *Engine) IssueDecree(ctx context.Context, staffID, termID, universityID 
 		}
 		pays.Close()
 	}
-	// جمع‌بندی.
+	// Summary.
 	summaryUnits := strconv.FormatFloat(calc.PayableUnits, 'f', -1, 64)
 	summaryTitle := fmt.Sprintf("جمع قابل پرداخت: %s واحد — خالص %s ریال",
 		strconv.FormatFloat(calc.PayableUnits, 'f', -1, 64), groupThousands(calc.Net))
@@ -312,7 +312,7 @@ func (e *Engine) IssueDecree(ctx context.Context, staffID, termID, universityID 
 	return decreeID, nil
 }
 
-// CalcStaffPayrollFromTerm فیش یک استاد در ترم مشخص (برای ابلاغ).
+// CalcStaffPayrollFromTerm: an instructor's statement in a given term (for the decree).
 func CalcStaffPayrollFromTerm(ctx context.Context, e *Engine, staffID, termID int64) (*StaffPayroll, error) {
 	data, err := e.LoadTermPayrollData(ctx, termID)
 	if err != nil {
@@ -328,7 +328,7 @@ func intToStr(v int) string {
 	return fmt.Sprintf("%d", v)
 }
 
-// FinalizeDecree نهایی‌سازی پیش‌نویس (DRAFT → ISSUED).
+// FinalizeDecree finalizes a draft (DRAFT → ISSUED).
 func (e *Engine) FinalizeDecree(ctx context.Context, id, actorUserID int64) error {
 	var status string
 	if err := e.Pool.QueryRow(ctx, `select status from teaching_decrees where id = $1`, id).Scan(&status); err != nil {
@@ -342,7 +342,7 @@ func (e *Engine) FinalizeDecree(ctx context.Context, id, actorUserID int64) erro
 	return err
 }
 
-// DeleteDraftDecree حذف پیش‌نویس (ابلاغ صادرشده حذف نمی‌شود).
+// DeleteDraftDecree deletes a draft (an issued decree is not deleted).
 func (e *Engine) DeleteDraftDecree(ctx context.Context, id int64) error {
 	var status string
 	if err := e.Pool.QueryRow(ctx, `select status from teaching_decrees where id = $1`, id).Scan(&status); err != nil {

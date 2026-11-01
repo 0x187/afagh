@@ -1,10 +1,10 @@
-// ═══ توکن‌های اتصال پیام‌رسان — پورت lib/messenger-link-tokens.ts ═══
+// ═══ Messenger link tokens — port of lib/messenger-link-tokens.ts ═══
 //
-//	جریان: کاربر وارد پورتال می‌شود → MintLinkToken (کد انسانی + دیپ‌لینک)
-//	→ در بات /start <token> می‌فرستد (poll worker ثبت PENDING می‌کند)
-//	→ کاربر در پورتال ConfirmLinkToken را می‌زند → verifiedAt=now.
-//	کد/توکن خام هرگز ذخیره نمی‌شود؛ فقط sha256 آن‌ها. پیام خطا برای همهٔ
-//	شکست‌های تأیید واحد و عمومی است (ضد شمارش).
+//	Flow: user signs in to the portal → MintLinkToken (human code + deep link)
+//	→ sends /start <token> in the bot (the poll worker records PENDING)
+//	→ the user clicks ConfirmLinkToken in the portal → verifiedAt=now.
+//	The raw code/token is never stored; only their sha256. The error message for all
+//	verification failures is single and generic (anti-enumeration).
 package messaging
 
 import (
@@ -25,24 +25,24 @@ import (
 )
 
 const (
-	// LinkTTLMin اعتبار کد اتصال (دقیقه).
+	// LinkTTLMin link code validity (minutes).
 	LinkTTLMin = 10
-	// LinkMaxAttempts سقف تلاش ناموفق تأیید به‌ازای هر توکن.
+	// LinkMaxAttempts max failed verification attempts per token.
 	LinkMaxAttempts = 5
 )
 
-// codeAlphabet الفبای بدون ابهام (بدون 0/O و 1/I) برای کد انسانی.
+// codeAlphabet unambiguous alphabet (no 0/O or 1/I) for the human code.
 const codeAlphabet = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
 const codeLen = 8
 
-// LinkGenericError پیام خطای واحد و عمومی برای همهٔ شکست‌های توکن (ضد شمارش).
+// LinkGenericError single generic error message for all token failures (anti-enumeration).
 const LinkGenericError = "کد اتصال نامعتبر است یا منقضی شده. از پورتال یک کد تازه بگیرید."
 
 var linkLog = logger.For("messenger-link")
 
-// ═══ کانال‌ها و پیکربندی API هر پیام‌رسان (پورت MESSENGER_CONFIGS) ═══
+// ═══ Channels and per-messenger API configuration (port of MESSENGER_CONFIGS) ═══
 
-// messengerLinkCfg پیکربندی کامل یک پیام‌رسان — ENV هر کلید از SETTING_DEFS.
+// messengerLinkCfg full configuration of a messenger — each key's ENV from SETTING_DEFS.
 type messengerLinkCfg struct {
 	TokenKey        string
 	TokenEnv        string
@@ -81,14 +81,14 @@ var messengerLinkConfigs = map[string]messengerLinkCfg{
 		DeepLinkPrefix: "", UsernameKey: "", UsernameEnv: ""},
 }
 
-// PollChannels کانال‌هایی که poll worker (getUpdates) پشتیبانی می‌کند.
+// PollChannels channels supported by the poll worker (getUpdates).
 var PollChannels = []string{"BALE", "EITAA", "SOROUSH"}
 
-// LinkableChannels کانال‌هایی که اتصال جدید برایشان باز است.
-// ای‌گپ: poll اثبات‌نشده — اتصال جدید فریز است.
+// LinkableChannels channels for which new linking is open.
+// iGap: poll unproven — new linking is frozen.
 var LinkableChannels = []string{"TELEGRAM", "BALE", "EITAA", "SOROUSH"}
 
-// IsLinkable آیا اتصال این کانال باز است؟
+// IsLinkable whether linking is open for this channel.
 func IsLinkable(channel string) bool {
 	for _, c := range LinkableChannels {
 		if c == channel {
@@ -98,7 +98,7 @@ func IsLinkable(channel string) bool {
 	return false
 }
 
-// IsPollChannel آیا این کانال poll می‌شود؟
+// IsPollChannel whether this channel is polled.
 func IsPollChannel(channel string) bool {
 	for _, c := range PollChannels {
 		if c == channel {
@@ -108,7 +108,7 @@ func IsPollChannel(channel string) bool {
 	return false
 }
 
-// IsMessengerChannel آیا این کلید یکی از پنج پیام‌رسان است؟
+// IsMessengerChannel whether this key is one of the five messengers.
 func IsMessengerChannel(channel string) bool {
 	_, ok := messengerLinkConfigs[channel]
 	return ok
@@ -118,12 +118,12 @@ func freezeMessage(channel string) string {
 	return "اتصال جدید " + channel + " در حال حاضر فعال نیست. اعلان‌ها را از پیامک یا پیام‌رسان دیگری دنبال کنید."
 }
 
-// ═══ خواندن کلیدهای تنظیمی افزوده ═══
+// ═══ Reading additional setting keys ═══
 //
-// این کلیدها (توکن بات‌ها، رازهای کرون افزوده، متن تبریک‌ها) هنوز در
-// PhaseOneDefs تعریف نشده‌اند؛ همان اولویت سامانه پیاده می‌شود:
-// ۱) جدول system_settings  ۲) ENV  ۳) پیش‌فرض — با کش ۱۵ثانیه‌ای همان Store.
-// وقتی کلیدها به PhaseOneDefs اضافه شوند، Settings.Get همان نتیجه را می‌دهد.
+// These keys (bot tokens, additional cron secrets, congratulation texts) are not yet
+// defined in PhaseOneDefs; the same system precedence is implemented:
+// 1) system_settings table  2) ENV  3) default — with the same Store's 15-second cache.
+// Once the keys are added to PhaseOneDefs, Settings.Get returns the same result.
 
 var rawMu sync.Mutex
 var rawCache map[string]string
@@ -153,7 +153,7 @@ func (s *Service) rawRows(ctx context.Context) map[string]string {
 	return rows
 }
 
-// rawSetting خواندن یک کلید با اولویت DB → ENV → پیش‌فرض.
+// rawSetting reads a key with precedence DB → ENV → default.
 func (s *Service) rawSetting(ctx context.Context, key, env, fallback string) string {
 	rows := s.rawRows(ctx)
 	if v := strings.TrimSpace(rows[key]); v != "" {
@@ -165,19 +165,19 @@ func (s *Service) rawSetting(ctx context.Context, key, env, fallback string) str
 	return fallback
 }
 
-// SettingRaw نسخهٔ بسته‌خارجی برای کرون‌های افزوده و هندلرهای httpapi.
+// SettingRaw is the out-of-package version for additional crons and httpapi handlers.
 func SettingRaw(ctx context.Context, s *Service, key, env, fallback string) string {
 	return s.rawSetting(ctx, key, env, fallback)
 }
 
-// ═══ محدودیت نرخ ═══
+// ═══ Rate limiting ═══
 
 var linkLimiter *ratelimit.Limiter
 
-// SetRateLimiter محدودکنندهٔ نرخ را به بستهٔ messaging می‌دهد (از main).
+// SetRateLimiter supplies the rate limiter to the messaging package (from main).
 func SetRateLimiter(l *ratelimit.Limiter) { linkLimiter = l }
 
-// linkAllowed همان rateLimit() کلاینت: خطای زیرساخت → باز بگذار (fallback درون‌حافظه خودش داخل Limiter است).
+// linkAllowed is the same as the client's rateLimit(): infrastructure error → allow (its in-memory fallback is inside Limiter).
 func linkAllowed(key string, limit, windowSec int) bool {
 	if linkLimiter == nil {
 		return true
@@ -189,7 +189,7 @@ func linkAllowed(key string, limit, windowSec int) bool {
 	return ok
 }
 
-// ═══ ابزارهای هش/کد ═══
+// ═══ Hash/code utilities ═══
 
 func sha256Hex(v string) string {
 	h := sha256.Sum256([]byte(v))
@@ -206,7 +206,7 @@ func randomCode() string {
 	return string(out)
 }
 
-// timingEqHex مقایسهٔ زمان‌ثابت دو رشتهٔ هش.
+// timingEqHex constant-time comparison of two hash strings.
 func timingEqHex(aHex, bHex string) bool {
 	a, err1 := hex.DecodeString(aHex)
 	b, err2 := hex.DecodeString(bHex)
@@ -216,9 +216,9 @@ func timingEqHex(aHex, bHex string) bool {
 	return subtle.ConstantTimeCompare(a, b) == 1
 }
 
-// ═══ صدور توکن ═══
+// ═══ Token minting ═══
 
-// MintResult نتیجهٔ صدور کد اتصال.
+// MintResult is the result of minting a link code.
 type MintResult struct {
 	OK          bool      `json:"ok"`
 	Code        string    `json:"code,omitempty"`
@@ -229,7 +229,7 @@ type MintResult struct {
 	Error       string    `json:"error,omitempty"`
 }
 
-// MintLinkToken صدور کد اتصال برای یک کانال (پورت mintLinkTokenFor).
+// MintLinkToken mints a link code for a channel (port of mintLinkTokenFor).
 func (s *Service) MintLinkToken(ctx context.Context, userID int64, channel string) MintResult {
 	if !IsLinkable(channel) {
 		return MintResult{Error: freezeMessage(channel)}
@@ -240,7 +240,7 @@ func (s *Service) MintLinkToken(ctx context.Context, userID int64, channel strin
 
 	tokBuf := make([]byte, 24)
 	_, _ = rand.Read(tokBuf)
-	token := hex.EncodeToString(tokBuf) // ۴۸ رقم
+	token := hex.EncodeToString(tokBuf) // 48 digits
 	code := randomCode()
 	expiresAt := time.Now().Add(LinkTTLMin * time.Minute)
 
@@ -251,7 +251,7 @@ func (s *Service) MintLinkToken(ctx context.Context, userID int64, channel strin
 		return MintResult{Error: LinkGenericError}
 	}
 
-	// دیپ‌لینک فقط وقتی نام‌کاربری بات تنظیم شده؛ وگرنه دستور متنی.
+	// Deep link only when a bot username is configured; otherwise a text command.
 	cfg := messengerLinkConfigs[channel]
 	deepLink := ""
 	if cfg.UsernameKey != "" && cfg.DeepLinkPrefix != "" {
@@ -272,23 +272,23 @@ func (s *Service) MintLinkToken(ctx context.Context, userID int64, channel strin
 		PairingText: "/start " + code, ExpiresAt: expiresAt}
 }
 
-// ═══ ثبت پیام جفت‌سازی (/start <param> از بات) ═══
+// ═══ Pairing message recording (/start <param> from the bot) ═══
 //
-//	param بلند = توکن کامل دیپ‌لینک؛ ۸ رقمی = کد انسانی. فقط هش‌ها لاگ می‌شوند.
+//	Long param = full deep-link token; 8-digit = human code. Only hashes are logged.
 //
-//	INVARIANT (امنیتی): این تابع فقط یک «سرنخِ تأییدنشده» (pendingChatId)
-//	روی ردیف توکن می‌نویسد — هرگز مقصد تحویل اعلان (notification_channels)
-//	را نمی‌سازد یا تغییر نمی‌دهد. مقصد تحویل فقط در ConfirmLinkToken و فقط
-//	با نشست احرازهویتیِ پورتال ثبت می‌شود.
+//	INVARIANT (security): this function only writes an "unverified hint" (pendingChatId)
+//	onto the token row — it never creates or changes a notification delivery destination (notification_channels)
+//	the delivery destination is registered only in ConfirmLinkToken and only
+//	with an authenticated portal session.
 
 var startCmdRe = regexp.MustCompile(`^/start(?:@\S+)?\s*(\S+)?\s*$`)
 var bareCodeRe = regexp.MustCompile(`^[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{8}$`)
 
-// HandlePairingText پورت handlePairingText — پاسخ بات را برمی‌گرداند ("" = بی‌پاسخ).
+// HandlePairingText is the port of handlePairingText — it returns the bot reply ("" = no reply).
 func (s *Service) HandlePairingText(ctx context.Context, channel, chatID, text, limiterKey string) string {
-	// سقف تلاش جفت‌سازی — پیش‌فرض سطل (کانال، چت) برای poll (مبدأ مطمئن:
-	// chatId را خودِ API پلتفرم با توکن بات داده). فراخوانِ وب‌هوک باید
-	// limiterKey = IPِ مورداعتماد پروکسی بدهد.
+	// Pairing attempt limit — default bucket (channel, chat) for poll (trusted source:
+	// the chatId is provided by the platform API itself with the bot token). A webhook caller must
+	// pass limiterKey = the proxy-trusted IP.
 	bucket := fmt.Sprintf("msg-link-pair:%s:%s", channel, chatID)
 	if limiterKey != "" {
 		bucket = "msg-link-pair:ip:" + limiterKey
@@ -301,8 +301,8 @@ func (s *Service) HandlePairingText(ctx context.Context, channel, chatID, text, 
 	if m := startCmdRe.FindStringSubmatch(text); m != nil {
 		param = strings.TrimSpace(m[1])
 	}
-	// بله گاهی فقط /start را تحویل می‌دهد یا کاربر فقط کد خالی می‌فرستد —
-	// کد ۸ رقمی تکی هم پذیرفته می‌شود.
+	// Bale sometimes delivers only /start, or the user sends only the bare code —
+	// a standalone 8-digit code is also accepted.
 	if param == "" && bareCodeRe.MatchString(strings.TrimSpace(text)) {
 		param = strings.TrimSpace(text)
 	}
@@ -318,16 +318,16 @@ func (s *Service) HandlePairingText(ctx context.Context, channel, chatID, text, 
 		 where channel = $1 and "usedAt" is null and "expiresAt" > now()
 		   and ("tokenHash" = $2 or "codeHash" = $2)
 		 limit 1`, channel, digest).Scan(&id, &tokenHash, &codeHash)
-	// مقایسهٔ ثابت‌زمان روی هر دو ستون هش (دفاع در عمق — WHERE بالا هم دقیق است)
+	// Constant-time comparison on both hash columns (defense in depth — the WHERE above is exact too)
 	if err != nil || !(timingEqHex(tokenHash, digest) || timingEqHex(codeHash, digest)) {
-		// تطبیق ناموفق: ردیفی برای سوزاندن attempts وجود ندارد — attempts فقط
-		// در شکست‌های confirm (منتسب به ردیف مشخص) می‌سوزد، نه اینجا.
+		// No match: there is no row to burn attempts on — attempts are burned only
+		// on confirm failures (attributed to a specific row), not here.
 		linkLog.Warn("pairing_no_match", logger.Fields{"channel": channel, "paramHash": digest[:12]})
 		return LinkGenericError
 	}
 
-	// تطبیق موفق: فقط سرنخ pending ثبت می‌شود — attempts سوزانده نمی‌شود تا
-	// ارسالِ دوبارهٔ کد درست (یا replay) کاربر را قفل نکند.
+	// Match: only the pending hint is recorded — attempts are not burned so that
+	// re-sending the correct code (or a replay) does not lock the user out.
 	if _, err := s.Pool.Exec(ctx, `update messenger_link_tokens set "pendingChatId" = $2 where id = $1`, id, chatID); err != nil {
 		return LinkGenericError
 	}
@@ -335,10 +335,10 @@ func (s *Service) HandlePairingText(ctx context.Context, channel, chatID, text, 
 	return "کد دریافت شد. ✅\nبه پورتال برگردید — اتصال به‌صورت خودکار تأیید می‌شود."
 }
 
-// ═══ بررسی وضعیت جفت‌سازی (برای تأیید خودکار سمت کلاینت) ═══
-// فقط می‌خواند؛ شمارش تلاش را نمی‌سوزاند و حالت token را تغییر نمی‌دهد.
+// ═══ Pairing status check (for client-side auto-confirmation) ═══
+// Read-only; it does not burn the attempt counter or change the token state.
 
-// PairingStatus وضعیت جفت‌سازی یک کد.
+// PairingStatus pairing status of a code.
 type PairingStatus struct {
 	OK      bool   `json:"ok"`
 	Paired  bool   `json:"paired,omitempty"`
@@ -346,7 +346,7 @@ type PairingStatus struct {
 	Error   string `json:"error,omitempty"`
 }
 
-// CheckPairingStatus پورت checkPairingStatus.
+// CheckPairingStatus is the port of checkPairingStatus.
 func (s *Service) CheckPairingStatus(ctx context.Context, userID int64, rawCode string) PairingStatus {
 	if !linkAllowed(fmt.Sprintf("msg-link-status:%d", userID), 30, 600) {
 		return PairingStatus{Error: LinkGenericError}
@@ -379,17 +379,17 @@ func (s *Service) CheckPairingStatus(ctx context.Context, userID int64, rawCode 
 	return PairingStatus{OK: true, Paired: pendingChatID != nil && *pendingChatID != "", Channel: channel}
 }
 
-// ═══ تأیید نهایی از پورتال ═══
+// ═══ Final confirmation from the portal ═══
 
-// LinkConfirmResult نتیجهٔ تأیید نهایی اتصال.
+// LinkConfirmResult final link confirmation result.
 type LinkConfirmResult struct {
 	OK      bool   `json:"ok"`
 	Channel string `json:"channel,omitempty"`
 	Error   string `json:"error,omitempty"`
 }
 
-// ConfirmLinkToken پورت confirmLinkToken — نشست احرازهویتی پورتال الزامی است
-// (هندلر httpapi کاربر را از سشن می‌گیرد) و userId همیشه کاربرِ نشست است.
+// ConfirmLinkToken is the port of confirmLinkToken — an authenticated portal session is required
+// (the httpapi handler takes the user from the session) and userId is always the session user.
 func (s *Service) ConfirmLinkToken(ctx context.Context, userID int64, rawTokenOrCode string) LinkConfirmResult {
 	param := strings.TrimSpace(rawTokenOrCode)
 	if param == "" {
@@ -413,8 +413,8 @@ func (s *Service) ConfirmLinkToken(ctx context.Context, userID int64, rawTokenOr
 		 limit 1`, userID, digest).
 		Scan(&id, &channel, &tokenHash, &codeHash, &pendingChatID, &expiresAt, &usedAt, &attempts)
 
-	// attempts فقط روی شکستِ منتسب به ردیف مشخص می‌سوزد — هرگز روی موفقیت،
-	// تا replay کد درست پس از اتصال، کاربر را قفل نکند.
+	// attempts burn only on a failure attributed to a specific row — never on success,
+	// so replaying the correct code after linking does not lock the user out.
 	fail := func(why string, withRow bool) LinkConfirmResult {
 		if withRow {
 			_, _ = s.Pool.Exec(ctx, `update messenger_link_tokens set attempts = attempts + 1 where id = $1`, id)
@@ -439,7 +439,7 @@ func (s *Service) ConfirmLinkToken(ctx context.Context, userID int64, rawTokenOr
 		return fail("attempts", true)
 	}
 	if pendingChatID == nil || *pendingChatID == "" {
-		// هنوز پیام /start از بات نرسیده — شمارش تلاش منظور می‌شود.
+		// The /start message has not arrived from the bot yet — the attempt counter still applies.
 		return fail("no_pairing", true)
 	}
 
@@ -459,11 +459,11 @@ func (s *Service) ConfirmLinkToken(ctx context.Context, userID int64, rawTokenOr
 	return LinkConfirmResult{OK: true, Channel: channel}
 }
 
-// ═══ پاکسازی روزانهٔ توکن‌های مصرف‌شده/منقضی ═══
-// حذف: usedAt NOT NULL (مصرف‌شده) یا منقضی‌شدهٔ بیش از یک روز.
-// از کرون روزانه صدا زده می‌شود: /api/v2/cron/messenger-link-purge
+// ═══ Daily purge of used/expired tokens ═══
+// Delete: usedAt NOT NULL (used) or expired more than one day ago.
+// Called from the daily cron: /api/v2/cron/messenger-link-purge
 
-// PurgeExpiredLinkTokens پورت purgeExpiredLinkTokens — تعداد حذف‌شده‌ها.
+// PurgeExpiredLinkTokens is the port of purgeExpiredLinkTokens — number of deleted rows.
 func (s *Service) PurgeExpiredLinkTokens(ctx context.Context) (int64, error) {
 	tag, err := s.Pool.Exec(ctx, `
 		delete from messenger_link_tokens

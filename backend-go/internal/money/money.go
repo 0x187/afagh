@@ -1,10 +1,10 @@
-// ═══ ابزار پول و اعداد — پورت money.ts ═══
+// ═══ money and number helpers — port of money.ts ═══
 //
-// همهٔ محاسبات روی «مقیاس‌شدهٔ صحیح» انجام می‌شود تا خطای ممیز شناور در
-// جمع هزاران ردیف گزارش مالی را به‌هم نزند:
-//   - پول  → ریال صحیح
-//   - واحد → واحد × ۱۰۰
-//   - گردکردن پول → مضرب ۱۰ ریال (تومان)
+// all calculations are done on "scaled integers" so floating-point error does not
+// corrupt the sum of thousands of rows in a financial report:
+//   - money → integer rials
+//   - units → units × 100
+//   - money rounding → multiple of 10 rials (toman)
 package money
 
 import (
@@ -13,28 +13,28 @@ import (
 	"strings"
 )
 
-// UnitScale مقیاس اعداد صحیح برای واحد درسی.
+// UnitScale is the integer scale for course units.
 const UnitScale = 100
 
-// RialStep کوچک‌ترین واحد قابل پرداخت (۱۰ ریال = ۱ تومان).
+// RialStep is the smallest payable unit (10 rials = 1 toman).
 const RialStep = 10
 
-// MaxRials سقف مبلغ مجاز — هم‌ارز numeric(12,0).
+// MaxRials is the maximum allowed amount — equivalent to numeric(12,0).
 const MaxRials = 999_999_999_999
 
-// MulberryRound پورت mulberryRound: sign(v)*round(|v|) = گرد نیمه-دور-از-صفر.
+// MulberryRound ports mulberryRound: sign(v)*round(|v|) = round half away from zero.
 func MulberryRound(value float64) float64 {
 	return math.Round(value)
 }
 
-// UnitsToInt پورت unitsToInt: ۲ رقم اعشار با گرد نیمه‌به‌بالا روی رشتهٔ دقیق
-// (۱.۰۰۵ → ۱۰۱). ورودی نامعتبر/منفی → ۰.
+// UnitsToInt ports unitsToInt: 2 decimal places with round half up on the exact string
+// (1.005 → 101). Invalid/negative input → 0.
 func UnitsToInt(value string) int {
 	n, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
 	if err != nil || math.IsNaN(n) || math.IsInf(n, 0) || n < 0 {
 		return 0
 	}
-	// معادل n.toFixed(4): چهار رقم اعشار با گردکردن صحیح
+	// equivalent to n.toFixed(4): four decimal places with correct rounding
 	formatted := strconv.FormatFloat(n, 'f', 4, 64)
 	parts := strings.SplitN(formatted, ".", 2)
 	intPart, err := strconv.Atoi(parts[0])
@@ -57,12 +57,12 @@ func UnitsToInt(value string) int {
 	return out
 }
 
-// IntToUnits پورت intToUnits.
+// IntToUnits ports intToUnits.
 func IntToUnits(value int) float64 {
 	return math.Round(float64(value)) / UnitScale
 }
 
-// ToRial پورت toRial: گرد به مضرب ۱۰ ریال؛ ورودی غیرمتناهی → ۰.
+// ToRial ports toRial: rounds to a multiple of 10 rials; non-finite input → 0.
 func ToRial(value float64) float64 {
 	if math.IsNaN(value) || math.IsInf(value, 0) {
 		return 0
@@ -70,7 +70,7 @@ func ToRial(value float64) float64 {
 	return MulberryRound(value/RialStep) * RialStep
 }
 
-// ScaleUnits واحد مقیاس‌شده × ضریب → واحد مقیاس‌شده.
+// ScaleUnits: scaled units × multiplier → scaled units.
 func ScaleUnits(unitsInt int, multiplier float64) int {
 	if math.IsNaN(multiplier) || math.IsInf(multiplier, 0) {
 		return 0
@@ -78,7 +78,7 @@ func ScaleUnits(unitsInt int, multiplier float64) int {
 	return int(math.Round(float64(unitsInt) * multiplier))
 }
 
-// PercentOf درصد (۰..۱۰۰) از یک عدد صحیح — گرد به نزدیک‌ترین.
+// PercentOf: percentage (0..100) of an integer — rounds to nearest.
 func PercentOf(amountInt int, percent float64) int {
 	if math.IsNaN(percent) || math.IsInf(percent, 0) {
 		return 0
@@ -86,7 +86,7 @@ func PercentOf(amountInt int, percent float64) int {
 	return int(MulberryRound((float64(amountInt) * percent) / 100))
 }
 
-// RatioOf نسبت (صورت/مخرج) از یک عدد صحیح — مخرج ≤ ۰ → ۰.
+// RatioOf: ratio (numerator/denominator) of an integer — denominator ≤ 0 → 0.
 func RatioOf(amountInt int, numerator, denominator float64) int {
 	if math.IsNaN(denominator) || math.IsInf(denominator, 0) || denominator <= 0 {
 		return 0
@@ -94,7 +94,7 @@ func RatioOf(amountInt int, numerator, denominator float64) int {
 	return int(MulberryRound((float64(amountInt) * numerator) / denominator))
 }
 
-// SumUnits جمع دقیق فهرستی از واحدهای مقیاس‌شده.
+// SumUnits: exact sum of a list of scaled units.
 func SumUnits(values []int) int {
 	s := 0
 	for _, v := range values {
@@ -103,8 +103,8 @@ func SumUnits(values []int) int {
 	return s
 }
 
-// SafeRials پورت safeRials: فقط ریالِ عدد صحیح نامنفی تا سقف numeric(12,0)
-// پذیرفته می‌شود؛ هر چیز دیگر nil (fail-closed در مرز ورودی مالی).
+// SafeRials ports safeRials: only non-negative integer rials up to the numeric(12,0) limit
+// are accepted; anything else is nil (fail-closed at the financial input boundary).
 func SafeRials(value string) *int64 {
 	t := strings.TrimSpace(value)
 	if t == "" || len(t) > 15 {
@@ -122,7 +122,7 @@ func SafeRials(value string) *int64 {
 	return &n
 }
 
-// SafeRialsInt نسخهٔ ورودی عددی (برای مقادیر JSON).
+// SafeRialsInt is the numeric-input version (for JSON values).
 func SafeRialsInt(value int64) *int64 {
 	if value < 0 || value > MaxRials {
 		return nil
@@ -133,7 +133,7 @@ func SafeRialsInt(value int64) *int64 {
 
 var faDigitRunes = []rune{'۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'}
 
-// FaDigits ارقام لاتین → فارسی.
+// FaDigits: Latin digits → Persian.
 func FaDigits(s string) string {
 	var b strings.Builder
 	b.Grow(len(s))
@@ -147,7 +147,7 @@ func FaDigits(s string) string {
 	return b.String()
 }
 
-// GroupThousands جداکنندهٔ هزارگان فارسی «٬» روی عدد گردشده.
+// GroupThousands: Persian thousands separator "٬" on the rounded number.
 func GroupThousands(n float64) string {
 	neg := n < 0
 	if neg {
@@ -168,12 +168,12 @@ func GroupThousands(n float64) string {
 	return s
 }
 
-// FmtRial پورت fmtRial: «۱٬۲۳۴ ریال» — فقط برای نمایش، نه محاسبه.
+// FmtRial ports fmtRial: "۱٬۲۳۴ ریال" — display only, not for calculation.
 func FmtRial(value float64) string {
 	return GroupThousands(value) + " ریال"
 }
 
-// RialString پورت rialString: رشتهٔ ریالیِ خام برای ذخیره در جزئیات/لاگ.
+// RialString ports rialString: raw rial string for storing in details/logs.
 func RialString(value float64) string {
 	return strconv.FormatInt(int64(math.Round(value)), 10)
 }

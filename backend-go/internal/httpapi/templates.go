@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های قالب‌های اعلان ═══
+// ═══ Notification template endpoints ═══
 package httpapi
 
 import (

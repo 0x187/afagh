@@ -1,7 +1,7 @@
-// ═══ استعلام همانندجویی ایرانداک — پورت executeIrandocCheck ═══
+// ═══ Irandoc similarity check — port of executeIrandocCheck ═══
 //
-// مسیر ۱: اتصال واقعی به سرویس با گارد مقصد عمومی؛
-// مسیر ۲: در نبود پیکربندی، پاسخ صادقانهٔ MANUAL_REVIEW (بدون دموی ساختگی).
+// Path 1: real connection to the service with a public-destination guard;
+// Path 2: when unconfigured, an honest MANUAL_REVIEW response (no fake demo).
 package irandoc
 
 import (
@@ -20,13 +20,13 @@ import (
 	"time"
 )
 
-// Settings حداقل وابستگی تنظیمات.
+// Settings is the minimal settings dependency.
 type Settings interface {
 	Get(ctx context.Context, key string) (string, error)
 	GetNumber(ctx context.Context, key string, fallback float64) float64
 }
 
-// Params ورودی استعلام.
+// Params is the check input.
 type Params struct {
 	NationalCode string
 	TrackingCode string
@@ -35,7 +35,7 @@ type Params struct {
 	Threshold    float64
 }
 
-// Result نتیجهٔ استعلام (شکل سازگار با IrandocCheckResult در TS).
+// Result is the check result (shape compatible with IrandocCheckResult in TS).
 type Result struct {
 	Status               string  `json:"status"`
 	SimilarityPercentage float64 `json:"similarityPercentage"`
@@ -48,7 +48,7 @@ type Result struct {
 	DurationMs           int64   `json:"durationMs"`
 }
 
-// Check اجرای استعلام همانندجویی.
+// Check runs the similarity check.
 func Check(ctx context.Context, settings Settings, p Params) Result {
 	started := time.Now()
 	threshold := p.Threshold
@@ -158,7 +158,7 @@ func numberFromAny(v any) (float64, bool) {
 
 func trimNum(v float64) string { return strconv.FormatFloat(v, 'f', -1, 64) }
 
-// safePostJSON POST با گارد مقصد عمومی (بدون localhost/آی‌پی خصوصی).
+// safePostJSON POST with a public-destination guard (no localhost/private IP).
 func safePostJSON(ctx context.Context, rawURL string, body []byte, headers map[string]string) ([]byte, error) {
 	u, err := url.Parse(rawURL)
 	if err != nil || (u.Scheme != "https" && u.Scheme != "http") {

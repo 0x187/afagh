@@ -1,4 +1,4 @@
-// ═══ پرداخت‌های امتحانی استادان — پورت payroll/exam-payments ═══
+// ═══ instructor exam payments — port of payroll/exam-payments ═══
 package payroll
 
 import (
@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-// ExamPaymentRow ردیف پرداخت امتحانی.
+// ExamPaymentRow is an exam payment row.
 type ExamPaymentRow struct {
 	ID                int64    `json:"id"`
 	StaffID           int64    `json:"staffId"`
@@ -25,7 +25,7 @@ type ExamPaymentRow struct {
 	ArchivePending    int      `json:"archivePending"`
 }
 
-// NotReadyRow استادی که اوراقش به بایگانی برنگشته.
+// NotReadyRow: an instructor whose papers have not returned to the archive.
 type NotReadyRow struct {
 	StaffID  int64   `json:"staffId"`
 	StaffCode *string `json:"staffCode"`
@@ -34,7 +34,7 @@ type NotReadyRow struct {
 	Payments int     `json:"payments"`
 }
 
-// ListExamPayments فهرست پرداخت‌های یک ترم با وضعیت بایگانی.
+// ListExamPayments lists a term's payments with archive status.
 func (e *Engine) ListExamPayments(ctx context.Context, termID int64, universityID *int64) ([]ExamPaymentRow, error) {
 	args := []any{termID}
 	where := ` where ep."termId" = $1`
@@ -77,7 +77,7 @@ func (e *Engine) ListExamPayments(ctx context.Context, termID int64, universityI
 	return out, nil
 }
 
-// NotReadyForTerm استادانی که اوراقشان به بایگانی برنگشته (شرط پرداخت).
+// NotReadyForTerm: instructors whose papers have not returned to the archive (payment condition).
 func (e *Engine) NotReadyForTerm(ctx context.Context, termID int64) ([]NotReadyRow, error) {
 	rows, err := e.Pool.Query(ctx, `
 		select st.id, st."staffCode", coalesce(u."firstName" || ' ' || u."lastName",''),
@@ -105,7 +105,7 @@ func (e *Engine) NotReadyForTerm(ctx context.Context, termID int64) ([]NotReadyR
 	return out, nil
 }
 
-// CreateExamPaymentInput ورودی ثبت پرداخت.
+// CreateExamPaymentInput is the payment registration input.
 type CreateExamPaymentInput struct {
 	StaffID      int64
 	TermID       int64
@@ -117,7 +117,7 @@ type CreateExamPaymentInput struct {
 	CreatedBy    int64
 }
 
-// CreateExamPayment پورت createAction (منبع INVIGILATION|CORRECTION|EXEC).
+// CreateExamPayment ports createAction (source INVIGILATION|CORRECTION|EXEC).
 func (e *Engine) CreateExamPayment(ctx context.Context, in CreateExamPaymentInput) (int64, error) {
 	src := strings.ToUpper(strings.TrimSpace(in.Source))
 	if src != "INVIGILATION" && src != "CORRECTION" && src != "EXEC" {
@@ -144,7 +144,7 @@ func (e *Engine) CreateExamPayment(ctx context.Context, in CreateExamPaymentInpu
 	return id, nil
 }
 
-// DeleteExamPayment حذف پرداخت.
+// DeleteExamPayment deletes a payment.
 func (e *Engine) DeleteExamPayment(ctx context.Context, id int64) error {
 	_, err := e.Pool.Exec(ctx, `delete from exam_payments where id = $1`, id)
 	return err

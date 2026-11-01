@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های پرتال دانشجو (فاز ۳) ═══
+// ═══ Student portal endpoints (phase 3) ═══
 package httpapi
 
 import (
@@ -16,7 +16,7 @@ import (
 	"backend-go/internal/student"
 )
 
-// StudentAPI هندلرهای دادهٔ دانشجو.
+// StudentAPI student data handlers.
 type StudentAPI struct {
 	Svc      *student.Service
 	Enroll   *enroll.Service
@@ -71,7 +71,7 @@ func hasRole(u *session.User, role string) bool {
 	return false
 }
 
-// me مشخصات پروندهٔ دانشجوی جاری.
+// me returns the current student's record details.
 func (a *StudentAPI) me(c *gin.Context) {
 	user := a.currentUser(c)
 	if user == nil {
@@ -101,7 +101,7 @@ func (a *StudentAPI) me(c *gin.Context) {
 	})
 }
 
-// schedule برنامهٔ هفتگی — ?termId= برای انتخاب ترم (اختیاری؛ کوکی هم پشتیبانی می‌شود).
+// schedule weekly schedule — ?termId= to select the term (optional; cookie also supported).
 func (a *StudentAPI) schedule(c *gin.Context) {
 	user := a.requireStudent(c)
 	if user == nil {
@@ -122,7 +122,7 @@ func (a *StudentAPI) schedule(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
 }
 
-// requireStudent کاربر را از سشن می‌خواند و نقش دانشجو را بررسی می‌کند.
+// requireStudent reads the user from the session and checks the student role.
 func (a *StudentAPI) requireStudent(c *gin.Context) *session.User {
 	user := a.currentUser(c)
 	if user == nil {
@@ -136,7 +136,7 @@ func (a *StudentAPI) requireStudent(c *gin.Context) *session.User {
 	return user
 }
 
-// termIDQueryOrCookie ترم انتخابی: ?termId= سپس کوکی انتخاب نیمسال.
+// termIDQueryOrCookie selected term: ?termId= first, then the semester-selection cookie.
 func termIDQueryOrCookie(c *gin.Context) *int64 {
 	raw := strings.TrimSpace(c.Query("termId"))
 	if raw != "" {
@@ -181,7 +181,7 @@ func (a *StudentAPI) publicBaseURL(c *gin.Context) string {
 	return proto + "://" + host
 }
 
-// enrollConfirm تأییدیهٔ انتخاب واحد نیمسال انتخابی + QR.
+// enrollConfirm course-registration confirmation for the selected semester + QR.
 func (a *StudentAPI) enrollConfirm(c *gin.Context) {
 	user := a.requireStudent(c)
 	if user == nil {
@@ -195,7 +195,7 @@ func (a *StudentAPI) enrollConfirm(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
 }
 
-// virtualClasses جلسات کلاس مجازی ترم انتخابی.
+// virtualClasses virtual class sessions for the selected term.
 func (a *StudentAPI) virtualClasses(c *gin.Context) {
 	user := a.requireStudent(c)
 	if user == nil {
@@ -215,7 +215,7 @@ func (a *StudentAPI) virtualClasses(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "sessions": sessions})
 }
 
-// virtualClassJoin صدور لینک SSO بیگ‌بلوباتن — نقش سمت سرور تعیین می‌شود.
+// virtualClassJoin issues a BigBlueButton SSO link — the role is determined server-side.
 func (a *StudentAPI) virtualClassJoin(c *gin.Context) {
 	user := a.currentUser(c)
 	if user == nil {
@@ -237,7 +237,7 @@ func (a *StudentAPI) virtualClassJoin(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "url": link})
 }
 
-// documents مدارک بارگذاری‌شدهٔ دانشجو.
+// documents the student's uploaded documents.
 func (a *StudentAPI) documents(c *gin.Context) {
 	user := a.requireStudent(c)
 	if user == nil {
@@ -251,7 +251,7 @@ func (a *StudentAPI) documents(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "documents": docs})
 }
 
-// lessonPlan طرح درس منتشرشده — فقط برای دانشجوی ثبت‌نام‌شدهٔ همان ارائه.
+// lessonPlan published lesson plan — only for students enrolled in the same offering.
 func (a *StudentAPI) lessonPlan(c *gin.Context) {
 	user := a.requireStudent(c)
 	if user == nil {
@@ -270,7 +270,7 @@ func (a *StudentAPI) lessonPlan(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": view})
 }
 
-// thesis نمای پایان‌نامه و پروپوزال.
+// thesis thesis and proposal view.
 func (a *StudentAPI) thesis(c *gin.Context) {
 	user := a.requireStudent(c)
 	if user == nil {
@@ -284,7 +284,7 @@ func (a *StudentAPI) thesis(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
 }
 
-// thesisTitle ثبت فاز ۱ (عنوان و استاد راهنما).
+// thesisTitle phase 1 submission (title and supervisor).
 func (a *StudentAPI) thesisTitle(c *gin.Context) {
 	user := a.requireStudent(c)
 	if user == nil {
@@ -314,7 +314,7 @@ func (a *StudentAPI) thesisTitle(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// thesisUploadItem کمکی برای دو مسیر آپلود.
+// thesisUploadItem is a helper for the two upload paths.
 func (a *StudentAPI) thesisUploadItem(c *gin.Context) (auditID int64, fileName, mime string, data []byte, ok bool) {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 10*1024*1024+2048)
 	auditID, _ = strconv.ParseInt(c.PostForm("auditId"), 10, 64)
@@ -341,7 +341,7 @@ func (a *StudentAPI) thesisUploadItem(c *gin.Context) (auditID int64, fileName, 
 	return auditID, fileHeader.Filename, fileHeader.Header.Get("Content-Type"), buf, true
 }
 
-// thesisProposal بارگذاری پروپوزال.
+// thesisProposal proposal upload.
 func (a *StudentAPI) thesisProposal(c *gin.Context) {
 	user := a.requireStudent(c)
 	if user == nil {
@@ -363,7 +363,7 @@ func (a *StudentAPI) thesisProposal(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// thesisDefense درخواست دفاع.
+// thesisDefense defense request.
 func (a *StudentAPI) thesisDefense(c *gin.Context) {
 	user := a.requireStudent(c)
 	if user == nil {
@@ -388,7 +388,7 @@ func (a *StudentAPI) thesisDefense(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// thesisFinal بارگذاری پایان‌نامهٔ نهایی.
+// thesisFinal final thesis upload.
 func (a *StudentAPI) thesisFinal(c *gin.Context) {
 	user := a.requireStudent(c)
 	if user == nil {
@@ -410,7 +410,7 @@ func (a *StudentAPI) thesisFinal(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// graduationTracker ردیاب فارغ‌التحصیلی.
+// graduationTracker graduation tracker.
 func (a *StudentAPI) graduationTracker(c *gin.Context) {
 	user := a.requireStudent(c)
 	if user == nil {
@@ -429,7 +429,7 @@ func (a *StudentAPI) graduationTracker(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "tracker": tracker})
 }
 
-// graduationSajjad ثبت کد رهگیری سجاد.
+// graduationSajjad records the Sajjad tracking code.
 func (a *StudentAPI) graduationSajjad(c *gin.Context) {
 	user := a.requireStudent(c)
 	if user == nil {
@@ -455,7 +455,7 @@ func (a *StudentAPI) graduationSajjad(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// graduationPhoto آپلود عکس ۴×۳ (multipart: auditId + file).
+// graduationPhoto 4×3 photo upload (multipart: auditId + file).
 func (a *StudentAPI) graduationPhoto(c *gin.Context) {
 	user := a.requireStudent(c)
 	if user == nil {
@@ -495,7 +495,7 @@ func (a *StudentAPI) graduationPhoto(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// channels کانال‌های اطلاع‌رسانی.
+// channels notification channels.
 func (a *StudentAPI) channels(c *gin.Context) {
 	user := a.currentUser(c)
 	if user == nil {
@@ -505,7 +505,7 @@ func (a *StudentAPI) channels(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": a.Svc.GetChannels(c.Request.Context(), user.ID)})
 }
 
-// saveChannel ثبت/حذف نشانی کانال.
+// saveChannel add/remove a channel address.
 func (a *StudentAPI) saveChannel(c *gin.Context) {
 	user := a.currentUser(c)
 	if user == nil {
@@ -527,7 +527,7 @@ func (a *StudentAPI) saveChannel(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// chart چارت تحصیلی مصوب + وضعیت دروس دانشجو.
+// chart approved curriculum chart + student course status.
 func (a *StudentAPI) chart(c *gin.Context) {
 	user := a.requireStudent(c)
 	if user == nil {
@@ -541,7 +541,7 @@ func (a *StudentAPI) chart(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
 }
 
-// finance کارنامهٔ مالی ترم‌به‌ترم + چک/وام + QR.
+// finance term-by-term financial statement + cheque/loan + QR.
 func (a *StudentAPI) finance(c *gin.Context) {
 	user := a.requireStudent(c)
 	if user == nil {
@@ -561,7 +561,7 @@ func (a *StudentAPI) finance(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
 }
 
-// requests میز خدمات — فرایندها و درخواست‌های دانشجو.
+// requests service desk — processes and student requests.
 func (a *StudentAPI) requests(c *gin.Context) {
 	user := a.requireStudent(c)
 	if user == nil {
@@ -575,7 +575,7 @@ func (a *StudentAPI) requests(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
 }
 
-// requestSubmit ثبت درخواست جدید.
+// requestSubmit submit a new request.
 func (a *StudentAPI) requestSubmit(c *gin.Context) {
 	user := a.requireStudent(c)
 	if user == nil {
@@ -602,7 +602,7 @@ func (a *StudentAPI) requestSubmit(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "trackingCode": res.TrackingCode, "status": res.Status})
 }
 
-// requestSatisfaction ثبت امتیاز رضایت (فقط درخواست خود دانشجو).
+// requestSatisfaction submit a satisfaction rating (only the student's own request).
 func (a *StudentAPI) requestSatisfaction(c *gin.Context) {
 	user := a.requireStudent(c)
 	if user == nil {
@@ -629,7 +629,7 @@ func (a *StudentAPI) requestSatisfaction(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// requestAttachment آپلود پیوست درخواست (multipart/form-data — فیلد file).
+// requestAttachment request attachment upload (multipart/form-data — field file).
 func (a *StudentAPI) requestAttachment(c *gin.Context) {
 	user := a.requireStudent(c)
 	if user == nil {
@@ -673,7 +673,7 @@ func (a *StudentAPI) requestAttachment(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "attachment": att})
 }
 
-// dashboard دادهٔ صفحهٔ اول دانشجو.
+// dashboard returns the student's home page data.
 func (a *StudentAPI) dashboard(c *gin.Context) {
 	user := a.requireStudent(c)
 	if user == nil {
@@ -687,7 +687,7 @@ func (a *StudentAPI) dashboard(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
 }
 
-// transcript کارنامهٔ تحصیلی — ?record= برای مقطع دیگر، ?termId= برای فیلتر ترم.
+// transcript academic transcript — ?record= for another degree level, ?termId= to filter by term.
 func (a *StudentAPI) transcript(c *gin.Context) {
 	user := a.requireStudent(c)
 	if user == nil {
@@ -707,7 +707,7 @@ func (a *StudentAPI) transcript(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": resp})
 }
 
-// examCard کارت آزمون + توکن ورود + QR.
+// examCard exam card + entry token + QR.
 func (a *StudentAPI) examCard(c *gin.Context) {
 	user := a.requireStudent(c)
 	if user == nil {

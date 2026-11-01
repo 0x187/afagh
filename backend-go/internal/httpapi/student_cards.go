@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های کارت دانشجویی و نمایش عکس ═══
+// ═══ Student card and photo display endpoints ═══
 package httpapi
 
 import (
@@ -109,7 +109,7 @@ func (a *AdminAPI) studentCardPrint(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": data})
 }
 
-// photo نمایش عکس شخص از انبار شیء — با همان قواعد دسترسی TS.
+// photo serves a person's photo from object storage — with the same access rules as TS.
 func (a *AdminAPI) photo(c *gin.Context) {
 	token := session.ReadToken(parseCookies(c.Request))
 	if token == "" {

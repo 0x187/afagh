@@ -1,12 +1,12 @@
-// ═══ Poll worker جفت‌سازی توکن — پورت lib/messenger-poll-worker.ts ═══
+// ═══ Token pairing poll worker — port of lib/messenger-poll-worker.ts ═══
 //
-//	وب‌هوک inbound وجود ندارد؛ این worker با getUpdates (long-poll ۲۵ ثانیه)
-//	فقط پیام‌های /start <token> را می‌خواند و chatId را PENDING ثبت می‌کند.
-//	به هر پیام دیگری، پاسخ آموزشی ثابت (send-only) می‌دهد.
+//	There is no inbound webhook; this worker uses getUpdates (25-second long-poll)
+//	and reads only /start <token> messages, recording the chatId as PENDING.
+//	It replies to any other message with a fixed instructional (send-only) response.
 //
-//	قفل Redis تک‌نمونه‌ای بودن را تضمین می‌کند؛ اجرای هم‌زمان چند نمونه امن است
-//	(بقیه منتظر می‌مانند یا بی‌درنگ برمی‌گردند). آفست هر کانال در
-//	messenger_poll_offsets نگه داشته می‌شود و فقط پس از موفقیت جلو می‌رود
+//	The Redis lock guarantees single-instance operation; running several instances concurrently is safe
+//	(the rest wait or return immediately). Each channel's offset is kept in
+//	messenger_poll_offsets and advances only after success
 //	(at-least-once).
 package messaging
 
@@ -40,13 +40,13 @@ const (
 
 var pollLog = logger.For("messenger-poll")
 
-// ═══ آپدیت ورودی (زیرمجموعهٔ لازم از ساختار getUpdates) ═══
+// ═══ Incoming update (minimal subset of the getUpdates structure) ═══
 
 type messengerUpdate struct {
 	UpdateID int64 `json:"update_id"`
 	Message  *struct {
 		Chat *struct {
-			ID   any    `json:"id"` // عدد یا رشته — بسته به پلتفرم
+			ID   any    `json:"id"` // number or string — depending on the platform
 			Type string `json:"type"`
 		} `json:"chat"`
 		Text string `json:"text"`
@@ -66,7 +66,7 @@ func chatIDString(v any) string {
 	}
 }
 
-// ═══ آفست poll (جدول messenger_poll_offsets) ═══
+// ═══ Poll offset (messenger_poll_offsets table) ═══
 
 func (s *Service) loadOffset(ctx context.Context, channel string) int64 {
 	var offset int64
@@ -82,9 +82,9 @@ func (s *Service) saveOffset(ctx context.Context, channel string, offset int64) 
 		channel, offset)
 }
 
-// ═══ فراخوانی getUpdates ═══
+// ═══ getUpdates call ═══
 
-// botConfig توکن/نشانی API کانال از تنظیمات (DB → ENV → پیش‌فرض).
+// botConfig returns the channel token/API address from settings (DB → ENV → default).
 func (s *Service) botConfig(ctx context.Context, channel string) (token, base, style string) {
 	cfg := messengerLinkConfigs[channel]
 	token = s.rawSetting(ctx, cfg.TokenKey, cfg.TokenEnv, "")
@@ -92,8 +92,8 @@ func (s *Service) botConfig(ctx context.Context, channel string) (token, base, s
 	return token, base, cfg.Style
 }
 
-// sendBotMessage ارسال مستقیم به chatId (پورت sendMessage در messenger-bot.ts —
-// فقط-ارسال، بدون ثبت تحویل؛ متن با parse_mode HTML).
+// sendBotMessage sends directly to a chatId (port of sendMessage in messenger-bot.ts —
+// send-only, without delivery recording; text with parse_mode HTML).
 func (s *Service) sendBotMessage(ctx context.Context, channel, chatID, text string) bool {
 	token, base, style := s.botConfig(ctx, channel)
 	if token == "" || strings.TrimSpace(chatID) == "" {
@@ -146,8 +146,8 @@ func (s *Service) fetchUpdates(ctx context.Context, channel string, offset int64
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-	// 409 یعنی یک getUpdates دیگر هم‌زمان فعال است (نمونهٔ قدیمی در حال خاموشی
-	// یا تست دستی) — با خطای مشخص لاگ می‌شود تا با قطعی واقعی اشتباه نشود.
+	// 409 means another getUpdates is active concurrently (an old instance shutting down
+	// or a manual test) — logged with a distinct error so it is not mistaken for a real outage.
 	if resp.StatusCode == http.StatusConflict {
 		return nil, errors.New("getUpdates_http409_conflict")
 	}
@@ -167,16 +167,16 @@ func (s *Service) fetchUpdates(ctx context.Context, channel string, offset int64
 	return data.Result, nil
 }
 
-// ═══ پردازش یک آپدیت — فقط-ارسال ═══
+// ═══ Processing one update — send-only ═══
 //
-//	inbound پیش‌فرض خاموش است (پرچم *_BOT_ENABLED، fail-closed). در صورت
-//	روشن‌بودن صریح پرچم، فقط جفت‌سازی توکن (/start <token>) پذیرفته می‌شود.
-//	هیچ دستور تعاملی، هیچ رمزی، هیچ وضعیت مکالمه‌ای.
+//	inbound is disabled by default (*_BOT_ENABLED flag, fail-closed). If the flag is
+//	explicitly enabled, only token pairing (/start <token>) is accepted.
+//	No interactive commands, no codes, no conversation state.
 //
-//	INVARIANT (امنیتی — معماری poll-worker): این مسیر inbound به‌تنهایی
-//	هیچ مقصد تحویلی را برقرار/جابه‌جا نمی‌کند. تنها اثرِ آن، ثبتِ سرنخِ
-//	تأییدنشدهٔ pendingChatId از راه HandlePairingText است؛ نوشتنِ
-//	notification_channels فقط در ConfirmLinkToken انجام می‌شود.
+//	INVARIANT (security — poll-worker architecture): this inbound path alone
+//	establishes/moves no delivery destination. Its only effect is recording the
+//	unverified pendingChatId hint via HandlePairingText; writing to
+//	notification_channels happens only in ConfirmLinkToken.
 func (s *Service) handleOne(ctx context.Context, channel string, u messengerUpdate) error {
 	msg := u.Message
 	if msg == nil || msg.Chat == nil || msg.Chat.Type != "private" {
@@ -191,7 +191,7 @@ func (s *Service) handleOne(ctx context.Context, channel string, u messengerUpda
 		return nil
 	}
 
-	// poll worker خودش مبدأ مطمئن است (توکن بات) — سطل per-chat می‌ماند.
+	// the poll worker is itself a trusted source (bot token) — the per-chat bucket remains.
 	if reply := s.HandlePairingText(ctx, channel, chatID, text, ""); reply != "" {
 		s.sendBotMessage(ctx, channel, chatID, reply)
 		return nil
@@ -210,7 +210,7 @@ func (s *Service) handleOne(ctx context.Context, channel string, u messengerUpda
 	return nil
 }
 
-// ═══ حلقهٔ polling با قفل Redis ═══
+// ═══ Polling loop with Redis lock ═══
 
 type pollRun struct {
 	stop chan struct{}
@@ -222,9 +222,9 @@ var (
 	pollRuns = map[string]*pollRun{}
 )
 
-// StartPolling شروع long-poll برای یک کانال (BALE/EITAA/SOROUSH).
-// قفل Redis تک‌نمونه‌ای: اگر نمونهٔ دیگری زنده باشد، این فراخوانی منتظر می‌ماند
-// تا قفل آزاد شود (همان رفتار حلقهٔ retry در TS).
+// StartPolling starts long-polling for a channel (BALE/EITAA/SOROUSH).
+// Redis single-instance lock: if another instance is alive, this call waits
+// until the lock is released (same retry-loop behavior as TS).
 func (s *Service) StartPolling(rdb *redis.Client, channel string) (bool, string) {
 	if !IsPollChannel(channel) {
 		return false, fmt.Sprintf("poll برای %s پشتیبانی نمی‌شود (فقط BALE، EITAA، SOROUSH).", channel)
@@ -245,7 +245,7 @@ func (s *Service) StartPolling(rdb *redis.Client, channel string) (bool, string)
 	return true, ""
 }
 
-// StopPolling توقف حلقهٔ کانال (اگر در حال اجرا باشد).
+// StopPolling stops the channel loop (if running).
 func StopPolling(channel string) {
 	pollMu.Lock()
 	run, ok := pollRuns[channel]
@@ -262,8 +262,8 @@ func (s *Service) pollLoop(rdb *redis.Client, channel string, run *pollRun) {
 	instanceID := fmt.Sprintf("%d:%d", os.Getpid(), time.Now().UnixNano())
 	lockKey := "poll:lock:" + channel
 
-	// قفل ممکن است از پروسهٔ قبلیِ مرده مانده باشد (TTL تا ۲۵ ثانیه)؛
-	// تسلیم نمی‌شویم — تا آزاد شدن، هر ۵ ثانیه retry می‌کنیم.
+	// the lock may be left over from a dead previous process (TTL up to 25 seconds);
+	// we don't give up — retry every 5 seconds until it is released.
 	acquired := false
 	for !acquired {
 		select {
@@ -282,7 +282,7 @@ func (s *Service) pollLoop(rdb *redis.Client, channel string, run *pollRun) {
 		}
 	}
 
-	// ضربان: تمدید قفل؛ اگر قفل به دیگری رسید، توقف.
+	// Heartbeat: renew the lock; if the lock went to someone else, stop.
 	heartbeat := time.NewTicker(heartbeatEvery)
 	stopped := false
 	go func() {
@@ -312,7 +312,7 @@ func (s *Service) pollLoop(rdb *redis.Client, channel string, run *pollRun) {
 		pollMu.Lock()
 		delete(pollRuns, channel)
 		pollMu.Unlock()
-		// آزادسازی قفل فقط اگر مالِ این نمونه باشد.
+		// release the lock only if it belongs to this instance.
 		if v, err := rdb.Get(ctx, lockKey).Result(); err == nil && v == instanceID {
 			_ = rdb.Del(ctx, lockKey).Err()
 		}
@@ -351,8 +351,8 @@ func (s *Service) pollLoop(rdb *redis.Client, channel string, run *pollRun) {
 				pollLog.Error("poll_update_failed", logger.Fields{"channel": channel, "update_id": u.UpdateID, "error": err.Error()})
 				continue
 			}
-			// آفست فقط پس از موفقیت جلو می‌رود — شکست، آپدیت را برای دور
-			// بعد نگه می‌دارد و هرگز بی‌صدا رد نمی‌شود (at-least-once).
+			// the offset advances only after success — a failure keeps the update for the next
+			// round and is never silently dropped (at-least-once).
 			if u.UpdateID+1 > offset {
 				offset = u.UpdateID + 1
 			}
@@ -360,12 +360,12 @@ func (s *Service) pollLoop(rdb *redis.Client, channel string, run *pollRun) {
 		if len(updates) > 0 {
 			s.saveOffset(ctx, channel, offset)
 		}
-		backoff = backoffStart // موفقیت → ریست
+		backoff = backoffStart // success → reset
 	}
 }
 
-// StartAllPolling شروع همهٔ کانال‌های poll — کانال بدون توکن، یک‌بار info
-// می‌خورد و رد می‌شود (نه warn هر دقیقه). از main یک‌بار در شروع صدا زده می‌شود.
+// StartAllPolling starts all poll channels — a channel without a token gets one info
+// log and is skipped (not a warn every minute). Called once from main at startup.
 func (s *Service) StartAllPolling(rdb *redis.Client) {
 	if rdb == nil {
 		pollLog.Info("poll_disabled_no_redis", nil)

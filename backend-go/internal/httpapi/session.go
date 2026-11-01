@@ -1,11 +1,11 @@
-// ═══ /api/v2/session — وضعیت نشست جاری برای SPA ═══
+// ═══ /api/v2/session — current session state for SPA ═══
 //
-// پورت getSessionUser با یک افزودنیِ سازگار: چون Next وقتی کاربر باید رمز را
-// عوض کند «بدون نشست» برمی‌گرداند، SPA برای تصمیم مسیریابی به ریشهٔ تغییر رمز
-// نیاز به تمایز دارد؛ پس GET/session دو بار نگاه می‌کند:
-//   - user معتبر ⇒ {ok, user}
-//   - فقط مانع mustChangePassword ⇒ {ok, user:null, pendingPasswordChange:true}
-//   - هیچ نشستی ⇒ {ok, user:null}
+// Port of getSessionUser with a compatible addition: because when the user must
+// change the password, Next returns "no session", so the SPA needs the password-change root for routing decisions;
+// it needs to distinguish them, so GET/session checks twice:
+//   - valid user ⇒ {ok, user}
+//   - only the mustChangePassword blocker ⇒ {ok, user:null, pendingPasswordChange:true}
+//   - no session ⇒ {ok, user:null}
 package httpapi
 
 import (
@@ -21,7 +21,7 @@ type SessionAPI struct {
 	Store *session.Store
 }
 
-// parseCookies مپ نام→مقدار از درخواست می‌سازد (dual-read در session.ReadToken).
+// parseCookies builds a name→value map from the request (dual-read in session.ReadToken).
 func parseCookies(r *http.Request) map[string]string {
 	m := make(map[string]string, len(r.Cookies()))
 	for _, ck := range r.Cookies() {
@@ -55,7 +55,7 @@ func (s *SessionAPI) get(c *gin.Context) {
 		return
 	}
 
-	// تمایز «باید رمز عوض کند» از «بدون نشست» — فقط برای مسیریابی UI.
+	// Distinguishing "must change password" from "no session" — only for UI routing.
 	if pending, perr := s.Store.Get(c.Request.Context(), token, true); perr == nil && pending != nil {
 		c.JSON(http.StatusOK, gin.H{"ok": true, "user": nil, "pendingPasswordChange": true})
 		return

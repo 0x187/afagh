@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های گردش کار (فاز ۸) ═══
+// ═══ Workflow endpoints (phase 8) ═══
 package httpapi
 
 import (
@@ -13,7 +13,7 @@ import (
 	"backend-go/internal/workflow"
 )
 
-// WorkflowAPI هندلرهای کارتابل گردش کار.
+// WorkflowAPI workflow inbox handlers.
 type WorkflowAPI struct {
 	Engine *workflow.Engine
 	Store  *session.Store
@@ -44,7 +44,7 @@ func (a *WorkflowAPI) requireWorkflowUser(c *gin.Context, roles []string) *sessi
 	return nil
 }
 
-// uniCookie دانشگاه فعال از کوکی (برای دامنهٔ کارتابل).
+// uniCookie active university from the cookie (for the inbox scope).
 func (a *WorkflowAPI) uniCookie(c *gin.Context) string {
 	if v, err := c.Cookie("afagh_uni"); err == nil {
 		return v
@@ -79,7 +79,7 @@ func (a *WorkflowAPI) workflows(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true, "data": data})
 }
 
-// assertRequestInUni درخواست باید متعلق به دانشگاه فعال باشد.
+// assertRequestInUni ensures the request belongs to the active university.
 func (a *WorkflowAPI) assertRequestInUni(c *gin.Context, user *session.User, requestID int64) error {
 	uniID := a.uniID(c, user)
 	if uniID == nil {

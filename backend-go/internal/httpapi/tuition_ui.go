@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های موتور شهریه و تعرفهٔ سالانه ═══
+// ═══ Tuition engine and annual tariff endpoints ═══
 package httpapi
 
 import (

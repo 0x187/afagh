@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های هشدارهای زمان‌بندی‌شده ═══
+// ═══ Scheduled alert endpoints ═══
 package httpapi
 
 import (

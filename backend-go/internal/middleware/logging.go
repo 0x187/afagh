@@ -1,4 +1,4 @@
-// ═══ لاگ دسترسی + بازیابی پنیک + شناسهٔ درخواست ═══
+// ═══ access log + panic recovery + request ID ═══
 package middleware
 
 import (
@@ -36,7 +36,7 @@ func newRequestID() string {
 	return hex.EncodeToString(b)
 }
 
-// AccessLog هر درخواست مالک‌شده را یک‌خطی لاگ می‌کند و x-request-id می‌گذارد.
+// AccessLog logs every owned request on one line and sets x-request-id.
 func AccessLog(next http.Handler) http.Handler {
 	log := logger.For("http")
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

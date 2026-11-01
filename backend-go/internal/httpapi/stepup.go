@@ -1,9 +1,9 @@
-// ═══ تأیید دومرحله‌ای عملیاتی (step-up) — پورت lib/step-up.ts و step-up-actions.ts ═══
+// ═══ Operational two-step verification (step-up) — port of lib/step-up.ts and step-up-actions.ts ═══
 //
-// برای عملیات حساس (grades:edit) کاربر باید رمز خود را دوباره تأیید کند؛ در
-// صورت درستی، توکن امضاشدهٔ T1 در کوکی httpOnly با TTL ۱۰ دقیقه می‌نشیند.
-// نام کوکی و قالب توکن دقیقاً همان Next است تا کوکی صادرشده توسط هر دو سرویس
-// پذیرفته شود (مهاجرت تدریجی بدون لاگین/تأیید مجدد).
+// For sensitive operations (grades:edit) the user must re-verify their password; on
+// success, a signed T1 token is set in an httpOnly cookie with a 10-minute TTL.
+// The cookie name and token format are exactly the same as Next so a cookie issued by either service
+// is accepted (gradual migration without re-login/re-verification).
 package httpapi
 
 import (
@@ -17,13 +17,13 @@ import (
 	"backend-go/internal/verification"
 )
 
-// StepUpTTL دامنه‌های مجاز و عمر توکن (ثانیه) — همان STEPUP_TTL در TS.
+// StepUpTTL allowed scopes and token lifetime (seconds) — same STEPUP_TTL in TS.
 var StepUpTTL = map[string]int{
 	"grades:edit":    10 * 60,
 	"session:unlock": 10 * 60,
 }
 
-// StepUpCookieName معادل stepUpCookieName در TS.
+// StepUpCookieName is equivalent to stepUpCookieName in TS.
 func StepUpCookieName(scope string) string {
 	var b strings.Builder
 	for _, r := range scope {
@@ -37,7 +37,7 @@ func StepUpCookieName(scope string) string {
 	return "stepup_" + b.String()
 }
 
-// StepUpAPI هندلرهای تأیید رمز.
+// StepUpAPI password-verification handlers.
 type StepUpAPI struct {
 	Store    *session.Store
 	Signer   *verification.Signer
@@ -73,7 +73,7 @@ type stepUpRequest struct {
 	Password string `json:"password"`
 }
 
-// request پورت requestStepUpAction.
+// request is the port of requestStepUpAction.
 func (a *StepUpAPI) request(c *gin.Context) {
 	var in stepUpRequest
 	if err := c.ShouldBindJSON(&in); err != nil {
@@ -125,7 +125,7 @@ func (a *StepUpAPI) request(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// status آیا دامنهٔ حساس هم‌اکنون تأییدشده است؟
+// status whether the sensitive scope is currently verified.
 func (a *StepUpAPI) status(c *gin.Context) {
 	scope := c.Query("scope")
 	if _, ok := StepUpTTL[scope]; !ok {
@@ -143,8 +143,8 @@ func (a *StepUpAPI) status(c *gin.Context) {
 	}})
 }
 
-// CheckStepUp معادل checkStepUpToken: کوکی همان دامنه را می‌خواند و uid/scope را
-// با مقدار امضاشده مقایسه می‌کند.
+// CheckStepUp is equivalent to checkStepUpToken: it reads the cookie for the same scope and
+// compares uid/scope with the signed value.
 func CheckStepUp(r *http.Request, signer *verification.Signer, userID int64, scope string) bool {
 	if signer == nil {
 		return false

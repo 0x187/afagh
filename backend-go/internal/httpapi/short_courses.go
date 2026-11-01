@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های مدیریت دوره‌های آزاد ═══
+// ═══ Free-course management endpoints ═══
 package httpapi
 
 import (

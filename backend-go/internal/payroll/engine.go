@@ -1,10 +1,10 @@
-// ═══ موتور حق‌التدریس اساتید — پورت lib/payroll-engine.ts ═══
+// ═══ instructor teaching-fee engine — port of lib/payroll-engine.ts ═══
 //
-//  گردش پرداخت:  DRAFT → MID_TERM_PAID (علی‌الحساب) → FINAL_SETTLED
-//  گلوگاه تسویه:  ① همهٔ نمرات استاد FINALIZED  ② همهٔ اسناد او SIGNED
+//  Payment flow:  DRAFT → MID_TERM_PAID (advance payment) → FINAL_SETTLED
+//  Settlement gates:  ① all instructor grades FINALIZED  ② all their documents SIGNED
 //
-//  بارگذاری ترم با «کوئری‌های ثابت» (بدون N+1) و محاسبات در حافظه؛
-//  پول با عدد صحیح و گرد به مضرب ۱۰ ریال.
+//  load the term with "fixed queries" (no N+1) and compute in memory;
+//  money as integers rounded to a multiple of 10 rials.
 package payroll
 
 import (
@@ -26,24 +26,24 @@ import (
 	"backend-go/internal/messaging"
 )
 
-// Settings حداقل وابستگی تنظیمات.
+// Settings is the minimal settings dependency.
 type Settings interface {
 	Get(ctx context.Context, key string) (string, error)
 	GetNumber(ctx context.Context, key string, fallback float64) float64
 }
 
-// Engine موتور حق‌التدریس.
+// Engine is the teaching-fee engine.
 type Engine struct {
 	Pool     *pgxpool.Pool
 	Settings Settings
 }
 
-// New ساخت موتور.
+// New constructs the engine.
 func New(pool *pgxpool.Pool, settings Settings) *Engine {
 	return &Engine{Pool: pool, Settings: settings}
 }
 
-// PayrollRow ردیف فیش یک ارائه.
+// PayrollRow is a statement row for one offering.
 type PayrollRow struct {
 	OfferingID           int64        `json:"offeringId"`
 	CourseCode           string       `json:"courseCode"`
@@ -61,7 +61,7 @@ type PayrollRow struct {
 	RuleTitle            *string      `json:"ruleTitle"`
 }
 
-// SessionStats آمار جلسات یک ارائه.
+// SessionStats is the session stats for one offering.
 type SessionStats struct {
 	Planned     int `json:"planned"`
 	Held        int `json:"held"`
@@ -70,7 +70,7 @@ type SessionStats struct {
 	NetAbsences int `json:"netAbsences"`
 }
 
-// StaffPayroll فیش محاسبه‌شدهٔ یک استاد.
+// StaffPayroll is an instructor's calculated statement.
 type StaffPayroll struct {
 	Staff                StaffMeta    `json:"staff"`
 	Rate                 float64      `json:"rate"`
@@ -90,7 +90,7 @@ type StaffPayroll struct {
 	HasContract          bool         `json:"hasContract"`
 }
 
-// Gates گلوگاه‌های تسویه.
+// Gates are the settlement gates.
 type Gates struct {
 	GradesFinalized bool `json:"gradesFinalized"`
 	PendingGrades   int  `json:"pendingGrades"`
@@ -98,7 +98,7 @@ type Gates struct {
 	UnsignedDocs    int  `json:"unsignedDocs"`
 }
 
-// StaffMeta شناسنامهٔ استاد.
+// StaffMeta is the instructor profile.
 type StaffMeta struct {
 	ID           int64   `json:"id"`
 	Name         string  `json:"name"`
@@ -109,7 +109,7 @@ type StaffMeta struct {
 	ContractType *string `json:"contractType"`
 }
 
-// PayrollOverviewItem ردیف کارتابل مالی.
+// PayrollOverviewItem is a payroll overview row.
 type PayrollOverviewItem struct {
 	StaffMeta
 	Rate                 float64 `json:"rate"`
@@ -130,7 +130,7 @@ type PayrollOverviewItem struct {
 	Gates                Gates   `json:"gates"`
 }
 
-// OverviewTotals جمع کارتابل.
+// OverviewTotals is the overview total.
 type OverviewTotals struct {
 	Budget     float64 `json:"budget"`
 	Paid       float64 `json:"paid"`
@@ -138,14 +138,14 @@ type OverviewTotals struct {
 	StaffCount int     `json:"staffCount"`
 }
 
-// Overview نمای کل ترم.
+// Overview is the whole-term view.
 type Overview struct {
 	Term   string                `json:"term"`
 	List   []PayrollOverviewItem `json:"list"`
 	Totals OverviewTotals        `json:"totals"`
 }
 
-// ─────────────────── پیکربندی ───────────────────
+// ─────────────────── configuration ───────────────────
 
 type coefs struct {
 	Practical   float64 `json:"practical"`
@@ -158,7 +158,7 @@ type coefs struct {
 	} `json:"crowdedTier"`
 }
 
-// PayRule قوانین فرمول‌ساز — خاص‌ترین قاعده برنده است.
+// PayRule: formula rules — the most specific rule wins.
 type PayRule struct {
 	ID              int64    `json:"id"`
 	OfferingType    *string  `json:"offeringType"`
@@ -176,7 +176,7 @@ type PayRule struct {
 	Title           *string  `json:"title"`
 }
 
-// RuleMatch مختصات یک ارائه برای تطبیق قانون.
+// RuleMatch: an offering's coordinates for rule matching.
 type RuleMatch struct {
 	OfferingType string
 	Role         string
@@ -188,7 +188,7 @@ type RuleMatch struct {
 	Nth          int
 }
 
-// ContractRow قرارداد ترمی.
+// ContractRow is a term contract.
 type ContractRow struct {
 	ID           int64
 	StaffID      int64
@@ -265,7 +265,7 @@ type termData struct {
 	RepeatCount          map[string]int
 }
 
-// ─────────────────── نقش‌ها و برچسب‌ها ───────────────────
+// ─────────────────── roles and labels ───────────────────
 
 var roleFA = map[string]string{
 	"MAIN_LECTURER": "مدرس اصلی", "SUPERVISOR": "استاد راهنما", "ADVISOR": "استاد مشاور",
@@ -295,7 +295,7 @@ func offeringTypeFA(t string) string {
 	return t
 }
 
-// ─────────────────── بارگذاری تنظیمات داده‌محور ───────────────────
+// ─────────────────── data-driven settings loading ───────────────────
 
 func (e *Engine) loadCoefficients(ctx context.Context) (coefs, error) {
 	practicalName, _ := e.Settings.Get(ctx, "PAYROLL_COEF_PRACTICAL")
@@ -375,7 +375,7 @@ func (e *Engine) loadPayRules(ctx context.Context) ([]PayRule, error) {
 			&r.Expression, &r.FlatBase, &r.PerStudentHours, &r.Title); err != nil {
 			continue
 		}
-		// قاعده باید اختصاصی باشد (همه‌بعدی = بی‌فایده).
+		// a rule must be specific (all-dimensions = useless).
 		specific := r.OfferingType != nil || r.ProfessorRole != nil || r.AcademicRank != nil ||
 			(r.ClassMode != "" && r.ClassMode != "ANY") || r.DepartmentID != nil || r.CourseType != nil ||
 			r.RepeatNumber != nil || r.MinStudents != nil || r.MaxStudents != nil
@@ -422,7 +422,7 @@ func ruleScore(r *PayRule) int {
 	return s
 }
 
-// MatchRule تطبیق قانون — نخستین قاعدهٔ منطبق (خاص‌ترین، مرتب‌شده).
+// MatchRule: rule matching — the first matching rule (most specific, pre-sorted).
 func MatchRule(rules []PayRule, m RuleMatch) *PayRule {
 	t := m.OfferingType
 	if t == "NORMAL" {
@@ -462,7 +462,7 @@ func MatchRule(rules []PayRule, m RuleMatch) *PayRule {
 	return nil
 }
 
-// DiagnoseRuleMiss علت‌یابی پلکانی: اولین بُعدی که مجموعهٔ نامزدها را خالی می‌کند.
+// DiagnoseRuleMiss: stepwise diagnosis — the first dimension that empties the candidate set.
 func DiagnoseRuleMiss(rules []PayRule, m RuleMatch) (dim, reason string) {
 	if len(rules) == 0 {
 		return "none", "هیچ قانون فرمول فعالی تعریف نشده است — از زبانهٔ قوانین، دست‌کم یک سطر بسازید."
@@ -517,7 +517,7 @@ func DiagnoseRuleMiss(rules []PayRule, m RuleMatch) (dim, reason string) {
 	return "unknown", "علت نامشخص — با پشتیبانی در میان بگذارید."
 }
 
-// crowdedMult ضریب پلکانی کلاس پرجمعیت.
+// crowdedMult is the tiered multiplier for crowded classes.
 func crowdedMult(enrolled int, data *termData) (mult float64, label string) {
 	T := data.CrowdedThreshold
 	if data.Coefs.CrowdedTier != nil && data.Coefs.CrowdedTier.MinStudents != nil && *data.Coefs.CrowdedTier.MinStudents > 0 {
@@ -553,9 +553,9 @@ func boolToInt(b bool) int { if b { return 1 }; return 0 }
 
 func mathRound(v float64) float64 { return math.Round(v) }
 
-// ─────────────────── ترم جاری ───────────────────
+// ─────────────────── current term ───────────────────
 
-// CurrentTerm ترم جاری (یا ترم مشخص‌شده).
+// CurrentTerm: the current term (or the specified term).
 func (e *Engine) CurrentTerm(ctx context.Context, termID *int64) (*TermRow, error) {
 	var row *TermRow
 	var err error
@@ -575,7 +575,7 @@ func (e *Engine) CurrentTerm(ctx context.Context, termID *int64) (*TermRow, erro
 	return row, nil
 }
 
-// TermRow ترم.
+// TermRow is a term.
 type TermRow struct {
 	ID    int64  `json:"id"`
 	Title string `json:"title"`
@@ -589,7 +589,7 @@ func (e *Engine) termByID(ctx context.Context, id int64) (*TermRow, error) {
 	return &t, nil
 }
 
-// FiscalYear سال مالی: تنظیم FA_YEAR، وگرنه خودکار از تاریخ روز (جلالی).
+// FiscalYear: fiscal year from the FA_YEAR setting, otherwise automatic from today's date (Jalali).
 func (e *Engine) FiscalYear(ctx context.Context) int {
 	if e.Settings != nil {
 		if v, err := e.Settings.Get(ctx, "FA_YEAR"); err == nil {
@@ -619,9 +619,9 @@ func faToEnDigits(s string) string {
 	return string(out)
 }
 
-// ─────────────────── بارگذاری دسته‌جمعی ترم (بدون N+1) ───────────────────
+// ─────────────────── bulk term loading (no N+1) ───────────────────
 
-// LoadTermPayrollData بارگذاری کل دادهٔ لازم برای محاسبهٔ فیش همهٔ اساتید یک ترم.
+// LoadTermPayrollData loads all data needed to compute every instructor's statement in a term.
 func (e *Engine) LoadTermPayrollData(ctx context.Context, termID int64) (*termData, error) {
 	data := &termData{
 		TermID:             termID,
@@ -651,7 +651,7 @@ func (e *Engine) LoadTermPayrollData(ctx context.Context, termID int64) (*termDa
 		return nil, err
 	}
 
-	// ۱) قراردادهای ترمی
+	// 1) term contracts
 	crows, err := e.Pool.Query(ctx, `
 		select id, "staffId", "contractType", "baseDutyUnits"::float8, "taxRate"::float8,
 		       "rankSnapshot", "baseSnapshot", "rateSnapshot"::float8, "salaryBase"::float8
@@ -668,7 +668,7 @@ func (e *Engine) LoadTermPayrollData(ctx context.Context, termID int64) (*termDa
 	}
 	crows.Close()
 
-	// ۲) اساتید
+	// 2) instructors
 	srows, err := e.Pool.Query(ctx, `
 		select st.id, st."userId", st."staffCode", st."academicRank", st."academicBase", st."degree",
 		       coalesce(u."firstName",''), coalesce(u."lastName",'')
@@ -704,7 +704,7 @@ func (e *Engine) LoadTermPayrollData(ctx context.Context, termID int64) (*termDa
 		}
 	}
 
-	// ۳) کلاس‌های ترم + نقش و سهم هر استاد
+	// 3) term classes + each instructor's role and share
 	orows, err := e.Pool.Query(ctx, `
 		select o.id, o."professorId", o."groupNumber", o."enrolledCount"::int, coalesce(o."offeringType",'NORMAL'),
 		       o."courseId", coalesce(c."theoreticalUnits",0)::float8, c."departmentId", c."courseType",
@@ -748,7 +748,7 @@ func (e *Engine) LoadTermPayrollData(ctx context.Context, termID int64) (*termDa
 	}
 	orows.Close()
 
-	// ۸) نقش دستی استاد در ارائه
+	// 8) manual instructor role on the offering
 	override := map[string]string{}
 	ovrows, err := e.Pool.Query(ctx, `
 		select e."offeringId", e."staffId", e."payRoleOverride"
@@ -766,7 +766,7 @@ func (e *Engine) LoadTermPayrollData(ctx context.Context, termID int64) (*termDa
 		ovrows.Close()
 	}
 
-	// ۹) دفعهٔ تدریس
+	// 9) teaching occurrence
 	rprows, err := e.Pool.Query(ctx, `
 		select s."staffId", s."courseId", count(distinct s."termId")::int as "priorTerms"
 		  from (
@@ -791,7 +791,7 @@ func (e *Engine) LoadTermPayrollData(ctx context.Context, termID int64) (*termDa
 		rprows.Close()
 	}
 
-	// ۱۰) عناوین نقش‌های قابل‌تعریف
+	// 10) configurable role titles
 	rdrows, err := e.Pool.Query(ctx, `select code, title from teaching_role_defs where "isActive" = 1`)
 	if err == nil {
 		for rdrows.Next() {
@@ -803,7 +803,7 @@ func (e *Engine) LoadTermPayrollData(ctx context.Context, termID int64) (*termDa
 		rdrows.Close()
 	}
 
-	// کلاس‌ها به تفکیک استاد (اصلی + همکار)
+	// classes per instructor (main + co-instructor)
 	push := func(staffID int64, o *staffOffering) {
 		data.OfferingsByStaff[staffID] = append(data.OfferingsByStaff[staffID], o)
 	}
@@ -848,7 +848,7 @@ func (e *Engine) LoadTermPayrollData(ctx context.Context, termID int64) (*termDa
 		}
 	}
 
-	// ۴) آمار جلسات همهٔ کلاس‌های ترم
+	// 4) session stats for all term classes
 	ssrows, err := e.Pool.Query(ctx, `
 		select cs."offeringId",
 		       sum(case when cs."isMakeUpSession" = 0 then 1 else 0 end)::int as planned,
@@ -865,7 +865,7 @@ func (e *Engine) LoadTermPayrollData(ctx context.Context, termID int64) (*termDa
 			var s SessionStats
 			if err := ssrows.Scan(&oid, &s.Planned, &s.Held, &s.Absents, &s.Makeup); err == nil {
 				s.NetAbsences = maxInt(0, s.Absents-s.Makeup)
-				// مبنای تناسب = جلسات «برگزارشدهٔ» اصلی.
+				// proportion basis = main "held" sessions.
 				s.Planned = s.Held
 				data.SessionsByOffering[oid] = s
 			}
@@ -873,7 +873,7 @@ func (e *Engine) LoadTermPayrollData(ctx context.Context, termID int64) (*termDa
 		ssrows.Close()
 	}
 
-	// ۵) گلوگاه ۱: نمرات قطعی‌نشده به تفکیک استاد
+	// 5) gate 1: un-finalized grades per instructor
 	grows, err := e.Pool.Query(ctx, `
 		select s.id, count(e.id)::int as "pendingGrades"
 		  from staff s
@@ -892,7 +892,7 @@ func (e *Engine) LoadTermPayrollData(ctx context.Context, termID int64) (*termDa
 		grows.Close()
 	}
 
-	// ۶) گلوگاه ۲: اسناد امضانشده
+	// 6) gate 2: unsigned documents
 	drows, err := e.Pool.Query(ctx, `
 		select ed."staffId", count(*)::int as "unsignedDocs"
 		  from electronic_documents ed
@@ -911,14 +911,14 @@ func (e *Engine) LoadTermPayrollData(ctx context.Context, termID int64) (*termDa
 		}
 		drows.Close()
 	}
-	// تکمیل فیلدهای bool برای اساتیدِ فقط-نمره
+	// fill bool fields for grade-only instructors
 	for sid, g := range data.GatesByStaff {
 		g.DocsSigned = g.UnsignedDocs == 0
 		g.GradesFinalized = g.PendingGrades == 0
 		data.GatesByStaff[sid] = g
 	}
 
-	// ۷) فیش‌های محاسبه‌شده
+	// 7) calculated statements
 	prows, err := e.Pool.Query(ctx, `
 		select ps.id, pc."staffId", ps."contractId",
 		       ps."totalEquivalentUnits"::float8, ps."payableUnits"::float8, ps."grossAmount"::float8,
@@ -938,7 +938,7 @@ func (e *Engine) LoadTermPayrollData(ctx context.Context, termID int64) (*termDa
 		prows.Close()
 	}
 
-	// کلیدهای ادغام از زمان‌بندی
+	// merge keys from the schedule
 	slrows, err := e.Pool.Query(ctx, `
 		select s."offeringId", s."dayOfWeek", s."startTime"::text, s."endTime"::text, s."roomId"
 		  from schedules s
@@ -965,7 +965,7 @@ func (e *Engine) LoadTermPayrollData(ctx context.Context, termID int64) (*termDa
 		}
 	}
 
-	// تنظیمات + موظفی نقش‌محور + نرخ‌ها
+	// settings + role-based duty + rates
 	data.CrowdedThreshold = e.Settings.GetNumber(ctx, "PAYROLL_CROWDED_THRESHOLD", 40)
 	data.CrowdedStep = e.Settings.GetNumber(ctx, "PAYROLL_CROWDED_STEP", 25)
 	data.CrowdedStepUp = e.Settings.GetNumber(ctx, "PAYROLL_CROWDED_STEP_UP", 0)
@@ -981,7 +981,7 @@ func (e *Engine) LoadTermPayrollData(ctx context.Context, termID int64) (*termDa
 	}
 	data.EffectiveDuties = LoadTermEffectiveDuties(ctx, e.Pool, termID)
 
-	// نرخ پایهٔ هر استاد: اسنپ‌شات قرارداد ← نرخ جدول (پایه‌دار بر عمومی) ← کسری حکم
+	// each instructor's base rate: contract snapshot ← table rate (tenured over general) ← decree fraction
 	year := e.FiscalYear(ctx)
 	type rateRow struct {
 		Rank    string
@@ -1005,7 +1005,7 @@ func (e *Engine) LoadTermPayrollData(ctx context.Context, termID int64) (*termDa
 	}
 	rr.Close()
 
-	// اسنپ‌شاتِ حاضر بر مقدار زنده غلبه می‌کند (مهاجرت 0056/0090).
+	// an existing snapshot overrides the live value (migrations 0056/0090).
 	for staffID, c := range data.Contracts {
 		info, ok := data.StaffInfo[staffID]
 		if !ok {
@@ -1069,7 +1069,7 @@ func (e *Engine) LoadTermPayrollData(ctx context.Context, termID int64) (*termDa
 			data.RateSource[s.id] = "TABLE"
 		}
 	}
-	// سوییچ نرخ کسری از حکم (۱/N) — بالاترین اولویت.
+	// decree fraction-rate switch (1/N) — highest priority.
 	if data.RateFraction && data.RateDivisor > 0 {
 		for staffID, c := range data.Contracts {
 			if c.SalaryBase != nil && *c.SalaryBase > 0 {
@@ -1085,7 +1085,7 @@ func (e *Engine) LoadTermPayrollData(ctx context.Context, termID int64) (*termDa
 func maxInt(a, b int) int { if a > b { return a }; return b }
 func mathRoundF(v float64) float64 { return math.Round(v) }
 
-// ─────────────────── ادغام کلاس‌های هم‌زمان ───────────────────
+// ─────────────────── merging concurrent classes ───────────────────
 
 type mergeSlot struct {
 	day         *int
@@ -1100,7 +1100,7 @@ func normMergeTimeP(v string) string {
 	return strings.TrimSpace(v)
 }
 
-// mergeGroupKey پورت mergedGroupKey — کلید ادغام از کلید مشترک یا اسلات‌ها.
+// mergeGroupKey ports mergedGroupKey — merge key from the shared key or slots.
 func mergeGroupKey(shared *string, slots []mergeSlot) string {
 	if shared != nil && strings.TrimSpace(*shared) != "" {
 		return "K:" + strings.TrimSpace(*shared)
@@ -1130,9 +1130,9 @@ func mergeGroupKey(shared *string, slots []mergeSlot) string {
 	return "S:" + strings.Join(parts, ";")
 }
 
-// collapseMergedOfferings پورت collapseMergedOfferings برای staffOffering.
+// collapseMergedOfferings ports collapseMergedOfferings for staffOffering.
 func collapseMergedOfferings(list []*staffOffering, slotKeyOf func(int64) string) []*staffOffering {
-	// گروه‌بندی بر اساس mergeKey ?? slotKeyOf
+	// group by mergeKey ?? slotKeyOf
 	groups := []*staffOffering{}
 	byKey := map[string][]*staffOffering{}
 	for _, o := range list {
@@ -1220,9 +1220,9 @@ func pickMergedSessions(data *termData, ids []int64) SessionStats {
 	return *best
 }
 
-// ─────────────────── محاسبهٔ فیش یک استاد ───────────────────
+// ─────────────────── computing one instructor's statement ───────────────────
 
-// CalcStaffPayrollFromData محاسبهٔ فیش یک استاد از دادهٔ ازپیش‌بارگذاری‌شده.
+// CalcStaffPayrollFromData computes one instructor's statement from preloaded data.
 func CalcStaffPayrollFromData(data *termData, staffID int64) (*StaffPayroll, error) {
 	meta, ok := data.StaffInfo[staffID]
 	if !ok {
@@ -1230,7 +1230,7 @@ func CalcStaffPayrollFromData(data *termData, staffID int64) (*StaffPayroll, err
 	}
 	contract := data.Contracts[staffID]
 	rate := data.RateByStaff[staffID]
-	// موظفی از «نقش» استاد می‌آید نه مرتبه؛ بدون نقش تدریسی ← baseDutyUnits قدیمی.
+	// duty comes from the instructor's "role", not rank; without a teaching role ← legacy baseDutyUnits.
 	dutyUnits := 0.0
 	if roleDuty, ok := data.EffectiveDuties[staffID]; ok {
 		dutyUnits = roleDuty
@@ -1274,7 +1274,7 @@ func CalcStaffPayrollFromData(data *termData, staffID int64) (*StaffPayroll, err
 			mergedMark = " (کلاس ادغامی)"
 		}
 
-		// ── مسیر عبارت یکپارچه (0092): یک عبارت، خروجی مستقیم ریال ──
+		// ── unified expression path (0092): one expression, direct rial output ──
 		if rule != nil {
 			students := o.EnrolledCount
 			crowdMult, _ := crowdedMult(students, data)
@@ -1334,7 +1334,7 @@ func CalcStaffPayrollFromData(data *termData, staffID int64) (*StaffPayroll, err
 			continue
 		}
 
-		// ── مسیر ضرایب استاندارد ──
+		// ── standard coefficients path ──
 		applied := []string{}
 		multiplierInt := UnitScale
 		if o.PracticalUnits > 0 {
@@ -1427,7 +1427,7 @@ func CalcStaffPayrollFromData(data *termData, staffID int64) (*StaffPayroll, err
 
 func maxF(a, b float64) float64 { if a > b { return a }; return b }
 
-// groupThousands نمایش ریال با جداکنندهٔ هزارگان — فقط برای نمایش.
+// groupThousands: format rials with thousands separators — display only.
 func groupThousands(v float64) string {
 	s := strconv.FormatFloat(mathRoundF(v), 'f', 0, 64)
 	neg := strings.HasPrefix(s, "-")
@@ -1447,9 +1447,9 @@ func groupThousands(v float64) string {
 	return out
 }
 
-// ─────────────────── گلوگاه‌های سبک ───────────────────
+// ─────────────────── lightweight gates ───────────────────
 
-// loadStaffGates گلوگاه‌های یک استاد با دو کوئری سبک (داخل تراکنش تسویه).
+// loadStaffGates: an instructor's gates with two lightweight queries (inside the settlement transaction).
 func loadStaffGates(ctx context.Context, q pgx.Tx, termID, staffID int64) (Gates, error) {
 	var pending, unsigned int
 	if err := q.QueryRow(ctx, `
@@ -1472,9 +1472,9 @@ func loadStaffGates(ctx context.Context, q pgx.Tx, termID, staffID int64) (Gates
 	}, nil
 }
 
-// ─────────────────── نمای کل ترم (کارتابل مالی) ───────────────────
+// ─────────────────── whole-term view (payroll overview) ───────────────────
 
-// GetOverview نمای فیش کل ترم — اساتید دارای قرارداد.
+// GetOverview: whole-term statement view — instructors with a contract.
 func (e *Engine) GetOverview(ctx context.Context, termID *int64) (*Overview, error) {
 	term, err := e.CurrentTerm(ctx, termID)
 	if err != nil {
@@ -1545,9 +1545,9 @@ func (e *Engine) GetOverview(ctx context.Context, termID *int64) (*Overview, err
 	return ov, nil
 }
 
-// ─────────────────── زنجیرهٔ هش ممیزی ───────────────────
+// ─────────────────── audit hash chain ───────────────────
 
-// writeAudit زنجیرهٔ هش — هر رکورد به رکورد قبلی گره می‌خورد.
+// writeAudit: hash chain — each record links to the previous one.
 func writeAudit(ctx context.Context, tx pgx.Tx, actorUserID *int64, action, entityType string, entityID *int64, details string) error {
 	var prev string
 	if err := tx.QueryRow(ctx, `select coalesce(hash,'') from audit_logs order by id desc limit 1 for update`).Scan(&prev); err != nil && err != pgx.ErrNoRows {
@@ -1569,7 +1569,7 @@ func itoa(v *int64) string {
 	return strconv.FormatInt(*v, 10)
 }
 
-// notify اطلاع‌رسانی به استاد (درج در notifications — چندکاناله در فاز ۱۰).
+// notify: notify the instructor (insert into notifications — multi-channel in phase 10).
 func (e *Engine) notify(ctx context.Context, userID int64, eventCode, text string) {
 	if userID <= 0 {
 		return

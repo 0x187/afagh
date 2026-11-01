@@ -1,13 +1,13 @@
-// ═══ دفاع CSRF — پورت وفادار از src/lib/security.ts (assertSameOrigin) ═══
+// ═══ CSRF defense — faithful port of src/lib/security.ts (assertSameOrigin) ═══
 //
-// قواعد (الگوی Django/OWASP — همان مستند در security.ts):
+// Rules (Django/OWASP pattern — same documentation in security.ts):
 //
-//	۱) Origin موجود ⇒ باید host درخواست باشد یا در لیست سفید ALLOWED_EXTRA_ORIGINS
-//	۲) بدون Origin اما با Referer ⇒ Referer باید هم‌مبدأ باشد
-//	۳) هیچ‌کدام ⇒ کلاینت غیرمرورگری (curl/cron)؛ CSRF بدون Origin/Referer
-//	   در مرورگر ممکن نیست ⇒ مجاز (با لاگ اگر mutating و احرازشده)
+//	1) Origin present ⇒ must be the request host or in the ALLOWED_EXTRA_ORIGINS allowlist
+//	2) no Origin but Referer present ⇒ Referer must be same-origin
+//	3) neither ⇒ non-browser client (curl/cron); CSRF without Origin/Referer
+//	   is not possible in a browser ⇒ allowed (with a log if mutating and authenticated)
 //
-// فقط host مقایسه می‌شود (نه scheme) تا پشت پروکسی Caddy کار کند.
+// only the host is compared (not the scheme) so it works behind a Caddy proxy.
 package middleware
 
 import (
@@ -40,8 +40,8 @@ func originAllowed(originHeader, host string, extra []string) bool {
 	return false
 }
 
-// AssertSameOrigin پورت assertSameOrigin: اگر پاسخ بنویسد ⇒ همان باید برگردد؛
-// true یعنی مجاز.
+// AssertSameOrigin ports assertSameOrigin: if it writes a response ⇒ that same one must be returned;
+// true means allowed.
 func AssertSameOrigin(w http.ResponseWriter, r *http.Request, extraOrigins []string) bool {
 	host := r.Host
 	if host == "" {
@@ -78,8 +78,8 @@ func AssertSameOrigin(w http.ResponseWriter, r *http.Request, extraOrigins []str
 		return true
 	}
 
-	// Observability-only: کلاینت غیرمرورگری مجاز است ولی mutating احرازشدهٔ
-	// بدون Origin/Referer لاگ می‌شود (همان رفتار security.ts).
+	// Observability-only: non-browser clients are allowed, but an authenticated mutating
+	// request without Origin/Referer is logged (same behavior as security.ts).
 	switch strings.ToUpper(r.Method) {
 	case http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete:
 		if r.Header.Get("Authorization") != "" || len(r.Cookies()) > 0 {

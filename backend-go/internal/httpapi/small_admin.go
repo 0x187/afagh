@@ -1,4 +1,4 @@
-// ═══ اندپوینت‌های کوچک باقیمانده: student-finance، login-showcase، code-hub ═══
+// ═══ Remaining small endpoints: student-finance, login-showcase, code-hub ═══
 package httpapi
 
 import (
@@ -11,7 +11,7 @@ import (
 
 var smallAdminRoles = []string{"ADMIN", "FINANCE_EXPERT", "FINANCE"}
 
-// SmallAdminAPI هندلرهای صفحات کوچک باقیمانده.
+// SmallAdminAPI handlers for the remaining small pages.
 type SmallAdminAPI struct {
 	Admin *AdminAPI
 }
@@ -35,7 +35,7 @@ func (a *SmallAdminAPI) Register(r gin.IRouter) {
 	r.POST("/admin/login-showcase/slide/delete", a.loginSlideDelete)
 }
 
-// studentFinanceLedger دفتر مالی کل دانشگاه (پورت admin/student-finance).
+// studentFinanceLedger is the university-wide finance ledger (port of admin/student-finance).
 func (a *SmallAdminAPI) studentFinanceLedger(c *gin.Context) {
 	user := a.require(c)
 	if user == nil {

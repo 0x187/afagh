@@ -25,7 +25,7 @@ func TestIntToUnits(t *testing.T) {
 
 func TestToRial(t *testing.T) {
 	cases := map[float64]float64{
-		12345: 12350, // .5 تومان به بالا
+		12345: 12350, // .5 toman rounds up
 		12344: 12340, 10: 10, 4: 0, 5: 10, 0: 0,
 	}
 	for in, want := range cases {
@@ -57,7 +57,7 @@ func TestPercentRatioScale(t *testing.T) {
 }
 
 func TestSafeRials(t *testing.T) {
-	good := []string{"0", "123456", "999999999999", " 12"} // « 12» پس از trim معتبر است (همان TS)
+	good := []string{"0", "123456", "999999999999", " 12"} // " 12" is valid after trim (same as TS)
 	for _, s := range good {
 		if SafeRials(s) == nil {
 			t.Fatalf("SafeRials(%q) باید معتبر باشد", s)

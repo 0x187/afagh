@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-// پارتی با assertSameOrigin در security.ts — قواعد Origin/Referer.
+// parity with assertSameOrigin in security.ts — Origin/Referer rules.
 func TestAssertSameOrigin(t *testing.T) {
 	ok := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(200) })
 	mk := func(host, origin, referer string) *http.Request {
@@ -48,7 +48,7 @@ func TestAssertSameOrigin(t *testing.T) {
 				t.Fatalf("status=%d want=%d", w.Code, tc.wantStatusCode)
 			}
 			if !allowed {
-				// پاسخ 403 باید JSON با همان پیام فارسی باشد
+				// the 403 response must be JSON with the same Persian message
 				if got := w.Body.String(); got != `{"error":"منشأ درخواست با سامانه هم‌خوان نیست (CSRF blocked)."}` {
 					t.Fatalf("بدنهٔ 403 نادرست: %s", got)
 				}

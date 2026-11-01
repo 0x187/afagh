@@ -1,8 +1,8 @@
-// ═══ ارسال اعلان چندکاناله — پورت lib/messaging.ts ═══
+// ═══ Multi-channel notification delivery — port of lib/messaging.ts ═══
 //
-//	پیام درون‌سامانه‌ای را هر ماژول خودش درج می‌کند؛ این سرویس کانال‌های
-//	بیرونی (پیامک/پیام‌رسان) را می‌فرستد و هر تلاش را در notification_deliveries
-//	ثبت می‌کند. هیچ نشانی/کلیدی سخت‌کد نیست — همه از تنظیمات خوانده می‌شود.
+//	Each module inserts the in-app message itself; this service sends the external
+//	channels (SMS/messenger) and records every attempt in notification_deliveries.
+//	No address/key is hardcoded — everything is read from settings.
 package messaging
 
 import (
@@ -22,18 +22,18 @@ import (
 	"backend-go/internal/settings"
 )
 
-// Service سرویس ارسال.
+// Service is the delivery service.
 type Service struct {
 	Pool     *pgxpool.Pool
 	Settings *settings.Store
 }
 
-// New ساخت سرویس.
+// New constructs the service.
 func New(pool *pgxpool.Pool, settingsStore *settings.Store) *Service {
 	return &Service{Pool: pool, Settings: settingsStore}
 }
 
-// DeliveryResult نتیجهٔ یک کانال.
+// DeliveryResult result of one channel.
 type DeliveryResult struct {
 	Channel     string  `json:"channel"`
 	Target      *string `json:"target"`
@@ -52,7 +52,7 @@ var validChannels = map[string]bool{
 	"INAPP": true, "SMS": true, "TELEGRAM": true, "BALE": true, "EITAA": true, "SOROUSH": true, "IGAP": true,
 }
 
-// IsOtpEvent رویدادهای حامل کد یک‌بارمصرف — متن هرگز ذخیره/لاگ نمی‌شود.
+// IsOtpEvent marks events carrying a one-time code — the text is never stored/logged.
 func IsOtpEvent(eventCode string) bool {
 	return strings.Contains(strings.ToUpper(eventCode), "OTP")
 }
@@ -73,7 +73,7 @@ func (s *Service) setting(ctx context.Context, key string) string {
 	return strings.TrimSpace(v)
 }
 
-// httpPostJSON ارسال POST و بازگرداندن متن پاسخ (با محدودیت حجم).
+// httpPostJSON sends a POST and returns the response body (with a size limit).
 func (s *Service) httpPost(ctx context.Context, urlStr, contentType string, body []byte, headers map[string]string) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, s.timeoutMs())
 	defer cancel()
@@ -105,7 +105,7 @@ func truncate(v string, n int) string {
 	return v[:n]
 }
 
-// addressFor نشانی کاربر در یک کانال (جدول اختصاصی ← موبایل پروفایل برای پیامک).
+// addressFor returns the user's address on a channel (dedicated table ← profile mobile for SMS).
 func (s *Service) addressFor(ctx context.Context, userID int64, channel string) *string {
 	var address *string
 	var active *int
@@ -124,7 +124,7 @@ func (s *Service) addressFor(ctx context.Context, userID int64, channel string) 
 	return nil
 }
 
-// activeChannels فهرست کانال‌های فعال از NOTIFY_CHANNELS.
+// activeChannels returns the list of active channels from NOTIFY_CHANNELS.
 func (s *Service) activeChannels(ctx context.Context) []string {
 	raw := s.setting(ctx, "NOTIFY_CHANNELS")
 	if raw == "" {
@@ -143,7 +143,7 @@ func (s *Service) activeChannels(ctx context.Context) []string {
 	return out
 }
 
-// SendSMS پورت sendSms — سرویس‌دهنده از تنظیمات (KAVENEGAR/SMSIR/FARAPAYAMAK/CUSTOM).
+// SendSMS is the port of sendSms — provider from settings (KAVENEGAR/SMSIR/FARAPAYAMAK/CUSTOM).
 func (s *Service) SendSMS(ctx context.Context, to, text string) DeliveryResult {
 	started := time.Now()
 	provider := strings.ToUpper(s.setting(ctx, "SMS_PROVIDER"))
@@ -204,7 +204,7 @@ func (s *Service) SendSMS(ctx context.Context, to, text string) DeliveryResult {
 	return DeliveryResult{Channel: "SMS", Target: ptr(to), Status: "SENT", ProviderRef: ptr(ref), DurationMs: duration}
 }
 
-// messengerConfig پیکربندی هر پیام‌رسان.
+// messengerConfig returns the per-messenger configuration.
 func (s *Service) messengerConfig(ctx context.Context, channel string) (token, base, style string) {
 	switch channel {
 	case "TELEGRAM":
@@ -240,7 +240,7 @@ func (s *Service) messengerConfig(ctx context.Context, channel string) (token, b
 	}
 }
 
-// SendMessenger پورت sendMessenger.
+// SendMessenger is the port of sendMessenger.
 func (s *Service) SendMessenger(ctx context.Context, channel, chatID, text string) DeliveryResult {
 	started := time.Now()
 	token, base, style := s.messengerConfig(ctx, channel)
@@ -268,14 +268,14 @@ func (s *Service) SendMessenger(ctx context.Context, channel, chatID, text strin
 	return DeliveryResult{Channel: channel, Target: ptr(chatID), Status: "SENT", ProviderRef: ptr(truncate(ref, 100)), DurationMs: duration}
 }
 
-// NotifyExternal ارسال بیرونی یک رویداد (پیامک/پیام‌رسان) + ثبت تحویل‌ها.
-// پیام درون‌سامانه را فراخوان درج کرده است؛ این‌جا فقط کانال‌های بیرونی.
+// NotifyExternal performs external delivery of an event (SMS/messenger) + records deliveries.
+// The caller has inserted the in-app message; here only external channels.
 func (s *Service) NotifyExternal(ctx context.Context, userID int64, eventCode, text string) {
 	s.NotifyExternalWithChannels(ctx, userID, eventCode, text, nil)
 }
 
-// NotifyExternalWithChannels همان NotifyExternal با محدودسازی اختیاری کانال‌ها
-// (SCHED_WARN_CHANNELS). لیست خالی/nil یعنی «همهٔ کانال‌های فعال».
+// NotifyExternalWithChannels is the same as NotifyExternal with optional channel restriction
+// (SCHED_WARN_CHANNELS). An empty/nil list means "all active channels".
 func (s *Service) NotifyExternalWithChannels(ctx context.Context, userID int64, eventCode, text string, channels []string) {
 	if s == nil || userID <= 0 {
 		return
@@ -339,7 +339,7 @@ func (s *Service) NotifyExternalWithChannels(ctx context.Context, userID int64, 
 	}
 }
 
-// ListUserChannels نشانی‌های ثبت‌شدهٔ کاربر.
+// ListUserChannels returns the user's registered addresses.
 func (s *Service) ListUserChannels(ctx context.Context, userID int64) ([]map[string]any, error) {
 	rows, err := s.Pool.Query(ctx, `
 		select channel, address, "isActive" from notification_channels where "userId" = $1 order by channel`, userID)
@@ -359,7 +359,7 @@ func (s *Service) ListUserChannels(ctx context.Context, userID int64) ([]map[str
 	return out, nil
 }
 
-// SaveUserChannel ثبت/حذف نشانی کاربر با اعتبارسنجی موبایل.
+// SaveUserChannel adds/removes a user address with mobile validation.
 func (s *Service) SaveUserChannel(ctx context.Context, userID int64, channel, address string) error {
 	value := strings.TrimSpace(address)
 	if value == "" {
@@ -386,11 +386,11 @@ func (s *Service) SaveUserChannel(ctx context.Context, userID int64, channel, ad
 
 func ptr[T any](v T) *T { return &v }
 
-// Default سرویس سراسری — main یک‌بار مقدار می‌دهد تا ماژول‌ها بدون وابستگی
-// ساختاری، ارسال بیرونی را صدا بزنند.
+// Default is the global service — main sets it once so modules can call external
+// delivery without a structural dependency.
 var Default *Service
 
-// NotifyExternalDefault ارسال بیرونی با سرویس سراسری (no-op اگر تنظیم نشده باشد).
+// NotifyExternalDefault performs external delivery via the global service (no-op if not configured).
 func NotifyExternalDefault(ctx context.Context, userID int64, eventCode, text string) {
 	if Default == nil || userID <= 0 {
 		return
@@ -398,7 +398,7 @@ func NotifyExternalDefault(ctx context.Context, userID int64, eventCode, text st
 	Default.NotifyExternal(ctx, userID, eventCode, text)
 }
 
-// NotifyExternalDefaultChannels ارسال با محدودسازی کانال‌ها.
+// NotifyExternalDefaultChannels delivery with channel restriction.
 func NotifyExternalDefaultChannels(ctx context.Context, userID int64, eventCode, text string, channels []string) {
 	if Default == nil || userID <= 0 {
 		return
@@ -406,8 +406,8 @@ func NotifyExternalDefaultChannels(ctx context.Context, userID int64, eventCode,
 	Default.NotifyExternalWithChannels(ctx, userID, eventCode, text, channels)
 }
 
-// SendTestMessage پیام آزمایشی به یک حساب در یک کانال (پورت sendTestMessage).
-// متن ثابت است؛ مسیر ارسال و ثبت تحویل دقیقاً همان اعلان‌های کارتابل است.
+// SendTestMessage sends a test message to an account on a channel (port of sendTestMessage).
+// The text is fixed; the send path and delivery recording are exactly the same as inbox notifications.
 func (s *Service) SendTestMessage(ctx context.Context, userID int64, channel string) DeliveryResult {
 	const text = "پیام آزمایشی سامانهٔ جامع آموزشی — تنظیمات ارسال شما درست کار می‌کند."
 	if channel == "INAPP" {
@@ -434,7 +434,7 @@ func (s *Service) SendTestMessage(ctx context.Context, userID int64, channel str
 	return r
 }
 
-// SendMessengerDirect ارسال مستقیم به یک chatId (بدون حساب کاربری).
+// SendMessengerDirect sends directly to a chatId (without a user account).
 func (s *Service) SendMessengerDirect(ctx context.Context, channel, chatID string) DeliveryResult {
 	return s.SendMessenger(ctx, channel, chatID, "پیام آزمایشی سامانهٔ جامع آموزشی — تنظیمات ارسال شما درست کار می‌کند.")
 }

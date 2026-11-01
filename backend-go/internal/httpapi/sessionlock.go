@@ -1,4 +1,4 @@
-// ═══ POST /api/v2/session/ping و /session/unlock — پورت مسیرهای Next ═══
+// ═══ POST /api/v2/session/ping and /session/unlock — port of Next routes ═══
 package httpapi
 
 import (
@@ -15,19 +15,19 @@ import (
 	"backend-go/internal/sessionlock"
 )
 
-// StepUpLimiter عملیات موردنیاز گیت تأیید رمز (peek/hit/count).
+// StepUpLimiter operations required by the password-verification gate (peek/hit/count).
 type StepUpLimiter interface {
 	Peek(ctx context.Context, key string, limit, windowSec int) (allowed bool, retryAfterSec int, err error)
 	Hit(ctx context.Context, key string, windowSec int) error
 	Count(ctx context.Context, key string) (int, error)
 }
 
-// PasswordVerifier تأیید رمز کاربر جاری — پیاده‌سازی: authn.Service.VerifyPasswordForUser.
+// PasswordVerifier verifies the current user's password — implementation: authn.Service.VerifyPasswordForUser.
 type PasswordVerifier interface {
 	VerifyPasswordForUser(ctx context.Context, userID int64, password string) (bool, error)
 }
 
-// SessionLockAPI هندلرهای ضربان/بازگشایی قفل.
+// SessionLockAPI lock heartbeat/unlock handlers.
 type SessionLockAPI struct {
 	Store    *session.Store
 	Locks    *sessionlock.Service
@@ -45,7 +45,7 @@ func (a *SessionLockAPI) clientIP(c *gin.Context) string {
 
 func (a *SessionLockAPI) Register(r gin.IRouter) {
 	r.POST("/session/ping", a.ping)
-	r.GET("/session/ping", a.ping) // سازگاری قرارداد SPA (بدون بدنه = پرسش وضعیت)
+	r.GET("/session/ping", a.ping) // SPA contract compatibility (no body = status query)
 	r.POST("/session/unlock", a.unlock)
 }
 
@@ -53,7 +53,7 @@ type pingBody struct {
 	Active bool `json:"active"`
 }
 
-// ping پورت GET/POST /session/ping — منبع حقیقت قفل بیکاری.
+// ping is the port of GET/POST /session/ping — source of truth for the idle lock.
 func (a *SessionLockAPI) ping(c *gin.Context) {
 	token := session.ReadToken(parseCookies(c.Request))
 	var user *session.User
@@ -67,7 +67,7 @@ func (a *SessionLockAPI) ping(c *gin.Context) {
 
 	timeoutMin := a.Locks.ResolveIdleTimeoutMinutes(c.Request.Context(), user.Roles)
 
-	// پرچم قفل صریح (مثلاً قفل دستی/step-up) بر هر چیز مقدم است.
+	// An explicit lock flag (e.g. manual/step-up lock) takes precedence over everything.
 	if a.Locks.IsLocked(c.Request.Context(), user.ID) {
 		c.JSON(http.StatusOK, gin.H{"ok": true, "locked": true, "timeoutMin": timeoutMin, "reauthMin": a.Locks.ResolveReauthMinutes(c.Request.Context(), timeoutMin)})
 		return
@@ -75,7 +75,7 @@ func (a *SessionLockAPI) ping(c *gin.Context) {
 
 	var body pingBody
 	if c.Request.Method == http.MethodPost {
-		_ = c.ShouldBindJSON(&body) // بدنهٔ خالی = پرسش وضعیت
+		_ = c.ShouldBindJSON(&body) // Empty body = status query
 	}
 
 	if body.Active {
@@ -85,7 +85,7 @@ func (a *SessionLockAPI) ping(c *gin.Context) {
 	}
 
 	if a.Locks.IsIdle(c.Request.Context(), user.ID, timeoutMin) {
-		// خودِ سرور قفل را ثبت می‌کند (نه فقط گزارش) — رفرش/تب جدید هم قفل می‌ماند.
+		// The server itself records the lock (not just reports it) — a refresh/new tab stays locked.
 		_ = a.Locks.SetLock(c.Request.Context(), user.ID)
 		c.JSON(http.StatusOK, gin.H{"ok": true, "locked": true, "timeoutMin": timeoutMin, "reauthMin": a.Locks.ResolveReauthMinutes(c.Request.Context(), timeoutMin)})
 		return
@@ -97,8 +97,8 @@ type unlockBody struct {
 	Password string `json:"password"`
 }
 
-// unlock پورت verifyOwnPasswordCore: همان سقف ۵ خطا/۱۵دقیقه به‌ازای کاربر + IP،
-// تأخیر تصاعدی، و پاک‌سازی پرچم قفل در صورت موفقیت.
+// unlock ports verifyOwnPasswordCore: same cap of 5 failures/15 min per user + IP,
+// progressive delay, and clearing the lock flag on success.
 func (a *SessionLockAPI) unlock(c *gin.Context) {
 	var body unlockBody
 	if err := c.ShouldBindJSON(&body); err != nil || body.Password == "" {
@@ -138,13 +138,13 @@ func (a *SessionLockAPI) unlock(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"ok": true})
 }
 
-// stepUpGateForRequest نسخهٔ آگاه به IP همان درخواست.
+// stepUpGateForRequest is the IP-aware version for the same request.
 func (a *SessionLockAPI) stepUpGateForRequest(c *gin.Context, userID int64) (bool, string) {
 	return stepUpGate(c.Request.Context(), a.Limiter, userID, a.clientIP(c))
 }
 
-// stepUpGate گیت مشترک تأیید رمز (۵ خطا/۱۵دقیقه کاربر + ۲۰/۱۵دقیقه IP) با
-// تأخیر تصاعدی — همان قرارداد SessionLockAPI.unlock و step-up حساس.
+// stepUpGate shared password-verification gate (5 failures/15 min per user + 20/15 min per IP) with
+// progressive delay — same contract as SessionLockAPI.unlock and sensitive step-up.
 func stepUpGate(ctx context.Context, limiter StepUpLimiter, userID int64, ip string) (bool, string) {
 	if limiter == nil {
 		return true, ""
@@ -162,7 +162,7 @@ func stepUpGate(ctx context.Context, limiter StepUpLimiter, userID int64, ip str
 			retry = iRetry
 		}
 		if n, err := limiter.Count(ctx, userKey); err == nil && n > 0 {
-			// تأخیر تصاعدی پیش از پاسخ — همان progressiveDelay(count) در TS
+			// Progressive delay before the response — same as progressiveDelay(count) in TS
 			progressiveSleep(ctx, n)
 		}
 		minutes := int(math.Ceil(float64(retry) / 60))
@@ -171,7 +171,7 @@ func stepUpGate(ctx context.Context, limiter StepUpLimiter, userID int64, ip str
 	return true, ""
 }
 
-// progressiveSleep تأخیر تصاعدی پیش از پاسخ (پورت progressiveDelay).
+// progressiveSleep progressive delay before the response (port of progressiveDelay).
 func progressiveSleep(ctx context.Context, failCount int) {
 	t := time.NewTimer(time.Duration(ratelimit.ProgressiveDelayMs(failCount)) * time.Millisecond)
 	defer t.Stop()

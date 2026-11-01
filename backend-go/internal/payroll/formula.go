@@ -1,11 +1,11 @@
-// ═══ ارزیابی‌کنندهٔ امن عبارات فرمول حق‌التدریس — پورت lib/payroll-formula.ts ═══
+// ═══ safe teaching-fee formula evaluator — port of lib/payroll-formula.ts ═══
 //
-// متغیرها: TH ساعت نظری، PH ساعت عملی، WH ساعت کارگاهی، UN واحد درس،
-// ST تعداد دانشجو، RT نرخ، CF ضریب جمعی، BS مبلغ مبنا، HR ساعت.
-// حروف قدیمی سما (N A W U C R K F H) به‌عنوان نام مستعار پذیرفته می‌شوند.
+// Variables: TH lecture hours, PH practical hours, WH workshop hours, UN course units,
+// ST student count, RT rate, CF collective multiplier, BS base amount, HR hours.
+// legacy Sama letters (N A W U C R K F H) are accepted as aliases.
 //
-// عمداً از eval استفاده نشده: پارسر بازگشتی کوچک فقط عدد، متغیر مجاز و
-// عملگرهای + - * / ( ) را می‌فهمد؛ هر چیز دیگر خطاست.
+// eval is deliberately not used: a small recursive parser understands only numbers, allowed variables and
+// the operators + - * / ( ); anything else is an error.
 package payroll
 
 import (
@@ -14,7 +14,7 @@ import (
 	"unicode"
 )
 
-// aliasToCanon نام اصلی ← نام‌های مستعار قدیمی.
+// aliasToCanon: canonical name ← legacy aliases.
 var aliasToCanon = map[string]string{
 	"TH": "TH", "PH": "PH", "WH": "WH", "UN": "UN", "ST": "ST",
 	"RT": "RT", "CF": "CF", "BS": "BS", "HR": "HR",
@@ -22,7 +22,7 @@ var aliasToCanon = map[string]string{
 	"R": "RT", "K": "CF", "F": "BS", "H": "HR",
 }
 
-// FormulaVars متغیرهای مجاز فرمول.
+// FormulaVars are the allowed formula variables.
 type FormulaVars map[string]float64
 
 type tokKind int
@@ -97,7 +97,7 @@ func tokenize(src string) ([]tok, error) {
 	return toks, nil
 }
 
-// parser پارسر بازگشتی: expr := term (('+'|'-') term)* ; term := factor (('*'|'/') factor)*
+// parser: recursive parser: expr := term (('+'|'-') term)* ; term := factor (('*'|'/') factor)*
 type parser struct {
 	toks []tok
 	pos  int

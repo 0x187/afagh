@@ -1,4 +1,4 @@
-// ═══ کد یک‌بارمصرف — پورت src/lib/otp.ts ═══
+// ═══ one-time code — port of src/lib/otp.ts ═══
 package otp
 
 import (
@@ -17,7 +17,7 @@ import (
 const pepperEnv = "AFAGH_OTP_PEPPER"
 const devPepper = "afagh-dev-otp-pepper"
 
-// Pepper فلفل HMAC؛ در production بدون آن خطا (fail-closed).
+// Pepper is the HMAC pepper; in production, missing it is an error (fail-closed).
 func Pepper(production bool) (string, error) {
 	p := strings.TrimSpace(os.Getenv(pepperEnv))
 	if p != "" {
@@ -29,7 +29,7 @@ func Pepper(production bool) (string, error) {
 	return devPepper, nil
 }
 
-// NewCode کد شش‌رقمی از CSPRNG.
+// NewCode: six-digit code from CSPRNG.
 func NewCode() (string, error) {
 	n, err := rand.Int(rand.Reader, big.NewInt(1_000_000))
 	if err != nil {
@@ -38,20 +38,20 @@ func NewCode() (string, error) {
 	return fmt.Sprintf("%06d", n.Int64()), nil
 }
 
-// Digest هش HMAC-SHA256 با بافت یکتا.
+// Digest: HMAC-SHA256 hash with a unique context.
 func Digest(pepper, code, context string) string {
 	mac := hmac.New(sha256.New, []byte(pepper))
 	mac.Write([]byte(strings.TrimSpace(code) + ":" + context))
 	return hex.EncodeToString(mac.Sum(nil))
 }
 
-// LegacyDigest سازگاری با رکوردهای قدیمی sha256(code).
+// LegacyDigest: compatibility with old sha256(code) records.
 func LegacyDigest(code string) string {
 	sum := sha256.Sum256([]byte(strings.TrimSpace(code)))
 	return hex.EncodeToString(sum[:])
 }
 
-// Equal مقایسهٔ زمان-ثابت.
+// Equal: constant-time comparison.
 func Equal(a, b string) bool {
 	ab := []byte(a)
 	bb := []byte(b)

@@ -1,4 +1,4 @@
-// ═══ مدیریت حقوق: سمت‌های موظفی، نقش‌های تدریس، نقش دستی ارائه، پوشش فرمول ═══
+// ═══ payroll management: duty roles, teaching roles, manual offering role, formula coverage ═══
 package payroll
 
 import (
@@ -11,9 +11,9 @@ import (
 	"strings"
 )
 
-// ─────────────────── سمت‌های موظفی (payroll_duty_roles) ───────────────────
+// ─────────────────── duty roles (payroll_duty_roles) ───────────────────
 
-// DutyRole سمت موظفی.
+// DutyRole is a duty role.
 type DutyRole struct {
 	ID             int64    `json:"id"`
 	Code           string   `json:"code"`
@@ -26,7 +26,7 @@ type DutyRole struct {
 
 var roleCodeRe = regexp.MustCompile(`^[A-Z0-9_]{2,40}$`)
 
-// ListDutyRoles فهرست سمت‌ها (سراسری + دانشگاه جاری).
+// ListDutyRoles lists roles (global + current university).
 func (e *Engine) ListDutyRoles(ctx context.Context, universityID *int64) ([]DutyRole, error) {
 	args := []any{}
 	where := ` where "universityId" is null`
@@ -53,7 +53,7 @@ func (e *Engine) ListDutyRoles(ctx context.Context, universityID *int64) ([]Duty
 	return out, nil
 }
 
-// CreateDutyRoleInput ورودی ساخت سمت.
+// CreateDutyRoleInput is the role creation input.
 type CreateDutyRoleInput struct {
 	Code           string   `json:"code"`
 	Title          string   `json:"title"`
@@ -76,7 +76,7 @@ func validateDutyRole(title string, dutyUnits *float64, reduction float64) error
 	return nil
 }
 
-// CreateDutyRole پورت createDutyRole.
+// CreateDutyRole ports createDutyRole.
 func (e *Engine) CreateDutyRole(ctx context.Context, universityID *int64, in CreateDutyRoleInput) (*DutyRole, error) {
 	code := strings.ToUpper(strings.TrimSpace(in.Code))
 	code = strings.ReplaceAll(code, " ", "_")
@@ -106,7 +106,7 @@ func (e *Engine) CreateDutyRole(ctx context.Context, universityID *int64, in Cre
 	return &row, nil
 }
 
-// UpdateDutyRole پورت updateDutyRole (کد ثابت می‌ماند).
+// UpdateDutyRole ports updateDutyRole (the code stays fixed).
 func (e *Engine) UpdateDutyRole(ctx context.Context, universityID *int64, id int64, patch CreateDutyRoleInput) error {
 	if err := validateDutyRole(patch.Title, patch.DutyUnits, patch.ReductionUnits); err != nil {
 		return err
@@ -134,7 +134,7 @@ func (e *Engine) UpdateDutyRole(ctx context.Context, universityID *int64, id int
 	return nil
 }
 
-// DeleteDutyRole حذف سمت (انتساب‌ها cascade).
+// DeleteDutyRole deletes a role (assignments cascade).
 func (e *Engine) DeleteDutyRole(ctx context.Context, universityID *int64, id int64) error {
 	args := []any{id}
 	where := `id = $1`
@@ -146,9 +146,9 @@ func (e *Engine) DeleteDutyRole(ctx context.Context, universityID *int64, id int
 	return err
 }
 
-// ─────────────────── انتساب ترمی ───────────────────
+// ─────────────────── term assignment ───────────────────
 
-// StaffTermRole انتساب نقش به استاد در ترم.
+// StaffTermRole is a role assignment to an instructor in a term.
 type StaffTermRole struct {
 	AssignmentID   int64    `json:"assignmentId"`
 	RoleID         int64    `json:"roleId"`
@@ -161,7 +161,7 @@ type StaffTermRole struct {
 	IsPrimary      bool     `json:"isPrimary"`
 }
 
-// ListStaffTermRoles پورت listStaffTermRoles.
+// ListStaffTermRoles ports listStaffTermRoles.
 func (e *Engine) ListStaffTermRoles(ctx context.Context, staffID, termID int64) ([]StaffTermRole, error) {
 	rows, err := e.Pool.Query(ctx, `
 		select str.id, r.id, r.code, r.title, r."dutyUnits"::float8, r."reductionUnits"::float8,
@@ -187,15 +187,15 @@ func (e *Engine) ListStaffTermRoles(ctx context.Context, staffID, termID int64) 
 	return out, nil
 }
 
-// AssignmentsSummary پاسخ assignmentsAction.
+// AssignmentsSummary is the assignmentsAction response.
 type AssignmentsSummary struct {
 	Assigned      []StaffTermRole `json:"assigned"`
 	EffectiveDuty *float64        `json:"effectiveDuty"`
 	FallbackDuty  float64         `json:"fallbackDuty"`
 }
 
-// ComputeEffectiveDuty پورت computeEffectiveDuty:
-// base = dutyUnits اولین نقش تدریسی (کمینه sortOrder)؛ effective = max(0, base − Σ reduction).
+// ComputeEffectiveDuty ports computeEffectiveDuty:
+// base = dutyUnits of the first teaching role (minimum sortOrder); effective = max(0, base − Σ reduction).
 func ComputeEffectiveDuty(assigned []StaffTermRole) *float64 {
 	teaching := []StaffTermRole{}
 	for _, r := range assigned {
@@ -225,7 +225,7 @@ func ComputeEffectiveDuty(assigned []StaffTermRole) *float64 {
 	return &eff
 }
 
-// AssignmentSummary موظفی مؤثر + fallback قرارداد.
+// AssignmentSummary is effective duty + contract fallback.
 func (e *Engine) AssignmentSummary(ctx context.Context, staffID, termID int64) (*AssignmentsSummary, error) {
 	assigned, err := e.ListStaffTermRoles(ctx, staffID, termID)
 	if err != nil {
@@ -242,7 +242,7 @@ func (e *Engine) AssignmentSummary(ctx context.Context, staffID, termID int64) (
 	return out, nil
 }
 
-// AssignStaffTermRole پورت assignStaffTermRole (idempotent).
+// AssignStaffTermRole ports assignStaffTermRole (idempotent).
 func (e *Engine) AssignStaffTermRole(ctx context.Context, staffID, termID, roleID int64, isPrimary bool) error {
 	if staffID <= 0 || termID <= 0 {
 		return errors.New("شناسهٔ استاد/ترم نامعتبر است.")
@@ -271,7 +271,7 @@ func (e *Engine) AssignStaffTermRole(ctx context.Context, staffID, termID, roleI
 	return ierr
 }
 
-// UnassignStaffTermRole حذف یک انتساب.
+// UnassignStaffTermRole deletes an assignment.
 func (e *Engine) UnassignStaffTermRole(ctx context.Context, assignmentID int64) error {
 	if assignmentID <= 0 {
 		return errors.New("شناسهٔ انتساب نامعتبر است.")
@@ -280,7 +280,7 @@ func (e *Engine) UnassignStaffTermRole(ctx context.Context, assignmentID int64) 
 	return err
 }
 
-// SearchStaffHit نتیجهٔ جست‌وجوی استاد.
+// SearchStaffHit is an instructor search result.
 type SearchStaffHit struct {
 	ID         int64   `json:"id"`
 	StaffCode  *string `json:"staffCode"`
@@ -288,7 +288,7 @@ type SearchStaffHit struct {
 	Rank       *string `json:"rank"`
 }
 
-// SearchPayrollStaff پورت searchStaffAction.
+// SearchPayrollStaff ports searchStaffAction.
 func (e *Engine) SearchPayrollStaff(ctx context.Context, q string) ([]SearchStaffHit, error) {
 	q = strings.TrimSpace(q)
 	if len([]rune(q)) < 2 {
@@ -315,9 +315,9 @@ func (e *Engine) SearchPayrollStaff(ctx context.Context, q string) ([]SearchStaf
 	return out, nil
 }
 
-// ─────────────────── کاتالوگ نقش تدریس ───────────────────
+// ─────────────────── teaching role catalog ───────────────────
 
-// RoleDef نقش تدریس قابل‌تعریف.
+// RoleDef is a configurable teaching role.
 type RoleDef struct {
 	ID          int64   `json:"id"`
 	Code        string  `json:"code"`
@@ -328,7 +328,7 @@ type RoleDef struct {
 
 var roleDefCodeRe = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9_]*$`)
 
-// ListRoleDefs کاتالوگ نقش‌های تدریس (سراسری + دانشگاه جاری).
+// ListRoleDefs lists the teaching role catalog (global + current university).
 func (e *Engine) ListRoleDefs(ctx context.Context, universityID *int64) ([]RoleDef, error) {
 	args := []any{}
 	where := ` where "universityId" is null`
@@ -354,7 +354,7 @@ func (e *Engine) ListRoleDefs(ctx context.Context, universityID *int64) ([]RoleD
 	return out, nil
 }
 
-// RoleDefInput ورودی ذخیرهٔ نقش.
+// RoleDefInput is the role save input.
 type RoleDefInput struct {
 	Code        string  `json:"code"`
 	Title       string  `json:"title"`
@@ -377,7 +377,7 @@ func validateRoleDef(code, title string, description *string) (string, error) {
 	return strings.ToUpper(code), nil
 }
 
-// CreateRoleDef پورت POST role-defs (کد یکتا).
+// CreateRoleDef ports POST role-defs (unique code).
 func (e *Engine) CreateRoleDef(ctx context.Context, universityID *int64, in RoleDefInput) (*RoleDef, error) {
 	code, err := validateRoleDef(in.Code, in.Title, in.Description)
 	if err != nil {
@@ -416,7 +416,7 @@ func trimmedPtr(v *string) *string {
 	return &t
 }
 
-// UpdateRoleDef پورت PUT role-defs/:id.
+// UpdateRoleDef ports PUT role-defs/:id.
 func (e *Engine) UpdateRoleDef(ctx context.Context, id int64, in RoleDefInput) error {
 	if id <= 0 {
 		return errors.New("شناسهٔ نامعتبر است.")
@@ -447,7 +447,7 @@ func (e *Engine) UpdateRoleDef(ctx context.Context, id int64, in RoleDefInput) e
 	return nil
 }
 
-// DeleteRoleDef حذف؛ اگر روی ارائه‌ای اعمال شده باشد ممنوع.
+// DeleteRoleDef deletes; forbidden if applied to any offering.
 func (e *Engine) DeleteRoleDef(ctx context.Context, id int64) error {
 	if id <= 0 {
 		return errors.New("شناسهٔ نامعتبر است.")
@@ -465,7 +465,7 @@ func (e *Engine) DeleteRoleDef(ctx context.Context, id int64) error {
 	return err
 }
 
-// SetOfferingPayRole پورت PUT offering-extras — نقش دستی ارائه/استاد.
+// SetOfferingPayRole ports PUT offering-extras — manual offering/instructor role.
 func (e *Engine) SetOfferingPayRole(ctx context.Context, universityID *int64, offeringID, staffID int64, code *string) error {
 	if offeringID <= 0 || staffID <= 0 {
 		return errors.New("شناسهٔ ارائه یا استاد نامعتبر است.")
@@ -500,9 +500,9 @@ func (e *Engine) SetOfferingPayRole(ctx context.Context, universityID *int64, of
 	return uerr
 }
 
-// ─────────────────── نمای پوشش فرمول ───────────────────
+// ─────────────────── formula coverage view ───────────────────
 
-// CoverageRow ردیف پوشش: هر ارائهٔ هر استاد → قانون برنده یا علت نبود فرمول.
+// CoverageRow: coverage row — every offering of every instructor → winning rule or reason no formula matched.
 type CoverageRow struct {
 	StaffID        int64   `json:"staffId"`
 	StaffName      string  `json:"staffName"`
@@ -528,7 +528,7 @@ type CoverageRow struct {
 	OverrideTitle  *string `json:"overrideTitle"`
 }
 
-// ComputeRuleCoverage پورت computeRuleCoverage.
+// ComputeRuleCoverage ports computeRuleCoverage.
 func (e *Engine) ComputeRuleCoverage(ctx context.Context, termID *int64) ([]CoverageRow, error) {
 	term, err := e.CurrentTerm(ctx, termID)
 	if err != nil {
@@ -612,7 +612,7 @@ func (e *Engine) ComputeRuleCoverage(ctx context.Context, termID *int64) ([]Cove
 	return rows, nil
 }
 
-// TermsOption ترم برای انتخاب‌گر.
+// TermsOption is a term for the selector.
 type TermsOption struct {
 	ID        int64  `json:"id"`
 	Title     string `json:"title"`
@@ -620,7 +620,7 @@ type TermsOption struct {
 	IsCurrent bool   `json:"isCurrent"`
 }
 
-// ListTerms پورت فهرست ترم‌های صفحهٔ حقوق.
+// ListTerms ports the payroll page term list.
 func (e *Engine) ListTerms(ctx context.Context, universityID *int64) ([]TermsOption, error) {
 	args := []any{}
 	where := ""

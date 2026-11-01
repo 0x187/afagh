@@ -1,4 +1,4 @@
-// ═══ تقویم جلالی — پورت calendar.ts (همان الگوریتم jalaali-js، بدون ICU) ═══
+// ═══ Jalali calendar — port of calendar.ts (same jalaali-js algorithm, no ICU) ═══
 package jalali
 
 import (
@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-// MinYear / MaxYear بازهٔ پشتیبانی جدول شکست.
+// MinYear / MaxYear supported range of the break table.
 const (
 	MinYear = -61
 	MaxYear = 3177
@@ -20,12 +20,12 @@ var jalaliBreaks = []int{-61, 9, 38, 199, 426, 686, 756, 818, 1111, 1181, 1210, 
 func div(a, b int) int { return a / b }
 func mod(a, b int) int { return a - (a/b)*b }
 
-// Date تاریخ شمسی.
+// Date Shamsi date.
 type Date struct {
 	Y, M, D int
 }
 
-// GregorianDate تاریخ میلادی.
+// GregorianDate Gregorian date.
 type GregorianDate struct {
 	Y, M, D int
 }
@@ -67,7 +67,7 @@ func jalCal(jy int) (jalCalResult, error) {
 	return jalCalResult{leap: leap, gy: gy, march: march}, nil
 }
 
-// G2D روز جولیان از تاریخ میلادی.
+// G2D Julian day from Gregorian date.
 func G2D(gy, gm, gd int) int {
 	d := div((gy+div(gm-8, 6)+100100)*1461, 4) +
 		div(153*mod(gm+9, 12)+2, 5) +
@@ -76,7 +76,7 @@ func G2D(gy, gm, gd int) int {
 	return d
 }
 
-// D2G تاریخ میلادی از روز جولیان.
+// D2G Gregorian date from Julian day.
 func D2G(jdn int) GregorianDate {
 	j := 4*jdn + 139361631
 	j = j + div(div(4*jdn+183187720, 146097)*3, 4)*4 - 3908
@@ -87,7 +87,7 @@ func D2G(jdn int) GregorianDate {
 	return GregorianDate{Y: gy, M: gm, D: gd}
 }
 
-// J2D روز جولیان از تاریخ جلالی.
+// J2D Julian day from Jalali date.
 func J2D(jy, jm, jd int) (int, error) {
 	r, err := jalCal(jy)
 	if err != nil {
@@ -96,7 +96,7 @@ func J2D(jy, jm, jd int) (int, error) {
 	return G2D(r.gy, 3, r.march) + (jm-1)*31 - div(jm, 7)*(jm-7) + jd - 1, nil
 }
 
-// D2J تاریخ جلالی از روز جولیان.
+// D2J Jalali date from Julian day.
 func D2J(jdn int) Date {
 	gy := D2G(jdn).Y
 	jy := gy - 621
@@ -122,16 +122,16 @@ func D2J(jdn int) Date {
 	return Date{Y: jy, M: 7 + div(k, 30), D: mod(k, 30) + 1}
 }
 
-// ToJalali میلادی → جلالی.
+// ToJalali Gregorian → Jalali.
 func ToJalali(gy, gm, gd int) Date { return D2J(G2D(gy, gm, gd)) }
 
-// ToJalaliFromTime میلادی → جلالی از time.Time (منطقهٔ محلی زمان).
+// ToJalaliFromTime Gregorian → Jalali from time.Time (local time zone).
 func ToJalaliFromTime(t time.Time) Date {
 	y, m, d := t.Date()
 	return ToJalali(y, int(m), d)
 }
 
-// ToGregorian جلالی → میلادی.
+// ToGregorian Jalali → Gregorian.
 func ToGregorian(jy, jm, jd int) GregorianDate {
 	jdn, err := J2D(jy, jm, jd)
 	if err != nil {
@@ -140,7 +140,7 @@ func ToGregorian(jy, jm, jd int) GregorianDate {
 	return D2G(jdn)
 }
 
-// MonthLength طول ماه جلالی.
+// MonthLength Jalali month length.
 func MonthLength(jy, jm int) int {
 	if jm <= 6 {
 		return 31
@@ -158,7 +158,7 @@ func MonthLength(jy, jm int) int {
 	return 29
 }
 
-// IsLeap آیا سال جلالی کبیسه است؟
+// IsLeap whether the Jalali year is a leap year.
 func IsLeap(jy int) bool {
 	r, err := jalCal(jy)
 	return err == nil && r.leap == 0
@@ -166,7 +166,7 @@ func IsLeap(jy int) bool {
 
 var faDigitRunes = []rune{'۰', '۱', '۲', '۳', '۴', '۵', '۶', '۷', '۸', '۹'}
 
-// FaDigits ارقام لاتین → فارسی (نمایش).
+// FaDigits Latin digits → Persian (display).
 func FaDigits(input string) string {
 	var b strings.Builder
 	b.Grow(len(input))
@@ -180,7 +180,7 @@ func FaDigits(input string) string {
 	return b.String()
 }
 
-// GroupThousands «۱٬۲۳۴٬۵۶۷» — گردشده با جداکنندهٔ فارسی.
+// «۱٬۲۳۴٬۵۶۷» — grouped with Persian separator.
 func GroupThousands(n float64) string {
 	neg := n < 0
 	if neg {
@@ -201,7 +201,7 @@ func GroupThousands(n float64) string {
 	return s
 }
 
-// ToShamsi پورت toShamsi: ورودیِ از قبل شمسی دست‌نخورده؛ وگرنه ISO → «۱۴۰۵/۰۸/۰۴».
+// ToShamsi port of toShamsi: an already-Shamsi input is left untouched; otherwise ISO → «۱۴۰۵/۰۸/۰۴».
 func ToShamsi(s string) string {
 	if s == "" {
 		return "—"
