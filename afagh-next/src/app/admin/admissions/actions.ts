@@ -6,6 +6,7 @@ import {
   ensureDefaultSanjeshMappings,
   importStagedToStudents,
   findExistingRecordsForStaging,
+  checkFormulaUniqueness,
   parseAndStageSanjeshData,
   registerManualStudent,
 } from '@/lib/admissions-engine';
@@ -153,6 +154,15 @@ export async function saveStudentIdFormulaAction(degreeLevelId: number, formula:
       .from(student_id_formulas)
       .where(and(eq(student_id_formulas.degreeLevelId, degreeLevelId), uniScope(student_id_formulas.universityId)))
       .limit(1);
+
+    const check = await checkFormulaUniqueness(
+      formula,
+      degreeLevelId,
+      uni.id,
+      1405,
+      (existing?.currentSequence ?? 0) + 1,
+    );
+    if (!check.ok) return { ok: false, error: check.error };
 
     if (existing) {
       await db

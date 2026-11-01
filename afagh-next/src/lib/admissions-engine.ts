@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { hashPassword } from '@/lib/auth';
 import { getCurrentUniversity } from '@/lib/university-scope';
@@ -233,13 +233,26 @@ export async function generateStudentId(
   }
 
   // استخراج متغیرها
-  const year2 = String(params.entryYear).slice(-2); // مثلاً 05 برای 1405
-  const degreeDigit = level?.code === 'BS' ? '1' : level?.code === 'MS' ? '2' : level?.code === 'PHD' ? '3' : '1';
-  const major3 = (params.majorCode || '412').padStart(3, '0').slice(-3);
-  const seq3 = String(nextSeq).padStart(3, '0');
-  const quota1 = String(params.quotaCode || 1);
+  return renderStudentCode(formula, {
+    entryYear: params.entryYear,
+    degreeCode: level?.code,
+    majorCode: params.majorCode,
+    seq: nextSeq,
+    quotaCode: params.quotaCode,
+  });
+}
 
-  // جایگذاری متغیرها در الگوی فرمول
+/** جایگذاری متغیرهای فرمول شماره دانشجویی — تابع خالص، مشترک بین صدور و بررسی یکتایی */
+export function renderStudentCode(
+  formula: string,
+  v: { entryYear: number; degreeCode?: string | null; majorCode?: string; seq: number; quotaCode?: number },
+): string {
+  const year2 = String(v.entryYear).slice(-2); // مثلاً 05 برای 1405
+  const degreeDigit = v.degreeCode === 'BS' ? '1' : v.degreeCode === 'MS' ? '2' : v.degreeCode === 'PHD' ? '3' : '1';
+  const major3 = (v.majorCode || '412').padStart(3, '0').slice(-3);
+  const seq3 = String(v.seq).padStart(3, '0');
+  const quota1 = String(v.quotaCode || 1);
+
   let generated = formula
     .replace('{Year:2}', year2)
     .replace('{DegreeCode:1}', degreeDigit)
@@ -253,6 +266,73 @@ export async function generateStudentId(
   }
 
   return generated;
+}
+
+/**
+ * بررسی یکتایی فرمول پیش از ذخیره: برای همهٔ رشته‌های این مقطع و ترتیب‌های آیندهٔ (از fromSeq تا ۹۹۹)
+ * شماره‌ها را می‌سازد و با شمارهٔ دانشجویی‌های موجود همین دانشگاه و با یکدیگر مقایسه می‌کند.
+ */
+export async function checkFormulaUniqueness(
+  formula: string,
+  degreeLevelId: number,
+  universityId: number,
+  entryYear = 1405,
+  fromSeq = 1,
+): Promise<{ ok: boolean; error?: string; checked: number; collisions: string[] }> {
+  if (!formula.includes('{Seq:3}')) {
+    return { ok: false, error: 'فرمول باید متغیر {Seq:3} (شماره ترتیب) داشته باشد.', checked: 0, collisions: [] };
+  }
+
+  const [level] = await db
+    .select({ code: degree_level_configs.code })
+    .from(degree_level_configs)
+    .where(eq(degree_level_configs.id, degreeLevelId))
+    .limit(1);
+
+  const majorRows = await db
+    .select({ majorCode: majors.majorCode })
+    .from(majors)
+    .where(eq(majors.degreeLevelId, degreeLevelId));
+  const majorCodes = [...new Set(majorRows.map(m => m.majorCode || '412'))];
+  if (majorCodes.length === 0) majorCodes.push('412');
+
+  const existingRows = await db
+    .select({ code: students.studentCode })
+    .from(students)
+    .where(or(eq(students.universityId, universityId), isNull(students.universityId)));
+  const existing = new Set(existingRows.map(r => r.code));
+
+  const seen = new Map<string, string>();
+  const collisions: string[] = [];
+  let checked = 0;
+  for (const mc of majorCodes) {
+    for (let seq = fromSeq; seq <= 999; seq++) {
+      const code = renderStudentCode(formula, { entryYear, degreeCode: level?.code, majorCode: mc, seq });
+      if (code.length > 14) {
+        return { ok: false, error: `طول شماره «${code}» بیشتر از ۱۴ کاراکتر است.`, checked, collisions };
+      }
+      checked++;
+      const key = `${mc}#${seq}`;
+      const prev = seen.get(code);
+      if (prev !== undefined && prev !== key) {
+        collisions.push(`${code} (${prev} و ${key})`);
+      }
+      seen.set(code, key);
+      if (existing.has(code)) collisions.push(`${code} (قبلاً برای دانشجوی موجود صادر شده)`);
+      if (collisions.length >= 20) break;
+    }
+    if (collisions.length >= 20) break;
+  }
+
+  if (collisions.length > 0) {
+    return {
+      ok: false,
+      error: `فرمول یکتا نیست. نمونه تداخل‌ها: ${collisions.slice(0, 5).join('، ')}`,
+      checked,
+      collisions,
+    };
+  }
+  return { ok: true, checked, collisions };
 }
 
 // ============================================================================
@@ -407,7 +487,6 @@ export async function importStagedToStudents(
     if (!row.mappedMajorId || row.status !== 'RESOLVED') continue;
     // کپی محلی بعد از گارد — narrowing درون closure تراکنش از بین می‌رود
     const mappedMajorId = row.mappedMajorId;
-    const degreeLevelId = row.degreeLevelId || 1;
     const entryYear = row.entryYear || 1405;
     const quotaType = row.quotaType || 'NORMAL';
     const nationalCode = row.nationalCode;
@@ -465,12 +544,23 @@ export async function importStagedToStudents(
           }
         }
 
-        // ۳. تولید شمارهٔ دانشجویی پویا (اتمیک — داخل همین تراکنش)
+        // ۳. مقطع از خود رشته گرفته می‌شود (نه پیش‌فرض کارشناسی)؛ سپس شمارهٔ دانشجویی (اتمیک — داخل همین تراکنش)
         const [major] = await tx.select().from(majors).where(eq(majors.id, mappedMajorId)).limit(1);
+        const degreeLevelId = major?.degreeLevelId ?? row.degreeLevelId ?? null;
+        if (!degreeLevelId) throw new Error('مقطع این رشته مشخص نیست.');
         const studentCode = await generateStudentId(
           { degreeLevelId, entryYear, majorCode: major?.majorCode || '412' },
           tx,
         );
+        const [clash] = await tx
+          .select({ id: students.id })
+          .from(students)
+          .where(and(
+            or(eq(students.universityId, universityId), isNull(students.universityId)),
+            eq(students.studentCode, studentCode),
+          ))
+          .limit(1);
+        if (clash) throw new Error(`شمارهٔ ${studentCode} قبلاً صادر شده است؛ فرمول را بررسی کنید.`);
 
         // ۴. ایجاد پروندهٔ دانشجویی با منبع و روش ورود
         const fromSanjesh = row.fileId != null;
