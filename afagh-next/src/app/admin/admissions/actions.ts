@@ -4,7 +4,6 @@ import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/auth';
 import {
   ensureDefaultSanjeshMappings,
-  importStagedToStudents,
   assignStudentNumbers,
   finalRegisterStudents,
   findExistingRecordsForStaging,
@@ -110,24 +109,6 @@ export async function finalRegisterStudentsAction(stagingIds: number[]) {
   }
 }
 
-export async function importStagedStudentsAction(stagingIds: number[], entryMethod: string) {
-  await requireRole(['ADMIN', 'EDU_EXPERT']);
-
-  try {
-    if (!isEntryMethod(entryMethod)) return { ok: false, error: 'روش ورود را انتخاب کنید.' };
-    const result = await importStagedToStudents(stagingIds, { entryMethod });
-    revalidatePath('/admin/admissions');
-    revalidatePath('/admin/students');
-    return {
-      ok: true,
-      count: result.imported.length,
-      items: result.imported,
-      failures: result.failures,
-    };
-  } catch (err: any) {
-    return { ok: false, error: err?.message || 'خطا در ثبت نهایی دانشجویان.' };
-  }
-}
 
 export async function saveSanjeshMappingAction(sanjeshCode: string, internalMajorId: number, quota?: string) {
   await requireRole(['ADMIN']);
