@@ -169,7 +169,7 @@ export async function resetAdminSetting(key: string): Promise<void> {
   await apiPost('/admin/settings/reset', { key });
 }
 
-// ── مدیریت کلاس‌ها (تنظیمات ادمین) — پورت ClassroomManager ──
+// Admin classroom management (settings) — port of ClassroomManager.
 
 export type AdminClassroom = {
   id: number;

@@ -1,17 +1,17 @@
-// ═══ سوئیت برنامه‌ریزی درسی — پورت admin/scheduling (Next) ═══
+// Scheduling suite — port of the Next.js admin/scheduling module.
 //
-// پورت خط‌به‌خط:
-//   - afagh-next/src/app/admin/scheduling/actions.ts  (اکشن‌های صفحه)
-//   - afagh-next/src/lib/scheduling-engine.ts         (موتور: فازها/تأمین/تخصیص/سهمیه/پیشنهاد)
-//   - afagh-next/src/lib/scheduling-health.ts         (عارضه‌یابی)
-//   - afagh-next/src/lib/class-session-generator.ts   (تولید جلسات واقعی)
+// Ported from:
+//   - afagh-next/src/app/admin/scheduling/actions.ts  (page actions)
+//   - afagh-next/src/lib/scheduling-engine.ts         (phases/supply/allocation/quotas/suggestions)
+//   - afagh-next/src/lib/scheduling-health.ts         (health checks)
+//   - afagh-next/src/lib/class-session-generator.ts   (real session generation)
 //
-// هستهٔ خالص از پکیج موجود backend-go/internal/scheduling استفاده می‌کند
-// (پورت scheduling-core.ts). منطق DB-دار این‌جا پورت شده است.
+// The pure core lives in backend-go/internal/scheduling (ported from
+// scheduling-core.ts). Database-bound logic is implemented here.
 //
-// قواعد: قفل توافقی pg_advisory_xact_lock روی هر گلوگاه، تراکنش اتمی +
-// زنجیرهٔ حسابرسی (audit_logs)، خطاها با پیام فارسی، دامنهٔ دانشگاه
-// fail-closed (شناسهٔ نامعتبر ⇒ ۱=۰).
+// Rules: cooperative locks via pg_advisory_xact_lock at each bottleneck,
+// atomic transactions + audit_logs hash chain, Persian user-facing errors,
+// and fail-closed university scoping (invalid scope => 1 = 0).
 package admin
 
 import (
