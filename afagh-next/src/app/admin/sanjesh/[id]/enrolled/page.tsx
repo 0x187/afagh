@@ -93,7 +93,7 @@ export default async function SanjeshEnrolledPage({
               </tr>
             ) : (
               staged.map((s) => (
-                <tr key={s.id} className="border-t border-slate-100 odd:bg-white even:bg-slate-50/60">
+                <tr key={s.id} className="border-t border-slate-100 odd:bg-white even:bg-slate-50/60 dark:odd:bg-slate-800 dark:even:bg-slate-900">
                   <td className="sticky right-0 z-10 bg-inherit p-2 text-center tabular-nums text-slate-500 shadow-[-2px_0_0_0_#e2e8f0]">
                     {s.rowNo ?? '—'}
                   </td>

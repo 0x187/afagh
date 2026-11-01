@@ -490,6 +490,11 @@ export const students = pgTable('students', {
   // واحدهای جبرانیِ تعیین‌شده توسط مدیر گروه؛ به سقف واحد همان ترم اضافه می‌شود
   // (مثلاً سقف ۲۰ + ۶ جبرانی = ۲۶) و در «کف واحد» شمرده نمی‌شود.
   compensatoryUnits: integer('compensatoryUnits').notNull().default(0),
+  // ── منبع پذیرش (مهاجرت 0130): اعلام‌شده از سنجش یا ثبت متفرقه ──
+  admissionSource: varchar('admissionSource', { length: 20 }).default('LEGACY'), // SANJESH | MANUAL | LEGACY
+  sanjeshFileId: integer('sanjeshFileId'),
+  sanjeshRowNo: integer('sanjeshRowNo'),
+  manualReason: text('manualReason'),
   /** رشتهٔ قبلی (از سازمان سنجش) — برای تشخیص جبرانی در صفحهٔ مدیر گروه */
   previousMajorCode: varchar('previousMajorCode', { length: 20 }),
   previousMajorTitle: varchar('previousMajorTitle', { length: 150 }),

@@ -9,6 +9,7 @@ import {
   registerManualStudent,
 } from '@/lib/admissions-engine';
 import { executeIrandocCheck } from '@/lib/api-integrations';
+import { isEntryMethod } from '@/lib/entry-methods';
 import { db } from '@/db';
 import { admissions_staging, majors, sanjesh_mappings, student_id_formulas } from '@/db/schema';
 import { and, eq, isNull, or, sql } from 'drizzle-orm';
@@ -27,11 +28,16 @@ export async function stageSanjeshDataAction(rawText: string, entryYear = 1405) 
   }
 }
 
-export async function importStagedStudentsAction(stagingIds: number[]) {
+export async function importStagedStudentsAction(
+  stagingIds: number[],
+  entryMethod: string,
+  allowDuplicates: boolean = false,
+) {
   await requireRole(['ADMIN', 'EDU_EXPERT']);
 
   try {
-    const result = await importStagedToStudents(stagingIds);
+    if (!isEntryMethod(entryMethod)) return { ok: false, error: 'روش ورود را انتخاب کنید.' };
+    const result = await importStagedToStudents(stagingIds, { entryMethod, allowDuplicates });
     revalidatePath('/admin/admissions');
     revalidatePath('/admin/students');
     return {
@@ -68,7 +74,7 @@ export async function saveSanjeshMappingAction(sanjeshCode: string, internalMajo
     if (existing) {
       await db
         .update(sanjesh_mappings)
-        .set({ internalMajorId, sanjeshQuota: quota || 'سهمیه عادی' })
+        .set({ internalMajorId, ...(quota ? { sanjeshQuota: quota } : {}) })
         .where(and(eq(sanjesh_mappings.id, existing.id), uniScope(sanjesh_mappings.universityId)));
     } else {
       await db.insert(sanjesh_mappings).values({

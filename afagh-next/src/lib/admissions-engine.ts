@@ -4,6 +4,7 @@ import { db } from '@/db';
 import { hashPassword } from '@/lib/auth';
 import { getCurrentUniversity } from '@/lib/university-scope';
 import { createLogger, maskSecrets } from '@/lib/logger';
+import { isEntryMethod, type EntryMethod } from '@/lib/entry-methods';
 import {
   admissions_staging,
   degree_level_configs,
@@ -388,7 +389,11 @@ export async function parseAndStageSanjeshData(rawText: string, entryYear = 1405
  * برمی‌گردد — کاربر بدون پروندهٔ دانشجویی (یا شمارهٔ سوزانده‌شده) باقی نمی‌ماند.
  * شکست یک رکورد، بقیهٔ رکوردهای دسته را از کار نمی‌اندازد و در خروجی گزارش می‌شود.
  */
-export async function importStagedToStudents(stagingIds: number[]) {
+export async function importStagedToStudents(
+  stagingIds: number[],
+  opts: { entryMethod: EntryMethod; allowDuplicates?: boolean },
+) {
+  if (!isEntryMethod(opts.entryMethod)) throw new Error('روش ورود نامعتبر یا انتخاب‌نشده است.');
   const stagedRows = await db
     .select()
     .from(admissions_staging)
@@ -442,47 +447,54 @@ export async function importStagedToStudents(stagingIds: number[]) {
             .returning();
         }
 
-        // ۲. بررسی وجود پروندهٔ دانشجویی — فقط در صورت نبود، شماره تولید می‌شود
-        //    (تا سکانس بی‌دلیل سوزانده نشود؛ رکوردهای تکراری شمارهٔ تازه نمی‌گیرند)
-        const [existingStudent] = await tx
-          .select()
-          .from(students)
-          .where(eq(students.userId, user.id))
-          .limit(1);
-
-        let studentId = existingStudent?.id;
-        let studentCode = existingStudent?.studentCode;
-
-        if (!existingStudent) {
-          // ۳. تولید شمارهٔ دانشجویی پویا (اتمیک — داخل همین تراکنش)
-          const [major] = await tx.select().from(majors).where(eq(majors.id, mappedMajorId)).limit(1);
-          studentCode = await generateStudentId(
-            {
-              degreeLevelId,
-              entryYear,
-              majorCode: major?.majorCode || '412',
-            },
-            tx,
-          );
-
-          // ۴. ایجاد پروندهٔ دانشجویی
-          const [newStudent] = await tx
-            .insert(students)
-            .values({
-              userId: user.id,
-              studentCode,
-              majorId: mappedMajorId,
-              degreeLevelId,
-              regulationId: defaultReg?.id || 1,
-              entryYear,
-              entryTerm: 1,
-              status: 'ACTIVE',
-              quotaType,
-              currentTermNo: 1,
-            })
-            .returning();
-          studentId = newStudent.id;
+        // ۲. هر پذیرش یک پروندهٔ تازه با شماره دانشجویی جدید می‌گیرد؛ پرونده‌های قبلی دست‌نخورده می‌مانند.
+        //    پروندهٔ فعال با همان رشته و ورودی فقط با تأیید صریح ادمین (allowDuplicates) ثبت می‌شود.
+        if (!opts.allowDuplicates) {
+          const [dup] = await tx
+            .select({ studentCode: students.studentCode })
+            .from(students)
+            .where(and(
+              eq(students.userId, user.id),
+              eq(students.majorId, mappedMajorId),
+              eq(students.entryYear, entryYear),
+              eq(students.status, 'ACTIVE'),
+            ))
+            .limit(1);
+          if (dup) {
+            throw new Error(`پروندهٔ فعال با همین رشته و ورودی وجود دارد (شماره ${dup.studentCode}). برای ثبت تکراری، تأیید صریح لازم است.`);
+          }
         }
+
+        // ۳. تولید شمارهٔ دانشجویی پویا (اتمیک — داخل همین تراکنش)
+        const [major] = await tx.select().from(majors).where(eq(majors.id, mappedMajorId)).limit(1);
+        const studentCode = await generateStudentId(
+          { degreeLevelId, entryYear, majorCode: major?.majorCode || '412' },
+          tx,
+        );
+
+        // ۴. ایجاد پروندهٔ دانشجویی با منبع و روش ورود
+        const fromSanjesh = row.fileId != null;
+        const [newStudent] = await tx
+          .insert(students)
+          .values({
+            userId: user.id,
+            studentCode,
+            majorId: mappedMajorId,
+            degreeLevelId,
+            regulationId: defaultReg?.id || 1,
+            entryYear,
+            entryTerm: 1,
+            status: 'ACTIVE',
+            quotaType,
+            currentTermNo: 1,
+            acceptanceType: opts.entryMethod,
+            admissionSource: fromSanjesh ? 'SANJESH' : 'MANUAL',
+            sanjeshFileId: row.fileId ?? null,
+            sanjeshRowNo: row.rowNo ?? null,
+            manualReason: fromSanjesh ? null : 'ثبت از متن دستی (بدون فایل سنجش)',
+          })
+          .returning();
+        const studentId = newStudent.id;
 
         // ۵. به‌روزرسانی وضعیت در Staging
         await tx
@@ -534,6 +546,7 @@ export async function registerManualStudent(params: {
   entryTerm?: number;
   quotaType?: string;
   admissionType?: 'NORMAL' | 'TRANSFER' | 'INTERNATIONAL' | 'FREE_COURSE';
+  manualReason?: string;
   universityId?: number;
 }) {
   const entryYear = params.entryYear || 1405;
@@ -594,6 +607,9 @@ export async function registerManualStudent(params: {
         status: 'ACTIVE',
         quotaType: params.quotaType || 'NORMAL',
         currentTermNo: 1,
+        admissionSource: 'MANUAL',
+        manualReason: params.manualReason || 'ثبت دستی (بدون فایل سنجش)',
+        acceptanceType: ({ TRANSFER: 'انتقالی', INTERNATIONAL: 'اتباع خارجی', FREE_COURSE: 'دوره آزاد' } as Record<string, string>)[params.admissionType ?? ''] ?? null,
       })
       .returning();
 

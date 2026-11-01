@@ -148,7 +148,7 @@ export default async function SanjeshFilesPage({
                   const c = counters.get(f.id) ?? {};
                   const total = Object.values(c).reduce((s, n) => s + n, 0);
                   return (
-                    <tr key={f.id} className="border-t border-slate-100 odd:bg-white even:bg-slate-50/60">
+                    <tr key={f.id} className="border-t border-slate-100 odd:bg-white even:bg-slate-50/60 dark:odd:bg-slate-800 dark:even:bg-slate-900">
                       <td className="p-2">
                         <Link href={`/admin/sanjesh/${f.id}/fields`} className="font-medium text-teal-700 hover:underline">
                           {f.title}

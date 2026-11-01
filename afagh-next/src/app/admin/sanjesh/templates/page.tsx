@@ -59,7 +59,7 @@ export default async function SanjeshTemplatesPage({
             </thead>
             <tbody>
               {templates.map((t) => (
-                <tr key={t.key} className="border-t border-slate-100 odd:bg-white even:bg-slate-50/60">
+                <tr key={t.key} className="border-t border-slate-100 odd:bg-white even:bg-slate-50/60 dark:odd:bg-slate-800 dark:even:bg-slate-900">
                   <td className="p-2 font-mono text-slate-700" dir="ltr">
                     {t.key}
                   </td>

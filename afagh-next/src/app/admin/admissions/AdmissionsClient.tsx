@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { ENTRY_METHODS } from '@/lib/entry-methods';
 import { ClientTh, useClientTable, type ColumnDef } from '@/components/DataTable';
 import {
   importStagedStudentsAction,
@@ -120,6 +121,8 @@ export default function AdmissionsClient({
   const [mappingsList, setMappingsList] = useState<SanjeshMappingItem[]>(initialMappings);
   const [isStaging, setIsStaging] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [importEntryMethod, setImportEntryMethod] = useState<string>('');
+  const [importAllowDuplicates, setImportAllowDuplicates] = useState(false);
 
   // ── نگاشت «کد رشتهٔ سنجش» → «رشتهٔ دانشگاه» ─────────────────────────────
   // هر ردیفِ «نیازمند نگاشت» یک کد رشتهٔ سنجش دارد؛ نگاشت یک کد، همهٔ
@@ -243,8 +246,13 @@ export default function AdmissionsClient({
       return;
     }
 
+    if (!importEntryMethod) {
+      setFeedback({ text: 'ابتدا «روش ورود» را برای این گروه انتخاب کنید.', type: 'error' });
+      return;
+    }
+
     setIsImporting(true);
-    const res = await importStagedStudentsAction(resolvedIds);
+    const res = await importStagedStudentsAction(resolvedIds, importEntryMethod, importAllowDuplicates);
     setIsImporting(false);
     if (res.ok) {
       const failNote = res.failures?.length ? ` — ${res.failures.length} رکورد ناموفق بود (به‌طور کامل برگشت داده شد؛ جزئیات در لاگ سرور).` : '';
@@ -407,7 +415,7 @@ export default function AdmissionsClient({
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={handleStageRawText}
                   disabled={isStaging}
@@ -415,6 +423,24 @@ export default function AdmissionsClient({
                 >
                   {isStaging ? 'در حال استخراج...' : '⚙️ پردازش و تطبیق خودکار کدها'}
                 </button>
+                <select
+                  value={importEntryMethod}
+                  onChange={e => setImportEntryMethod(e.target.value)}
+                  className="px-2 py-2 rounded-xl border border-slate-300 bg-white text-xs font-bold"
+                >
+                  <option value="">— روش ورود (الزامی) —</option>
+                  {ENTRY_METHODS.map(m => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+                </select>
+                <label className="flex items-center gap-1 text-[11px] text-amber-800">
+                  <input
+                    type="checkbox"
+                    checked={importAllowDuplicates}
+                    onChange={e => setImportAllowDuplicates(e.target.checked)}
+                  />
+                  اجازهٔ ثبت پرونده تکراری (با آگاهی)
+                </label>
                 <button
                   onClick={handleBatchImport}
                   disabled={isImporting}
@@ -655,7 +681,39 @@ export default function AdmissionsClient({
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">الگوی فرمول (Pattern Template):</label>
+                <label className="block text-xs font-bold text-slate-700">الگوی فرمول:</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { label: 'سال ورود (۲ رقم)', token: '{Year:2}' },
+                    { label: 'کد مقطع (۱ رقم)', token: '{DegreeCode:1}' },
+                    { label: 'کد رشته (۳ رقم)', token: '{MajorCode:3}' },
+                    { label: 'کد سهمیه (۱ رقم)', token: '{QuotaCode:1}' },
+                    { label: 'شماره ترتیب (۳ رقم)', token: '{Seq:3}' },
+                  ].map(p => (
+                    <button
+                      key={p.token}
+                      type="button"
+                      onClick={() => setFormulaPattern(v => v + p.token)}
+                      className="px-2 py-1 rounded-lg border border-indigo-300 bg-white text-[11px] font-bold text-indigo-800 hover:bg-indigo-50"
+                    >
+                      + {p.label}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    onClick={() => setFormulaPattern(v => v.replace(/\{[^}]*\}$/, ''))}
+                    className="px-2 py-1 rounded-lg border border-slate-300 bg-white text-[11px] font-bold text-slate-600 hover:bg-slate-50"
+                  >
+                    ↩ حذف آخرین بخش
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormulaPattern('')}
+                    className="px-2 py-1 rounded-lg border border-rose-300 bg-white text-[11px] font-bold text-rose-700 hover:bg-rose-50"
+                  >
+                    پاک‌کردن همه
+                  </button>
+                </div>
                 <input
                   type="text"
                   value={formulaPattern}
