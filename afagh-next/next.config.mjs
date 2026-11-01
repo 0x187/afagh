@@ -10,12 +10,26 @@ const skipTypeCheck = process.env.NEXT_SKIP_TYPE_CHECK === '1';
 // در مرحلهٔ builder تنظیم می‌کند.
 const standalone = process.env.AFAGH_STANDALONE === '1';
 
+/**
+ * شناسهٔ نسخهٔ بیلد — برای تشخیص «باندل کهنه» در مرورگر کاربر.
+ *
+ * چرا لازم است: بعد از هر deploy، تبِ بازِ کاربر با باندلِ JS قدیمی به کار خود
+ * ادامه می‌دهد؛ ناوبری سمت کلاینت، RSC بیلدِ جدید را می‌گیرد ولی شناسهٔ
+ * Server Actionها در باندلِ قدیمی وجود ندارد و Next آن‌ها را با خطای
+ * «Failed to find Server Action» رد می‌کند — یعنی دکمه‌ها بی‌صدا کار نمی‌کنند.
+ * این مقدار هنگام بیلد در باندل کلاینت و سرور هر دو inline می‌شود، پس با
+ * مقایسه‌اش با پاسخِ /api/version می‌توان نسخهٔ کهنه را تشخیص داد.
+ */
+const buildId = process.env.NEXT_PUBLIC_BUILD_ID || `b${Date.now()}`;
+
 // توجه (Next 16): کلید «eslint» در next.config دیگر پشتیبانی نمی‌شود و خودِ
 // «next build» هم دیگر ESLint اجرا نمی‌کند؛ گذاشتنش فقط دو هشدار
 // «Unrecognized key(s) in object: 'eslint'» در لاگ بیلد تولید می‌کرد.
 // (پروژه اسکریپت lint جداگانه ندارد؛ دروازه‌های CI تایپ‌چک و تست‌اند.)
 const nextConfig = {
   reactStrictMode: true,
+  // شناسهٔ نسخه در باندل کلاینت و سرور هر دو inline می‌شود (VersionGuard + /api/version)
+  env: { NEXT_PUBLIC_BUILD_ID: buildId },
   // 🔒 افشای فناوری را خاموش می‌کند (X-Powered-By: Next.js)
   poweredByHeader: false,
   ...(standalone ? { output: 'standalone' } : {}),

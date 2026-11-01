@@ -4,6 +4,7 @@ import '../styles/mobile-tables.css';
 import PrintThemeGuard from '@/components/PrintThemeGuard';
 import MobileTableEnhancer from '@/components/MobileTableEnhancer';
 import PwaRegister from '@/components/PwaRegister';
+import VersionGuard from '@/components/VersionGuard';
 
 export const metadata: Metadata = {
   title: 'سامانه جامع آفاق',
@@ -35,6 +36,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <PrintThemeGuard />
         <MobileTableEnhancer />
         <PwaRegister />
+        {/* تشخیص «باندل کهنه» بعد از هر deploy — بدون آن، دکمه‌ها بی‌صدا کار نمی‌کنند */}
+        <VersionGuard />
         {children}
       </body>
     </html>
