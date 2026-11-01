@@ -4,6 +4,7 @@ import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router-d
 import { useQueryClient } from '@tanstack/react-query';
 
 import { PanelSwitcher } from '@/components/shell/PanelSwitcher';
+import { MobileTabBar, sectionOf } from '@/components/shell/MobileTabBar';
 import { SessionLockOverlay } from '@/components/shell/SessionLockOverlay';
 import { TermSwitcher } from '@/components/shell/TermSwitcher';
 import { ThemeToggle } from '@/components/shell/ThemeToggle';
@@ -83,9 +84,10 @@ export function AppShell() {
           </div>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
+      <main className={`mx-auto w-full max-w-6xl flex-1 px-4 pt-6 ${sectionOf(location.pathname) ? 'pb-24 md:pb-6' : 'pb-6'}`}>
         <Outlet />
       </main>
+      <MobileTabBar />
     </div>
   );
 }

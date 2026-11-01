@@ -83,15 +83,17 @@ Caddy ─▶ Go edge (:8091)
 | ۱۲ | دفتر کل مالی دانشگاه + ویترین صفحه ورود + لانچر مرکز کدها | `httpapi/small_admin` | SmallAdminPages | برش ۲۹ |
 | ۱۲ | صفحهٔ عمومی تحویل اوراق امتحان (verify + confirm با هویت نشست) | `httpapi/exam_handover_public` | ExamHandoverPage | برش ۲۹ |
 | ۱۲ | شبیه‌ساز سناریوی حقوق (دادهٔ نمونه صرفاً کلاینتی) | — (کلاینتی) | PayrollSimulatorPage | برش ۲۹ |
+| ۱۳ | مدیر کلاس‌های تنظیمات ادمین: کد کلاس (LT4.Code)، سورت/فیلتر، انتخاب چندگانه و فعال/غیرفعال/حذف گروهی | `admin/classrooms` + `httpapi/admin_classrooms` | ClassroomManager در AdminSettingsPage | پس از برش ۲۹ |
+| ۱۳ | نوار پایین موبایل دانشجو/استاد/ادمین + شیت منوی کامل | — (کلاینتی) | MobileTabBar در AppShell | پس از برش ۲۹ |
 
 وضعیت فعلی: **۲۶ بستهٔ تست Go سبز**، **۲۸ تست Vitest سبز**، بیلد Go و TS/Vite سبز.
 
 ## سطوح API
 
-- مسیرهای Go: **۵۰۹** در ۴۴ فایل `internal/httpapi/*.go` (auth، scope،
+- مسیرهای Go: **۵۱۵** در ۴۶ فایل `internal/httpapi/*.go` (auth، scope،
   student، enroll، professor، groupmanager، admin، payroll، workflow، public، cron، reports، bi،
   codes، migration/saham/samin، messenger، cron-extra، public-extra، step-up، templates،
-  regulations، edu-expert، scheduling-suite، last-pages).
+  regulations، edu-expert، scheduling-suite، last-pages، admin-classrooms).
 - نقاط مسئله‌دار که بایت‌به‌بایت سازگار پورت شده‌اند: زنجیرهٔ هش `audit_logs`،
   اسکریپت‌های Lua.waiting-room، تراز کانونی دفتر مالی (`ledger-balance`)،
   فرمت توکن `T1.<b64>.<sig>` + چرخش کلید، canonical JSON مدرک،

@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getAdminSettings, resetAdminSetting, saveAdminSetting } from '@/lib/admin-api';
+import { ClassroomManager } from './ClassroomManager';
 
 // ═══ تنظیمات سامانه — پورت admin/settings (کلیدهای ثبت‌شده در نسخهٔ جدید) ═══
 
@@ -104,6 +105,20 @@ export function AdminSettingsPage() {
           </CardContent>
         </Card>
       ))}
+
+      <details open className="group rounded-2xl border border-border bg-card text-card-foreground shadow-xs">
+        <summary className="flex cursor-pointer select-none list-none items-center justify-between px-5 py-4">
+          <div>
+            <h2 className="text-base font-extrabold">داده‌های پایه (رکوردها)</h2>
+            <p className="text-xs text-muted-foreground">افزودن/ویرایش کلاس‌ها و دیگر موجودیت‌ها — مختص دانشگاه فعال.</p>
+          </div>
+          <span className="text-sm text-muted-foreground group-open:hidden">▼ باز کردن</span>
+          <span className="hidden text-sm text-muted-foreground group-open:inline">▲ بستن</span>
+        </summary>
+        <div className="px-5 pb-5">
+          <ClassroomManager />
+        </div>
+      </details>
     </div>
   );
 }

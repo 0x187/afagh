@@ -169,6 +169,65 @@ export async function resetAdminSetting(key: string): Promise<void> {
   await apiPost('/admin/settings/reset', { key });
 }
 
+// ── مدیریت کلاس‌ها (تنظیمات ادمین) — پورت ClassroomManager ──
+
+export type AdminClassroom = {
+  id: number;
+  name: string;
+  code: string | null;
+  capacity: number;
+  roomType: string | null;
+  facultyId: number | null;
+  facultyName: string | null;
+  floor: string | null;
+  rowsCount: number | null;
+  colsCount: number | null;
+  isActive: number;
+};
+
+export type AdminClassroomsData = {
+  classrooms: AdminClassroom[];
+  faculties: { id: number; name: string }[];
+};
+
+export type AdminClassroomInput = {
+  id?: number;
+  code: string;
+  name: string;
+  capacity: number;
+  roomType: string;
+  facultyId: number | null;
+  floor: string;
+  rows: number | null;
+  cols: number | null;
+  isActive: number;
+};
+
+export type AdminClassroomResult = { message: string; newId?: number };
+
+export async function getAdminClassrooms(): Promise<AdminClassroomsData> {
+  const res = await apiGet<{ ok: boolean; data: AdminClassroomsData }>('/admin/classrooms');
+  return res.data;
+}
+
+export async function saveAdminClassroom(input: AdminClassroomInput): Promise<AdminClassroomResult> {
+  const res = await apiPost<{ ok: boolean; data: AdminClassroomResult }>('/admin/classrooms', input);
+  return res.data;
+}
+
+export async function deleteAdminClassroom(id: number): Promise<AdminClassroomResult> {
+  const res = await apiPost<{ ok: boolean; data: AdminClassroomResult }>('/admin/classrooms/delete', { id });
+  return res.data;
+}
+
+export async function bulkAdminClassrooms(
+  op: 'activate' | 'deactivate' | 'delete',
+  ids: number[],
+): Promise<AdminClassroomResult> {
+  const res = await apiPost<{ ok: boolean; data: AdminClassroomResult }>('/admin/classrooms/bulk', { op, ids });
+  return res.data;
+}
+
 export type ExamsData = {
   term: { id: number | null; title: string; termCode: string; isEnrollmentOpen: boolean };
   sessions: { id: number; termId: number | null; examDate: string; startTime: string; endTime: string; allocated: number }[];
