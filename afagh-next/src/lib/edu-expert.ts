@@ -298,11 +298,6 @@ export interface ClassroomAssignRow {
   offeringCount: number;
   /** گروه‌های سازندهٔ درس‌های همین اتاق — برای اینکه معلوم باشد چه کسانی اینجا کلاس دارند */
   departments: string[];
-  /** گروهِ صریحاً مسئولِ این اتاق (مهاجرت ۰۱۱۴) — NULL = تعیین نشده */
-  departmentId: number | null;
-  departmentName: string | null;
-  /** مدیرگروهِ همان گروه مسئول (`departments.headStaffId`) */
-  headName: string | null;
   expertIds: number[];
   sessions: ClassroomSessionRow[];
 }
@@ -426,22 +421,6 @@ export async function listClassroomExpertAssignments(
   const deptName = new Map(depts.map((d) => [d.id, d.name]));
   const profName = new Map(profs.map((p) => [p.id, `${p.firstName || ''} ${p.lastName || ''}`.trim()]));
 
-  /* مدیرگروهِ گروهِ مسئولِ هر اتاق — نامِ مدیر لازم است تا مدیر سامانه در همان
-     کارت ببیند «این اتاق در اختیار چه کسی است». */
-  const ownerDeptIds = [...new Set(
-    rooms.map((r) => r.departmentId).filter((v): v is number => typeof v === 'number'),
-  )];
-  const ownerDepts = ownerDeptIds.length
-    ? await db.select({ id: departments.id, name: departments.name, headStaffId: departments.headStaffId })
-        .from(departments).where(inArray(departments.id, ownerDeptIds)).catch(() => [])
-    : ([] as { id: number; name: string; headStaffId: number | null }[]);
-  const ownerDeptById = new Map(ownerDepts.map((d) => [d.id, d]));
-  const headIds = [...new Set(ownerDepts.map((d) => d.headStaffId).filter((v): v is number => typeof v === 'number'))];
-  const heads = headIds.length
-    ? await db.select({ id: staff.id, firstName: users.firstName, lastName: users.lastName })
-        .from(staff).innerJoin(users, eq(users.id, staff.userId)).where(inArray(staff.id, headIds)).catch(() => [])
-    : ([] as { id: number; firstName: string | null; lastName: string | null }[]);
-  const headNameById = new Map(heads.map((h) => [h.id, `${h.firstName || ''} ${h.lastName || ''}`.trim()]));
   const expertsByRoom = new Map<number, number[]>();
   for (const a of assignments) {
     const list = expertsByRoom.get(a.classroomId) ?? [];
@@ -466,12 +445,6 @@ export async function listClassroomExpertAssignments(
         sessionCount: 0,
         offeringCount: 0,
         departments: [],
-        departmentId: room?.departmentId ?? null,
-        departmentName: room?.departmentId != null ? (ownerDeptById.get(room.departmentId)?.name ?? null) : null,
-        headName: (() => {
-          const hid = room?.departmentId != null ? ownerDeptById.get(room.departmentId)?.headStaffId : null;
-          return hid != null ? (headNameById.get(hid) ?? null) : null;
-        })(),
         expertIds: expertsByRoom.get(roomId) ?? [],
         sessions: [],
       };

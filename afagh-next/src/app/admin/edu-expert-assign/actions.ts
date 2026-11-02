@@ -5,7 +5,6 @@ import { db } from '@/db';
 import {
   academic_terms,
   classroom_edu_experts,
-  classrooms,
   course_offering_edu_experts,
   course_offerings,
   departments,
@@ -156,51 +155,6 @@ export async function listDepartmentsForRoomOwner(uniIdArg?: number | null): Pro
   }));
 }
 
-/**
- * تعیینِ «گروهِ مسئولِ اتاق» (یا برداشتنِ آن با null).
- * همان گروهِ مسئول، مدیرگروهش را هم مشخص می‌کند؛ پس تخصیصِ اتاق و تخصیصِ
- * کلاس به مدیرگروه یک عمل می‌شوند.
- */
-export async function setClassroomDepartmentAction(
-  classroomId: number,
-  departmentId: number | null,
-): Promise<{ ok: boolean; error?: string }> {
-  await requireRoleOrPermission(EDU, EDU_PERM);
-  if (!Number.isInteger(classroomId) || classroomId <= 0) {
-    return { ok: false, error: 'اتاق نامعتبر است.' };
-  }
-
-  const uniId = (await getCurrentUniversity().catch(() => null))?.id ?? null;
-
-  const [room] = await db
-    .select({ id: classrooms.id, universityId: classrooms.universityId })
-    .from(classrooms)
-    .where(eq(classrooms.id, classroomId))
-    .limit(1);
-  if (!room) return { ok: false, error: 'اتاق یافت نشد.' };
-  // مرز دانشگاه: اتاقِ دانشگاه دیگر را نمی‌توان از این‌جا تغییر داد.
-  if (uniId != null && room.universityId != null && room.universityId !== uniId) {
-    return { ok: false, error: 'این اتاق در دانشگاه شما نیست.' };
-  }
-
-  if (departmentId != null) {
-    const [d] = await db
-      .select({ id: departments.id, universityId: departments.universityId })
-      .from(departments)
-      .where(eq(departments.id, departmentId))
-      .limit(1);
-    if (!d) return { ok: false, error: 'گروه یافت نشد.' };
-    if (uniId != null && d.universityId != null && d.universityId !== uniId) {
-      return { ok: false, error: 'این گروه در دانشگاه شما نیست.' };
-    }
-  }
-
-  await db
-    .update(classrooms)
-    .set({ departmentId: departmentId ?? null })
-    .where(eq(classrooms.id, classroomId));
-  return { ok: true };
-}
 
 /** اعتبارسنجی کاربر: واقعاً حساب است و (اگر داده بود) فعال است. */
 async function assertExpert(userId: number | null): Promise<{ ok: true; userId: number | null } | { ok: false; error: string }> {

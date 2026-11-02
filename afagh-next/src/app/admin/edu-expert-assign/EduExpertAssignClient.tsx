@@ -11,7 +11,6 @@ import {
   clearTermEduExpertAction,
   removeClassroomExpertAction,
   removeOfferingEduExpertAction,
-  setClassroomDepartmentAction,
   type EduExpertAssignInit,
 } from './actions';
 
@@ -48,9 +47,6 @@ export default function EduExpertAssignClient({ init }: { init: EduExpertAssignI
   const [selectedRooms, setSelectedRooms] = useState<Set<number>>(new Set());
   const [openRoom, setOpenRoom] = useState<number | null>(null);
   const [roomOverrides, setRoomOverrides] = useState<Map<number, number[]>>(new Map());
-  /* گروهِ مسئولِ هر اتاق — همان چیزی که مدیرگروه را هم مشخص می‌کند.
-     ادغامِ «تخصیص کارشناس به اتاق» با «تخصیص کلاس به مدیرگروه». */
-  const [deptOverrides, setDeptOverrides] = useState<Map<number, number | null>>(new Map());
   const [bulkExpert, setBulkExpert] = useState<number | null>(null);
 
   /* ── استثناها ── */
@@ -66,13 +62,6 @@ export default function EduExpertAssignClient({ init }: { init: EduExpertAssignI
   }, [init.candidates]);
 
   const roomExpertIds = (r: Room): number[] => roomOverrides.get(r.roomId) ?? r.expertIds;
-  const roomDeptId = (r: Room): number | null =>
-    deptOverrides.has(r.roomId) ? (deptOverrides.get(r.roomId) ?? null) : r.departmentId;
-  const deptById = useMemo(() => {
-    const m = new Map<number, EduExpertAssignInit['departments'][number]>();
-    for (const d of init.departments) m.set(d.id, d);
-    return m;
-  }, [init.departments]);
   const offExpertIds = (r: Row): number[] => offOverrides.get(r.offeringId) ?? r.assignedUserIds;
 
   const rooms = useMemo(() => {
@@ -132,22 +121,6 @@ export default function EduExpertAssignClient({ init }: { init: EduExpertAssignI
     if (res.ok) {
       setRoomOverrides((p) => new Map(p).set(r.roomId, res.userIds ?? roomExpertIds(r).filter((x) => x !== userId)));
       setMsg({ ok: true, text: 'کارشناس از اتاق حذف شد.' });
-      router.refresh();
-    } else setMsg({ ok: false, text: res.error ?? 'خطا' });
-  }
-
-  /** تعیین/برداشتنِ گروهِ مسئولِ اتاق — مدیرگروه از همین گروه خوانده می‌شود. */
-  async function setRoomDept(r: Room, departmentId: number | null) {
-    setMsg(null);
-    const res = await setClassroomDepartmentAction(r.roomId, departmentId);
-    if (res.ok) {
-      setDeptOverrides((p) => new Map(p).set(r.roomId, departmentId));
-      setMsg({
-        ok: true,
-        text: departmentId
-          ? `گروه مسئولِ ${r.roomName} ثبت شد.`
-          : `گروه مسئولِ ${r.roomName} برداشته شد.`,
-      });
       router.refresh();
     } else setMsg({ ok: false, text: res.error ?? 'خطا' });
   }
@@ -387,48 +360,6 @@ export default function EduExpertAssignClient({ init }: { init: EduExpertAssignI
                   {!!r.departments.length && (
                     <p className="text-[11px] text-slate-500">گروه‌ها: {r.departments.join(' · ')}</p>
                   )}
-
-                  {/* ── گروهِ مسئولِ اتاق (مدیرگروه) ──────────────────────
-                      ادغامِ تخصیصِ اتاق با تخصیصِ کلاس به مدیرگروه: مدیر سامانه
-                      همین‌جا می‌گوید این اتاق در اختیارِ کدام گروه است و نامِ
-                      مدیرگروهش را هم بلافاصله می‌بیند. */}
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-2 py-1.5 space-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-black text-slate-600 shrink-0">گروه مسئول</span>
-                      {/* عرضِ کامل + بدون min-w-0: سلکتِ باریک نام‌های بلند فارسی را
-                          به «…» برش می‌زند و کاربر نمی‌تواند بخواند. */}
-                      <select
-                        dir="rtl"
-                        className="input flex-1 min-w-[7rem] text-[11px] py-0.5 h-7"
-                        value={roomDeptId(r) ?? ''}
-                        disabled={pending}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setRoomDept(r, v ? Number(v) : null);
-                        }}
-                      >
-                        <option value="">— تعیین نشده —</option>
-                        {init.departments.map((d) => (
-                          <option key={d.id} value={d.id}>
-                            {d.name}
-                            {d.facultyName ? ` (${d.facultyName})` : ''}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="text-[10px] font-bold text-slate-500 pr-1">
-                      {(() => {
-                        const id = roomDeptId(r);
-                        if (id == null) {
-                          return 'بدون گروه مسئول — مسئولیت از سانس‌های همین اتاق استنتاج می‌شود.';
-                        }
-                        const d = deptById.get(id);
-                        return d?.headName
-                          ? `مدیرگروه: ${d.headName}`
-                          : 'برای این گروه مدیرگروه ثبت نشده است.';
-                      })()}
-                    </div>
-                  </div>
 
                   <div className="flex flex-wrap items-center gap-1">
                     {ids.map((id) => (
