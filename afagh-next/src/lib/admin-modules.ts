@@ -293,6 +293,18 @@ export const ADMIN_MODULES: AdminModule[] = [
     inGrid: false,
   },
   {
+    href: '/admin/scheduling?tab=DEPT_ROOMS',
+    icon: '🏛️',
+    title: 'مدیریت سهمیهٔ سالن‌ها',
+    desc: 'تخصیص/لغو/واگذاری سالن‌ها به دپارتمان‌ها',
+    group: 'plan',
+    roles: ['ADMIN', 'EDU_EXPERT'],
+    accent: 'from-emerald-900 to-teal-950 border-emerald-700/50',
+    iconBg: 'bg-emerald-800/80 border-emerald-500/50',
+    inNav: true,
+    inGrid: true,
+  },
+  {
     href: '/admin/scheduling',
     icon: '🗓️',
     title: 'برنامه‌ریزی درسی مدیر گروه',
