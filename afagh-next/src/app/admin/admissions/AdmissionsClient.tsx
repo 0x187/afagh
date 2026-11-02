@@ -165,6 +165,56 @@ export default function AdmissionsClient({
     { key: 'status', label: 'وضعیت تطبیق', get: s => s.status ?? '' },
   ];
   const stagingTable = useClientTable(stagingList, STAGING_COLS);
+
+  // ── جدول «بازبینی و تأیید نهایی» ────────────────────────────────────────
+  // همان زیرساخت فیلتر/سورتِ جدول صف، با ستون‌های همین جدول. ستون‌های تأیید
+  // و # عمداً sortable/filterable نیستند (مقدارشان معنادار نیست).
+  const readyRows = stagingList.filter(s => s.status === 'RESOLVED' && s.mappedMajorId);
+  const REVIEW_COLS: ColumnDef<StagingItem>[] = [
+    { key: 'approve', label: 'تأیید', get: () => '', sortable: false, filterable: false },
+    { key: 'row', label: '#', get: () => '', sortable: false, filterable: false },
+    { key: 'studentCode', label: 'شمارهٔ دانشجویی', get: s => s.assignedStudentCode ?? '' },
+    { key: 'nationalCode', label: 'کد ملی', get: s => s.nationalCode },
+    { key: 'firstName', label: 'نام', get: s => s.profile?.firstName ?? '' },
+    { key: 'lastName', label: 'نام خانوادگی', get: s => s.profile?.lastName ?? s.fullName ?? '' },
+    { key: 'fatherName', label: 'نام پدر', get: s => s.profile?.fatherName ?? '' },
+    {
+      key: 'gender',
+      label: 'جنسیت',
+      get: s => (s.profile?.gender === '1' ? 'مرد' : s.profile?.gender === '2' ? 'زن' : '—'),
+    },
+    { key: 'degree', label: 'مقطع', get: s => degreeTitleOf(s) || s.profile?.degreeLevelTitle || '' },
+    {
+      key: 'sanjeshMajor',
+      label: 'رشتهٔ سنجش',
+      get: s => s.profile?.fieldPlaceTitle || s.profile?.fieldTitle || s.rawSanjeshData?.majorTitle || '',
+    },
+    { key: 'mappedMajor', label: 'رشتهٔ دانشگاه', get: s => s.mappedMajorName ?? '' },
+    {
+      key: 'quota',
+      label: 'سهمیه',
+      get: s => s.profile?.quotaAdmitTitle || s.profile?.quotaFinalTitle || s.rawSanjeshData?.quota || '',
+    },
+    {
+      key: 'universityCode',
+      label: 'کد دانشگاه',
+      get: s => s.profile?.universityCode || s.rawSanjeshData?.universityCode || '',
+    },
+    { key: 'mobile', label: 'موبایل', get: s => s.profile?.mobile || s.mobile || '' },
+    {
+      key: 'status',
+      label: 'وضعیت',
+      get: s =>
+        s.status === 'IMPORTED'
+          ? 'ثبت قطعی'
+          : s.status === 'NUMBER_ASSIGNED'
+            ? 'شماره صادر شد'
+            : s.status === 'RESOLVED'
+              ? 'آماده'
+              : 'نیازمند نگاشت',
+    },
+  ];
+  const reviewTable = useClientTable(readyRows, REVIEW_COLS);
   const [mappingsList, setMappingsList] = useState<SanjeshMappingItem[]>(initialMappings);
   const [isStaging, setIsStaging] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
@@ -474,6 +524,9 @@ export default function AdmissionsClient({
       const failNote = res.failures?.length ? ` — ${res.failures.length} رکورد ناموفق بود.` : '';
       setFeedback({ text: `${head}.${failNote}`, type: res.failures?.length ? 'warning' : 'success' });
       setTimeout(() => setFeedback(null), 5000);
+      // ردیف‌ها از «آماده» خارج شدند؛ شناسه‌های تأییدشده هم پاک شوند تا
+      // شمارندهٔ «تأیید شده» برای دستهٔ بعدی گمراه‌کننده نباشد.
+      setReviewed(new Set());
       await loadExisting();
       router.refresh();
     } else {
@@ -645,7 +698,6 @@ export default function AdmissionsClient({
   const formulaErrors = [...validateFormula(formulaPattern), ...simResult.errors];
 
   // دروازهٔ بازبینی: تا همهٔ ردیف‌های آماده تأیید نشوند، شماره صادر نمی‌شود
-  const readyRows = stagingList.filter(s => s.status === 'RESOLVED' && s.mappedMajorId);
   const unreviewedCount = readyRows.filter(s => !reviewed.has(s.id)).length;
 
   return (
@@ -1322,8 +1374,16 @@ export default function AdmissionsClient({
           {/* ── بازبینی و تأیید نهایی: همهٔ اطلاعات هر داوطلب در یک جدول ── */}
           {(() => {
             if (stagingList.length === 0) return null;
-            const ready = stagingList.filter(s => s.status === 'RESOLVED' && s.mappedMajorId);
+            // همان مجموعهٔ بالای کامپوننت — یک منبع حقیقت، نه دو فیلتر موازی.
+            const ready = readyRows;
             const unreviewed = ready.filter(s => !reviewed.has(s.id));
+            // تعداد تأییدشده باید «اشتراک» با ready باشد، نه اندازهٔ خامِ Set:
+            // بعد از صدور شماره، ردیف‌ها از ready خارج می‌شوند ولی شناسه‌شان
+            // در reviewed می‌ماند و شمارنده «۵۰ از ۰» می‌شد.
+            const reviewedCount = ready.filter(s => reviewed.has(s.id)).length;
+            const issuedCount = stagingList.filter(
+              s => s.status === 'NUMBER_ASSIGNED' || s.status === 'IMPORTED',
+            ).length;
             const genderFa = (g?: string) => (g === '1' ? 'مرد' : g === '2' ? 'زن' : '—');
             return (
               <div className="card p-6 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-3">
@@ -1339,49 +1399,90 @@ export default function AdmissionsClient({
                   </div>
                   <div className="flex items-center gap-2">
                     <span className={`text-[11px] font-bold ${unreviewed.length ? 'text-amber-700' : 'text-emerald-700'}`}>
-                      {reviewed.size.toLocaleString('fa-IR')} از {ready.length.toLocaleString('fa-IR')} تأیید شده
+                      {reviewedCount.toLocaleString('fa-IR')} از {ready.length.toLocaleString('fa-IR')} تأیید شده
                       {unreviewed.length ? ` — ${unreviewed.length.toLocaleString('fa-IR')} باقی مانده` : ' ✓'}
                     </span>
+                    {reviewTable.visible.length !== ready.length && (
+                      <span className="text-[11px] font-bold text-indigo-700">
+                        {reviewTable.visible.length.toLocaleString('fa-IR')} از {ready.length.toLocaleString('fa-IR')} ردیف (فیلتر فعال)
+                      </span>
+                    )}
                     <button
                       type="button"
                       onClick={() => setReviewed(new Set(ready.map(s => s.id)))}
-                      className="px-2.5 py-1 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 text-[11px] font-bold hover:bg-emerald-100"
+                      disabled={ready.length === 0 || unreviewed.length === 0}
+                      title={ready.length === 0 ? 'ردیفی آمادهٔ بازبینی نیست.' : undefined}
+                      className="px-2.5 py-1 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 text-[11px] font-bold hover:bg-emerald-100 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       تأیید همه
                     </button>
                     <button
                       type="button"
                       onClick={() => setReviewed(new Set())}
-                      className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-600 text-[11px] font-bold hover:bg-slate-50"
+                      disabled={reviewedCount === 0}
+                      title={reviewedCount === 0 ? 'هیچ ردیفی تأیید نشده که لغو شود.' : undefined}
+                      className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-600 text-[11px] font-bold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       لغو همه
                     </button>
                   </div>
                 </div>
 
+                {ready.length === 0 ? (
+                  /*
+                   * این پنل «بازبینی قبل از صدور شماره» است. وقتی هیچ ردیفی در
+                   * وضعیت RESOLVED نیست، جدول و دکمه‌های تأیید/لغو بی‌معنا
+                   * می‌شوند — قبلاً جدول همهٔ ردیف‌ها را نشان می‌داد ولی دکمه‌ها
+                   * روی مجموعهٔ خالی کار می‌کردند و کاربر فکر می‌کرد خراب است.
+                   */
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-2 text-center">
+                    <div className="text-xs font-black text-emerald-900">
+                      {issuedCount > 0
+                        ? `همهٔ ${issuedCount.toLocaleString('fa-IR')} ردیف این صف شمارهٔ دانشجویی گرفته‌اند — چیزی برای بازبینی نمانده.`
+                        : 'هیچ ردیفی آمادهٔ بازبینی نیست.'}
+                    </div>
+                    <p className="text-[11px] leading-5 text-emerald-800">
+                      {issuedCount > 0
+                        ? 'برای بازبینی مجدد، ابتدا شماره‌ها را حذف کنید تا ردیف‌ها به «آماده ثبت‌نام» برگردند.'
+                        : 'ردیف‌ها پس از نگاشت رشته به وضعیت «آماده» می‌رسند و این‌جا نمایش داده می‌شوند.'}
+                    </p>
+                    {issuedCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleRevokeNumbers(
+                            stagingList
+                              .filter(s => s.status === 'NUMBER_ASSIGNED' || s.status === 'IMPORTED')
+                              .map(s => s.id),
+                          )
+                        }
+                        disabled={reverting}
+                        className="px-3 py-1.5 rounded-xl border border-rose-300 bg-white text-rose-800 font-bold text-[11px] hover:bg-rose-50 disabled:opacity-50"
+                      >
+                        🗑 حذف شماره‌ها و بازگشت به بازبینی
+                      </button>
+                    )}
+                  </div>
+                ) : (
                 <div className="overflow-auto max-h-[28rem] rounded-xl border border-slate-200">
                   <table className="w-full text-right text-[11px]">
                     <thead className="sticky top-0 z-10 bg-slate-100 text-slate-700">
                       <tr>
-                        <th className="p-2 font-bold whitespace-nowrap">تأیید</th>
-                        <th className="p-2 font-bold whitespace-nowrap">#</th>
-                        <th className="p-2 font-bold whitespace-nowrap">شمارهٔ دانشجویی</th>
-                        <th className="p-2 font-bold whitespace-nowrap">کد ملی</th>
-                        <th className="p-2 font-bold whitespace-nowrap">نام</th>
-                        <th className="p-2 font-bold whitespace-nowrap">نام خانوادگی</th>
-                        <th className="p-2 font-bold whitespace-nowrap">نام پدر</th>
-                        <th className="p-2 font-bold whitespace-nowrap">جنسیت</th>
-                        <th className="p-2 font-bold whitespace-nowrap">مقطع</th>
-                        <th className="p-2 font-bold whitespace-nowrap">رشتهٔ سنجش</th>
-                        <th className="p-2 font-bold whitespace-nowrap">رشتهٔ دانشگاه</th>
-                        <th className="p-2 font-bold whitespace-nowrap">سهمیه</th>
-                        <th className="p-2 font-bold whitespace-nowrap">کد دانشگاه</th>
-                        <th className="p-2 font-bold whitespace-nowrap">موبایل</th>
-                        <th className="p-2 font-bold whitespace-nowrap">وضعیت</th>
+                        {REVIEW_COLS.map(col => (
+                          <ClientTh
+                            key={col.key}
+                            col={col}
+                            sortKey={reviewTable.sortKey}
+                            sortDir={reviewTable.sortDir}
+                            filter={reviewTable.filters[col.key] ?? ''}
+                            onSort={() => reviewTable.toggleSort(col.key)}
+                            onFilter={v => reviewTable.setFilter(col.key, v)}
+                          />
+                        ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {stagingList.map((s, i) => {
+                      {reviewTable.visible.map((s, i) => {
                         const p = s.profile ?? {};
                         const isReady = s.status === 'RESOLVED' && !!s.mappedMajorId;
                         const isDone = reviewed.has(s.id);
@@ -1452,6 +1553,7 @@ export default function AdmissionsClient({
                     </tbody>
                   </table>
                 </div>
+                )}
               </div>
             );
           })()}

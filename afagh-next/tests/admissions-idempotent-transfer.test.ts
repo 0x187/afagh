@@ -268,5 +268,53 @@ console.log('\n▶ گارد منبع: انتخاب فرمول شماره دان�
   );
 }
 
+console.log('\n▶ گارد منبع: جدول بازبینی فیلتر/سورت دارد و دکمه‌هایش صادق‌اند');
+{
+  ok(
+    CLIENT_SRC.includes('const reviewTable = useClientTable(readyRows, REVIEW_COLS)'),
+    'جدول بازبینی از همان زیرساخت جدول صف استفاده می‌کند',
+  );
+  ok(
+    CLIENT_SRC.includes('<ClientTh') && CLIENT_SRC.includes('onFilter={v => reviewTable.setFilter(col.key, v)}'),
+    'هر سرستون فیلتر و سورت دارد',
+  );
+  ok(
+    CLIENT_SRC.includes('{reviewTable.visible.map((s, i) => {'),
+    'بدنهٔ جدول از ردیف‌های فیلترشده رندر می‌شود',
+  );
+  ok(
+    CLIENT_SRC.includes("label: 'تأیید', get: () => '', sortable: false, filterable: false"),
+    'ستون‌های تأیید و # عمداً سورت/فیلتر ندارند',
+  );
+
+  // باگ گزارش‌شده: «لغو همه» کار نمی‌کرد چون دکمه‌ها روی مجموعهٔ خالیِ ready
+  // اجرا می‌شدند ولی جدول همهٔ ردیف‌ها را نشان می‌داد.
+  ok(
+    CLIENT_SRC.includes('disabled={reviewedCount === 0}'),
+    '«لغو همه» وقتی چیزی برای لغو نیست غیرفعال است',
+  );
+  ok(
+    CLIENT_SRC.includes('disabled={ready.length === 0 || unreviewed.length === 0}'),
+    '«تأیید همه» وقتی ردیفی نیست غیرفعال است',
+  );
+  ok(
+    CLIENT_SRC.includes('چیزی برای بازبینی نمانده'),
+    'وقتی ردیفی آمادهٔ بازبینی نیست، پیام توضیحی نشان داده می‌شود',
+  );
+  ok(
+    !CLIENT_SRC.includes('{reviewed.size.toLocaleString'),
+    'شمارنده از اندازهٔ خامِ Set استفاده نمی‌کند (باگ «۵۰ از ۰»)',
+  );
+  ok(
+    CLIENT_SRC.includes('const reviewedCount = ready.filter(s => reviewed.has(s.id)).length'),
+    'شمارنده بر «اشتراک با ready» حساب می‌شود',
+  );
+  ok(
+    CLIENT_SRC.includes('setReviewed(new Set());') &&
+      CLIENT_SRC.includes('شناسه‌های تأییدشده هم پاک شوند'),
+    'بعد از صدور شماره، وضعیت تأیید پاک می‌شود',
+  );
+}
+
 console.log(`\n${fail === 0 ? '✅' : '❌'} admissions-idempotent-transfer: ${pass} passed, ${fail} failed`);
 if (fail > 0) process.exit(1);
