@@ -131,6 +131,20 @@ export default function AdmissionsClient({
   const [rawText, setRawText] = useState<string>('');
   const [stagingList, setStagingList] = useState<StagingItem[]>(initialStaging);
 
+  /**
+   * مقطعِ یک ردیف صف. ترتیب اولویت:
+   *   ۱) مقطعِ رشتهٔ نگاشت‌شدهٔ دانشگاه — همان چیزی که واقعاً پرونده را می‌سازد
+   *   ۲) مقطعِ اعلامی خود فایل سنجش
+   * فایل سنجش «فنی» فیلد مقطع را خالی می‌فرستد، پس تکیه بر آن ستون را خالی
+   * می‌گذاشت در حالی که ردیف نگاشت شده و مقطعش معلوم بود.
+   *
+   * ⚠️ این تعریف باید **بالای** اولین مصرف‌کننده‌اش (STAGING_COLS و useMemoهای
+   * بالای کامپوننت) باشد؛ وگرنه در زمان رندر به TDZ می‌خورد:
+   * «Cannot access '…' before initialization».
+   */
+  const degreeTitleOf = (s: any): string =>
+    (s?.degreeLevelName || s?.rawSanjeshData?.degreeLevel || '').trim();
+
   // جدول داوطلبان: سورت + فیلتر هر ستون
   const STAGING_COLS: ColumnDef<StagingItem>[] = [
     { key: 'nationalCode', label: 'کد ملی', get: s => s.nationalCode },
@@ -265,17 +279,6 @@ export default function AdmissionsClient({
     }
     return [...map.values()].sort((a, b) => b.count - a.count || a.code.localeCompare(b.code));
   }, [stagingList]);
-
-  /**
-   * مقطعِ یک ردیف صف. ترتیب اولویت:
-   *   ۱) مقطعِ رشتهٔ نگاشت‌شدهٔ دانشگاه — همان چیزی که واقعاً پرونده را می‌سازد
-   *   ۲) مقطعِ اعلامی خود فایل سنجش
-   * فایل سنجش «فنی» فیلد مقطع را خالی می‌فرستد، پس تکیه بر آن ستون را خالی
-   * می‌گذاشت در حالی که ردیف نگاشت شده و مقطعش معلوم بود.
-   */
-  const degreeTitleOf = (s: any): string =>
-    (s?.degreeLevelName || s?.rawSanjeshData?.degreeLevel || '').trim();
-
 
   /** رشته‌های متناسب با مقطعِ ردیف (اگر مقطع شناسا نبود، همهٔ رشته‌ها) */
   const majorsFor = (degreeTitle: string): MajorOption[] => {

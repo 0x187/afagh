@@ -137,6 +137,20 @@ console.log('\n▶ گارد منبع: مقطع از رشتهٔ تطبیق‌دا
     CLIENT_SRC.includes('degreeTitleOf(st)'),
     'همهٔ جدول‌ها از همان resolver استفاده می‌کنند',
   );
+
+  // TDZ: اگر تابع بعد از اولین مصرف‌کننده‌اش تعریف شود، در رندر اول
+  // «Cannot access '…' before initialization» می‌دهد. ترتیب اعلان را می‌سنجیم.
+  const declAt = CLIENT_SRC.indexOf('const degreeTitleOf =');
+  const calls: number[] = [];
+  for (let i = CLIENT_SRC.indexOf('degreeTitleOf('); i > -1; i = CLIENT_SRC.indexOf('degreeTitleOf(', i + 1)) {
+    calls.push(i);
+  }
+  ok(declAt > -1, 'degreeTitleOf تعریف شده است');
+  ok(calls.length > 0, 'degreeTitleOf واقعاً استفاده می‌شود');
+  ok(
+    declAt > -1 && calls.every(i => i > declAt),
+    'همهٔ مصرف‌های degreeTitleOf بعد از تعریفش هستند (گارد TDZ)',
+  );
 }
 
 console.log(`\n${fail === 0 ? '✅' : '❌'} admissions-idempotent-transfer: ${pass} passed, ${fail} failed`);
