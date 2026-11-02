@@ -9,7 +9,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { faNum, parseJalaliDates, PHASE_LABELS, TIME_SLOT_PRESETS, DEMAND_PAGE, NO_PROFESSOR, MAX_GROUPS_PER_COURSE, clampGroupsCount, mapDemands, mapClassrooms, mapProfessors, mapCohorts, mapOfferings, buildRealScenario, computeProfUnits, slotAvailStatus, filterScenarioOfferings, filterContextDemands, inspectorSummary, nextGroupNumber, coTeachingWeights, resolveTab, programSemesterMatrix, cohortSemesterNo } from './planning-core';
 import type { PlanningTab, WeekRecurrence, ProgramShiftType, TimeSlot, CohortOption, ClassroomOption, ProfessorOption, CourseDemand, DepartmentOffering, AutoScheduleScenario, SchedulingWorkspace } from './types';
-import { getSchedulingWorkspaceAction, generateClassSessionsAction, supplyGroupDraftsAction, getSmartSuggestionsAction, getSchedulingHealthAction, transitionSchedulingPhaseAction, getCurriculumDemandsAction, setOfferingCohortMergeAction } from './actions';
+import { getSchedulingWorkspaceAction, getRoomGrantsAction, generateClassSessionsAction, supplyGroupDraftsAction, getSmartSuggestionsAction, getSchedulingHealthAction, transitionSchedulingPhaseAction, getCurriculumDemandsAction, setOfferingCohortMergeAction } from './actions';
 import type { SmartSlot, SchedulingHealthReport, SchedulingWorkspaceResult, CurriculumDemandsResult } from './actions';
 
 /**
@@ -166,6 +166,18 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
       })
       .catch(() => showToast('⚠️ بازخوانی کارتابل ناموفق بود.', 'warning'))
       .finally(() => setIsLoadingWorkspace(false));
+  };
+
+  /** بازخوانی سبک فقط سهمیه‌های سالن (بعد از تخصیص/لغو/واگذاری) — بدون بارگذاری سنگین کل کارتابل */
+  const reloadRoomGrants = () => {
+    if (!selectedTermId) return;
+    getRoomGrantsAction(selectedTermId)
+      .then(res => {
+        if (!res.ok) { showToast(res.error, 'warning'); return; }
+        setRoomGrants(res.roomGrants ?? []);
+        setClassrooms(prev => prev.map(c => ({ ...c, isAllocatedToDept: (res.allocatedRoomIds ?? []).includes(c.id) })));
+      })
+      .catch(() => showToast('⚠️ بازخوانی سهمیه‌های سالن ناموفق بود.', 'warning'));
   };
 
   /** بارگذاری دروس چارت درسی برای رشته انتخاب‌شده */
@@ -589,6 +601,7 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
     realAvailRows,
     realAvailStatus,
     reloadWorkspace,
+    reloadRoomGrants,
     roomGrants,
     selectedCohortId,
     selectedProgramId,

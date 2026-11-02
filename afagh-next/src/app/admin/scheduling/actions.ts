@@ -1197,6 +1197,25 @@ export async function copyRoomQuotasFromPreviousTermAction(termId: number) {
   }
 }
 
+/**
+ * بازخوانی سبک فقط سهمیه‌های سالن (بدون تحلیل تداخل/جلسات/تقاضا) — برای استفاده
+ * بعد از عملیاتِ تخصیص/لغو/واگذاری سهمیه، تا کل کارتابل دوباره بارگذاری نشود و
+ * سرعت کلیک بالا بماند. هزینه: ۲ کوئری به‌جای ~۱۳ کوئریٔ سنگینِ getSchedulingWorkspaceAction.
+ */
+export async function getRoomGrantsAction(termId: number) {
+  try {
+    await requireRole([...EDITORS, 'DEP_HEAD']);
+    const uid = await serverUniId();
+    const [roomGrants, allocatedRoomIds] = await Promise.all([
+      listRoomGrants(termId, uid),
+      listAllocatedRoomIds(termId, uid),
+    ]);
+    return { ok: true as const, roomGrants, allocatedRoomIds };
+  } catch (e: any) {
+    return { ok: false as const, error: e?.message ?? 'خطا در بازخوانی سهمیه‌های سالن.' };
+  }
+}
+
 export async function releaseRoomShiftAction(px: { termId: number; departmentId: number; classroomId: number; shift: 'MORNING' | 'EVENING' }) {
   try {
     const user = await requireRole(EDITORS);

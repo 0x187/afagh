@@ -14,7 +14,7 @@ import {
 const SHIFT_LABEL: Record<string, string> = { MORNING: 'صبح', EVENING: 'عصر' };
 
 export default function DeptRoomsTab() {
-  const { classrooms, currentProgram, isDeptScope, selectedTermId, reloadWorkspace, roomGrants, initial } = usePlanning();
+  const { classrooms, currentProgram, isDeptScope, selectedTermId, reloadRoomGrants, roomGrants, initial } = usePlanning();
   const departments = (initial?.departments ?? []) as { id: number; name: string }[];
   const deptName = (id: number) => {
     const d = departments.find(x => x.id === id);
@@ -28,8 +28,8 @@ export default function DeptRoomsTab() {
 
   // فرم تخصیص جدید
   const [newDept, setNewDept] = useState<number>(departments[0]?.id ?? 0);
-  const [newShift, setNewShift] = useState<'MORNING' | 'EVENING'>('MORNING');
-  const [newRoom, setNewRoom] = useState<number>(classrooms[0]?.id ?? 0);
+  const [newShift, setNewShift] = useState<'MORNING' | 'EVENING' | 'BOTH'>('MORNING');
+  const [newRoom, setNewRoom] = useState<number>(classrooms.find(c => c.isActive)?.id ?? 0);
 
   const facultyOptions = Array.from(new Set(classrooms.map(c => c.facultyId).filter((x): x is number => x != null)));
   const visibleRooms = (isDeptScope ? classrooms.filter(c => c.isAllocatedToDept) : classrooms)
@@ -44,7 +44,7 @@ export default function DeptRoomsTab() {
       const res = await fn();
       if (res?.ok) {
         setMsg(okMsg);
-        reloadWorkspace();
+        reloadRoomGrants();
       } else {
         setMsg(`⚠️ ${res?.error ?? 'خطا'}`);
       }
@@ -99,7 +99,7 @@ export default function DeptRoomsTab() {
                     const res = await allocateRoomQuotasAction(selectedTermId);
                     if (res?.ok) {
                       setMsg(`✅ ${faNum(res.grants ?? 0)} سهمیهٔ سالن تخصیص یافت.`);
-                      reloadWorkspace();
+                      reloadRoomGrants();
                     } else setMsg(`⚠️ ${res?.error ?? 'خطا'}`);
                   } catch (e: any) {
                     setMsg(`⚠️ ${e?.message ?? 'خطا'}`);
@@ -127,7 +127,7 @@ export default function DeptRoomsTab() {
                       else { setMsg(`⚠️ ${res?.error ?? 'خطا'}`); break; }
                     }
                     setMsg(`✅ ${faNum(okCount)} سهمیه لغو شد.`);
-                    reloadWorkspace();
+                    reloadRoomGrants();
                   } catch (e: any) {
                     setMsg(`⚠️ ${e?.message ?? 'خطا'}`);
                   } finally {
@@ -148,7 +148,7 @@ export default function DeptRoomsTab() {
                     const res = await copyRoomQuotasFromPreviousTermAction(selectedTermId);
                     if (res?.ok) {
                       setMsg(`✅ ${faNum(res.copied ?? 0)} سهمیه از ترم قبل منتقل شد.`);
-                      reloadWorkspace();
+                      reloadRoomGrants();
                     } else setMsg(`⚠️ ${res?.error ?? 'خطا'}`);
                   } catch (e: any) {
                     setMsg(`⚠️ ${e?.message ?? 'خطا'}`);
@@ -176,7 +176,7 @@ export default function DeptRoomsTab() {
               onChange={e => setNewRoom(Number(e.target.value))}
               className="border border-slate-300 rounded-lg px-2 py-1.5 text-xs font-bold bg-white"
             >
-              {classrooms.map(r => (
+              {classrooms.filter(c => c.isActive).map(r => (
                 <option key={r.id} value={r.id}>{r.name} ({faNum(r.capacity)} نفر)</option>
               ))}
             </select>
@@ -191,16 +191,28 @@ export default function DeptRoomsTab() {
             </select>
             <select
               value={newShift}
-              onChange={e => setNewShift(e.target.value as 'MORNING' | 'EVENING')}
+              onChange={e => setNewShift(e.target.value as 'MORNING' | 'EVENING' | 'BOTH')}
               className="border border-slate-300 rounded-lg px-2 py-1.5 text-xs font-bold bg-white"
             >
               <option value="MORNING">شیفت صبح</option>
               <option value="EVENING">شیفت عصر</option>
+              <option value="BOTH">هردو شیف (صبح و عصر)</option>
             </select>
             <button
               type="button"
               disabled={busyKey === 'new' || !selectedTermId || !newRoom || !newDept}
-              onClick={() => run('new', () => upsertRoomGrantAction({ termId: selectedTermId, classroomId: newRoom, shift: newShift, departmentId: newDept }), '✅ سالن به دپارتمان تخصیص یافت.')}
+              onClick={() => {
+                if (newShift === 'BOTH') {
+                  run('new', async () => {
+                    const a = await upsertRoomGrantAction({ termId: selectedTermId, classroomId: newRoom, shift: 'MORNING', departmentId: newDept });
+                    if (!a?.ok) return a;
+                    const b = await upsertRoomGrantAction({ termId: selectedTermId, classroomId: newRoom, shift: 'EVENING', departmentId: newDept });
+                    return b;
+                  }, '✅ سالن به دپارتمان برای هردو شیف تخصیص یافت.');
+                } else {
+                  run('new', () => upsertRoomGrantAction({ termId: selectedTermId, classroomId: newRoom, shift: newShift, departmentId: newDept }), '✅ سالن به دپارتمان تخصیص یافت.');
+                }
+              }}
               className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow disabled:opacity-50"
             >
               {busyKey === 'new' ? '⏳…' : '➕ تخصیص'}

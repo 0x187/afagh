@@ -14,7 +14,7 @@ import { allocateRoomQuotasAction } from '../actions';
  * می‌کند، آن را تا آخر می‌برد و برمی‌گردد سراغ ترم بعد یا رشتهٔ بعد.
  */
 export default function ProgramScopeTab() {
-  const { applyScope, currentTerm, isDeptScope, programMatrix, programs, reloadWorkspace, selectedProgramId, selectedSemester, selectedTermId, setSelectedProgramId, setSelectedSemester } = usePlanning();
+  const { applyScope, currentTerm, isDeptScope, programMatrix, programs, reloadRoomGrants, selectedProgramId, selectedSemester, selectedTermId, setSelectedProgramId, setSelectedSemester } = usePlanning();
   const [allocating, setAllocating] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -49,7 +49,7 @@ export default function ProgramScopeTab() {
                       const res = await allocateRoomQuotasAction(selectedTermId);
                       if (res?.ok) {
                         setMsg(`✅ ${faNum(res.grants ?? 0)} سهمیهٔ سالن تخصیص یافت.`);
-                        reloadWorkspace();
+                        reloadRoomGrants();
                       } else setMsg(`⚠️ ${res?.error ?? 'خطا'}`);
                     } catch (e: any) {
                       setMsg(`⚠️ ${e?.message ?? 'خطا'}`);
