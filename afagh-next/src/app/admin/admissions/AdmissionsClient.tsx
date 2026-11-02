@@ -424,8 +424,14 @@ export default function AdmissionsClient({
     const res = await assignStudentNumbersAction(resolvedIds, importEntryMethod, starts);
     setIsAssigning(false);
     if (res.ok) {
+      const linked = (res.items ?? []).filter((i: any) => i.linked).length;
+      const created = Math.max(0, (res.count ?? 0) - linked);
+      const parts: string[] = [];
+      if (created > 0) parts.push(`${created} شمارهٔ دانشجویی جدید صادر شد`);
+      if (linked > 0) parts.push(`${linked} ردیف به پروندهٔ از قبل موجود وصل شد`);
+      const head = parts.length > 0 ? parts.join(' و ') : 'موردی برای پردازش نبود';
       const failNote = res.failures?.length ? ` — ${res.failures.length} رکورد ناموفق بود.` : '';
-      setFeedback({ text: `${res.count} شماره دانشجویی صادر شد.${failNote}`, type: res.failures?.length ? 'warning' : 'success' });
+      setFeedback({ text: `${head}.${failNote}`, type: res.failures?.length ? 'warning' : 'success' });
       setTimeout(() => setFeedback(null), 5000);
       await loadExisting();
       router.refresh();

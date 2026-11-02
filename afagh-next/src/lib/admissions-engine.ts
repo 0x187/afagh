@@ -11,6 +11,7 @@ import {
   validateFormula,
   degreeCodeFor,
 } from '@/lib/student-id-formula';
+import { pickExistingProfile } from '@/lib/admissions-dedupe';
 import {
   admissions_staging,
   degree_level_configs,
@@ -744,18 +745,60 @@ export async function assignStudentNumbers(
               eq(students.status, 'ACTIVE'),
             ));
         } else if (row.decisionNote !== 'ALLOW_DUPLICATE') {
-          const [dup] = await tx
-            .select({ studentCode: students.studentCode })
+          // تطبیق فقط بر «شناسهٔ رشته» کافی نیست: در جدول majors چند رکورد با نام
+          // یکسان ولی شناسه/کد متفاوت وجود دارد (مثلاً حسابداری با کد ۲۲ و ۹۲۲).
+          // اگر فقط شناسه را بسنجیم، برای دانشجوی موجود یک پروندهٔ دومِ هم‌نام ساخته
+          // می‌شود. پس همان سالِ ورود + رشتهٔ فعال + نام یکسان هم «تکراری» است.
+          const [stagingMajorRow] = await tx
+            .select({ name: majors.name })
+            .from(majors)
+            .where(eq(majors.id, mappedMajorId))
+            .limit(1);
+
+          const candidates = await tx
+            .select({
+              id: students.id,
+              studentCode: students.studentCode,
+              majorId: students.majorId,
+              majorName: majors.name,
+            })
             .from(students)
+            .leftJoin(majors, eq(majors.id, students.majorId))
             .where(and(
               eq(students.userId, user.id),
-              eq(students.majorId, mappedMajorId),
               eq(students.entryYear, entryYear),
               eq(students.status, 'ACTIVE'),
-            ))
-            .limit(1);
-          if (dup) {
-            throw new Error(`پروندهٔ فعال با همین رشته و ورودی وجود دارد (شماره ${dup.studentCode}). برای ثبت تکراری، تأیید صریح لازم است.`);
+            ));
+
+          const match = pickExistingProfile(candidates, {
+            majorId: mappedMajorId,
+            majorName: stagingMajorRow?.name ?? null,
+          });
+
+          if (match) {
+            const dup = match.profile;
+            // انتقال دوبارهٔ همان فایل (یا ردیفی که قبلاً منتقل شده) نباید خطا بدهد و
+            // نباید شمارهٔ دانشجویی تکراری بسازد. ردیف صف را به همان پروندهٔ موجود
+            // «وصل» می‌کنیم و بیرون می‌رویم — عملیات idempotent است.
+            // برای ثبت عمدیِ پروندهٔ دوم، ادمین باید ALLOW_DUPLICATE را روی ردیف بگذارد.
+            await tx
+              .update(admissions_staging)
+              .set({
+                status: 'NUMBER_ASSIGNED',
+                studentId: dup.id,
+                userId: user.id,
+                assignedStudentCode: dup.studentCode,
+                onboardingStatus: 'NUMBER_ASSIGNED',
+              })
+              .where(eq(admissions_staging.id, row.id));
+            return {
+              studentCode: dup.studentCode,
+              userId: user.id,
+              firstName: user.firstName,
+              lastName: user.lastName,
+              linked: true,
+              linkReason: match.reason,
+            };
           }
         }
 
@@ -858,11 +901,12 @@ export async function assignStudentNumbers(
             status: 'NUMBER_ASSIGNED',
             studentId,
             userId: user.id,
+            assignedStudentCode: studentCode,
             onboardingStatus: 'NUMBER_ASSIGNED',
           })
           .where(eq(admissions_staging.id, row.id));
 
-        return { studentCode, userId: user.id, firstName: user.firstName, lastName: user.lastName };
+        return { studentCode, userId: user.id, firstName: user.firstName, lastName: user.lastName, linked: false, linkReason: null };
       });
 
       importedResults.push({
@@ -870,6 +914,8 @@ export async function assignStudentNumbers(
         studentCode: result.studentCode,
         fullName: `${result.firstName} ${result.lastName}`,
         nationalCode: row.nationalCode,
+        linked: result.linked === true,
+        linkReason: result.linkReason ?? null,
       });
     } catch (err: any) {
       // رکورد ناموفق به‌طور کامل rollback شد — بقیهٔ دسته ادامه می‌یابد.
