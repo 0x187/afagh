@@ -113,6 +113,7 @@ export default async function AdminAdmissionsPage() {
       mappedMajorId: s.mappedMajorId,
       mappedMajorName: major?.name || null,
       degreeLevelName: level?.title ?? null,
+      assignedStudentCode: s.assignedStudentCode ?? null,
       status: s.status,
       quotaType: s.quotaType,
       studentId: s.studentId,

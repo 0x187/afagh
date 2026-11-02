@@ -53,6 +53,8 @@ interface StagingItem {
    * پس نمی‌توان تنها به `rawSanjeshData.degreeLevel` تکیه کرد.
    */
   degreeLevelName?: string | null;
+  /** شمارهٔ دانشجوییِ صادرشده (پس از «صدور شماره») */
+  assignedStudentCode?: string | null;
 }
 
 interface SanjeshMappingItem {
@@ -147,6 +149,7 @@ export default function AdmissionsClient({
 
   // جدول داوطلبان: سورت + فیلتر هر ستون
   const STAGING_COLS: ColumnDef<StagingItem>[] = [
+    { key: 'studentCode', label: 'شمارهٔ دانشجویی', get: s => s.assignedStudentCode ?? '' },
     { key: 'nationalCode', label: 'کد ملی', get: s => s.nationalCode },
     { key: 'fullName', label: 'نام و نام خانوادگی', get: s => s.fullName ?? '' },
     { key: 'sanjeshCode', label: 'کد رشته سنجش', get: s => s.rawSanjeshData?.sanjeshCode ?? '' },
@@ -489,7 +492,7 @@ export default function AdmissionsClient({
       return;
     }
     const headers = [
-      'کد ملی', 'نام و نام خانوادگی', 'کد رشته سنجش', 'نوع آزمون', 'مقطع',
+      'شمارهٔ دانشجویی', 'کد ملی', 'نام و نام خانوادگی', 'کد رشته سنجش', 'نوع آزمون', 'مقطع',
       'گروه رشته', 'رشتهٔ دانشگاه', 'سهمیه', 'کد دانشگاه', 'وضعیت',
     ];
     const statusFa: Record<string, string> = {
@@ -499,6 +502,7 @@ export default function AdmissionsClient({
       IMPORTED: 'ثبت قطعی شد',
     };
     const rows = stagingList.map(s => [
+      s.assignedStudentCode ?? '',
       s.nationalCode,
       s.fullName ?? '',
       s.rawSanjeshData?.sanjeshCode ?? '',
@@ -1192,6 +1196,7 @@ export default function AdmissionsClient({
                       <tr>
                         <th className="p-2 font-bold whitespace-nowrap">تأیید</th>
                         <th className="p-2 font-bold whitespace-nowrap">#</th>
+                        <th className="p-2 font-bold whitespace-nowrap">شمارهٔ دانشجویی</th>
                         <th className="p-2 font-bold whitespace-nowrap">کد ملی</th>
                         <th className="p-2 font-bold whitespace-nowrap">نام</th>
                         <th className="p-2 font-bold whitespace-nowrap">نام خانوادگی</th>
@@ -1227,6 +1232,11 @@ export default function AdmissionsClient({
                               />
                             </td>
                             <td className="p-2 text-slate-400 tabular-nums">{(i + 1).toLocaleString('fa-IR')}</td>
+                            <td className="p-2 whitespace-nowrap">
+                              {s.assignedStudentCode
+                                ? <span className="font-mono font-bold text-sky-700 dark:text-sky-300" dir="ltr">{s.assignedStudentCode}</span>
+                                : <span className="text-slate-300">—</span>}
+                            </td>
                             <td className="p-2 font-mono font-bold text-slate-800" dir="ltr">{s.nationalCode}</td>
                             <td className="p-2 text-slate-800 whitespace-nowrap">{p.firstName || '—'}</td>
                             <td className="p-2 text-slate-800 whitespace-nowrap">{p.lastName || s.fullName || '—'}</td>
@@ -1288,6 +1298,7 @@ export default function AdmissionsClient({
 
             <table className="w-full table-fixed text-right text-xs rt">
               <colgroup>
+                <col style={{ width: 130 }} />
                 <col style={{ width: 110 }} />
                 <col style={{ width: 180 }} />
                 <col style={{ width: 110 }} />
@@ -1317,7 +1328,7 @@ export default function AdmissionsClient({
               <tbody>
                 {stagingTable.visible.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="p-8 text-center text-slate-400">
+                    <td colSpan={11} className="p-8 text-center text-slate-400">
                       هیچ رکوردی در صف Staging موجود نیست. بر روی «پردازش و تطبیق خودکار» کلیک کنید.
                     </td>
                   </tr>

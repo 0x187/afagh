@@ -153,5 +153,25 @@ console.log('\n▶ گارد منبع: مقطع از رشتهٔ تطبیق‌دا
   );
 }
 
+console.log('\n▶ گارد منبع: شمارهٔ صادرشده در جدول دیده می‌شود');
+{
+  ok(
+    PAGE_SRC.includes('assignedStudentCode: s.assignedStudentCode'),
+    'page.tsx شمارهٔ صادرشده را به کلاینت پاس می‌دهد',
+  );
+  ok(
+    CLIENT_SRC.includes("label: 'شمارهٔ دانشجویی'"),
+    'ستون «شمارهٔ دانشجویی» در جدول صف تعریف شده',
+  );
+  ok(
+    CLIENT_SRC.includes("{s.assignedStudentCode}"),
+    'جدول بازبینی خود شماره را نشان می‌دهد (نه فقط برچسب «صادر شد»)',
+  );
+  ok(
+    CLIENT_SRC.includes("'شمارهٔ دانشجویی', 'کد ملی'"),
+    'خروجی اکسل هم ستون شمارهٔ دانشجویی دارد',
+  );
+}
+
 console.log(`\n${fail === 0 ? '✅' : '❌'} admissions-idempotent-transfer: ${pass} passed, ${fail} failed`);
 if (fail > 0) process.exit(1);
