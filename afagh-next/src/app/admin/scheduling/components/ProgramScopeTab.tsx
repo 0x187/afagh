@@ -1,8 +1,10 @@
 'use client';
 
 // فاز ۰: انتخاب رشته × نیمسال ورود/ترم چارت — پیش‌نیاز همهٔ فازهای بعدی
+import { useState } from 'react';
 import { usePlanning } from '../PlanningProvider';
 import { faNum } from '../planning-core';
+import { allocateRoomQuotasAction } from '../actions';
 
 /**
  * چرا این تب اول است؟
@@ -12,7 +14,9 @@ import { faNum } from '../planning-core';
  * می‌کند، آن را تا آخر می‌برد و برمی‌گردد سراغ ترم بعد یا رشتهٔ بعد.
  */
 export default function ProgramScopeTab() {
-  const { applyScope, currentTerm, programMatrix, programs, selectedProgramId, selectedSemester, setSelectedProgramId, setSelectedSemester } = usePlanning();
+  const { applyScope, currentTerm, isDeptScope, programMatrix, programs, reloadWorkspace, selectedProgramId, selectedSemester, selectedTermId, setSelectedProgramId, setSelectedSemester } = usePlanning();
+  const [allocating, setAllocating] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
 
   const chosen = programMatrix.find(p => p.id === selectedProgramId) ?? null;
   const totalDone = programMatrix.reduce((n, p) => n + p.semesters.filter(s => s.complete).length, 0);
@@ -33,6 +37,33 @@ export default function ProgramScopeTab() {
               برنامه‌ریزی رشته‌به‌رشته و ترم‌به‌ترم انجام می‌شود: یک ترم را کامل کن، برگرد، سراغ ترم بعد برو.
               وضعیت هر ترم از دادهٔ واقعی همین نیمسال ({currentTerm?.title ?? '—'}) محاسبه می‌شود.
             </p>
+            {!isDeptScope && (
+              <div className="mt-2 flex items-center gap-2">
+                <button
+                  type="button"
+                  disabled={allocating || !selectedTermId}
+                  onClick={async () => {
+                    setAllocating(true);
+                    setMsg(null);
+                    try {
+                      const res = await allocateRoomQuotasAction(selectedTermId);
+                      if (res?.ok) {
+                        setMsg(`✅ ${faNum(res.grants ?? 0)} سهمیهٔ سالن تخصیص یافت.`);
+                        reloadWorkspace();
+                      } else setMsg(`⚠️ ${res?.error ?? 'خطا'}`);
+                    } catch (e: any) {
+                      setMsg(`⚠️ ${e?.message ?? 'خطا'}`);
+                    } finally {
+                      setAllocating(false);
+                    }
+                  }}
+                  className="px-4 py-2 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-extrabold text-xs shadow disabled:opacity-50"
+                >
+                  {allocating ? '⏳ در حال تخصیص…' : '🏛️ تخصیص سهمیهٔ سالن‌ها'}
+                </button>
+                {msg && <span className="text-xs font-bold text-slate-700">{msg}</span>}
+              </div>
+            )}
           </div>
           <div className="flex items-center gap-2 text-xs font-extrabold">
             <span className="px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-900">
