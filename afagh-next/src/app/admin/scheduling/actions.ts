@@ -889,18 +889,6 @@ export async function generateClassSessionsAction(px: {
 }
 
 /** گذار فاز برنامه‌ریزی (SUPPLY→ALLOCATION→REVIEW→PUBLISHED پله‌ای) — گیت: انتشار فقط بدون تداخل سخت */
-/** تخصیص سهمیهٔ سالن‌ها به دپارتمان‌ها (فقط مدیر آموزش) */
-export async function allocateRoomQuotasAction(termId: number): Promise<{ ok: boolean; grants?: number; error?: string }> {
-  try {
-    const user = await requireRole(['ADMIN', 'EDU_EXPERT']);
-    const res = await allocateRoomQuotas(user.id, termId);
-    revalidatePath('/admin/scheduling');
-    return { ok: true, grants: (res as any)?.grants ?? 0 };
-  } catch (e: any) {
-    return { ok: false, error: e?.message ?? 'خطا در تخصیص سهمیهٔ سالن‌ها.' };
-  }
-}
-
 export async function transitionSchedulingPhaseAction(termId: number, to: 'ALLOCATION' | 'REVIEW' | 'PUBLISHED'): Promise<{ ok: true; phase: 'ALLOCATION' | 'REVIEW' | 'PUBLISHED'; from: string } | { ok: false; error: string }> {
   try {
     const user = await requireRole([...EDITORS, 'DEP_HEAD']);
