@@ -15,6 +15,8 @@ interface Props {
   code?: string | null;
   cap?: number;
   roomType?: string | null;
+  isExamHall?: number;
+  examCapacity?: number | null;
   facultyId?: number | null;
   floor?: string | null;
   rows?: number | null;
@@ -32,7 +34,7 @@ const INITIAL: SaveClassroomResult = { ok: false };
  * نویگیت نشود و اسکرولِ کاربر (مخصوصاً برای کلاس‌های پایینِ لیست) حفظ گردد.
  */
 export default function ClassroomRowForm(props: Props) {
-  const { id, name, code, cap, roomType, facultyId, floor, rows, cols, isActive = 1, faculties, variant = 'row' } = props;
+  const { id, name, code, cap, roomType, isExamHall = 0, examCapacity, facultyId, floor, rows, cols, isActive = 1, faculties, variant = 'row' } = props;
   const [state, action, pending] = useActionState(saveClassroomAction, INITIAL);
 
   // پس از ذخیرهٔ موفق، کلید فرم را می‌زنیم تا با مقادیرِ تازهِٔ (پس از revalidate)
@@ -90,6 +92,14 @@ export default function ClassroomRowForm(props: Props) {
           </select>
         </>
       )}
+      <label className="flex items-center gap-1 text-slate-500">
+        <input type="checkbox" name="isExamHall" value="1" defaultChecked={isExamHall === 1} className="w-4 h-4" />
+        قابل استفاده به عنوان سالن امتحان
+      </label>
+      <label className="text-slate-500">
+        ظرفیت امتحان
+        <input name="examCapacity" type="number" min={1} defaultValue={examCapacity ?? ''} className="input mt-1 !py-1 !px-2 w-20" dir="ltr" />
+      </label>
       <button className={variant === 'new' ? 'btn-primary !py-1 !px-3' : 'btn-ghost !py-1 !px-2'} disabled={pending}>
         {pending ? 'در حال ذخیره…' : variant === 'new' ? 'افزودن کلاس' : 'ذخیره'}
       </button>

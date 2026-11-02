@@ -69,28 +69,57 @@ export default function DeptRoomsTab() {
               : `${faNum(classrooms.filter(c => c.isAllocatedToDept).length)} سالن سهمیه‌دار از ${faNum(classrooms.length)} سالن`}
           </span>
           {!isDeptScope && (
-            <button
-              type="button"
-              disabled={allocating || !selectedTermId}
-              onClick={async () => {
-                setAllocating(true);
-                setMsg(null);
-                try {
-                  const res = await allocateRoomQuotasAction(selectedTermId);
-                  if (res?.ok) {
-                    setMsg(`✅ ${faNum(res.grants ?? 0)} سهمیهٔ سالن تخصیص یافت.`);
+            <>
+              <button
+                type="button"
+                disabled={allocating || !selectedTermId}
+                onClick={async () => {
+                  setAllocating(true);
+                  setMsg(null);
+                  try {
+                    const res = await allocateRoomQuotasAction(selectedTermId);
+                    if (res?.ok) {
+                      setMsg(`✅ ${faNum(res.grants ?? 0)} سهمیهٔ سالن تخصیص یافت.`);
+                      reloadWorkspace();
+                    } else setMsg(`⚠️ ${res?.error ?? 'خطا'}`);
+                  } catch (e: any) {
+                    setMsg(`⚠️ ${e?.message ?? 'خطا'}`);
+                  } finally {
+                    setAllocating(false);
+                  }
+                }}
+                className="px-4 py-2 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-extrabold text-xs shadow disabled:opacity-50"
+              >
+                {allocating ? '⏳ در حال تخصیص…' : '🏛️ تخصیص خودکار سهمیه‌ها'}
+              </button>
+              <button
+                type="button"
+                disabled={allocating || !selectedTermId || !roomGrants.some(g => g.status === 'ALLOCATED')}
+                onClick={async () => {
+                  if (!confirm('همهٔ سهمیه‌های تخصیص‌یافته لغو شوند؟')) return;
+                  setAllocating(true);
+                  setMsg(null);
+                  try {
+                    const allocated = roomGrants.filter(g => g.status === 'ALLOCATED');
+                    let okCount = 0;
+                    for (const g of allocated) {
+                      const res = await releaseRoomShiftAction({ termId: selectedTermId, departmentId: g.ownerDepartmentId, classroomId: g.classroomId, shift: g.shift as 'MORNING' | 'EVENING' });
+                      if (res?.ok) okCount++;
+                      else { setMsg(`⚠️ ${res?.error ?? 'خطا'}`); break; }
+                    }
+                    setMsg(`✅ ${faNum(okCount)} سهمیه لغو شد.`);
                     reloadWorkspace();
-                  } else setMsg(`⚠️ ${res?.error ?? 'خطا'}`);
-                } catch (e: any) {
-                  setMsg(`⚠️ ${e?.message ?? 'خطا'}`);
-                } finally {
-                  setAllocating(false);
-                }
-              }}
-              className="px-4 py-2 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-extrabold text-xs shadow disabled:opacity-50"
-            >
-              {allocating ? '⏳ در حال تخصیص…' : '🏛️ تخصیص خودکار سهمیه‌ها'}
-            </button>
+                  } catch (e: any) {
+                    setMsg(`⚠️ ${e?.message ?? 'خطا'}`);
+                  } finally {
+                    setAllocating(false);
+                  }
+                }}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow disabled:opacity-50"
+              >
+                {allocating ? '⏳…' : '🗑️ لغو همهٔ سهمیه‌ها'}
+              </button>
+            </>
           )}
         </div>
       </div>

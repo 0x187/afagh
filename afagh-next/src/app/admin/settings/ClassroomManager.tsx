@@ -19,6 +19,8 @@ interface RoomData {
   rowsCount: number | null;
   colsCount: number | null;
   isActive: number | null;
+  isExamHall: number | null;
+  examCapacity: number | null;
 }
 
 const ROOM_TYPES = ['کلاس درس', 'آزمایشگاه', 'سالن', 'ورزشی', 'کارگاه', 'اداری'];
@@ -117,6 +119,12 @@ function AddForm({ faculties }: { faculties: FacultyOption[] }) {
       </label>
       <label className="flex items-center gap-1.5 pb-2 text-xs font-bold text-slate-600">
         <input type="checkbox" name="isActive" value="1" defaultChecked className="h-4 w-4" /> فعال
+      </label>
+      <label className="flex items-center gap-1.5 pb-2 text-xs font-bold text-slate-600">
+        <input type="checkbox" name="isExamHall" value="1" className="h-4 w-4" /> قابل استفاده به عنوان سالن امتحان
+      </label>
+      <label className={LBL}>ظرفیت امتحان
+        <input name="examCapacity" type="number" min={1} className={INP} dir="ltr" placeholder="—" />
       </label>
       <button className="rounded-xl bg-indigo-700 px-5 py-2 text-sm font-black text-white disabled:opacity-60" disabled={pending}>
         {pending ? 'در حال افزودن…' : 'افزودن کلاس'}
@@ -224,6 +232,17 @@ function RowForm({
           <option value="1">فعال</option>
           <option value="0">غیرفعال</option>
         </select>
+      </Cell>
+
+      <Cell label="سالن امتحان">
+        <select name="isExamHall" defaultValue={String(room.isExamHall ?? 0)} className={INP}>
+          <option value="0">خیر</option>
+          <option value="1">بله</option>
+        </select>
+      </Cell>
+
+      <Cell label="ظرفیت امتحان">
+        <input name="examCapacity" type="number" min={1} defaultValue={room.examCapacity ?? ''} dir="ltr" placeholder="—" className={INP} />
       </Cell>
 
       <Cell label="عملیات">

@@ -1152,7 +1152,6 @@ export async function releaseRoomShiftAction(px: { termId: number; departmentId:
   try {
     const user = await requireRole(EDITORS);
     const res = await releaseRoomShift(user.id, { termId: px.termId, departmentId: px.departmentId, classroomId: px.classroomId, shift: px.shift });
-    revalidatePath('/admin/scheduling');
     return res;
   } catch (e: any) {
     return { ok: false, error: e?.message ?? 'خطا در لغو سهمیهٔ سالن.' };
@@ -1163,7 +1162,6 @@ export async function borrowReleasedShiftAction(px: { termId: number; classroomI
   try {
     const user = await requireRole(EDITORS);
     const res = await borrowReleasedShift(user.id, { termId: px.termId, classroomId: px.classroomId, shift: px.shift, departmentId: px.departmentId });
-    revalidatePath('/admin/scheduling');
     return res;
   } catch (e: any) {
     return { ok: false, error: e?.message ?? 'خطا در واگذاری سهمیهٔ سالن.' };
@@ -1195,7 +1193,6 @@ export async function upsertRoomGrantAction(px: { termId: number; classroomId: n
         target: [scheduling_room_grants.termId, scheduling_room_grants.classroomId, scheduling_room_grants.shift],
         set: { ownerDepartmentId: px.departmentId, status: 'ALLOCATED', releasedAt: null },
       });
-    revalidatePath('/admin/scheduling');
     return { ok: true };
   } catch (e: any) {
     return { ok: false, error: e?.message ?? 'خطا در تخصیص سالن.' };

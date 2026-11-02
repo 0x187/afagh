@@ -97,6 +97,8 @@ export async function adminSaveClassroomAction(
       rowsCount: Number(fd.get('rows')) || null,
       colsCount: Number(fd.get('cols')) || null,
       isActive: fd.get('isActive') == null ? 1 : (Number(fd.get('isActive')) ? 1 : 0),
+      isExamHall: fd.get('isExamHall') == null ? 0 : 1,
+      examCapacity: Number(fd.get('examCapacity')) || null,
     };
     if (id) {
       await db.update(classrooms).set(vals).where(eq(classrooms.id, id));

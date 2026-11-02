@@ -61,6 +61,8 @@ export default async function ClassroomsPage() {
         code: classrooms.code,
         capacity: classrooms.capacity,
         roomType: classrooms.roomType,
+        isExamHall: classrooms.isExamHall,
+        examCapacity: classrooms.examCapacity,
         floor: classrooms.floor,
         isActive: classrooms.isActive,
         facultyName: faculties.name,
