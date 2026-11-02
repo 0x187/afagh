@@ -15,7 +15,7 @@ import {
   stageSanjeshDataAction,
   testIrandocCheckAction,
 } from './actions';
-import { revertImportedToResolvedAction, revertResolvedToPendingAction, revertNumberAssignedToResolvedAction, revertStagedToFieldsReadyAction, deleteSanjeshFileAction } from './revert';
+import { revertImportedToResolvedAction, revertResolvedToPendingAction, revertNumberAssignedToResolvedAction, revertStagedToFieldsReadyAction, deleteSanjeshFileAction, cancelAdmissionAction } from './revert';
 interface StagingItem {
   id: number;
   fileId: number | null;
@@ -165,6 +165,20 @@ export default function AdmissionsClient({
     const res = await revertNumberAssignedToResolvedAction(ids);
     setReverting(false);
     setFeedback({ text: res.ok ? (res.message || 'انجام شد') : (res.error || 'خطا'), type: res.ok ? 'success' : 'error' });
+    if (res.ok) { await loadExisting(); router.refresh(); }
+  };
+  // کنسل/حذف بعد از ثبت نهایی: دانشجوی ایجادشده حذف یا غیرفعال می‌شود
+  const handleCancelAdmission = async (ids: number[], mode: 'cancel' | 'purge') => {
+    if (ids.length === 0) return;
+    const label = mode === 'purge'
+      ? `حذف کامل و غیرقابل بازگشتِ ${ids.length} دانشجوی ثبت‌شده؟ (فقط دانشجوی بدون سابقه حذف می‌شود)`
+      : `کنسل (غیرفعال‌سازی) ${ids.length} دانشجوی ثبت‌شده؟ (رکورد برای حسابرسی می‌ماند)`;
+    if (!confirm(label)) return;
+    setReverting(true);
+    const res = await cancelAdmissionAction(ids, mode);
+    setReverting(false);
+    const extra = res.ok && (res as any).failures?.length ? ` — ${(res as any).failures.length} ردیف ناموفق` : '';
+    setFeedback({ text: res.ok ? `${(res as any).message || 'انجام شد'}${extra}` : (res.error || 'خطا'), type: res.ok ? 'success' : 'error' });
     if (res.ok) { await loadExisting(); router.refresh(); }
   };
   const handleRevertResolved = async (ids: number[]) => {
@@ -642,6 +656,25 @@ export default function AdmissionsClient({
                 className="px-3 py-1.5 rounded-xl border border-red-300 bg-red-50 text-red-800 font-bold text-[11px] hover:bg-red-100 disabled:opacity-50"
               >
                 🗑 حذف کامل فایل
+              </button>
+              <span className="mx-1 h-4 w-px bg-slate-300" aria-hidden />
+              <button
+                onClick={() => handleCancelAdmission(
+                  stagingList.filter(s => s.status === 'IMPORTED' || s.status === 'NUMBER_ASSIGNED').map(s => s.id),
+                  'cancel')}
+                disabled={reverting || stagingList.filter(s => s.status === 'IMPORTED' || s.status === 'NUMBER_ASSIGNED').length === 0}
+                className="px-3 py-1.5 rounded-xl border border-orange-300 bg-orange-50 text-orange-800 font-bold text-[11px] hover:bg-orange-100 disabled:opacity-50"
+              >
+                ⛔ کنسل ثبت‌شده‌ها (غیرفعال)
+              </button>
+              <button
+                onClick={() => handleCancelAdmission(
+                  stagingList.filter(s => s.status === 'IMPORTED' || s.status === 'NUMBER_ASSIGNED').map(s => s.id),
+                  'purge')}
+                disabled={reverting || stagingList.filter(s => s.status === 'IMPORTED' || s.status === 'NUMBER_ASSIGNED').length === 0}
+                className="px-3 py-1.5 rounded-xl border border-red-400 bg-red-50 text-red-800 font-bold text-[11px] hover:bg-red-100 disabled:opacity-50"
+              >
+                🗑 حذف کامل دانشجویان
               </button>
             </div>
 

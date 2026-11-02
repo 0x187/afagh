@@ -175,12 +175,29 @@ export async function ensureDefaultSanjeshMappings() {
  * برای شرکت‌پذیری در تراکنشِ فراخوان (مثلاً importStagedToStudents)،
  * پارامتر اختیاری `q` می‌پذیرد؛ در غیر این صورت از `db` استفاده می‌کند.
  */
+async function maxSeqForDegree(q: any, degreeLevelId: number): Promise<number> {
+  // بیشینهٔ سریالِ در استفاده برای این مقطع (همهٔ دانشگاه‌ها).
+  // عرض سریال در همهٔ فرمول‌های فعلی ۳ رقم است (آخرین ۳ رقم کد).
+  const res: any = await q.execute(sql`
+    SELECT COALESCE(MAX(right("studentCode", 3)::int), 0) AS m
+    FROM students
+    WHERE "degreeLevelId" = ${degreeLevelId}
+      AND "studentCode" ~ '^[0-9]+$'
+      AND length("studentCode") >= 3
+  `);
+  const row = (res?.rows ?? res)?.[0];
+  return Number(row?.m ?? 0);
+}
+
 export async function generateStudentId(
   params: {
     degreeLevelId: number;
     entryYear: number;
     majorCode?: string;
     quotaCode?: number;
+    universityId?: number;
+    /** کفِ سریال برای همگام‌سازی شمارنده با دادهٔ موجود */
+    minSeq?: number;
   },
   q: any = db,
 ): Promise<string> {
@@ -190,86 +207,109 @@ export async function generateStudentId(
     .where(eq(degree_level_configs.id, params.degreeLevelId))
     .limit(1);
 
-  // واکشی فرمول تعریف‌شده یا ایجاد فرمول پیش‌فرض
-  const [formulaRow] = await q
+  // واکشی فرمول تعریف‌شده؛ اگر نبود، ردیفی با شمارندهٔ صفر می‌سازیم
+  let [formulaRow] = await q
     .select()
     .from(student_id_formulas)
     .where(eq(student_id_formulas.degreeLevelId, params.degreeLevelId))
     .limit(1);
 
   const formula = formulaRow?.formula || DEFAULT_FORMULA;
-  let nextSeq: number;
 
-  if (formulaRow) {
-    // ── افزایش اتمیک: UPDATE ... RETURNING در یک دستور — بدون race ──
-    const [upd] = await q
-      .update(student_id_formulas)
-      .set({ currentSequence: sql`${student_id_formulas.currentSequence} + 1` })
-      .where(eq(student_id_formulas.id, formulaRow.id))
-      .returning({ seq: student_id_formulas.currentSequence });
-    nextSeq = upd ? upd.seq : (formulaRow.currentSequence ?? 0) + 1;
-  } else {
-    const [ins] = await q
+  // اگر فرمول نامعتبر است، برای تولید از فرمول پیش‌فرض استفاده می‌کنیم تا
+  // هرگز شمارهٔ ناقص/خراب صادر نشود (خودِ فرمولِ ذخیره‌شده دست نمی‌خورد).
+  const formulaValid = validateFormula(formula).length === 0;
+  if (!formulaValid) log.warn('student_id_formula_invalid', { formula });
+  let currentFormula = formulaValid ? formula : DEFAULT_FORMULA;
+
+  if (!formulaRow) {
+    await q
       .insert(student_id_formulas)
       .values({
         degreeLevelId: params.degreeLevelId,
         entryYear: params.entryYear,
         formula,
-        currentSequence: 1,
+        currentSequence: 0,
+        universityId: params.universityId ?? null,
       })
-      .onConflictDoNothing({ target: student_id_formulas.degreeLevelId })
+      .onConflictDoNothing({ target: student_id_formulas.degreeLevelId });
+    [formulaRow] = await q
+      .select()
+      .from(student_id_formulas)
+      .where(eq(student_id_formulas.degreeLevelId, params.degreeLevelId))
+      .limit(1);
+    if (!formulaRow) throw new Error('ایجاد فرمول شمارهٔ دانشجویی ممکن نشد.');
+  }
+
+  // همگام‌سازی کف: اگر شمارنده از دادهٔ موجود عقب است (مثلاً ۰ در حالی که
+  // صدها شماره صادر شده)، به کف می‌رسانیم تا از شماره‌های موجود جلو بزنیم.
+  const floor = params.minSeq ?? 0;
+  if ((formulaRow.currentSequence ?? 0) < floor) {
+    await q
+      .update(student_id_formulas)
+      .set({ currentSequence: floor })
+      .where(eq(student_id_formulas.id, formulaRow.id));
+    formulaRow.currentSequence = floor;
+  }
+
+  // حلقهٔ تولید با تضمین یکتایی: اگر کد با شمارهٔ موجود تداخل داشت، سریال
+  // بعدی امتحان می‌شود. اگر ظرفیت عرض {Seq} پر شود، عرض یک رقم زیاد می‌شود
+  // (خودترمیمی) تا پذیرش هرگز قفل نشود.
+  for (let attempt = 0; attempt < 5000; attempt++) {
+    const [upd] = await q
+      .update(student_id_formulas)
+      .set({ currentSequence: sql`${student_id_formulas.currentSequence} + 1` })
+      .where(eq(student_id_formulas.id, formulaRow.id))
       .returning({ seq: student_id_formulas.currentSequence });
-    if (ins) {
-      nextSeq = ins.seq;
-    } else {
-      // رقابت: ردیف فرمول توسط تراکنش دیگر ساخته شد → همان مسیر اتمیک
-      const [row2] = await q
-        .select()
-        .from(student_id_formulas)
-        .where(eq(student_id_formulas.degreeLevelId, params.degreeLevelId))
-        .limit(1);
-      if (!row2) throw new Error('ایجاد فرمول شمارهٔ دانشجویی ممکن نشد.');
-      const [upd] = await q
+    const seq = upd ? upd.seq : (formulaRow.currentSequence ?? 0) + 1;
+    formulaRow.currentSequence = seq;
+
+    let seqWidth = Number(currentFormula.match(/\{Seq:(\d+)\}/)?.[1] ?? 0);
+    let seqMax = seqWidth > 0 ? Math.pow(10, seqWidth) - 1 : Infinity;
+
+    if (seqWidth > 0 && seq > seqMax) {
+      const newWidth = seqWidth + 1;
+      currentFormula = currentFormula.replace(/\{Seq:\d+\}/, `{Seq:${newWidth}}`);
+      await q
         .update(student_id_formulas)
-        .set({ currentSequence: sql`${student_id_formulas.currentSequence} + 1` })
-        .where(eq(student_id_formulas.id, row2.id))
-        .returning({ seq: student_id_formulas.currentSequence });
-      nextSeq = upd ? upd.seq : (row2.currentSequence ?? 0) + 1;
+        .set({ formula: currentFormula })
+        .where(eq(student_id_formulas.id, formulaRow.id));
+      log.warn('student_id_formula_seq_widened', {
+        degreeLevelId: params.degreeLevelId,
+        from: seqWidth,
+        to: newWidth,
+      });
+      seqWidth = newWidth;
+      seqMax = Math.pow(10, newWidth) - 1;
     }
-  }
 
-  // استخراج متغیرها به نقشهٔ مقادیر (مشترک با کلاینت)
-  const vars: Record<string, string> = {
-    Year: String(params.entryYear ?? 1405),
-    DegreeCode: degreeCodeFor(level?.code),
-    MajorCode: params.majorCode || '412',
-    Seq: String(nextSeq ?? 0),
-    QuotaCode: String(params.quotaCode ?? 1),
-    UniversityCode: '',
-  };
+    const code = renderStudentCode(currentFormula, {
+      entryYear: params.entryYear,
+      degreeCode: level?.code,
+      majorCode: params.majorCode,
+      seq,
+      quotaCode: params.quotaCode,
+    });
 
-  // جایگذاری متغیرها در الگوی فرمول با پارسِ واقعی (ماژول مشترک).
-  // اگر فرمول نامعتبر باشد، به فرمول پیش‌فرض بازمی‌گردیم تا هرگز شمارهٔ
-  // خراب/ناقص تولید نشود؛ خطا را لاگ می‌کنیم.
-  let generated = formula;
-  const validationErrors = validateFormula(formula);
-  if (validationErrors.length === 0) {
-    const applied = applyFormula(formula, vars);
-    if (applied.errors.length === 0) {
-      generated = applied.result;
-    } else {
-      log.warn('student_id_formula_apply_error', { errors: applied.errors, formula });
+    // تداخل فقط در محدودهٔ همین دانشگاه (یا رکوردهای بدون دانشگاه) معنا دارد.
+    const clashScope = params.universityId != null
+      ? or(eq(students.universityId, params.universityId), isNull(students.universityId))
+      : isNull(students.universityId);
+    const [clash] = await q
+      .select({ id: students.id })
+      .from(students)
+      .where(and(clashScope, eq(students.studentCode, code)))
+      .limit(1);
+
+    if (!clash) return code;
+
+    if (seqWidth === 0) {
+      throw new Error('فرمول بدون {Seq} شمارهٔ یکتا تولید نمی‌کند؛ یک متغیر {Seq:n} اضافه کنید.');
     }
-  } else {
-    log.warn('student_id_formula_invalid', { errors: validationErrors, formula });
+    // تداخل → سریال بعدی در تکرار بعدی
   }
 
-  if (generated === formula || !generated) {
-    const fallback = applyFormula(DEFAULT_FORMULA, vars);
-    generated = fallback.result;
-  }
-
-  return generated;
+  throw new Error('تولید شمارهٔ یکتا ممکن نشد (تعداد تلاش بیش از حد).');
 }
 
 /**
@@ -505,6 +545,8 @@ export async function assignStudentNumbers(
   const [defaultReg] = await db.select().from(educational_regulations).limit(1);
   const importedResults: any[] = [];
   const failures: { stagingId: number; error: string }[] = [];
+  // کفِ سریال به‌ازای هر مقطع (یک‌بار محاسبه می‌شود، نه به‌ازای هر ردیف)
+  const seqFloorCache = new Map<number, number>();
 
   for (const row of stagedRows) {
     if (!row.mappedMajorId || row.status !== 'RESOLVED') continue;
@@ -582,8 +624,13 @@ export async function assignStudentNumbers(
         const [major] = await tx.select().from(majors).where(eq(majors.id, mappedMajorId)).limit(1);
         const degreeLevelId = major?.degreeLevelId ?? row.degreeLevelId ?? null;
         if (!degreeLevelId) throw new Error('مقطع این رشته مشخص نیست.');
+        let seqFloor = seqFloorCache.get(degreeLevelId);
+        if (seqFloor === undefined) {
+          seqFloor = await maxSeqForDegree(tx, degreeLevelId);
+          seqFloorCache.set(degreeLevelId, seqFloor);
+        }
         const studentCode = await generateStudentId(
-          { degreeLevelId, entryYear, majorCode: major?.majorCode || '412' },
+          { degreeLevelId, entryYear, majorCode: major?.majorCode || '412', universityId, minSeq: seqFloor },
           tx,
         );
         const [clash] = await tx
@@ -603,6 +650,7 @@ export async function assignStudentNumbers(
           .values({
             userId: user.id,
             studentCode,
+            universityId: row.universityId ?? null,
             majorId: mappedMajorId,
             degreeLevelId,
             regulationId: defaultReg?.id || 1,
@@ -740,11 +788,14 @@ export async function registerManualStudent(params: {
 
     // ۲. تولید شمارهٔ دانشجویی با فرمول پویا (اتمیک — داخل همان تراکنش)
     const [major] = await tx.select().from(majors).where(eq(majors.id, params.majorId)).limit(1);
+    const seqFloor = await maxSeqForDegree(tx, params.degreeLevelId);
     const studentCode = await generateStudentId(
       {
         degreeLevelId: params.degreeLevelId,
         entryYear,
         majorCode: major?.majorCode || '412',
+        universityId,
+        minSeq: seqFloor,
       },
       tx,
     );
@@ -755,6 +806,7 @@ export async function registerManualStudent(params: {
       .values({
         userId: user.id,
         studentCode,
+        universityId,
         majorId: params.majorId,
         degreeLevelId: params.degreeLevelId,
         regulationId: defaultReg?.id || 1,
