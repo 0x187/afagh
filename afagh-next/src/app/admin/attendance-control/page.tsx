@@ -26,13 +26,16 @@ export const dynamic = 'force-dynamic';
  * استاد در یک اتاق برگزار شوند، فقط **یک** ردیف با نشان 🔗 نشان داده می‌شود و
  * ثبتِ آن روی همهٔ اعضا اعمال می‌شود.
  */
-export default async function AttendanceControlPage() {
+export default async function AttendanceControlPage({ searchParams }: { searchParams?: Promise<{ date?: string }> }) {
+  const sp = await (searchParams ?? Promise.resolve<{ date?: string }>({}));
   const user = await requireRole(['ADMIN', 'EDU_EXPERT', 'ATTENDANCE_CONTROLLER']);
   const uni = await getCurrentUniversity().catch(() => null);
 
   const rooms = await listControlledRooms(user.id, uni?.id ?? null);
   const now = tehranNow();
-  const groups = await listMergedTodaySessionsForRooms(rooms.map((r) => r.id), now.jalali);
+  const requestedDate = (sp?.date || '').trim();
+  const jalaliDate = requestedDate || now.jalali;
+  const groups = await listMergedTodaySessionsForRooms(rooms.map((r) => r.id), jalaliDate);
 
   const fa = (v: string) => faDigits(v);
 
@@ -73,10 +76,25 @@ export default async function AttendanceControlPage() {
       <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3">
         <div className="text-sm font-black text-indigo-900">کنترل حضور و غیاب کلاس‌ها</div>
         <div className="text-[11px] font-bold text-indigo-800/80 leading-6">
-          {fa(now.jalali)} · {rooms.length} اتاق تحت مسئولیت شما · ثبت هر جلسه به نامِ استادِ همان درس
+          {fa(jalaliDate)} · {rooms.length} اتاق تحت مسئولیت شما · ثبت هر جلسه به نامِ استادِ همان درس
           انجام می‌شود و نام شما به‌عنوان ثبت‌کننده در سابقه می‌ماند.
         </div>
       </div>
+
+      <form method="get" className="flex flex-wrap items-end gap-2 print:hidden">
+        <label className="text-xs font-bold">
+          تاریخ (جلالی)
+          <input
+            name="date"
+            defaultValue={jalaliDate}
+            placeholder="1403/07/15"
+            dir="ltr"
+            className="block mt-1 border border-slate-300 rounded-lg px-3 py-2 text-sm bg-white font-mono"
+          />
+        </label>
+        <button className="rounded-lg bg-indigo-700 px-4 py-2 text-white font-black text-sm">نمایش</button>
+        <a href="/admin/attendance-control" className="rounded-lg bg-slate-100 px-4 py-2 text-slate-700 font-black text-sm">امروز</a>
+      </form>
 
       {rooms.length === 0 ? (
         <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-center text-xs font-bold text-amber-900 leading-6">
