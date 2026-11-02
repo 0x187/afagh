@@ -23,7 +23,7 @@ import {
 import { requireRole, getStaffByUser } from '@/lib/auth';
 import { headedDepartments } from '@/lib/group-manager';
 import { getCurrentUniversity, isRealUniversityId, universityEq } from '@/lib/university-scope';
-import { getSchedulingState, transitionSchedulingPhase, supplyGroupDrafts, allocateSections, allocateRoomQuotas, getSmartSuggestions } from '@/lib/scheduling-engine';
+import { getSchedulingState, transitionSchedulingPhase, supplyGroupDrafts, allocateSections, allocateRoomQuotas, releaseRoomShift, borrowReleasedShift, getSmartSuggestions } from '@/lib/scheduling-engine';
 import { runSchedulingHealthCheck, type HealthReport } from '@/lib/scheduling-health';
 import { generateClassSessionsForTerm, getTermSessionsSummary, inspectSchedulingHardConflicts } from '@/lib/class-session-generator';
 import { detectScheduleConflicts, jalaliDateOf, type RoomCapacityInfo, type ScheduleConflictInput } from '@/lib/scheduling-core';
@@ -609,6 +609,29 @@ async function listAllocatedRoomIds(termId: number, universityId?: number) {
   return rows.map(r => r.classroomId);
 }
 
+/** سهمیهٔ سالن‌ها در این ترم (ALLOCATED/RELEASED) — برای مدیریت لغو/واگذاری */
+async function listRoomGrants(termId: number, universityId?: number) {
+  const uniFilter = universityEq(classrooms.universityId, universityId);
+  const rows = await db
+    .select({
+      id: scheduling_room_grants.id,
+      classroomId: scheduling_room_grants.classroomId,
+      shift: scheduling_room_grants.shift,
+      ownerDepartmentId: scheduling_room_grants.ownerDepartmentId,
+      status: scheduling_room_grants.status,
+    })
+    .from(scheduling_room_grants)
+    .innerJoin(classrooms, eq(classrooms.id, scheduling_room_grants.classroomId))
+    .where(and(eq(scheduling_room_grants.termId, termId), uniFilter));
+  return rows.map(r => ({
+    id: r.id,
+    classroomId: r.classroomId,
+    shift: String(r.shift),
+    ownerDepartmentId: r.ownerDepartmentId,
+    status: String(r.status),
+  }));
+}
+
 // ─────────────────────────── اکشن‌ها — Page Data ───────────────────────────
 
 /** تایپ صریح نتیجهٔ کارتابل — برای narrowing صحیح در کلاینت */
@@ -621,6 +644,7 @@ export type SchedulingWorkspaceResult =
       cohorts: { entryYear: number; expectedStudents: number }[];
       classrooms: { id: number; name: string; buildingName: string; capacity: number; roomType: string }[];
       allocatedRoomIds: number[];
+      roomGrants: { id: number; classroomId: number; shift: string; ownerDepartmentId: number; status: string }[];
       departments: { id: number; name: string }[];
       availabilities: { staffId: number; dayOfWeek: number | null; startTime: string | null; endTime: string | null; status: string | null }[];
       professors: { id: number; name: string; staffCode: string | null; academicRank: string | null; departmentName: string | null }[];
@@ -688,6 +712,7 @@ export async function getSchedulingWorkspaceAction(termId?: number, _universityI
     let approvedOfferings: Awaited<ReturnType<typeof listApprovedOfferings>> = [];
     let makeupSessions: Awaited<ReturnType<typeof listMakeupSessions>> = [];
     let allocatedRoomIds: number[] = [];
+    let roomGrants: Awaited<ReturnType<typeof listRoomGrants>> = [];
     let availRows: { staffId: number; dayOfWeek: number | null; startTime: unknown; endTime: unknown; status: string | null }[] = [];
 
     if (resolvedTermId != null) {
@@ -715,10 +740,11 @@ export async function getSchedulingWorkspaceAction(termId?: number, _universityI
         )).limit(1).then(rows => rows[0] ?? null),
       ]);
       hardConflictCount = inspect.total;
-      [approvedOfferings, makeupSessions, allocatedRoomIds] = await Promise.all([
+      [approvedOfferings, makeupSessions, allocatedRoomIds, roomGrants] = await Promise.all([
         listApprovedOfferings(resolvedTermId, uid),
         listMakeupSessions(resolvedTermId, uid),
         listAllocatedRoomIds(resolvedTermId, uid),
+        listRoomGrants(resolvedTermId, uid),
       ]);
       if (term) {
       // تقویم برنامه‌ریزی از «تعریف ترم» خوانده می‌شود، نه از اعداد پیش‌فرض UI
@@ -802,6 +828,7 @@ export async function getSchedulingWorkspaceAction(termId?: number, _universityI
       approvedOfferings,
       makeupSessions,
       allocatedRoomIds,
+      roomGrants,
     };
   } catch (e: any) {
     return { ok: false, error: e?.message ?? 'خطا در بارگذاری دادهٔ صفحه.' };
@@ -1118,6 +1145,60 @@ export async function allocateRoomQuotasAction(termId: number) {
     return res;
   } catch (e: any) {
     return { ok: false, error: e?.message ?? 'خطا در سهمیه‌بندی سالن‌ها.' };
+  }
+}
+
+export async function releaseRoomShiftAction(px: { termId: number; departmentId: number; classroomId: number; shift: 'MORNING' | 'EVENING' }) {
+  try {
+    const user = await requireRole(EDITORS);
+    const res = await releaseRoomShift(user.id, { termId: px.termId, departmentId: px.departmentId, classroomId: px.classroomId, shift: px.shift });
+    revalidatePath('/admin/scheduling');
+    return res;
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? 'خطا در لغو سهمیهٔ سالن.' };
+  }
+}
+
+export async function borrowReleasedShiftAction(px: { termId: number; classroomId: number; shift: 'MORNING' | 'EVENING'; departmentId: number }) {
+  try {
+    const user = await requireRole(EDITORS);
+    const res = await borrowReleasedShift(user.id, { termId: px.termId, classroomId: px.classroomId, shift: px.shift, departmentId: px.departmentId });
+    revalidatePath('/admin/scheduling');
+    return res;
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? 'خطا در واگذاری سهمیهٔ سالن.' };
+  }
+}
+
+export async function upsertRoomGrantAction(px: { termId: number; classroomId: number; shift: 'MORNING' | 'EVENING'; departmentId: number }) {
+  try {
+    await requireRole(EDITORS);
+    const uid = await (async () => {
+      const { getCurrentUniversity } = await import('@/lib/university-scope');
+      const u = await getCurrentUniversity().catch(() => null);
+      return u?.id ?? null;
+    })();
+    const { db } = await import('@/db');
+    const { scheduling_room_grants } = await import('@/db/schema');
+    const { eq, and } = await import('drizzle-orm');
+    await db
+      .insert(scheduling_room_grants)
+      .values({
+        termId: px.termId,
+        classroomId: px.classroomId,
+        shift: px.shift,
+        ownerDepartmentId: px.departmentId,
+        status: 'ALLOCATED',
+        universityId: uid,
+      })
+      .onConflictDoUpdate({
+        target: [scheduling_room_grants.termId, scheduling_room_grants.classroomId, scheduling_room_grants.shift],
+        set: { ownerDepartmentId: px.departmentId, status: 'ALLOCATED', releasedAt: null },
+      });
+    revalidatePath('/admin/scheduling');
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? 'خطا در تخصیص سالن.' };
   }
 }
 

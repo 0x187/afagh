@@ -199,6 +199,7 @@ export interface SchedulingWorkspace {
   cohorts: { majorId: number | null; entryYear: number; entryTerm: number; expectedStudents: number }[];
   classrooms: { id: number; name: string; buildingName: string; capacity: number; roomType: string }[];
   allocatedRoomIds: number[];
+  roomGrants: { id: number; classroomId: number; shift: string; ownerDepartmentId: number; status: string }[];
   professors: { id: number; name: string; staffCode: string | null; academicRank: string | null; departmentId: number | null; departmentName: string | null }[];
   demands: {
     offeringId: number; courseId: number; courseDeptId: number | null;

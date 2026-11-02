@@ -1,10 +1,14 @@
 'use client';
 
 // گام ۴: گذار فاز، تأمین گروه و پیشنهاد هوشمند موتور
+import { useState } from 'react';
 import { usePlanning } from '../PlanningProvider';
 import { faNum, DAY_NAMES, PHASE_LABELS } from '../planning-core';
+import { allocateRoomQuotasAction } from '../actions';
 
 export default function SmartAssignTab() {
+  const [allocatingRooms, setAllocatingRooms] = useState(false);
+  const [roomMsg, setRoomMsg] = useState<string | null>(null);
   const {
     initial,
     courseDemands,
@@ -24,6 +28,7 @@ export default function SmartAssignTab() {
     isDeptScope,
     ownedDeptId,
     phaseBusy,
+    reloadWorkspace,
     selectedTermId,
     setActiveMainTab,
     setOwnedDeptId,
@@ -236,7 +241,14 @@ export default function SmartAssignTab() {
               </div>
               <div className="rounded-2xl p-4 border-2 border-slate-200 bg-white shadow-sm">
                 <div className="text-[10px] text-slate-400 font-bold">سالن‌های دارای سهمیه</div>
-                <div className="text-xl font-extrabold text-slate-900">{faNum(initial.allocatedRoomIds.length)}</div>
+                <div className="text-xl font-extrabold text-slate-900">{faNum(initial.allocatedRoomIds.length)} / {faNum(initial.classrooms.length)}</div>
+                <button
+                  type="button"
+                  onClick={() => setActiveMainTab('DEPT_ROOMS')}
+                  className="mt-1 px-3 py-1 rounded-lg bg-indigo-900 hover:bg-indigo-950 text-white font-extrabold text-[10px] shadow"
+                >
+                  🏛️ مدیریت سهمیهٔ سالن‌ها
+                </button>
               </div>
             </div>
 

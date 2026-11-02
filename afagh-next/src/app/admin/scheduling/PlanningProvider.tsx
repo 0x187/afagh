@@ -66,6 +66,7 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
 
   // Core Data — آرایه‌های واقعی (بدون Mock)
   const [classrooms, setClassrooms] = useState<ClassroomOption[]>(() => mapClassrooms(initial.classrooms, initial.allocatedRoomIds));
+  const [roomGrants, setRoomGrants] = useState(initial.roomGrants ?? []);
   const [professors, setProfessors] = useState<ProfessorOption[]>(() => mapProfessors(initial.professors, initial.availabilities));
   const [realAvailRows, setRealAvailRows] = useState<SchedulingWorkspace['availabilities']>(initial.availabilities);
   const [courseDemands, setCourseDemands] = useState<CourseDemand[]>(() => mapDemands((initial as any).demands));
@@ -115,6 +116,7 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
     setCohorts(mapCohorts((ww.cohorts || []).map((c: any) => ({ ...c, entryTerm: c.entryTerm ?? 1 }))));
     setCurrentPhase(ww.phases[selectedTermId] ?? 'SUPPLY');
     setClassrooms(mapClassrooms(ww.classrooms, ww.allocatedRoomIds));
+    setRoomGrants(ww.roomGrants ?? []);
     setProfessors(mapProfessors(ww.professors as any, ww.availabilities));
     setRealAvailRows(ww.availabilities);
     setCourseDemands(mapDemands(ww.demands as any));
@@ -587,6 +589,7 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
     realAvailRows,
     realAvailStatus,
     reloadWorkspace,
+    roomGrants,
     selectedCohortId,
     selectedProgramId,
     selectedSemester,
