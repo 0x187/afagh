@@ -78,6 +78,25 @@ export function detectEncoding(buf: Uint8Array): { encoding: SanjeshEncoding; ha
 }
 
 /** رمزگشایی بایت‌ها به متن با تشخیص خودکار */
+/**
+ * رمزگشایی با کدینگِ **تحمیل‌شده** (انتخاب کارشناس در فرم بارگذاری).
+ * اگر کدینگ انتخابی با فایل نخواند، `null` برمی‌گردد تا فراخوان به تشخیص
+ * خودکار برگردد — نه اینکه متن خراب تولید شود.
+ */
+export function decodeWithEncoding(buf: Uint8Array, encoding: SanjeshEncoding): DecodedFile | null {
+  try {
+    const label = encoding === 'windows-1256' ? 'windows-1256' : encoding;
+    const text = new TextDecoder(label).decode(buf).replace(/^\uFEFF/, '');
+    const hadBom = buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xfe;
+    // نشانهٔ خواندنِ غلط: کاراکتر جایگزین یا نسبت بالای نویز
+    const bad = (text.match(/\uFFFD/g) || []).length;
+    if (bad > Math.max(3, text.length * 0.01)) return null;
+    return { encoding, hadBom, text };
+  } catch {
+    return null;
+  }
+}
+
 export function decodeSanjeshBuffer(buf: Uint8Array): DecodedFile {
   const { encoding, hadBom } = detectEncoding(buf);
   if (encoding === 'utf-16le') {

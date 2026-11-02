@@ -98,7 +98,7 @@ export default async function SanjeshFilesPage({
             <span>سال</span>
             <input name="examYear" defaultValue={1405} inputMode="numeric" className="input !py-1 !px-2 text-xs" dir="ltr" />
           </label>
-          <label className="col-span-1 flex min-w-0 flex-col gap-0.5 text-[10px] text-slate-500 md:col-span-2">
+          <label className="col-span-1 flex min-w-0 flex-col gap-0.5 text-[10px] text-slate-500 md:col-span-1">
             <span>ترم مقصد</span>
             <select name="termId" className="input !py-1 !px-2 text-xs">
               <option value="">—</option>
@@ -109,11 +109,33 @@ export default async function SanjeshFilesPage({
               ))}
             </select>
           </label>
+          <label className="col-span-1 flex min-w-0 flex-col gap-0.5 text-[10px] text-slate-500 md:col-span-2">
+            <span>جداکننده</span>
+            <select name="separator" defaultValue="" className="input !py-1 !px-2 text-xs">
+              <option value="">خودکار ($)</option>
+              <option value="$">$ (پیش‌فرض سنجش)</option>
+              <option value=",">کاما ,</option>
+              <option value=";">نقطه‌ویرگول ;</option>
+              <option value="|">پایپ |</option>
+              <option value="\\t">تب</option>
+            </select>
+          </label>
+          <label className="col-span-1 flex min-w-0 flex-col gap-0.5 text-[10px] text-slate-500 md:col-span-2">
+            <span>شیوهٔ کدینگ</span>
+            <select name="encoding" defaultValue="" className="input !py-1 !px-2 text-xs">
+              <option value="">تشخیص خودکار</option>
+              <option value="utf-16le">UTF-16LE</option>
+              <option value="utf-8">UTF-8</option>
+              <option value="windows-1256">Windows-1256</option>
+            </select>
+          </label>
           <button className="btn-primary col-span-2 !py-1.5 text-xs md:col-span-2">بارگذاری و پارس</button>
         </form>
         <p className="mt-2 text-[10px] text-slate-400">
-          اگر قالب را انتخاب نکنید، تعداد ستون از خود فایل خوانده و با قالب‌های شناخته‌شده مقایسه می‌شود. ستون‌های اضافه
-          به‌عنوان «نگاشت‌نشده» ذخیره می‌شوند و از دست نمی‌روند.
+          تعداد ستون از خودِ فایل خوانده می‌شود (نه از قالب) و بعد با قالب‌های شناخته‌شده مقایسه می‌شود؛
+          چهار نوع فایل داریم: کاردانی ۵۷، ارشد ۷۴، کاردانی‌به‌کارشناسی ۶۹، سراسری ۸۵ ستون. اگر قالب را
+          انتخاب نکنید و تعداد ستون دقیقاً برابر نباشد، نزدیک‌ترین قالب (حداکثر ۵ ستون اختلاف) انتخاب و
+          هشدارش ثبت می‌شود. ستون‌های اضافه به‌عنوان «نگاشت‌نشده» ذخیره می‌شوند و از دست نمی‌روند.
         </p>
       </section>
 

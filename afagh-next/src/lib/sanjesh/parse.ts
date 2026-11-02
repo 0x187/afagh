@@ -17,6 +17,7 @@ import {
   cleanCode,
   cleanText,
   decodeSanjeshBuffer,
+  decodeWithEncoding,
   digitsOnly,
   isAbsent,
   isValidNationalCode,
@@ -89,9 +90,9 @@ export interface SanjeshParseResult {
 }
 
 /** تقسیم یک خط به فیلدها؛ `$` جداکننده است و فاصله‌های لبه حذف می‌شوند. */
-function splitLine(line: string): string[] {
-  // اگر فایل با `$` تمام شود، آخرین جزء خالیِ ناشی از آن حذف می‌شود
-  const parts = line.split('$');
+function splitLine(line: string, separator = '$'): string[] {
+  // اگر فایل با جداکننده تمام شود، آخرین جزء خالیِ ناشی از آن حذف می‌شود
+  const parts = separator === '$' ? line.split('$') : line.split(separator);
   if (parts.length > 1 && parts[parts.length - 1].trim() === '') parts.pop();
   return parts.map((p) => p.replace(/\r$/, ''));
 }
@@ -146,6 +147,7 @@ function normalizeField(field: string, raw: string): string | number | null {
 export function parseSanjeshFile(
   input: Uint8Array | string,
   template?: ParseTemplate | null,
+  opts?: { separator?: string; encoding?: SanjeshEncoding },
 ): SanjeshParseResult {
   let text: string;
   let encoding: SanjeshEncoding;
@@ -156,11 +158,16 @@ export function parseSanjeshFile(
     encoding = 'utf-8';
     hadBom = input.charCodeAt(0) === 0xfeff;
   } else {
-    const decoded = decodeSanjeshBuffer(input);
+    // کدینگِ انتخابی کارشناس اولویت دارد؛ اگر نخواند، تشخیص خودکار
+    const forced = opts?.encoding ? decodeWithEncoding(input, opts.encoding) : null;
+    const decoded = forced ?? decodeSanjeshBuffer(input);
     text = decoded.text;
     encoding = decoded.encoding;
     hadBom = decoded.hadBom;
   }
+
+  // جداکنندهٔ انتخابی؛ پیش‌فرض `$` (فرمت واقعی سنجش)
+  const sep = opts?.separator && opts.separator.length > 0 ? opts.separator : '$';
 
   const rawLines = text.split(/\r?\n/).filter((l) => l.trim() !== '');
 
@@ -171,7 +178,7 @@ export function parseSanjeshFile(
   const splitCache: string[][] = new Array(rawLines.length);
   let colCount = 0;
   for (let i = 0; i < rawLines.length; i++) {
-    const parts = splitLine(rawLines[i]);
+    const parts = splitLine(rawLines[i], sep);
     splitCache[i] = parts;
     if (parts.length > colCount) colCount = parts.length;
   }

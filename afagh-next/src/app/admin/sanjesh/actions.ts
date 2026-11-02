@@ -73,6 +73,13 @@ export async function uploadSanjeshFileAction(formData: FormData) {
   const examYear = examYearRaw ? Number(examYearRaw) : null;
   const termIdRaw = String(formData.get('termId') ?? '').trim();
   const termId = termIdRaw ? Number(termIdRaw) : null;
+  // جداکننده و کدینگ — همان دو گزینه‌ای که در سیستم قبلی هنگام افزودن فایل
+  // گرفته می‌شد. خالی بودنشان یعنی رفتار پیش‌فرض (`$` و تشخیص خودکار).
+  const separatorRaw = String(formData.get('separator') ?? '');
+  const separator = separatorRaw === '' ? null : separatorRaw === '\\t' ? '\t' : separatorRaw;
+  const encRaw = String(formData.get('encoding') ?? '').trim();
+  const encoding =
+    encRaw === 'utf-8' || encRaw === 'utf-16le' || encRaw === 'windows-1256' ? encRaw : null;
 
   let outcome: Outcome;
   try {
@@ -91,6 +98,8 @@ export async function uploadSanjeshFileAction(formData: FormData) {
       termId,
       universityId: uni?.id ?? null,
       userId: user.id,
+      separator,
+      encoding,
     });
 
     const bits = [

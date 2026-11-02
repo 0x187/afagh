@@ -44,6 +44,10 @@ export interface IngestInput {
   userId?: number | null;
   /** حداکثر ردیف برای بارگذاری آزمایشی (null = همه) */
   limit?: number | null;
+  /** جداکنندهٔ ستون‌ها — پیش‌فرض `$` (فرمت واقعی سنجش) */
+  separator?: string | null;
+  /** کدینگ اجباری (UTF-8 / UTF-16LE / Windows-1256)؛ خالی = تشخیص خودکار */
+  encoding?: 'utf-8' | 'utf-16le' | 'windows-1256' | null;
 }
 
 export interface IngestResult {
@@ -84,7 +88,11 @@ export async function ingestSanjeshFile(input: IngestInput): Promise<IngestResul
   }
 
   // ── ۲. پارس ──
-  const parsed: SanjeshParseResult = parseSanjeshFile(input.buffer, template);
+  const parseOpts = {
+    separator: input.separator ?? undefined,
+    encoding: input.encoding ?? undefined,
+  };
+  const parsed: SanjeshParseResult = parseSanjeshFile(input.buffer, template, parseOpts);
 
   // بدون قالب صریح: تلاش برای تشخیص از تعداد ستون
   if (!template) {
@@ -105,7 +113,7 @@ export async function ingestSanjeshFile(input: IngestInput): Promise<IngestResul
     if (picked) {
       template = picked;
       // پارس دوباره با قالب تشخیص‌داده‌شده تا فیلدها نگاشت شوند
-      const re = parseSanjeshFile(input.buffer, picked);
+      const re = parseSanjeshFile(input.buffer, picked, parseOpts);
       Object.assign(parsed, re);
       if (!exact) {
         parsed.warnings.push(
