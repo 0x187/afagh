@@ -342,8 +342,8 @@ export async function checkFormulaUniqueness(
   entryYear = 1405,
   fromSeq = 1,
 ): Promise<{ ok: boolean; error?: string; checked: number; collisions: string[] }> {
-  if (!formula.includes('{Seq:3}')) {
-    return { ok: false, error: 'فرمول باید متغیر {Seq:3} (شماره ترتیب) داشته باشد.', checked: 0, collisions: [] };
+  if (!/\{Seq:\d+\}/.test(formula)) {
+    return { ok: false, error: 'فرمول باید متغیر {Seq} (شماره ترتیب) داشته باشد.', checked: 0, collisions: [] };
   }
 
   const [level] = await db
