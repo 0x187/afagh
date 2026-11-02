@@ -27,6 +27,8 @@ import { getSchedulingState, transitionSchedulingPhase, supplyGroupDrafts, alloc
 import { runSchedulingHealthCheck, type HealthReport } from '@/lib/scheduling-health';
 import { generateClassSessionsForTerm, getTermSessionsSummary, inspectSchedulingHardConflicts } from '@/lib/class-session-generator';
 import { detectScheduleConflicts, jalaliDateOf, type RoomCapacityInfo, type ScheduleConflictInput } from '@/lib/scheduling-core';
+// ستون‌های تاریخِ جلالی هرگز نباید با `new Date` پارس شوند — از این helper بخوانید.
+import { normalizeExamDate } from '@/lib/shamsi';
 
 const EDITORS = ['ADMIN', 'EDU_EXPERT'];
 const MANAGERS = EDITORS;
@@ -306,24 +308,13 @@ async function listRealDemands(termId: number, universityId?: number) {
       const s = semesterByCourseMajor.get(`${r.courseId}:${pid}`);
       if (s != null) { semesterNo = s; break; }
     }
-    // examDate در DB ممکن است جلالی (YYYY/MM/DD) یا میلادی ذخیره شده باشد
-    let examDateOut = '';
-    if (examRaw) {
-      const s = String(examRaw).trim();
-      if (/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(s) && Number(s.slice(0, 4)) > 1300) {
-        // احتمال بالا جلالی است — بدون تبدیل نمایش بده
-        examDateOut = s.replace(/\/(\d)\//g, '/0$1/').replace(/\/(\d)$/, '/0$1');
-        // نرمال‌سازی ساده
-        const p = s.split('/');
-        examDateOut = `${p[0]}/${p[1].padStart(2,'0')}/${p[2].padStart(2,'0')}`;
-      } else {
-        try {
-          examDateOut = jalaliDateOf(new Date(`${s}T00:00:00`));
-        } catch {
-          examDateOut = s;
-        }
-      }
-    }
+    // `schedules."examDate"` ستون `date` است ولی در این پروژه «برچسب جلالی»
+    // نگه می‌دارد (`1405-11-03`). اگر آن را با `new Date(...)` پارس کنیم،
+    // جاوااسکریپت سالِ ۱۴۰۵ را **میلادی** می‌فهمد و تبدیل به جلالی نتیجه را
+    // به ۷۸۴ می‌برد (باگ گزارش‌شده: «۱۴۰۵ می‌شد ۷۸۴»).
+    // `normalizeExamDate` هم `-` و هم `/` را می‌شناسد و سالِ کمتر از ۱۶۰۰ را
+    // دست‌نخورده برمی‌گرداند — تنها نقطهٔ مجازِ خواندنِ این ستون.
+    const examDateOut = normalizeExamDate(examRaw) ?? '';
     return {
       offeringId: r.offeringId,
       courseId: r.courseId,
