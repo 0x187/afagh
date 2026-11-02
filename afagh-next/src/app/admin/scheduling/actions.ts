@@ -306,6 +306,24 @@ async function listRealDemands(termId: number, universityId?: number) {
       const s = semesterByCourseMajor.get(`${r.courseId}:${pid}`);
       if (s != null) { semesterNo = s; break; }
     }
+    // examDate در DB ممکن است جلالی (YYYY/MM/DD) یا میلادی ذخیره شده باشد
+    let examDateOut = '';
+    if (examRaw) {
+      const s = String(examRaw).trim();
+      if (/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(s) && Number(s.slice(0, 4)) > 1300) {
+        // احتمال بالا جلالی است — بدون تبدیل نمایش بده
+        examDateOut = s.replace(/\/(\d)\//g, '/0$1/').replace(/\/(\d)$/, '/0$1');
+        // نرمال‌سازی ساده
+        const p = s.split('/');
+        examDateOut = `${p[0]}/${p[1].padStart(2,'0')}/${p[2].padStart(2,'0')}`;
+      } else {
+        try {
+          examDateOut = jalaliDateOf(new Date(`${s}T00:00:00`));
+        } catch {
+          examDateOut = s;
+        }
+      }
+    }
     return {
       offeringId: r.offeringId,
       courseId: r.courseId,
@@ -328,7 +346,7 @@ async function listRealDemands(termId: number, universityId?: number) {
       cohortId,
       cohortTitle,
       cohortMerged: explicitMerge,
-      examDate: examRaw ? jalaliDateOf(new Date(`${examRaw}T00:00:00`)) : '',
+      examDate: examDateOut,
       isSharedService: r.isSharedService === 1,
       offeringScope: r.offeringScope ?? 'DEPARTMENTAL',
     };
