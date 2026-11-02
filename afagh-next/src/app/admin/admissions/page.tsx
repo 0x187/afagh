@@ -54,7 +54,36 @@ export default async function AdminAdmissionsPage() {
     let parsedData: any = {};
     try {
       if (s.rawSanjeshData) parsedData = JSON.parse(s.rawSanjeshData);
-    } catch (_) {}
+    } catch (_) {
+      parsedData = {};
+    }
+
+    // ردیف‌هایی که با نسخهٔ قدیمیِ ingest ساخته شده‌اند، به‌جای JSON خطِ خامِ
+    // فایل را در rawSanjeshData دارند (JSON.parse می‌شکند) ⇒ همهٔ ستون‌ها خالی
+    // می‌شدند و ردیف هرگز نگاشت نمی‌خورد. دادهٔ کامل در profileJson.fields هست؛
+    // از همان بازسازی می‌کنیم تا نیازی به وارد کردن دوبارهٔ فایل نباشد.
+    if (!parsedData || typeof parsedData !== 'object' || Object.keys(parsedData).length === 0) {
+      let profile: any = {};
+      try {
+        if (s.profileJson) profile = JSON.parse(s.profileJson);
+      } catch (_) {}
+      const f: Record<string, string> = profile?.fields ?? {};
+      const code = (f.fieldPlaceCode || f.fieldCode || '').trim();
+      if (code || f.fieldTitle || f.fieldPlaceTitle) {
+        parsedData = {
+          sanjeshCode: code,
+          majorGroup: f.fieldTitle || f.fieldPlaceTitle || '',
+          degreeLevel: f.degreeLevelTitle || '',
+          quota: f.quotaAdmitTitle || f.quotaFinalTitle || '',
+          universityCode: f.universityCode || '',
+          examType: '',
+          firstName: f.firstName || '',
+          lastName: f.lastName || '',
+          /** نام رشتهٔ سنجش — مبنای «پیشنهاد هوشمند نگاشت» */
+          majorTitle: f.fieldPlaceTitle || f.fieldTitle || '',
+        };
+      }
+    }
 
     const major = allMajors.find(m => m.id === s.mappedMajorId);
 

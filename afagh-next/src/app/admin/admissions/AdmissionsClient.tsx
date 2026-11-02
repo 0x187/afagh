@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ENTRY_METHODS } from '@/lib/entry-methods';
+import { bestSuggestion } from '@/lib/sanjesh/major-suggest';
+import { simulateStudentId, validateFormula, degreeCodeFor, FORMULA_TOKENS } from '@/lib/student-id-formula';
 import { ClientTh, useClientTable, type ColumnDef } from '@/components/DataTable';
 import {
   assignStudentNumbersAction,
@@ -37,6 +39,8 @@ interface StagingItem {
     examType?: string;
     degreeLevel?: string;
     majorGroup?: string;
+    /** نام رشتهٔ سنجش — مبنای پیشنهاد هوشمند نگاشت */
+    majorTitle?: string;
     universityCode?: string;
   };
 }
@@ -277,11 +281,27 @@ export default function AdmissionsClient({
   }, [initialStaging, initialMappings]);
 
   // Tab 2: Formula Builder
+  // با تغییر مقطع، فرمولِ ذخیره‌شدهٔ همان مقطع بارگذاری می‌شود تا آنچه
+  // می‌بینید همان چیزی باشد که ذخیره شده — نه یک الگوی نمونه در کد.
   const [selectedDegreeId, setSelectedDegreeId] = useState<number>(degreeLevels[0]?.id || 1);
-  const [formulaPattern, setFormulaPattern] = useState<string>('{Year:2}{DegreeCode:1}{MajorCode:3}{Seq:3}');
+  // فرمولِ ذخیره‌شدهٔ همان مقطع — نه یک الگوی از پیش‌تعیین‌شده در کد.
+  const [formulaPattern, setFormulaPattern] = useState<string>(
+    initialFormulas.find((f: FormulaItem) => f.degreeLevelId === (degreeLevels[0]?.id || 1))?.formula ?? '',
+  );
   const [simYear, setSimYear] = useState<number>(1405);
   const [simMajorCode, setSimMajorCode] = useState<string>('412');
   const [simSeq, setSimSeq] = useState<number>(15);
+
+  // فرمول‌ساز: انتخاب متغیر + تعداد رقم + مقدار ثابت (همان الگوی ساما)
+  const [tokenKey, setTokenKey] = useState<string>('Seq');
+  const [tokenWidth, setTokenWidth] = useState<number>(3);
+  const [constText, setConstText] = useState<string>('');
+
+  // بارگذاری فرمولِ ذخیره‌شدهٔ مقطع انتخاب‌شده (یا خالی، اگر تعریف نشده)
+  useEffect(() => {
+    const saved = initialFormulas.find((f: FormulaItem) => f.degreeLevelId === selectedDegreeId);
+    setFormulaPattern(saved?.formula ?? '');
+  }, [selectedDegreeId, initialFormulas]);
 
   // Tab 3: Manual Admission
   const [manualForm, setManualForm] = useState({
@@ -384,6 +404,8 @@ export default function AdmissionsClient({
     if (res.ok) {
       setFeedback({ text: 'الگوی فرمول شماره دانشجویی با موفقیت ذخیره گردید.', type: 'success' });
       setTimeout(() => setFeedback(null), 4000);
+    } else {
+      setFeedback({ text: res.error || 'ذخیرهٔ فرمول انجام نشد.', type: 'error' });
     }
   };
 
@@ -428,17 +450,17 @@ export default function AdmissionsClient({
     }
   };
 
-  // شبیه‌سازی زنده فرمول
-  const year2 = String(simYear).slice(-2);
-  const degreeDigit = selectedDegreeId === 1 ? '1' : selectedDegreeId === 2 ? '2' : '3';
-  const major3 = simMajorCode.padStart(3, '0').slice(-3);
-  const seq3 = String(simSeq).padStart(3, '0');
-  const simStudentId = formulaPattern
-    .replace('{Year:2}', year2)
-    .replace('{DegreeCode:1}', degreeDigit)
-    .replace('{MajorCode:3}', major3)
-    .replace('{Seq:3}', seq3)
-    .replace('{QuotaCode:1}', '1');
+  // شبیه‌سازی زنده فرمول — با همان موتور سرور، پس هر عرضی که بنویسید
+  // (۲، ۳، ۴، …) دقیقاً همان‌طور رندر می‌شود که در تولید واقعی می‌شود.
+  const selectedDegree = degreeLevels.find(d => d.id === selectedDegreeId);
+  const simResult = simulateStudentId(formulaPattern, {
+    entryYear: simYear,
+    degreeCode: degreeCodeFor(selectedDegree?.code),
+    majorCode: simMajorCode,
+    seq: simSeq,
+  });
+  const simStudentId = simResult.result;
+  const formulaErrors = [...validateFormula(formulaPattern), ...simResult.errors];
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -923,28 +945,54 @@ export default function AdmissionsClient({
                       <td className="p-3">
                         {isResolved ? (
                           <span className="font-bold text-emerald-800">{st.mappedMajorName || '—'}</span>
-                        ) : (
-                          <div className="flex items-center gap-1">
-                            <select
-                              value={mapSel[st.rawSanjeshData?.sanjeshCode ?? ''] ?? ''}
-                              onChange={e => {
-                                const v = e.target.value;
-                                const code = (st.rawSanjeshData?.sanjeshCode ?? '').trim();
-                                if (!code) return;
-                                setMapSel(p => ({ ...p, [code]: v }));
-                                if (v) void handleMapMajor(code, v);
-                              }}
-                              className="w-full rounded-lg border border-red-200 bg-red-50 px-1.5 py-1 text-[10px] min-w-0"
-                            >
-                              <option value="">⚠️ انتخاب رشته…</option>
-                              {majorsFor(st.rawSanjeshData?.degreeLevel ?? '').map(m => (
-                                <option key={m.id} value={m.id}>
-                                  {m.name}{m.majorCode ? ` (${m.majorCode})` : ''}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-                        )}
+                        ) : (() => {
+                          // «پیشنهاد هوشمند» — فقط پیشنهاد؛ تا کارشناس کلیک نکند
+                          // هیچ نگاشتی نوشته نمی‌شود.
+                          const rowCode = (st.rawSanjeshData?.sanjeshCode ?? '').trim();
+                          const rowTitle = st.rawSanjeshData?.majorTitle || st.rawSanjeshData?.majorGroup || '';
+                          const candidates = majorsFor(st.rawSanjeshData?.degreeLevel ?? '');
+                          const sug = rowTitle ? bestSuggestion(rowTitle, candidates, 0.55) : null;
+                          return (
+                            <div className="flex flex-col gap-1">
+                              <select
+                                value={mapSel[st.rawSanjeshData?.sanjeshCode ?? ''] ?? ''}
+                                onChange={e => {
+                                  const v = e.target.value;
+                                  const code = (st.rawSanjeshData?.sanjeshCode ?? '').trim();
+                                  if (!code) return;
+                                  setMapSel(p => ({ ...p, [code]: v }));
+                                  if (v) void handleMapMajor(code, v);
+                                }}
+                                className="w-full rounded-lg border border-red-200 bg-red-50 px-1.5 py-1 text-[10px] min-w-0"
+                              >
+                                <option value="">⚠️ انتخاب رشته…</option>
+                                {candidates.map(m => (
+                                  <option key={m.id} value={m.id}>
+                                    {m.name}{m.majorCode ? ` (${m.majorCode})` : ''}
+                                  </option>
+                                ))}
+                              </select>
+                              {sug && rowCode && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setMapSel(p => ({ ...p, [rowCode]: String(sug.major.id) }));
+                                    void handleMapMajor(rowCode, String(sug.major.id));
+                                  }}
+                                  title={`از نام رشتهٔ سنجش «${rowTitle}» حدس زده شد`}
+                                  className="text-right text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 rounded-lg px-1.5 py-1 hover:bg-amber-100"
+                                >
+                                  🪄 پیشنهاد: {sug.major.name} ({sug.percent.toLocaleString('fa-IR')}٪)
+                                </button>
+                              )}
+                              {!rowCode && (
+                                <span className="text-[10px] text-slate-400">
+                                  کد رشتهٔ سنجش در این ردیف نیست — فایل را دوباره پردازش کنید.
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="p-3 text-slate-600">{st.rawSanjeshData?.quota || st.quotaType || 'سهمیه عادی'}</td>
                       <td className="p-3 text-slate-600 font-mono">{st.rawSanjeshData?.universityCode || ''}</td>
@@ -1000,28 +1048,75 @@ export default function AdmissionsClient({
                 </select>
               </div>
 
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">الگوی فرمول:</label>
-                <div className="flex flex-wrap gap-1.5">
-                  {[
-                    { label: 'سال ورود (۲ رقم)', token: '{Year:2}' },
-                    { label: 'کد مقطع (۱ رقم)', token: '{DegreeCode:1}' },
-                    { label: 'کد رشته (۳ رقم)', token: '{MajorCode:3}' },
-                    { label: 'کد سهمیه (۱ رقم)', token: '{QuotaCode:1}' },
-                    { label: 'شماره ترتیب (۳ رقم)', token: '{Seq:3}' },
-                  ].map(p => (
-                    <button
-                      key={p.token}
-                      type="button"
-                      onClick={() => setFormulaPattern(v => v + p.token)}
-                      className="px-2 py-1 rounded-lg border border-indigo-300 bg-white text-[11px] font-bold text-indigo-800 hover:bg-indigo-50"
-                    >
-                      + {p.label}
-                    </button>
-                  ))}
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700">الگوی فرمول (آزاد — هر عرضی که بخواهید):</label>
+
+                {/* مقدار ثابت — مثل «4051» یا جداکننده */}
+                <div className="grid grid-cols-12 gap-2 items-end">
+                  <div className="col-span-8 min-w-0">
+                    <label className="block text-[10px] text-slate-500 mb-1">مقدار ثابت</label>
+                    <input
+                      type="text"
+                      value={constText}
+                      onChange={e => setConstText(e.target.value)}
+                      placeholder="مثلاً 4051"
+                      dir="ltr"
+                      className="w-full p-2 text-xs font-mono rounded-lg border border-slate-300 bg-white"
+                    />
+                  </div>
                   <button
                     type="button"
-                    onClick={() => setFormulaPattern(v => v.replace(/\{[^}]*\}$/, ''))}
+                    onClick={() => { if (constText) { setFormulaPattern(v => v + constText); setConstText(''); } }}
+                    className="col-span-4 px-3 py-2 rounded-lg border border-indigo-300 bg-white text-xs font-bold text-indigo-800 hover:bg-indigo-50"
+                  >
+                    + افزودن ثابت
+                  </button>
+                </div>
+
+                {/* متغیر + تعداد رقم */}
+                <div className="grid grid-cols-12 gap-2 items-end">
+                  <div className="col-span-6 min-w-0">
+                    <label className="block text-[10px] text-slate-500 mb-1">متغیر</label>
+                    <select
+                      value={tokenKey}
+                      onChange={e => {
+                        const k = e.target.value;
+                        setTokenKey(k);
+                        const d = FORMULA_TOKENS.find(t => t.key === k);
+                        setTokenWidth(d?.key === 'Seq' ? 3 : d?.key === 'Year' ? 2 : d?.key === 'DegreeCode' ? 1 : 3);
+                      }}
+                      className="w-full p-2 text-xs rounded-lg border border-slate-300 bg-white"
+                    >
+                      {FORMULA_TOKENS.map(t => (
+                        <option key={t.key} value={t.key}>{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-3 min-w-0">
+                    <label className="block text-[10px] text-slate-500 mb-1">تعداد رقم</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={12}
+                      value={tokenWidth}
+                      onChange={e => setTokenWidth(Math.max(1, Math.min(12, Number(e.target.value) || 1)))}
+                      className="w-full p-2 text-xs font-mono rounded-lg border border-slate-300 bg-white"
+                      dir="ltr"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFormulaPattern(v => v + `{${tokenKey}:${tokenWidth}}`)}
+                    className="col-span-3 px-3 py-2 rounded-lg border border-indigo-300 bg-white text-xs font-bold text-indigo-800 hover:bg-indigo-50"
+                  >
+                    + افزودن
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setFormulaPattern(v => v.replace(/\{[^}]*\}$|[^\s{}]+$/, ''))}
                     className="px-2 py-1 rounded-lg border border-slate-300 bg-white text-[11px] font-bold text-slate-600 hover:bg-slate-50"
                   >
                     ↩ حذف آخرین بخش
@@ -1034,21 +1129,29 @@ export default function AdmissionsClient({
                     پاک‌کردن همه
                   </button>
                 </div>
+
                 <input
                   type="text"
                   value={formulaPattern}
                   onChange={e => setFormulaPattern(e.target.value)}
+                  placeholder="{Year:2}{MajorCode:3}{Seq:3}"
                   className="w-full p-2.5 text-xs font-mono font-bold rounded-xl border border-indigo-300 bg-indigo-50/50 dark:border-indigo-700 dark:bg-indigo-950 dark:text-indigo-100"
                   dir="ltr"
                 />
                 <p className="text-[10px] text-slate-400 mt-1">
-                  متغیرهای مجاز: <code className="bg-slate-100 p-0.5 rounded">{'{Year:2}'}</code>، <code className="bg-slate-100 p-0.5 rounded">{'{DegreeCode:1}'}</code>، <code className="bg-slate-100 p-0.5 rounded">{'{MajorCode:3}'}</code>، <code className="bg-slate-100 p-0.5 rounded">{'{Seq:3}'}</code>
+                  متغیرهای مجاز: {FORMULA_TOKENS.map(t => t.key).join(' · ')} — شکل هر کدام <code className="bg-slate-100 p-0.5 rounded">{'{نام:تعداد‌رقم}'}</code>
                 </p>
+                {formulaErrors.length > 0 && (
+                  <ul className="text-[11px] text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-2 space-y-0.5">
+                    {formulaErrors.map((e, i) => <li key={i}>• {e}</li>)}
+                  </ul>
+                )}
               </div>
 
               <button
                 onClick={handleSaveFormula}
-                className="px-5 py-2.5 rounded-xl bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-xs shadow transition"
+                disabled={formulaErrors.length > 0}
+                className="px-5 py-2.5 rounded-xl bg-indigo-700 hover:bg-indigo-800 disabled:opacity-40 disabled:cursor-not-allowed text-white font-extrabold text-xs shadow transition"
               >
                 💾 ذخیره فرمول مقطع
               </button>

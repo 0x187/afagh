@@ -226,6 +226,7 @@ async function assignCodeAtSeq(
     quotaCode?: number;
     universityId: number | null;
     startSeq: number;
+    extra?: Record<string, string>;
   },
 ): Promise<{ code: string; seq: number; formula: string }> {
   const [level] = await q
@@ -237,18 +238,23 @@ async function assignCodeAtSeq(
   let formula = args.formula;
   let seq = Math.max(0, Math.floor(args.startSeq));
 
-  for (let i = 0; i < 5000; i++) {
-    const seqWidth = Number(formula.match(/\{Seq:(\d+)\}/)?.[1] ?? 0);
-    const seqMax = seqWidth > 0 ? Math.pow(10, seqWidth) - 1 : Infinity;
+  // فرمول مالِ کارشناس است. اگر عرضِ {Seq} جا نکند، ما آن را **عوض نمی‌کنیم**؛
+  // با پیام روشن متوقف می‌شویم تا خودش عرض را در «فرمول‌ساز» اصلاح کند.
+  const seqWidth = Number(formula.match(/\{Seq:(\d+)\}/)?.[1] ?? 0);
+  if (seqWidth <= 0) {
+    throw new Error(
+      'فرمول این مقطع متغیر {Seq} ندارد، پس شمارهٔ یکتا تولید نمی‌شود. ' +
+        'در «فرمول‌ساز» یک {Seq:n} به فرمول اضافه کنید.',
+    );
+  }
+  const seqMax = Math.pow(10, seqWidth) - 1;
 
-    if (seqWidth > 0 && seq > seqMax) {
-      const newWidth = seqWidth + 1;
-      formula = formula.replace(/\{Seq:\d+\}/, `{Seq:${newWidth}}`);
-      await q
-        .update(student_id_formulas)
-        .set({ formula })
-        .where(eq(student_id_formulas.degreeLevelId, args.degreeLevelId));
-      log.warn('student_id_formula_seq_widened', { degreeLevelId: args.degreeLevelId, from: seqWidth, to: newWidth });
+  for (let i = 0; i < 5000; i++) {
+    if (seq > seqMax) {
+      throw new Error(
+        `سریال این مقطع به ${seq} رسید ولی عرض {Seq:${seqWidth}} حداکثر ${seqMax} را می‌پذیرد. ` +
+          `در «فرمول‌ساز» عرض را به {Seq:${seqWidth + 1}} تغییر دهید (یا شمارهٔ شروع را کمتر بگیرید).`,
+      );
     }
 
     const code = renderStudentCode(formula, {
@@ -257,6 +263,7 @@ async function assignCodeAtSeq(
       majorCode: args.majorCode,
       seq,
       quotaCode: args.quotaCode,
+      extra: args.extra,
     });
 
     const clashScope = args.universityId != null
@@ -293,39 +300,25 @@ export async function generateStudentId(
     .where(eq(degree_level_configs.id, params.degreeLevelId))
     .limit(1);
 
-  // واکشی فرمول تعریف‌شده؛ اگر نبود، ردیفی با شمارندهٔ صفر می‌سازیم
-  let [formulaRow] = await q
+  // فرمول را کارشناس تعریف می‌کند. اینجا هیچ فرمول پیش‌فرضی جایگزین نمی‌شود
+  // و هیچ ردیفی خودکار ساخته نمی‌شود — اگر تعریف نشده باشد، صریح خطا می‌دهیم.
+  const [formulaRow] = await q
     .select()
     .from(student_id_formulas)
     .where(eq(student_id_formulas.degreeLevelId, params.degreeLevelId))
     .limit(1);
 
-  const formula = formulaRow?.formula || DEFAULT_FORMULA;
-
-  // اگر فرمول نامعتبر است، برای تولید از فرمول پیش‌فرض استفاده می‌کنیم تا
-  // هرگز شمارهٔ ناقص/خراب صادر نشود (خودِ فرمولِ ذخیره‌شده دست نمی‌خورد).
-  const formulaValid = validateFormula(formula).length === 0;
-  if (!formulaValid) log.warn('student_id_formula_invalid', { formula });
-  let currentFormula = formulaValid ? formula : DEFAULT_FORMULA;
-
-  if (!formulaRow) {
-    await q
-      .insert(student_id_formulas)
-      .values({
-        degreeLevelId: params.degreeLevelId,
-        entryYear: params.entryYear,
-        formula,
-        currentSequence: 0,
-        universityId: params.universityId ?? null,
-      })
-      .onConflictDoNothing({ target: student_id_formulas.degreeLevelId });
-    [formulaRow] = await q
-      .select()
-      .from(student_id_formulas)
-      .where(eq(student_id_formulas.degreeLevelId, params.degreeLevelId))
-      .limit(1);
-    if (!formulaRow) throw new Error('ایجاد فرمول شمارهٔ دانشجویی ممکن نشد.');
+  if (!formulaRow?.formula) {
+    throw new Error(
+      `برای مقطع «${level?.title ?? params.degreeLevelId}» فرمول شمارهٔ دانشجویی تعریف نشده است. ` +
+        'در تب «فرمول‌ساز» تعریف کنید.',
+    );
   }
+  const formulaErrors = validateFormula(formulaRow.formula);
+  if (formulaErrors.length > 0) {
+    throw new Error(`فرمول شمارهٔ دانشجویی این مقطع معتبر نیست: ${formulaErrors.join(' ؛ ')}`);
+  }
+  const currentFormula = formulaRow.formula;
 
   // همگام‌سازی کف: اگر شمارنده از دادهٔ موجود عقب است (مثلاً ۰ در حالی که
   // صدها شماره صادر شده)، به کف می‌رسانیم تا از شماره‌های موجود جلو بزنیم.
@@ -353,20 +346,12 @@ export async function generateStudentId(
     let seqWidth = Number(currentFormula.match(/\{Seq:(\d+)\}/)?.[1] ?? 0);
     let seqMax = seqWidth > 0 ? Math.pow(10, seqWidth) - 1 : Infinity;
 
+    // عرض {Seq} را خودمان زیاد نمی‌کنیم؛ فرمول مالِ کارشناس است.
     if (seqWidth > 0 && seq > seqMax) {
-      const newWidth = seqWidth + 1;
-      currentFormula = currentFormula.replace(/\{Seq:\d+\}/, `{Seq:${newWidth}}`);
-      await q
-        .update(student_id_formulas)
-        .set({ formula: currentFormula })
-        .where(eq(student_id_formulas.id, formulaRow.id));
-      log.warn('student_id_formula_seq_widened', {
-        degreeLevelId: params.degreeLevelId,
-        from: seqWidth,
-        to: newWidth,
-      });
-      seqWidth = newWidth;
-      seqMax = Math.pow(10, newWidth) - 1;
+      throw new Error(
+        `سریال این مقطع به ${seq} رسید ولی عرض {Seq:${seqWidth}} حداکثر ${seqMax} را می‌پذیرد. ` +
+          `در «فرمول‌ساز» عرض را به {Seq:${seqWidth + 1}} تغییر دهید.`,
+      );
     }
 
     const code = renderStudentCode(currentFormula, {
@@ -404,7 +389,15 @@ export async function generateStudentId(
  */
 export function renderStudentCode(
   formula: string,
-  v: { entryYear: number; degreeCode?: string | null; majorCode?: string; seq: number; quotaCode?: number },
+  v: {
+    entryYear: number;
+    degreeCode?: string | null;
+    majorCode?: string;
+    seq: number;
+    quotaCode?: number;
+    /** متغیرهای تکمیلی از دادهٔ سنجش (جنسیت، استان، بومی‌گری، دیپلم، ترم) */
+    extra?: Record<string, string>;
+  },
 ): string {
   const vars: Record<string, string> = {
     Year: String(v.entryYear),
@@ -413,6 +406,7 @@ export function renderStudentCode(
     Seq: String(v.seq ?? 0),
     QuotaCode: String(v.quotaCode ?? 1),
     UniversityCode: '',
+    ...(v.extra ?? {}),
   };
   return applyFormula(formula, vars).result;
 }
@@ -652,6 +646,21 @@ export async function assignStudentNumbers(
       if (row.rawSanjeshData) parsed = JSON.parse(row.rawSanjeshData);
     } catch (_) {}
 
+    // متغیرهای تکمیلی فرمول از دادهٔ سنجش — فقط اگر واقعاً موجود باشند
+    // (مقدار خالی در applyFormula خطا می‌دهد، نه صفر جعلی).
+    let pf: Record<string, string> = {};
+    try {
+      if (row.profileJson) pf = JSON.parse(row.profileJson)?.fields ?? {};
+    } catch (_) {}
+    const quotaTitle = String(parsed?.quota ?? '');
+    const extraVars: Record<string, string> = {
+      Gender: pf.gender ?? '',
+      Province: pf.provinceCurrentCode ?? '',
+      DiplomaCode: pf.diplomaCode ?? '',
+      TermCode: '1',
+      Settlement: quotaTitle ? (quotaTitle.includes('بومي') || quotaTitle.includes('بومی') ? '1' : '2') : '',
+    };
+
     try {
       const result = await db.transaction(async tx => {
         // ۱. بررسی یا ایجاد کاربر پلی‌مورفیک (Unified User) — در سطح دانشگاه
@@ -723,8 +732,19 @@ export async function assignStudentNumbers(
             .from(student_id_formulas)
             .where(eq(student_id_formulas.degreeLevelId, degreeLevelId))
             .limit(1);
-          const raw = fr?.formula || DEFAULT_FORMULA;
-          formula = validateFormula(raw).length === 0 ? raw : DEFAULT_FORMULA;
+          // فرمول را کارشناس تعریف می‌کند. اگر نبود یا معتبر نبود، ما به‌جای او
+          // تصمیم نمی‌گیریم و فرمول پیش‌فرض را جایگزین نمی‌کنیم.
+          if (!fr?.formula) {
+            throw new Error(
+              `برای مقطع «${major?.degreeLevelId ?? degreeLevelId}» فرمول شمارهٔ دانشجویی تعریف نشده است. ` +
+                'در تب «فرمول‌ساز» آن را تعریف کنید.',
+            );
+          }
+          const errs = validateFormula(fr.formula);
+          if (errs.length > 0) {
+            throw new Error(`فرمول شمارهٔ دانشجویی این مقطع معتبر نیست: ${errs.join(' ؛ ')}`);
+          }
+          formula = fr.formula;
           formulaCache.set(degreeLevelId, formula);
         }
 
@@ -748,7 +768,7 @@ export async function assignStudentNumbers(
             }
             const mCode = major?.majorCode || '412';
             const w = Number(formula.match(/\{Seq:(\d+)\}/)?.[1] ?? 3) || 3;
-            const sample = renderStudentCode(formula, { entryYear, degreeCode, majorCode: mCode, seq: 0 });
+            const sample = renderStudentCode(formula, { entryYear, degreeCode, majorCode: mCode, seq: 0, extra: extraVars });
             const prefix = sample.slice(0, Math.max(0, sample.length - w));
             startSeq = (await maxSeqForMajor(tx, mappedMajorId, prefix)) + 1;
           }
@@ -760,6 +780,7 @@ export async function assignStudentNumbers(
           majorCode: major?.majorCode || '412',
           universityId: row.universityId ?? null,
           startSeq,
+          extra: extraVars,
         });
         nextSeqByMajor.set(seqKey, assigned.seq + 1);
         formulaCache.set(degreeLevelId, assigned.formula);
