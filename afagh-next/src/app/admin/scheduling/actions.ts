@@ -662,13 +662,19 @@ export async function getSchedulingWorkspaceAction(termId?: number, _universityI
       const ownMajors = await db.select({ id: majors.id }).from(majors).where(inArray(majors.departmentId, deptIds));
       deptMajorIds = ownMajors.map(m => m.id);
     }
-    const [terms, programRows, classrooms, professors, deptRows] = await Promise.all([
+    const [terms, programRows, classrooms, professorsRaw, deptRows] = await Promise.all([
       listRealTerms(uid),
       listRealPrograms(uid),
       listRealClassrooms(uid),
       listRealProfessors(uid),
       db.select({ id: departments.id, name: departments.name }).from(departments).where(uniOrGlobal(departments.universityId, uid)).orderBy(departments.name),
     ]);
+    let professors = professorsRaw;
+    // دامنهٔ مدیرگروه: فقط استادانِ دپارتمان‌های تحت مدیریتِ خودش را ببیند
+    // (نه همهٔ استادان دانشگاه) — تا در «تخصیص درس» فقط استادان گروه خودش را انتخاب کند.
+    if (isDeptHead && deptIds.length) {
+      professors = professors.filter(p => p.departmentId != null && deptIds.includes(p.departmentId));
+    }
     let programs = programRows;
     const resolvedTermId = termId ?? terms.find(t => t.isCurrent === 1)?.id ?? terms[0]?.id ?? null;
 

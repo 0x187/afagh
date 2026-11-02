@@ -20,6 +20,7 @@ export default function CurriculumAssignTab() {
     handleUpdateCoWeights,
     handleUpdateCourseGroupsCount,
     handleUpdateDemandExamDate,
+    isDeptScope,
     profAssignedUnitsMap,
     professors,
     setActiveMainTab,
@@ -78,7 +79,8 @@ export default function CurriculumAssignTab() {
                     // اگر آن گروه هنوز استادی ندارد، به فهرست کامل برمی‌گردیم تا
                     // کشویی خالی و بی‌استفاده نشود.
                     const deptProfs = professors.filter(p => p.departmentId != null && p.departmentId === demand.courseDeptId);
-                    const pool = deptProfs.length ? deptProfs : professors;
+                    // مدیرگروه فقط استادان گروه خودش را ببیند؛ fallback فقط برای ادمین.
+                    const pool = isDeptScope ? deptProfs : (deptProfs.length ? deptProfs : professors);
                     const assignedProf = pool.find(p => p.id === demand.preferredProfId)
                       || professors.find(p => p.id === demand.preferredProfId)
                       || pool[0] || NO_PROFESSOR;

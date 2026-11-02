@@ -432,9 +432,11 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
     slotAvailStatus(realAvailRows, profId, dayIdx, slot);
 
   // بار واحد هر استاد (با تقسیم سهم تئوری/عملی در درس مشترک) — هستهٔ خالص
+  // بر اساس «منبع تقاضای فعلی» (چارت رشته در صورت انتخاب، وگرنه همهٔ تقاضاهای ترم)
+  // تا واحدهای نمایش‌داده‌شده با فیلتر رشته/ورودی هم‌خوان باشند.
   const profAssignedUnitsMap = useMemo(
-    () => computeProfUnits(courseDemands, professors),
-    [courseDemands, professors],
+    () => computeProfUnits(curriculumDemands.length > 0 ? curriculumDemands : courseDemands, professors),
+    [courseDemands, curriculumDemands, professors],
   );
 
   // Computed state — تنها سناریوی مشروع: برنامهٔ مصوب (واقعی از DB)
