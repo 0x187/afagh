@@ -15,7 +15,9 @@ ok(roleFromBankType('پایه') === 'CORE', 'پایه → CORE');
 ok(roleFromBankType('تخصصی') === 'SPECIALIZED', 'تخصصی → SPECIALIZED');
 ok(roleFromBankType('اصلی') === 'MAJOR', 'اصلی → MAJOR');
 ok(roleFromBankType('اختیاری') === 'ELECTIVE', 'اختیاری → ELECTIVE');
-ok(roleFromBankType('جبرانی') === 'ELECTIVE', 'جبرانی → ELECTIVE');
+// از مهاجرت ۰۱۲۹ (کامیت 6c77fad) «جبرانی» نقش مستقل COMPENSATORY گرفت و
+// دیگر به ELECTIVE نگاشت نمی‌شود.
+ok(roleFromBankType('جبرانی') === 'COMPENSATORY', 'جبرانی → COMPENSATORY');
 
 console.log('\n— کدهای انگلیسی مهاجرت و نقش‌های مستقیم —');
 ok(roleFromBankType('GENERAL') === 'GENERAL', 'GENERAL → GENERAL');
