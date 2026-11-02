@@ -17,7 +17,7 @@ export default async function DepartmentPlanningPage({
   const currentUniversity = await getCurrentUniversity();
   const currentUniversityId = currentUniversity?.id ?? null;
   // دامنهٔ دانشگاه فقط سمت سرور از getCurrentUniversity تعیین می‌شود؛ پارامتر دوم صرفاً تزئینی است.
-  const workspace = await getSchedulingWorkspaceAction(undefined, currentUniversityId ?? undefined);
+  const workspace: any = await getSchedulingWorkspaceAction(undefined, currentUniversityId ?? undefined);
   if (!workspace.ok) {
     return (
       <div dir="rtl" className="min-h-screen bg-sky-50/70 flex items-center justify-center p-6">

@@ -44,14 +44,19 @@ eq('بدون تاریخ → آرایهٔ خالی', parseJalaliDates('جمعه �
 eq('ماه/روز یک‌رقمی هم قبول', parseJalaliDates('1405/7/1'), ['1405/7/1']);
 
 console.log('\n۲) نگاشت ردیف سرور → مدل UI');
-const rawDemand = {
+const rawDemand: any = {
   offeringId: 7, courseId: 11, courseDeptId: 3, code: '101', title: 'ریاضی', units: '3.00',
   courseType: 'اصلی', capacity: 40, groupNumber: 2, professorId: 5, isCoTaught: false,
+  coProfId: null,
   enrolledCount: 30, programId: 2, programTitle: 'کامپیوتر', cohortId: '1403', cohortTitle: 'ورودی ۱۴۰۳',
+  programIds: [],
+  semesterNo: null,
+  cohortMerged: false,
+  examDate: '',
   isSharedService: false,
   offeringScope: 'DEPARTMENTAL',
 };
-const [d] = mapDemands([rawDemand]);
+const [d] = mapDemands([rawDemand] as any);
 eq('واحد رشته‌ای → عدد', d.units, 3);
 eq('واحد نامعتبر → صفر', mapDemands([{ ...rawDemand, units: '—', isSharedService: false, offeringScope: 'DEPARTMENTAL' }])[0].units, 0);
 // ⚠️ قرارداد عوض شد: نوع درس دیگر به فهرست بستهٔ ۵ مقدارهای «فارسی» محدود
@@ -84,15 +89,18 @@ eq('نام سالن و ساختمان حفظ شد', [off.classSchedules[0].roomN
 eq('فیلتر/حوزهٔ کلی برای ورودی‌ها', [off.cohortId, off.programId], ['ALL', 0]);
 
 console.log('\n۳) بار واحد استاد (درس مشترک = تقسیم سهم)');
-const base: CourseDemand = {
+const base: any = {
   id: 1, courseId: 1, courseDeptId: null, programId: 1, programTitle: 'کامپیوتر', cohortId: 'ALL',
   cohortTitle: 'ورودی ۱۴۰۳', code: 'C1', title: 'درس', units: 3, groupNumber: 1, courseType: 'اصلی',
   preferredProfId: 1, requiredRoomType: 'THEORY', capacity: 40, groupsCount: 1,
-  weekRecurrence: 'ALL', sessionsCountPerWeek: 1, examDate: '',
+  weekRecurrence: 'ALL', sessionsCountPerWeek: 1, examDate: '', enrolledCount: 0,
+  isCoTaught: false, coProfId: null, programIds: [], semesterNo: null, cohortMerged: false,
+  examMode: 'WRITTEN' as const, examTime: null, examRoomId: null, genderRestriction: 'MIXED' as const,
+  isSharedService: false, offeringScope: 'DEPARTMENTAL',
 };
-const profs = [
-  { id: 1, name: 'الف', staffCode: '1', academicRank: 'استادیار', contractType: 'تمام‌وقت' as const, departmentName: 'گروه', maxWeeklyUnits: 16, maxDailyHours: 6, hasSubmittedAvailability: true },
-  { id: 2, name: 'ب', staffCode: '2', academicRank: 'مربی', contractType: 'نیمه‌وقت' as const, departmentName: 'گروه', maxWeeklyUnits: 8, maxDailyHours: 4, hasSubmittedAvailability: false },
+const profs: any = [
+  { id: 1, name: 'الف', staffCode: '1', academicRank: 'استادیار', contractType: 'تمام‌وقت' as const, departmentId: 1, departmentName: 'گروه', maxWeeklyUnits: 16, maxDailyHours: 6, hasSubmittedAvailability: true },
+  { id: 2, name: 'ب', staffCode: '2', academicRank: 'مربی', contractType: 'نیمه‌وقت' as const, departmentId: 1, departmentName: 'گروه', maxWeeklyUnits: 8, maxDailyHours: 4, hasSubmittedAvailability: false },
 ];
 eq('درس تکی × گروه‌های موازی', computeProfUnits([{ ...base, units: 3, groupsCount: 2 }], profs)[1].units, 6);
 eq('درس تکی → تعداد گروه‌ها شمرده می‌شود', computeProfUnits([{ ...base, groupsCount: 3 }], profs)[1].coursesCount, 3);
@@ -128,13 +136,15 @@ const mkOff = (over: Partial<DepartmentOffering> = {}): DepartmentOffering => ({
   code: 'C1', title: 't', units: 3, courseType: 'اصلی', groupNumber: 1, professorId: 1, professorName: 'x',
   capacity: 40, enrolledCount: 0, waitlistCapacity: 0,
   classSchedules: [{ dayOfWeek: 0, dayName: DAY_NAMES[0], slotId: 1, startTime: '08:00', endTime: '10:00', roomId: 1, roomName: 'r', buildingName: 'b', weekType: 'ALL' }],
-  examSchedule: null, ...over,
+  examSchedule: null, courseDeptId: null, offeringId: 1, programIds: [], semesterNo: null, cohortMerged: false,
+  examDate: null, examMode: 'WRITTEN', examTime: null, examRoomId: null, isSharedService: false, offeringScope: 'DEPARTMENTAL',
+  ...over,
 });
 const list = [
-  mkOff({ id: 1, programId: 0, cohortId: 'ALL' }),                       // عمومی → همیشه
-  mkOff({ id: 2, programId: 7, cohortId: 'ALL' }),                        // رشتهٔ ۷
-  mkOff({ id: 3, programId: 7, cohortId: '1403' }),                       // رشتهٔ ۷ ورودی ۱۴۰۳
-  mkOff({ id: 4, programId: 8, cohortId: 'ALL', classSchedules: [{ ...mkOff().classSchedules[0], weekType: 'EVEN' }] }),
+  mkOff({ id: 1, programId: 0, cohortId: 'ALL' }) as any,                       // عمومی → همیشه
+  mkOff({ id: 2, programId: 7, cohortId: 'ALL' }) as any,                        // رشتهٔ ۷
+  mkOff({ id: 3, programId: 7, cohortId: '1403' }) as any,                       // رشتهٔ ۷ ورودی ۱۴۰۳
+  mkOff({ id: 4, programId: 8, cohortId: 'ALL', classSchedules: [{ ...mkOff().classSchedules[0], weekType: 'EVEN' }] }) as any,
 ];
 eq('بدون فیلتر → همه', filterScenarioOfferings(list, { programId: 0, cohortId: 'ALL', weekFilter: 'ALL_VIEW' }).length, 4);
 eq('رشتهٔ ۷ → عمومی + ۷', filterScenarioOfferings(list, { programId: 7, cohortId: 'ALL', weekFilter: 'ALL_VIEW' }).map(o => o.id), [1, 2, 3]);

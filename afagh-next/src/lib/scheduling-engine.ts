@@ -98,19 +98,38 @@ const WEEKLY_DURATION_MIN = 90;
  */
 export async function supplyGroupDrafts(actorUserId: number | null, px: SupplyInput) {
   const { termId, courseId, ownerDepartmentId, isSharedService } = px;
+  const { getCurrentUniversity } = await import('@/lib/university-scope');
+  const curUni = await getCurrentUniversity().catch(() => null);
+  const uniId = curUni && curUni.id > 0 ? curUni.id : null;
+
   const [course] = await db.select().from(courses).where(eq(courses.id, courseId)).limit(1);
   if (!course) throw new Error('درس یافت نشد.');
   if (isSharedService && course.offeringScope !== 'GENERAL_SERVICE') {
     throw new Error('این درس در کاتالوگ به‌عنوان درس خدماتی سراسری تعریف نشده است.');
   }
+  // درس باید متعلق به گروه سازنده باشد (قلمرو)
+  if (course.departmentId != null && course.departmentId !== ownerDepartmentId) {
+    throw new Error('این درس متعلق به گروه دیگری است و نمی‌توانید برای آن ارائه بسازید.');
+  }
   // اساتید باید متعلق به گروه سازنده باشند (قلمرو)
   const profIds = px.drafts.map(d => Number(d.professorId));
-  const profs = await db.select({ id: staff.id, departmentId: staff.departmentId })
+  const profs = await db.select({ id: staff.id, departmentId: staff.departmentId, universityId: staff.universityId })
     .from(staff).where(inArray(staff.id, profIds));
   for (const p of profs) {
     if (Number(p.departmentId) !== ownerDepartmentId) {
       throw new Error(`استاد ${p.id} از گروه دیگری است — فقط اساتید گروه سازنده مجازند.`);
     }
+    if (uniId && p.universityId && Number(p.universityId) !== uniId) {
+      throw new Error('استاد انتخاب‌شده متعلق به دانشگاه دیگری است.');
+    }
+  }
+
+  // ترم باید متعلق به دانشگاه فعال باشد
+  const { academic_terms } = await import('@/db/schema');
+  const [termRow] = await db.select({ id: academic_terms.id, universityId: academic_terms.universityId }).from(academic_terms).where(eq(academic_terms.id, termId)).limit(1);
+  if (!termRow) throw new Error('ترم یافت نشد.');
+  if (uniId && termRow.universityId && Number(termRow.universityId) !== uniId) {
+    throw new Error('ترم انتخاب‌شده متعلق به دانشگاه دیگری است.');
   }
 
   const drafts = validateGroupDrafts(px.drafts, isSharedService);
@@ -152,14 +171,15 @@ export async function supplyGroupDrafts(actorUserId: number | null, px: SupplyIn
       }
     }
 
-    // ۳) ظرفیت فیزیکی کلاس
-    const roomRows = await tx.select({ id: classrooms.id, capacity: classrooms.capacity })
+    // ۳) ظرفیت فیزیکی کلاس و مالکیت دانشگاه
+    const roomRows = await tx.select({ id: classrooms.id, capacity: classrooms.capacity, universityId: classrooms.universityId })
       .from(classrooms).where(inArray(classrooms.id, drafts.map(d => d.classroomId)));
-    const roomCap = new Map(roomRows.map(r => [Number(r.id), Number(r.capacity)]));
+    const roomCap = new Map(roomRows.map(r => [Number(r.id), { cap: Number(r.capacity), uni: r.universityId as number | null }]));
     for (const d of drafts) {
-      const cap = roomCap.get(d.classroomId);
-      if (cap === undefined) throw new Error(`کلاس فیزیکی گروه ${d.groupNumber} یافت نشد.`);
-      if (cap < d.capacity) throw new Error(`ظرفیت فیزیکی کلاس گروه ${d.groupNumber} (${cap}) کمتر از ظرفیت درخواستی (${d.capacity}) است.`);
+      const r = roomCap.get(d.classroomId);
+      if (!r) throw new Error(`کلاس فیزیکی گروه ${d.groupNumber} یافت نشد.`);
+      if (r.cap < d.capacity) throw new Error(`ظرفیت فیزیکی کلاس گروه ${d.groupNumber} (${r.cap}) کمتر از ظرفیت درخواستی (${d.capacity}) است.`);
+      if (uniId && r.uni && Number(r.uni) !== uniId) throw new Error('کلاس انتخاب‌شده متعلق به دانشگاه دیگری است.');
     }
 
     // ۴) درج دسته‌ای (بدون N+1)
@@ -170,6 +190,7 @@ export async function supplyGroupDrafts(actorUserId: number | null, px: SupplyIn
       ownerDepartmentId, isSharedService: isSharedService ? 1 : 0,
       equivalenceClusterId: course.clusterId,
       offeringType: 'NORMAL',
+      universityId: uniId,
     }))).returning({ id: course_offerings.id, groupNumber: course_offerings.groupNumber });
 
     const offeringByGroup = new Map(inserted.map(o => [Number(o.groupNumber), Number(o.id)]));
@@ -180,10 +201,12 @@ export async function supplyGroupDrafts(actorUserId: number | null, px: SupplyIn
       startTime: hhmmss(d.startTime),
       endTime: hhmmss(d.endTime),
       roomId: d.classroomId,
+      universityId: uniId,
     })));
     await tx.insert(offering_professors).values(drafts.map(d => ({
       offeringId: offeringByGroup.get(d.groupNumber)!,
       staffId: d.professorId, role: 'MAIN_LECTURER', sharePercentage: '100.00',
+      universityId: uniId,
     })));
 
     await auditChain(tx, actorUserId, 'SCHEDULING_SUPPLY_CREATED', 'academic_term', termId, {

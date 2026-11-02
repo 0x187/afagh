@@ -68,7 +68,7 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
   const [classrooms, setClassrooms] = useState<ClassroomOption[]>(() => mapClassrooms(initial.classrooms, initial.allocatedRoomIds));
   const [professors, setProfessors] = useState<ProfessorOption[]>(() => mapProfessors(initial.professors, initial.availabilities));
   const [realAvailRows, setRealAvailRows] = useState<SchedulingWorkspace['availabilities']>(initial.availabilities);
-  const [courseDemands, setCourseDemands] = useState<CourseDemand[]>(() => mapDemands(initial.demands));
+  const [courseDemands, setCourseDemands] = useState<CourseDemand[]>(() => mapDemands((initial as any).demands));
 
   // Inspector
   const [inspectorProfId, setInspectorProfId] = useState<number>(initial.professors[0]?.id ?? 1);
@@ -109,29 +109,30 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
 
   /** اعمال کامل یک کارتابل واقعی (استفاده در بارگذاری اولیه، تغییر ترم و بعد از هر تغییر) */
   const applyWorkspace = (w: Extract<SchedulingWorkspaceResult, { ok: true }>) => {
-    setTerms(w.terms);
-    setPrograms(w.programs);
-    setCohorts(mapCohorts(w.cohorts));
-    setCurrentPhase(w.phases[selectedTermId] ?? 'SUPPLY');
-    setClassrooms(mapClassrooms(w.classrooms, w.allocatedRoomIds));
-    setProfessors(mapProfessors(w.professors, w.availabilities));
-    setRealAvailRows(w.availabilities);
-    setCourseDemands(mapDemands(w.demands));
-    setApprovedOfferings(mapOfferings(w.approvedOfferings));
-    setCurrentRealScenario(buildRealScenario(mapOfferings(w.approvedOfferings), w.hardConflictCount, w.sessionsTotal, w.allocatedRoomIds.length));
-    setGeneratedTermSessionsCount(w.sessionsTotal);
-    setSessionsByOffering(w.sessionsByOffering);
-    setMakeupSessions(w.makeupSessions);
-    setHardConflictCount(w.hardConflictCount);
+    const ww: any = w;
+    setTerms(ww.terms);
+    setPrograms(ww.programs);
+    setCohorts(mapCohorts((ww.cohorts || []).map((c: any) => ({ ...c, entryTerm: c.entryTerm ?? 1 }))));
+    setCurrentPhase(ww.phases[selectedTermId] ?? 'SUPPLY');
+    setClassrooms(mapClassrooms(ww.classrooms, ww.allocatedRoomIds));
+    setProfessors(mapProfessors(ww.professors as any, ww.availabilities));
+    setRealAvailRows(ww.availabilities);
+    setCourseDemands(mapDemands(ww.demands as any));
+    setApprovedOfferings(mapOfferings(ww.approvedOfferings as any));
+    setCurrentRealScenario(buildRealScenario(mapOfferings(ww.approvedOfferings as any), ww.hardConflictCount, ww.sessionsTotal, ww.allocatedRoomIds.length));
+    setGeneratedTermSessionsCount(ww.sessionsTotal);
+    setSessionsByOffering(ww.sessionsByOffering);
+    setMakeupSessions(ww.makeupSessions);
+    setHardConflictCount(ww.hardConflictCount);
     setSuggestions([]);
     setHealth(null);
     setCalendarConfig(cfg => ({
       ...cfg,
-      classStartDate: w.termCalendar?.classStartJalali ?? '',
-      classEndDate: w.termCalendar?.classEndJalali ?? '',
-      examStartDate: w.termCalendar?.examStartJalali ?? '',
-      examEndDate: w.termCalendar?.examEndJalali ?? '',
-      sessionsCount: w.termCalendar?.weeksCount ?? cfg.sessionsCount,
+      classStartDate: ww.termCalendar?.classStartJalali ?? ww.termCalendar?.startJalali ?? '',
+      classEndDate: ww.termCalendar?.classEndJalali ?? ww.termCalendar?.endJalali ?? '',
+      examStartDate: ww.termCalendar?.examStartJalali ?? '',
+      examEndDate: ww.termCalendar?.examEndJalali ?? '',
+      sessionsCount: ww.termCalendar?.weeksCount ?? cfg.sessionsCount,
     }));
   };
 
@@ -175,7 +176,7 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
       const res = await getCurriculumDemandsAction(selectedTermId, selectedProgramId, entryYear);
       if (!res.ok) { showToast(res.error, 'warning'); setCurriculumDemands([]); return; }
       setChartRange(res.chartRange ?? null);
-      setCurriculumDemands(mapDemands(res.demands));
+      setCurriculumDemands(mapDemands((res as any).demands || []) as any);
     } catch {
       showToast('⚠️ بارگذاری دروس چارت ناموفق بود.', 'warning');
       setCurriculumDemands([]);

@@ -23,7 +23,7 @@ export default async function GroupSchedulingPage({
   await requireRole(['DEP_HEAD']);
 
   const currentUniversity = await getCurrentUniversity();
-  const workspace = await getSchedulingWorkspaceAction(undefined, currentUniversity?.id ?? undefined);
+  const workspace: any = await getSchedulingWorkspaceAction(undefined, currentUniversity?.id ?? undefined);
   if (!workspace.ok) {
     return (
       <div dir="rtl" className="rounded-2xl border border-rose-200 bg-white p-6 text-center">

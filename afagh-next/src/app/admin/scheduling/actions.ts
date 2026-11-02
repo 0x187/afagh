@@ -716,7 +716,7 @@ export async function getSchedulingWorkspaceAction(termId?: number, _universityI
         classEndJalali: term.classEndDate ? jalaliDateOf(term.classEndDate) : (term.endDate ? jalaliDateOf(term.endDate) : null),
         examStartJalali: term.examStartDate ? jalaliDateOf(term.examStartDate) : null,
         examEndJalali: term.examEndDate ? jalaliDateOf(term.examEndDate) : null,
-      };
+      } as any;
       }
       const summary = await getTermSessionsSummary(resolvedTermId);
       for (const s of summary) {
@@ -759,7 +759,7 @@ export async function getSchedulingWorkspaceAction(termId?: number, _universityI
       })),
       professors: professors.map(p => ({
         id: p.id, name: `${p.name} ${p.lastName}`.trim(), staffCode: p.staffCode,
-        academicRank: p.academicRank ?? '—', departmentName: p.departmentName ?? '—',
+        academicRank: p.academicRank ?? '—', departmentId: p.departmentId ?? null, departmentName: p.departmentName ?? '—',
       })),
       departments: deptRows,
       availabilities: availRows.map(a => ({
@@ -768,7 +768,15 @@ export async function getSchedulingWorkspaceAction(termId?: number, _universityI
         endTime: a.endTime == null ? null : String(a.endTime).slice(0, 5),
         status: a.status ?? 'AVAIL',
       })),
-      demands,
+      demands: (demands as any[]).map(d => ({
+        ...d,
+        programIds: d.programIds ?? [],
+        semesterNo: d.semesterNo ?? null,
+        cohortMerged: d.cohortMerged ?? false,
+        examDate: d.examDate ?? '',
+        isCoTaught: d.isCoTaught ?? false,
+        coProfId: d.coProfId ?? null,
+      })),
       phases: Object.fromEntries(phases.map(p => [p.termId, p.phase])),
       termCalendar,
       sessionsTotal,
@@ -1052,6 +1060,13 @@ export async function supplyGroupDraftsAction(px: {
     if (isDeptHead && !deptIds.includes(px.ownerDepartmentId)) {
       return { ok: false as const, error: 'فقط برای گروه‌های تحت مدیریت خودتان مجاز هستید.' };
     }
+    // اعتبارسنجی درس در برابر گروه تحت مدیریت
+    if (isDeptHead) {
+      const [c] = await db.select({ id: courses.id, departmentId: courses.departmentId }).from(courses).where(eq(courses.id, px.courseId)).limit(1);
+      if (c && c.departmentId != null && !deptIds.includes(Number(c.departmentId))) {
+        return { ok: false as const, error: 'این درس متعلق به گروه‌های تحت مدیریت شما نیست.' };
+      }
+    }
     const res = await supplyGroupDrafts(user.id, {
       termId: px.termId, courseId: px.courseId, ownerDepartmentId: px.ownerDepartmentId,
       isSharedService: !!px.isSharedService, drafts: px.drafts,
@@ -1117,16 +1132,14 @@ export async function setOfferingCohortMergeAction(px: {
       return { ok: false as const, error: 'این درس در گروه‌های تحت مدیریت شما نیست.' };
     }
 
+    // ادغام مهر+بهمن فقط برای نمایش/گروه‌بندی در تابلو است؛ هرگز ستون‌های هدف‌گیری ثبت‌نام را تغییر ندهد.
     if (!px.merge) {
-      await db.update(course_offerings)
-        .set({ entryYearStart: null, entryYearEnd: null })
-        .where(eq(course_offerings.id, px.offeringId));
       revalidatePath('/admin/scheduling');
       revalidatePath('/group-manager/scheduling');
       return { ok: true as const, entryYearStart: null, entryYearEnd: null };
     }
 
-    // بازهٔ ادغام = کوچک‌ترین و بزرگ‌ترین سالِ ورودیِ دانشجویانِ همین ارائه
+    // فقط برای اطلاع UI: بازهٔ ورودی دانشجویانِ همین ارائه (بدون نوشتن در entryYearStart/End)
     const rows = await db
       .select({ year: students.entryYear })
       .from(enrollments)
@@ -1138,9 +1151,6 @@ export async function setOfferingCohortMergeAction(px: {
     }
     const from = Math.min(...years);
     const to = Math.max(...years);
-    await db.update(course_offerings)
-      .set({ entryYearStart: from, entryYearEnd: to })
-      .where(eq(course_offerings.id, px.offeringId));
     revalidatePath('/admin/scheduling');
     revalidatePath('/group-manager/scheduling');
     return { ok: true as const, entryYearStart: from, entryYearEnd: to };

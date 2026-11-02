@@ -29,15 +29,37 @@ export async function saveProfessorAvailabilityForStaffAction(
   notes?: string,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    await requireRole(['ADMIN', 'EDU_EXPERT', 'DEP_HEAD', 'VICE_EDU']);
+    const actor = await requireRole(['ADMIN', 'EDU_EXPERT', 'DEP_HEAD', 'VICE_EDU']);
 
     const sid = Number(staffId);
     const t = Number(termId);
     if (!Number.isInteger(sid) || sid <= 0) return { ok: false, error: 'استاد نامعتبر است.' };
     if (!Number.isInteger(t) || t <= 0) return { ok: false, error: 'ترم نامعتبر است.' };
 
-    const [prof] = await db.select({ id: staff.id }).from(staff).where(eq(staff.id, sid)).limit(1);
+    const { getStaffByUser } = await import('@/lib/auth');
+    const { headedDepartments } = await import('@/lib/group-manager');
+    const { getCurrentUniversity } = await import('@/lib/university-scope');
+
+    const [prof] = await db.select({ id: staff.id, departmentId: staff.departmentId, universityId: staff.universityId }).from(staff).where(eq(staff.id, sid)).limit(1);
     if (!prof) return { ok: false, error: 'پروندهٔ استاد یافت نشد.' };
+
+    const curUni = await getCurrentUniversity().catch(() => null);
+    const uniId = curUni && curUni.id > 0 ? curUni.id : null;
+    if (uniId && prof.universityId && Number(prof.universityId) !== uniId) {
+      return { ok: false, error: 'این استاد متعلق به دانشگاه دیگری است.' };
+    }
+
+    // برای DEP_HEAD فقط استادان گروه‌های تحت مدیریت مجازند
+    const isEditor = actor.roles.some(r => ['ADMIN', 'EDU_EXPERT', 'VICE_EDU'].includes(r));
+    if (!isEditor) {
+      const me = await getStaffByUser(actor.id).catch(() => null);
+      if (!me) return { ok: false, error: 'پروندهٔ کارمندی شما یافت نشد.' };
+      const depts = await headedDepartments(me.id, me.departmentId ?? null).catch(() => []);
+      const allowed = new Set(depts.map(d => d.id));
+      if (prof.departmentId == null || !allowed.has(Number(prof.departmentId))) {
+        return { ok: false, error: 'فقط می‌توانید برنامهٔ حضور اساتید گروه‌های تحت مدیریت خود را ویرایش کنید.' };
+      }
+    }
 
     const teaching = (await getTimeSlots()).filter(s => !s.isBreak);
     const byId = new Map(teaching.map(s => [s.id, s]));
@@ -68,6 +90,7 @@ export async function saveProfessorAvailabilityForStaffAction(
             staffId: sid, termId: t, dayOfWeek: c.dayIndex,
             startTime: times.start, endTime: times.end,
             status: c.status,
+            universityId: uniId,
           };
         }) as (typeof professor_availabilities.$inferInsert)[];
       if (toInsert.length) await tx.insert(professor_availabilities).values(toInsert);

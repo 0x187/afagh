@@ -128,10 +128,10 @@ export interface DepartmentOffering {
   units: number;
   courseType: string;
   groupNumber: number;
-  professorId: number;
+  professorId: number | null;
   professorName: string;
   isCoTaught?: boolean;
-  coProfId?: number;
+  coProfId?: number | null;
   coProfName?: string;
   theoryWeightRatio?: number;
   labWeightRatio?: number;
@@ -155,6 +155,22 @@ export interface DepartmentOffering {
     endTime: string;
     roomName: string;
   } | null;
+  courseDeptId?: number | null;
+  offeringId?: number;
+  genderRestriction?: 'MIXED' | 'MALE' | 'FEMALE';
+  classroomId?: number | null;
+  dayOfWeek?: number | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  programIds?: number[];
+  semesterNo?: number | null;
+  cohortMerged?: boolean;
+  examDate?: string | null;
+  examMode?: 'WRITTEN' | 'ORAL' | 'PROJECT' | 'ONLINE';
+  examTime?: string | null;
+  examRoomId?: number | null;
+  isSharedService?: boolean;
+  offeringScope?: string;
 }
 
 export interface AutoScheduleScenario {
