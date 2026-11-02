@@ -189,7 +189,7 @@ export default function AttendanceControlClient({
           </select>
           <select value={filterRoom} onChange={(e) => setFilterRoom(e.target.value)} className="rounded-xl border border-slate-300 px-3 py-1.5 text-[11px] font-bold">
             <option value="">همهٔ اتاق‌ها</option>
-            {[...new Set(rows.map((r) => r.roomName))].map((r) => (
+            {[...new Set(rows.filter((r) => !filterFaculty || r.facultyName === filterFaculty).map((r) => r.roomName))].map((r) => (
               <option key={r} value={r}>{r}</option>
             ))}
           </select>
