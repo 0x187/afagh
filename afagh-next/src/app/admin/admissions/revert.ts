@@ -230,6 +230,7 @@ export async function cancelAdmissionAction(
               status: 'RESOLVED',
               studentId: null,
               userId: null,
+              assignedStudentCode: null,
               onboardingStatus: null,
               decisionNote: null,
             })
@@ -251,5 +252,87 @@ export async function cancelAdmissionAction(
     };
   } catch (err: any) {
     return { ok: false, error: err?.message || 'خطا در کنسل/حذف پذیرش.' };
+  }
+}
+
+/**
+ * حذف شمارهٔ صادرشده و آماده‌سازی برای تخصیص مجدد.
+ *
+ * برخلاف `revertNumberAssignedToResolvedAction` که شماره را عمداً نگه می‌دارد،
+ * این اکشن شماره را **پاک** می‌کند و پروندهٔ دانشجوییِ ساخته‌شده را هم برمی‌دارد؛
+ * وگرنه با منطق idempotentِ انتقال، اجرای دوباره به‌جای صدور شمارهٔ تازه، ردیف
+ * را به همان پروندهٔ قبلی «وصل» می‌کرد و شمارهٔ جدیدی صادر نمی‌شد.
+ *
+ * گارد: دانشجویی که سابقهٔ آموزشی/مالی دارد حذف نمی‌شود (همان قاعدهٔ purge).
+ */
+export async function revokeAssignedNumbersAction(stagingIds: number[]) {
+  await requireRole(['ADMIN']);
+  try {
+    if (stagingIds.length === 0) return { ok: false, error: 'هیچ ردیفی انتخاب نشده است.' };
+
+    const rows = await db
+      .select()
+      .from(admissions_staging)
+      .where(inArray(admissions_staging.id, stagingIds));
+
+    const eligible = rows.filter(
+      r => (r.status === 'NUMBER_ASSIGNED' || r.status === 'IMPORTED') && r.studentId,
+    );
+    if (eligible.length === 0) {
+      return { ok: false, error: 'ردیفی با شمارهٔ صادرشده برای حذف نیست.' };
+    }
+
+    let done = 0;
+    const failures: { stagingId: number; error: string }[] = [];
+
+    for (const row of eligible) {
+      try {
+        await db.transaction(async tx => {
+          const sid = row.studentId as number;
+
+          const hist: any = await tx.execute(sql`
+            SELECT
+              (SELECT count(*) FROM enrollments WHERE "studentId" = ${sid}) AS en,
+              (SELECT count(*) FROM student_ledger WHERE "studentId" = ${sid}) AS led,
+              (SELECT count(*) FROM payment_transactions WHERE "studentId" = ${sid}) AS pay
+          `);
+          const h = (hist?.rows ?? hist)?.[0] ?? {};
+          if (Number(h.en ?? 0) > 0 || Number(h.led ?? 0) > 0 || Number(h.pay ?? 0) > 0) {
+            throw new Error('این دانشجو سابقهٔ آموزشی/مالی دارد؛ حذف شماره مجاز نیست.');
+          }
+
+          for (const { table, col } of PURGE_CHILD_TABLES) {
+            await tx.execute(sql.raw(`DELETE FROM "${table}" WHERE "${col}" = ${Number(sid)}`));
+          }
+          await tx.delete(students).where(eq(students.id, sid));
+
+          await tx
+            .update(admissions_staging)
+            .set({
+              status: 'RESOLVED',
+              studentId: null,
+              userId: null,
+              assignedStudentCode: null,
+              onboardingStatus: null,
+              decisionNote: null,
+            })
+            .where(eq(admissions_staging.id, row.id));
+        });
+        done++;
+      } catch (err: any) {
+        failures.push({ stagingId: row.id, error: err?.message || 'خطا در حذف شماره.' });
+      }
+    }
+
+    revalidatePath('/admin/admissions');
+    revalidatePath('/admin/students');
+    return {
+      ok: true,
+      count: done,
+      failures,
+      message: `${done} شمارهٔ دانشجویی حذف شد و ردیف‌ها برای تخصیص مجدد آماده‌اند.`,
+    };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'خطا در حذف شماره‌های صادرشده.' };
   }
 }

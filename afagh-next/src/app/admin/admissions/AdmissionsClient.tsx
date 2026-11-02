@@ -19,7 +19,7 @@ import {
   stageSanjeshDataAction,
   testIrandocCheckAction,
 } from './actions';
-import { revertImportedToResolvedAction, revertResolvedToPendingAction, revertNumberAssignedToResolvedAction, revertStagedToFieldsReadyAction, deleteSanjeshFileAction, cancelAdmissionAction } from './revert';
+import { revertImportedToResolvedAction, revertResolvedToPendingAction, revertNumberAssignedToResolvedAction, revertStagedToFieldsReadyAction, deleteSanjeshFileAction, cancelAdmissionAction, revokeAssignedNumbersAction } from './revert';
 interface StagingItem {
   id: number;
   fileId: number | null;
@@ -132,6 +132,9 @@ export default function AdmissionsClient({
   // Tab 1: Sanjesh Staging — خالی شروع می‌شود (نمونه فقط به‌صورت «قالب» قابل مشاهده است)
   const [rawText, setRawText] = useState<string>('');
   const [stagingList, setStagingList] = useState<StagingItem[]>(initialStaging);
+  /** پیش‌نویسِ فرمول هر مقطع در پنل «فرمول این انتقال» */
+  const [formulaDraft, setFormulaDraft] = useState<Record<number, string>>({});
+  const [formulaBusy, setFormulaBusy] = useState<number | null>(null);
 
   /**
    * مقطعِ یک ردیف صف. ترتیب اولویت:
@@ -227,6 +230,21 @@ export default function AdmissionsClient({
     if (!confirm(label)) return;
     setReverting(true);
     const res = await cancelAdmissionAction(ids, mode);
+    setReverting(false);
+    const extra = res.ok && (res as any).failures?.length ? ` — ${(res as any).failures.length} ردیف ناموفق` : '';
+    setFeedback({ text: res.ok ? `${(res as any).message || 'انجام شد'}${extra}` : (res.error || 'خطا'), type: res.ok ? 'success' : 'error' });
+    if (res.ok) { await loadExisting(); router.refresh(); }
+  };
+  /**
+   * حذف شماره‌های صادرشده: پروندهٔ دانشجوییِ ساخته‌شده پاک می‌شود و ردیف‌های
+   * صف به RESOLVED برمی‌گردند تا بتوان شمارهٔ تازه صادر کرد.
+   * فقط پروندهٔ بدون سابقه (ثبت‌نام/دفتر/پرداخت) حذف می‌شود؛ بقیه گزارش خطا.
+   */
+  const handleRevokeNumbers = async (ids: number[]) => {
+    if (ids.length === 0) return;
+    if (!confirm(`حذف شمارهٔ ${ids.length} دانشجو؟ پروندهٔ ساخته‌شده هم حذف می‌شود و می‌توانید شمارهٔ تازه صادر کنید.`)) return;
+    setReverting(true);
+    const res = await revokeAssignedNumbersAction(ids);
     setReverting(false);
     const extra = res.ok && (res as any).failures?.length ? ` — ${(res as any).failures.length} ردیف ناموفق` : '';
     setFeedback({ text: res.ok ? `${(res as any).message || 'انجام شد'}${extra}` : (res.error || 'خطا'), type: res.ok ? 'success' : 'error' });
@@ -538,6 +556,39 @@ export default function AdmissionsClient({
     } else {
       setFeedback({ text: res.error || 'ذخیرهٔ فرمول انجام نشد.', type: 'error' });
     }
+  };
+
+  // ── فرمولِ همین انتقال (داخل تب صف سنجش، بدون رفتن به تب «فرمول شماره») ──
+  /**
+   * فرمولِ مؤثر یک مقطع: پیش‌نویسِ کاربر، و اگر ویرایش نکرده، مقدارِ ذخیره‌شده
+   * در سرور. فرمول در پایگاه‌داده «به‌ازای مقطع» ذخیره می‌شود، نه به‌ازای رشته.
+   */
+  const transferFormulaOf = (degreeLevelId: number): string =>
+    formulaDraft[degreeLevelId] !== undefined
+      ? formulaDraft[degreeLevelId]
+      : (initialFormulas.find((f: FormulaItem) => f.degreeLevelId === degreeLevelId)?.formula ?? '');
+
+  const handleSaveTransferFormula = async (degreeLevelId: number) => {
+    const f = transferFormulaOf(degreeLevelId).trim();
+    if (!f) {
+      setFeedback({ text: 'فرمول خالی است؛ ابتدا یک الگو انتخاب یا وارد کنید.', type: 'error' });
+      return;
+    }
+    const errs = validateFormula(f);
+    if (errs.length > 0) {
+      setFeedback({ text: `فرمول نامعتبر است: ${errs[0]}`, type: 'error' });
+      return;
+    }
+    setFormulaBusy(degreeLevelId);
+    const res = await saveStudentIdFormulaAction(degreeLevelId, f);
+    setFormulaBusy(null);
+    if (!res.ok) {
+      setFeedback({ text: res.error || 'ذخیرهٔ فرمول انجام نشد.', type: 'error' });
+      return;
+    }
+    setFeedback({ text: 'فرمول این مقطع ذخیره شد؛ صدور شمارهٔ بعدی از همین الگو استفاده می‌کند.', type: 'success' });
+    setTimeout(() => setFeedback(null), 4000);
+    router.refresh();
   };
 
   // ثبت‌نام دستی
@@ -961,6 +1012,24 @@ export default function AdmissionsClient({
                   {isAssigning ? 'در حال صدور شماره...' : '1️⃣ صدور شماره دانشجویی'}
                 </button>
                 <button
+                  type="button"
+                  onClick={() =>
+                    handleRevokeNumbers(
+                      stagingList
+                        .filter(s => s.status === 'NUMBER_ASSIGNED' || s.status === 'IMPORTED')
+                        .map(s => s.id),
+                    )
+                  }
+                  disabled={
+                    reverting ||
+                    stagingList.filter(s => s.status === 'NUMBER_ASSIGNED' || s.status === 'IMPORTED').length === 0
+                  }
+                  title="شمارهٔ صادرشده و پروندهٔ بدون سابقه حذف می‌شود تا بتوانید دوباره شماره صادر کنید."
+                  className="px-4 py-2 rounded-xl border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-800 font-extrabold text-xs shadow-sm transition disabled:opacity-50"
+                >
+                  🗑 حذف شماره‌های صادرشده
+                </button>
+                <button
                   onClick={handleFinalRegister}
                   disabled={isFinalizing}
                   className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow transition disabled:opacity-50"
@@ -1011,6 +1080,106 @@ export default function AdmissionsClient({
                         />
                       </div>
                     ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {(() => {
+              // مقاطعِ دخیل در همین صف. فرمول در پایگاه‌داده «به‌ازای مقطع» ذخیره
+              // می‌شود؛ اگر ردیف را به‌ازای رشته نشان می‌دادیم، ویرایش دو ردیفِ
+              // هم‌مقطع روی یک رکورد می‌نشست و کاربر فکر می‌کرد جداست.
+              const groups = new Map<number, { title: string; majors: string[]; count: number }>();
+              for (const s of stagingList) {
+                if (!s.mappedMajorId) continue;
+                const m = majors.find(x => x.id === s.mappedMajorId);
+                const did = m?.degreeLevelId ?? null;
+                if (did == null) continue;
+                const mname = m?.name ?? s.mappedMajorName ?? `رشته ${s.mappedMajorId}`;
+                const cur = groups.get(did);
+                if (cur) {
+                  cur.count++;
+                  if (!cur.majors.includes(mname)) cur.majors.push(mname);
+                } else {
+                  groups.set(did, {
+                    title: degreeLevels.find(d => d.id === did)?.title ?? `مقطع ${did}`,
+                    majors: [mname],
+                    count: 1,
+                  });
+                }
+              }
+              if (groups.size === 0) return null;
+              return (
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 space-y-2">
+                  <div className="text-xs font-black text-indigo-900">🔢 فرمول شمارهٔ دانشجوییِ این انتقال</div>
+                  <p className="text-[11px] leading-5 text-indigo-800">
+                    الگویی که هنگام «صدور شماره دانشجویی» استفاده می‌شود. یک فرمول برای هر <b>مقطع</b> ذخیره می‌شود،
+                    پس همهٔ رشته‌های هم‌مقطع از همین الگو شماره می‌گیرند. پس از ذخیره، دکمهٔ «صدور شماره دانشجویی» را بزنید.
+                  </p>
+                  <div className="space-y-2">
+                    {[...groups.entries()].map(([did, info]) => {
+                      const value = transferFormulaOf(did);
+                      const errs = validateFormula(value);
+                      const preview = simulateStudentId(value, {
+                        entryYear: 1405,
+                        degreeCode: degreeCodeFor(degreeLevels.find(d => d.id === did)?.code),
+                        majorCode: '412',
+                        seq: 1,
+                      });
+                      return (
+                        <div key={did} className="rounded-lg border border-indigo-200 bg-white p-2 space-y-1.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-[11px] font-black text-slate-800">{info.title}</span>
+                            <span className="text-[10px] text-slate-500">
+                              {info.count} ردیف · {info.majors.slice(0, 3).join('، ')}
+                              {info.majors.length > 3 ? ` +${info.majors.length - 3}` : ''}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <select
+                              value=""
+                              onChange={e => {
+                                const picked = models.find(x => String(x.id) === e.target.value);
+                                if (picked) setFormulaDraft(prev => ({ ...prev, [did]: picked.formula }));
+                              }}
+                              className="min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-[11px] font-bold"
+                            >
+                              <option value="">— انتخاب از کتابخانهٔ مدل‌ها —</option>
+                              {models.map(m => (
+                                <option key={m.id} value={m.id}>
+                                  {m.title} — {m.formula}
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              value={value}
+                              onChange={e => setFormulaDraft(prev => ({ ...prev, [did]: e.target.value }))}
+                              dir="ltr"
+                              placeholder="{Year:2}{DegreeCode:1}{MajorCode:3}{Seq:3}"
+                              className="min-w-0 flex-1 rounded-lg border border-slate-300 px-2 py-1 font-mono text-xs"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleSaveTransferFormula(did)}
+                              disabled={formulaBusy === did}
+                              className="rounded-lg bg-indigo-700 px-3 py-1 text-[11px] font-extrabold text-white hover:bg-indigo-800 disabled:opacity-50"
+                            >
+                              {formulaBusy === did ? 'در حال ذخیره…' : '💾 ذخیره برای این مقطع'}
+                            </button>
+                          </div>
+                          <div className="text-[10px] leading-4">
+                            {errs.length > 0 ? (
+                              <span className="text-rose-700">⚠️ {errs[0]}</span>
+                            ) : (
+                              <span className="text-slate-500">
+                                پیش‌نمایش (کد رشتهٔ نمونه ۴۱۲):{' '}
+                                <span className="font-mono text-emerald-700">{preview.result}</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               );

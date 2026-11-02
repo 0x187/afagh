@@ -29,6 +29,8 @@ const PAGE = path.join(HERE, '..', 'src', 'app', 'admin', 'admissions', 'page.ts
 const PAGE_SRC = readFileSync(PAGE, 'utf8');
 const CLIENT = path.join(HERE, '..', 'src', 'app', 'admin', 'admissions', 'AdmissionsClient.tsx');
 const CLIENT_SRC = readFileSync(CLIENT, 'utf8');
+const REVERT = path.join(HERE, '..', 'src', 'app', 'admin', 'admissions', 'revert.ts');
+const REVERT_SRC = readFileSync(REVERT, 'utf8');
 
 let pass = 0;
 let fail = 0;
@@ -170,6 +172,99 @@ console.log('\n▶ گارد منبع: شمارهٔ صادرشده در جدول 
   ok(
     CLIENT_SRC.includes("'شمارهٔ دانشجویی', 'کد ملی'"),
     'خروجی اکسل هم ستون شمارهٔ دانشجویی دارد',
+  );
+}
+
+console.log('\n▶ گارد منبع: شمارهٔ صادرشده را می‌توان حذف و دوباره صادر کرد');
+{
+  ok(
+    REVERT_SRC.includes('export async function revokeAssignedNumbersAction'),
+    'اکشن «حذف شماره‌های صادرشده» وجود دارد',
+  );
+  ok(
+    REVERT_SRC.includes("r.status === 'NUMBER_ASSIGNED' || r.status === 'IMPORTED'"),
+    'فقط ردیف‌های دارای شمارهٔ صادرشده هدف قرار می‌گیرند',
+  );
+  ok(
+    REVERT_SRC.includes("FROM enrollments WHERE \"studentId\"") &&
+      REVERT_SRC.includes("FROM student_ledger WHERE \"studentId\"") &&
+      REVERT_SRC.includes("FROM payment_transactions WHERE \"studentId\""),
+    'قبل از حذف، سابقهٔ آموزشی/مالی بررسی می‌شود',
+  );
+  ok(
+    REVERT_SRC.includes('حذف شماره مجاز نیست'),
+    'دانشجوی دارای سابقه حذف نمی‌شود (محافظت از داده)',
+  );
+  ok(
+    REVERT_SRC.includes('assignedStudentCode: null') &&
+      REVERT_SRC.includes("status: 'RESOLVED'"),
+    'ردیف صف به RESOLVED برمی‌گردد تا شمارهٔ تازه صادر شود',
+  );
+  ok(
+    CLIENT_SRC.includes('revokeAssignedNumbersAction'),
+    'کلاینت اکشن حذف شماره را وارد می‌کند',
+  );
+  ok(
+    CLIENT_SRC.includes('const handleRevokeNumbers'),
+    'هندلر «حذف شماره‌های صادرشده» تعریف شده',
+  );
+  ok(
+    CLIENT_SRC.includes('حذف شماره‌های صادرشده'),
+    'دکمهٔ حذف شماره در نوار ابزار رندر می‌شود',
+  );
+  // گارد ایمنی: هر عملیات مخرب باید confirm داشته باشد.
+  const revokeBody = CLIENT_SRC.slice(
+    CLIENT_SRC.indexOf('const handleRevokeNumbers'),
+    CLIENT_SRC.indexOf('const handleRevertResolved'),
+  );
+  ok(
+    revokeBody.includes('confirm('),
+    'حذف شماره بدون تأیید کاربر اجرا نمی‌شود',
+  );
+  ok(
+    CLIENT_SRC.slice(
+      CLIENT_SRC.indexOf('const handleRevertResolved'),
+      CLIENT_SRC.indexOf('const handleRevertStaged'),
+    ).includes('confirm('),
+    'handleRevertResolved هم تأیید می‌گیرد (قبلاً ناخواسته حذف شده بود)',
+  );
+}
+
+console.log('\n▶ گارد منبع: انتخاب فرمول شماره دانشجویی داخل همین تب');
+{
+  ok(
+    CLIENT_SRC.includes('const transferFormulaOf'),
+    'تابع خواندن فرمولِ مؤثرِ مقطع تعریف شده',
+  );
+  ok(
+    CLIENT_SRC.includes('const handleSaveTransferFormula'),
+    'هندلر ذخیرهٔ فرمول داخل تب صف وجود دارد',
+  );
+  ok(
+    CLIENT_SRC.includes('saveStudentIdFormulaAction(degreeLevelId, f)'),
+    'ذخیره به‌ازای «مقطع» انجام می‌شود (همان کلید پایگاه‌داده)',
+  );
+  ok(
+    CLIENT_SRC.includes('فرمول شمارهٔ دانشجوییِ این انتقال'),
+    'پنل انتخاب فرمول رندر می‌شود',
+  );
+  ok(
+    CLIENT_SRC.includes('کتابخانهٔ مدل‌ها'),
+    'می‌توان از مدل‌های آمادهٔ فرمول انتخاب کرد',
+  );
+  ok(
+    CLIENT_SRC.includes('validateFormula(value)'),
+    'فرمول قبل از ذخیره اعتبارسنجی می‌شود',
+  );
+  // TDZ: همین دام یک بار کامپوننت را کرش کرد («Cannot access 'e' before initialization»).
+  const fDecl = CLIENT_SRC.indexOf('const transferFormulaOf');
+  const fCalls: number[] = [];
+  for (let i = CLIENT_SRC.indexOf('transferFormulaOf('); i > -1; i = CLIENT_SRC.indexOf('transferFormulaOf(', i + 1)) {
+    fCalls.push(i);
+  }
+  ok(
+    fDecl > -1 && fCalls.every(i => i > fDecl),
+    'همهٔ مصرف‌های transferFormulaOf بعد از تعریفش هستند (گارد TDZ)',
   );
 }
 
