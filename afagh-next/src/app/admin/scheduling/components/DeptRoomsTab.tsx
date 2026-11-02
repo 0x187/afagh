@@ -196,7 +196,7 @@ export default function DeptRoomsTab() {
             >
               <option value="MORNING">شیفت صبح</option>
               <option value="EVENING">شیفت عصر</option>
-              <option value="BOTH">هردو شیف (صبح و عصر)</option>
+              <option value="BOTH">هردو شیفت (صبح و عصر)</option>
             </select>
             <button
               type="button"
@@ -208,7 +208,7 @@ export default function DeptRoomsTab() {
                     if (!a?.ok) return a;
                     const b = await upsertRoomGrantAction({ termId: selectedTermId, classroomId: newRoom, shift: 'EVENING', departmentId: newDept });
                     return b;
-                  }, '✅ سالن به دپارتمان برای هردو شیف تخصیص یافت.');
+                  }, '✅ سالن به دپارتمان برای هردو شیفت تخصیص یافت.');
                 } else {
                   run('new', () => upsertRoomGrantAction({ termId: selectedTermId, classroomId: newRoom, shift: newShift, departmentId: newDept }), '✅ سالن به دپارتمان تخصیص یافت.');
                 }
