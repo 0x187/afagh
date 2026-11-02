@@ -14,9 +14,10 @@ import {
 import { executeIrandocCheck } from '@/lib/api-integrations';
 import { isEntryMethod } from '@/lib/entry-methods';
 import { db } from '@/db';
-import { admissions_staging, majors, sanjesh_mappings, student_id_formulas } from '@/db/schema';
+import { admissions_staging, majors, sanjesh_mappings, student_id_formula_models, student_id_formulas } from '@/db/schema';
 import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import { getCurrentUniversity } from '@/lib/university-scope';
+import { validateFormula } from '@/lib/student-id-formula';
 
 export async function stageSanjeshDataAction(rawText: string, entryYear = 1405) {
   await requireRole(['ADMIN', 'EDU_EXPERT']);
@@ -181,8 +182,7 @@ export async function saveSanjeshMappingAction(sanjeshCode: string, internalMajo
   }
 }
 
-export async function saveStudentIdFormulaAction(degreeLevelId: number, formula: string) {
-  await requireRole(['ADMIN']);
+export async function saveStudentIdFormulaAction(degreeLevelId: number, formula: string) {  await requireRole(['ADMIN']);
 
   try {
     const uni = await getCurrentUniversity().catch(() => null);
@@ -222,6 +222,68 @@ export async function saveStudentIdFormulaAction(degreeLevelId: number, formula:
     return { ok: true };
   } catch (err: any) {
     return { ok: false, error: err?.message || 'خطا در ذخیره فرمول شماره دانشجویی.' };
+  }
+}
+
+/** افزودن یک «مدل فرمول» به کتابخانه — الگو، نه فرمولِ فعالِ مقطع */
+export async function saveFormulaModelAction(title: string, formula: string, note?: string) {
+  await requireRole(['ADMIN']);
+  try {
+    const t = String(title ?? '').trim();
+    const f = String(formula ?? '').trim();
+    if (!t) return { ok: false, error: 'عنوان مدل الزامی است.' };
+    if (!f) return { ok: false, error: 'فرمول الزامی است.' };
+
+    const errs = validateFormula(f);
+    if (errs.length > 0) return { ok: false, error: errs.join(' ؛ ') };
+
+    const uni = await getCurrentUniversity().catch(() => null);
+    if (!uni) return { ok: false, error: 'دانشگاه فعال نامشخص است.' };
+
+    const [dup] = await db
+      .select({ id: student_id_formula_models.id })
+      .from(student_id_formula_models)
+      .where(
+        and(
+          eq(student_id_formula_models.title, t),
+          or(eq(student_id_formula_models.universityId, uni.id), isNull(student_id_formula_models.universityId)),
+        ),
+      )
+      .limit(1);
+    if (dup) return { ok: false, error: `مدلی با عنوان «${t}» از قبل وجود دارد.` };
+
+    await db.insert(student_id_formula_models).values({
+      universityId: uni.id,
+      title: t,
+      formula: f,
+      note: note ? String(note).slice(0, 200) : null,
+    });
+
+    revalidatePath('/admin/admissions');
+    return { ok: true };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'خطا در ذخیرهٔ مدل فرمول.' };
+  }
+}
+
+/** حذف یک مدل از کتابخانه (فرمول فعالِ مقطع‌ها دست‌نخورده می‌ماند) */
+export async function deleteFormulaModelAction(id: number) {
+  await requireRole(['ADMIN']);
+  try {
+    const uni = await getCurrentUniversity().catch(() => null);
+    if (!uni) return { ok: false, error: 'دانشگاه فعال نامشخص است.' };
+    await db
+      .delete(student_id_formula_models)
+      .where(
+        and(
+          eq(student_id_formula_models.id, id),
+          or(eq(student_id_formula_models.universityId, uni.id), isNull(student_id_formula_models.universityId)),
+        ),
+      );
+    revalidatePath('/admin/admissions');
+    return { ok: true };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'خطا در حذف مدل فرمول.' };
   }
 }
 

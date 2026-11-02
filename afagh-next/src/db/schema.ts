@@ -457,6 +457,23 @@ export const student_id_formulas = pgTable('student_id_formulas', {
   uqDegreeLevel: unique('student_id_formulas_degreeLevelId_unique').on(t.degreeLevelId)
 }));
 
+/**
+ * کتابخانهٔ «مدل‌های فرمول» (مهاجرت 0132).
+ * کارشناس چند الگو می‌سازد و هنگام تعریف فرمولِ هر مقطع یکی را انتخاب می‌کند.
+ * خودِ فرمولِ فعال همچنان در `student_id_formulas` می‌ماند؛ این جدول فقط الگوست.
+ */
+export const student_id_formula_models = pgTable('student_id_formula_models', {
+  id: serial('id').primaryKey(),
+  universityId: integer('universityId').references((): AnyPgColumn => universities.id),
+  title: varchar('title', { length: 150 }).notNull(),
+  formula: varchar('formula', { length: 255 }).notNull(),
+  note: varchar('note', { length: 200 }),
+  isActive: boolean('isActive').notNull().default(true),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+}, (t) => [
+  index('idx_formula_models_uni').on(t.universityId),
+]);
+
 export const educational_regulations = pgTable('educational_regulations', {
   id: serial('id').primaryKey(),
   title: varchar('title', { length: 150 }).notNull(),

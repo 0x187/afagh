@@ -6,6 +6,7 @@ import {
   degree_level_configs,
   majors,
   sanjesh_mappings,
+  student_id_formula_models,
   student_id_formulas,
 } from '@/db/schema';
 import { requireRole } from '@/lib/auth';
@@ -26,7 +27,7 @@ export default async function AdminAdmissionsPage() {
   const scopeOf = (c: any) => (currentUniversityId ? or(eq(c, currentUniversityId), isNull(c)) : undefined);
 
   // پنج خواندنِ مستقل (بدون وابستگی بین‌شان) — یک رفت‌وبرگشتِ موازی به‌جای پنج تای پشتِ‌سرهم.
-  const [allMajors, allLevels, allMappings, allFormulas, rawStaging] = await Promise.all([
+  const [allMajors, allLevels, allMappings, allFormulas, rawStaging, rawModels] = await Promise.all([
     db.select().from(majors).where(scopeOf(majors.universityId)).orderBy(majors.id),
     db.select().from(degree_level_configs).where(scopeOf(degree_level_configs.universityId)).orderBy(degree_level_configs.id),
     db.select().from(sanjesh_mappings).where(scopeOf(sanjesh_mappings.universityId)),
@@ -37,6 +38,13 @@ export default async function AdminAdmissionsPage() {
       .where(scopeOf(admissions_staging.universityId))
       .orderBy(desc(admissions_staging.id))
       .limit(50),
+    // کتابخانهٔ مدل‌های فرمول — اگر مهاجرت 0132 هنوز اجرا نشده باشد، صفحه نمی‌شکند
+    db
+      .select()
+      .from(student_id_formula_models)
+      .where(scopeOf(student_id_formula_models.universityId))
+      .orderBy(student_id_formula_models.id)
+      .catch(() => [] as any[]),
   ]);
 
   let rawApiLogs: any[] = [];
@@ -149,6 +157,12 @@ export default async function AdminAdmissionsPage() {
         code: l.code,
       }))}
       formulas={formulasFormatted}
+      formulaModels={rawModels.map((m: any) => ({
+        id: m.id,
+        title: m.title,
+        formula: m.formula,
+        note: m.note ?? null,
+      }))}
       apiLogs={apiLogsFormatted}
     />
   );

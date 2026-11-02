@@ -14,6 +14,8 @@ import {
   registerManualStudentAction,
   saveSanjeshMappingAction,
   saveStudentIdFormulaAction,
+  saveFormulaModelAction,
+  deleteFormulaModelAction,
   stageSanjeshDataAction,
   testIrandocCheckAction,
 } from './actions';
@@ -83,12 +85,20 @@ interface ApiAuditItem {
   executedAt: string | null;
 }
 
+interface FormulaModelItem {
+  id: number;
+  title: string;
+  formula: string;
+  note: string | null;
+}
+
 interface AdmissionsClientProps {
   stagingList: StagingItem[];
   mappings: SanjeshMappingItem[];
   majors: MajorOption[];
   degreeLevels: DegreeLevelOption[];
   formulas: FormulaItem[];
+  formulaModels: FormulaModelItem[];
   apiLogs: ApiAuditItem[];
 }
 
@@ -104,6 +114,7 @@ export default function AdmissionsClient({
   majors,
   degreeLevels,
   formulas: initialFormulas,
+  formulaModels: initialModels,
   apiLogs: initialApiLogs,
 }: AdmissionsClientProps) {
   const [activeTab, setActiveTab] = useState<'SANJESH_STAGING' | 'ID_FORMULA' | 'MANUAL_ADMISSION' | 'IRANDOC_TEST'>('SANJESH_STAGING');
@@ -296,6 +307,42 @@ export default function AdmissionsClient({
   const [tokenKey, setTokenKey] = useState<string>('Seq');
   const [tokenWidth, setTokenWidth] = useState<number>(3);
   const [constText, setConstText] = useState<string>('');
+
+  // کتابخانهٔ مدل‌های فرمول
+  const [models, setModels] = useState<FormulaModelItem[]>(initialModels);
+  const [modelTitle, setModelTitle] = useState<string>('');
+  const [modelFormula, setModelFormula] = useState<string>('');
+  const [modelNote, setModelNote] = useState<string>('');
+  const [modelBusy, setModelBusy] = useState<boolean>(false);
+
+  const handleAddModel = async () => {
+    setModelBusy(true);
+    const res = await saveFormulaModelAction(modelTitle, modelFormula.trim() || formulaPattern, modelNote);
+    setModelBusy(false);
+    if (!res.ok) {
+      setFeedback({ text: res.error || 'ذخیرهٔ مدل انجام نشد.', type: 'error' });
+      return;
+    }
+    setModelTitle('');
+    setModelFormula('');
+    setModelNote('');
+    setFeedback({ text: 'مدل فرمول به کتابخانه اضافه شد.', type: 'success' });
+    setTimeout(() => setFeedback(null), 4000);
+    router.refresh();
+  };
+
+  const handleDeleteModel = async (id: number, title: string) => {
+    if (!confirm(`مدل «${title}» حذف شود؟\n(فرمول فعالِ مقاطع دست‌نخورده می‌ماند)`)) return;
+    const res = await deleteFormulaModelAction(id);
+    if (!res.ok) {
+      setFeedback({ text: res.error || 'حذف انجام نشد.', type: 'error' });
+      return;
+    }
+    setModels(prev => prev.filter(m => m.id !== id));
+    setFeedback({ text: `مدل «${title}» حذف شد.`, type: 'success' });
+    setTimeout(() => setFeedback(null), 4000);
+    router.refresh();
+  };
 
   // بارگذاری فرمولِ ذخیره‌شدهٔ مقطع انتخاب‌شده (یا خالی، اگر تعریف نشده)
   useEffect(() => {
@@ -1260,7 +1307,7 @@ export default function AdmissionsClient({
                     type="number"
                     value={simYear}
                     onChange={e => setSimYear(Number(e.target.value))}
-                    className="w-full p-1.5 rounded bg-slate-800 border border-slate-700 text-xs font-mono"
+                    className="w-full p-1.5 rounded bg-slate-800 border border-slate-600 text-xs font-mono text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400/60"
                   />
                 </div>
                 <div>
@@ -1269,7 +1316,7 @@ export default function AdmissionsClient({
                     type="text"
                     value={simMajorCode}
                     onChange={e => setSimMajorCode(e.target.value)}
-                    className="w-full p-1.5 rounded bg-slate-800 border border-slate-700 text-xs font-mono"
+                    className="w-full p-1.5 rounded bg-slate-800 border border-slate-600 text-xs font-mono text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400/60"
                   />
                 </div>
                 <div>
@@ -1278,7 +1325,7 @@ export default function AdmissionsClient({
                     type="number"
                     value={simSeq}
                     onChange={e => setSimSeq(Number(e.target.value))}
-                    className="w-full p-1.5 rounded bg-slate-800 border border-slate-700 text-xs font-mono"
+                    className="w-full p-1.5 rounded bg-slate-800 border border-slate-600 text-xs font-mono text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400/60"
                   />
                 </div>
               </div>
@@ -1291,6 +1338,113 @@ export default function AdmissionsClient({
                 <p className="text-[10px] text-slate-400 mt-1">طول شناسه: {simStudentId.length} رقم یکتا</p>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* کتابخانهٔ مدل‌های فرمول */}
+      {activeTab === 'ID_FORMULA' && (
+        <div className="card p-6 bg-white border border-slate-200 rounded-2xl space-y-4 shadow-sm">
+          <div className="border-b pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-black text-slate-900">📚 مدل‌های فرمول شمارهٔ دانشجویی</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                چند الگو بسازید و هنگام تعریف فرمول هر مقطع از بین آن‌ها انتخاب کنید.
+                دکمهٔ «استفاده» فقط فرمول را در کادر بالا می‌گذارد — تا «ذخیره فرمول مقطع» را نزنید هیچ چیز عوض نمی‌شود.
+              </p>
+            </div>
+            <span className="text-[11px] text-slate-500">{models.length.toLocaleString('fa-IR')} مدل</span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-right text-xs">
+              <thead className="bg-slate-50 text-slate-600">
+                <tr>
+                  <th className="p-2 font-bold w-8">#</th>
+                  <th className="p-2 font-bold">عنوان</th>
+                  <th className="p-2 font-bold">فرمول</th>
+                  <th className="p-2 font-bold">توضیح</th>
+                  <th className="p-2 font-bold w-32">عملیات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {models.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="p-4 text-center text-slate-400">
+                      هنوز مدلی ثبت نشده — از فرم پایین اضافه کنید.
+                    </td>
+                  </tr>
+                )}
+                {models.map((m, i) => (
+                  <tr key={m.id} className="border-t border-slate-100 hover:bg-slate-50">
+                    <td className="p-2 text-slate-400 tabular-nums">{(i + 1).toLocaleString('fa-IR')}</td>
+                    <td className="p-2 font-bold text-slate-800">{m.title}</td>
+                    <td className="p-2 font-mono text-indigo-900" dir="ltr">{m.formula}</td>
+                    <td className="p-2 text-slate-500">{m.note || '—'}</td>
+                    <td className="p-2">
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setFormulaPattern(m.formula)}
+                          className="px-2 py-1 rounded-lg border border-indigo-300 bg-white text-[10px] font-bold text-indigo-800 hover:bg-indigo-50"
+                        >
+                          استفاده
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteModel(m.id, m.title)}
+                          className="px-2 py-1 rounded-lg border border-rose-300 bg-white text-[10px] font-bold text-rose-700 hover:bg-rose-50"
+                        >
+                          حذف
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="grid grid-cols-12 gap-2 items-end border-t pt-3">
+            <div className="col-span-12 sm:col-span-3 min-w-0">
+              <label className="block text-[10px] text-slate-500 mb-1">عنوان مدل *</label>
+              <input
+                type="text"
+                value={modelTitle}
+                onChange={e => setModelTitle(e.target.value)}
+                placeholder="مثلاً سال + رشته + سریال"
+                className="w-full p-2 text-xs rounded-lg border border-slate-300 bg-white"
+              />
+            </div>
+            <div className="col-span-12 sm:col-span-4 min-w-0">
+              <label className="block text-[10px] text-slate-500 mb-1">فرمول *</label>
+              <input
+                type="text"
+                value={modelFormula}
+                onChange={e => setModelFormula(e.target.value)}
+                placeholder={formulaPattern || '{Year:2}{MajorCode:3}{Seq:3}'}
+                dir="ltr"
+                className="w-full p-2 text-xs font-mono rounded-lg border border-slate-300 bg-white"
+              />
+            </div>
+            <div className="col-span-12 sm:col-span-3 min-w-0">
+              <label className="block text-[10px] text-slate-500 mb-1">توضیح</label>
+              <input
+                type="text"
+                value={modelNote}
+                onChange={e => setModelNote(e.target.value)}
+                placeholder="اختیاری"
+                className="w-full p-2 text-xs rounded-lg border border-slate-300 bg-white"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleAddModel}
+              disabled={modelBusy || !modelTitle.trim() || (!modelFormula.trim() && !formulaPattern)}
+              className="col-span-12 sm:col-span-2 px-3 py-2 rounded-lg bg-indigo-700 hover:bg-indigo-800 text-white text-xs font-extrabold disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {modelBusy ? 'در حال ذخیره…' : '+ افزودن مدل'}
+            </button>
           </div>
         </div>
       )}
