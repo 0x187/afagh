@@ -189,15 +189,24 @@ async function maxSeqForDegree(q: any, degreeLevelId: number): Promise<number> {
   return Number(row?.m ?? 0);
 }
 
-async function maxSeqForMajor(q: any, majorId: number): Promise<number> {
-  // بیشینهٔ سریالِ در استفاده برای این رشته (همهٔ دانشگاه‌ها، محافظه‌کارانه).
-  const res: any = await q.execute(sql`
-    SELECT COALESCE(MAX(right("studentCode", 3)::int), 0) AS m
-    FROM students
-    WHERE "majorId" = ${majorId}
-      AND "studentCode" ~ '^[0-9]+$'
-      AND length("studentCode") >= 3
-  `);
+async function maxSeqForMajor(q: any, majorId: number, codePrefix?: string): Promise<number> {
+  // بیشینهٔ سریالِ در استفاده. اگر codePrefix داده شود فقط کدهای هم‌پیشوند
+  // (همان سال و همان رشته) لحاظ می‌شوند تا شماره‌گذاری هر سال مستقل باشد.
+  const res: any = codePrefix
+    ? await q.execute(sql`
+        SELECT COALESCE(MAX(right("studentCode", 3)::int), 0) AS m
+        FROM students
+        WHERE "studentCode" LIKE ${codePrefix + '%'}
+          AND "studentCode" ~ '^[0-9]+$'
+          AND length("studentCode") >= 3
+      `)
+    : await q.execute(sql`
+        SELECT COALESCE(MAX(right("studentCode", 3)::int), 0) AS m
+        FROM students
+        WHERE "majorId" = ${majorId}
+          AND "studentCode" ~ '^[0-9]+$'
+          AND length("studentCode") >= 3
+      `);
   const row = (res?.rows ?? res)?.[0];
   return Number(row?.m ?? 0);
 }
@@ -626,6 +635,8 @@ export async function assignStudentNumbers(
   const nextSeqByMajor = new Map<string, number>();
   // کشِ فرمول به‌ازای هر مقطع (یک‌بار خوانده می‌شود)
   const formulaCache = new Map<number, string>();
+  // کشِ کد مقطع (BS/MS/PHD) برای ساخت پیشوند سال‌محور
+  const degreeCodeCache = new Map<number, string | null>();
 
   for (const row of stagedRows) {
     if (!row.mappedMajorId || row.status !== 'RESOLVED') continue;
@@ -721,9 +732,26 @@ export async function assignStudentNumbers(
         let startSeq = nextSeqByMajor.get(seqKey);
         if (startSeq === undefined) {
           const explicit = opts.starts?.[mappedMajorId];
-          startSeq = (explicit != null && explicit > 0)
-            ? Math.floor(explicit)
-            : (await maxSeqForMajor(tx, mappedMajorId)) + 1;
+          if (explicit != null && explicit > 0) {
+            startSeq = Math.floor(explicit);
+          } else {
+            // ادامه از بیشینهٔ همان سال+رشته: پیشوند کد (بدون سریال) را می‌سازیم.
+            let degreeCode = degreeCodeCache.get(degreeLevelId);
+            if (degreeCode === undefined) {
+              const [lvl] = await tx
+                .select({ code: degree_level_configs.code })
+                .from(degree_level_configs)
+                .where(eq(degree_level_configs.id, degreeLevelId))
+                .limit(1);
+              degreeCode = lvl?.code ?? null;
+              degreeCodeCache.set(degreeLevelId, degreeCode);
+            }
+            const mCode = major?.majorCode || '412';
+            const w = Number(formula.match(/\{Seq:(\d+)\}/)?.[1] ?? 3) || 3;
+            const sample = renderStudentCode(formula, { entryYear, degreeCode, majorCode: mCode, seq: 0 });
+            const prefix = sample.slice(0, Math.max(0, sample.length - w));
+            startSeq = (await maxSeqForMajor(tx, mappedMajorId, prefix)) + 1;
+          }
         }
         const assigned = await assignCodeAtSeq(tx, {
           formula,
