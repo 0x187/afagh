@@ -5,6 +5,7 @@ import { usePlanning } from '../PlanningProvider';
 import { faNum } from '../planning-core';
 import {
   allocateRoomQuotasAction,
+  copyRoomQuotasFromPreviousTermAction,
   releaseRoomShiftAction,
   borrowReleasedShiftAction,
   upsertRoomGrantAction,
@@ -136,6 +137,28 @@ export default function DeptRoomsTab() {
                 className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow disabled:opacity-50"
               >
                 {allocating ? '⏳…' : '🗑️ لغو همهٔ سهمیه‌ها'}
+              </button>
+              <button
+                type="button"
+                disabled={allocating || !selectedTermId}
+                onClick={async () => {
+                  setAllocating(true);
+                  setMsg(null);
+                  try {
+                    const res = await copyRoomQuotasFromPreviousTermAction(selectedTermId);
+                    if (res?.ok) {
+                      setMsg(`✅ ${faNum(res.copied ?? 0)} سهمیه از ترم قبل منتقل شد.`);
+                      reloadWorkspace();
+                    } else setMsg(`⚠️ ${res?.error ?? 'خطا'}`);
+                  } catch (e: any) {
+                    setMsg(`⚠️ ${e?.message ?? 'خطا'}`);
+                  } finally {
+                    setAllocating(false);
+                  }
+                }}
+                className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs shadow disabled:opacity-50"
+              >
+                {allocating ? '⏳…' : '📋 انتقال سهمیه از ترم قبل'}
               </button>
             </>
           )}

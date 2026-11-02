@@ -1158,6 +1158,45 @@ export async function allocateRoomQuotasAction(termId: number) {
   }
 }
 
+export async function copyRoomQuotasFromPreviousTermAction(termId: number) {
+  try {
+    await requireRole(EDITORS);
+    const terms = await db
+      .select({ id: academic_terms.id })
+      .from(academic_terms)
+      .orderBy(desc(academic_terms.id));
+    const idx = terms.findIndex(t => t.id === termId);
+    const prevTermId = idx >= 0 && idx + 1 < terms.length ? terms[idx + 1].id : null;
+    if (!prevTermId) return { ok: false, error: 'ترم قبلی یافت نشد.' };
+
+    const prevGrants = await db
+      .select()
+      .from(scheduling_room_grants)
+      .where(eq(scheduling_room_grants.termId, prevTermId));
+
+    let copied = 0;
+    for (const g of prevGrants) {
+      const [ins] = await db
+        .insert(scheduling_room_grants)
+        .values({
+          termId,
+          classroomId: g.classroomId,
+          shift: g.shift,
+          ownerDepartmentId: g.ownerDepartmentId,
+          status: 'ALLOCATED',
+          universityId: g.universityId,
+        })
+        .onConflictDoNothing()
+        .returning({ id: scheduling_room_grants.id });
+      if (ins) copied++;
+    }
+    revalidatePath('/admin/scheduling');
+    return { ok: true, copied };
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? 'خطا در انتقال سهمیه از ترم قبل.' };
+  }
+}
+
 export async function releaseRoomShiftAction(px: { termId: number; departmentId: number; classroomId: number; shift: 'MORNING' | 'EVENING' }) {
   try {
     const user = await requireRole(EDITORS);
