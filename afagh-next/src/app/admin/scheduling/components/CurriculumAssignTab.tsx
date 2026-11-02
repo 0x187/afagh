@@ -33,7 +33,7 @@ export default function CurriculumAssignTab() {
                 <div className="flex items-center gap-2">
                   <span className="text-xl">📚</span>
                   <h3 className="font-extrabold text-slate-900 text-base">
-                    چارت درسی رشته «{currentProgram?.title ?? '—'}» و انتساب اساتید به دروس
+                    چارت درسی رشته «{currentProgram?.title ?? '—'}» ({currentProgram?.code ?? ''}) و انتساب اساتید به دروس
                   </h3>
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5">

@@ -36,6 +36,7 @@ export interface CohortOption {
   semesterNo: number;
   title: string;
   expectedStudents: number;
+  majorId?: number | null;
   isEmployedAudience?: boolean;
 }
 
@@ -195,7 +196,7 @@ export interface SchedulingWorkspace {
   terms: { id: number; code: string; title: string; isCurrent: boolean }[];
   selectedTermId: number | null;
   programs: { id: number; code: string; title: string; facultyName: string; degreeLevel: string; facultyId: number | null }[];
-  cohorts: { entryYear: number; entryTerm: number; expectedStudents: number }[];
+  cohorts: { majorId: number | null; entryYear: number; entryTerm: number; expectedStudents: number }[];
   classrooms: { id: number; name: string; buildingName: string; capacity: number; roomType: string }[];
   allocatedRoomIds: number[];
   professors: { id: number; name: string; staffCode: string | null; academicRank: string | null; departmentId: number | null; departmentName: string | null }[];

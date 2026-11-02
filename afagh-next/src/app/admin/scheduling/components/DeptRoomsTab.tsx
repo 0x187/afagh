@@ -1,11 +1,15 @@
 'use client';
 
 // گام ۳: کلاس‌های اختصاص‌یافته به گروه
+import { useState } from 'react';
 import { usePlanning } from '../PlanningProvider';
 import { faNum } from '../planning-core';
+import { allocateRoomQuotasAction } from '../actions';
 
 export default function DeptRoomsTab() {
-  const { classrooms, currentProgram, isDeptScope } = usePlanning();
+  const { classrooms, currentProgram, isDeptScope, selectedTermId, reloadWorkspace } = usePlanning();
+  const [allocating, setAllocating] = useState(false);
+  const [allocMsg, setAllocMsg] = useState<string | null>(null);
 
   // مدیر گروه تا پایان برنامه‌ریزی فقط سالن‌های سهمیه‌گرفتهٔ گروه خودش را
   // می‌بیند؛ استخر مشترک دانشکده (سالن‌های تخصیص‌نیافته) نمایش داده نمی‌شود.
@@ -31,6 +35,35 @@ export default function DeptRoomsTab() {
                   ? `${faNum(visibleRooms.length)} سالن سهمیه‌دار این گروه`
                   : `${faNum(classrooms.filter(c => c.isAllocatedToDept).length)} سالن سهمیه‌دار از ${faNum(classrooms.length)} سالن دانشگاه`}
               </span>
+              {!isDeptScope && (
+                <button
+                  type="button"
+                  disabled={allocating || !selectedTermId}
+                  onClick={async () => {
+                    setAllocating(true);
+                    setAllocMsg(null);
+                    try {
+                      const res = await allocateRoomQuotasAction(selectedTermId);
+                      if (res.ok) {
+                        setAllocMsg(`✅ ${faNum(res.grants ?? 0)} سهمیهٔ سالن تخصیص یافت.`);
+                        reloadWorkspace();
+                      } else {
+                        setAllocMsg(`⚠️ ${res.error ?? 'خطا'}`);
+                      }
+                    } catch (e: any) {
+                      setAllocMsg(`⚠️ ${e?.message ?? 'خطا'}`);
+                    } finally {
+                      setAllocating(false);
+                    }
+                  }}
+                  className="px-4 py-2 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-extrabold text-xs shadow disabled:opacity-50"
+                >
+                  {allocating ? '⏳ در حال تخصیص…' : '🏛️ تخصیص سهمیهٔ سالن‌ها به دپارتمان‌ها'}
+                </button>
+              )}
+              {allocMsg && (
+                <span className="text-xs font-bold text-slate-700">{allocMsg}</span>
+              )}
             </div>
 
             {isDeptScope && visibleRooms.length === 0 && (

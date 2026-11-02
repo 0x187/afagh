@@ -1,6 +1,7 @@
 'use client';
 
 // بنر سراسری + نوار زمینه: نیمسال/رشته/ورودی/شیفت/نمای هفته
+import { useMemo } from 'react';
 import { usePlanning } from '../PlanningProvider';
 import Link from 'next/link';
 import { faNum, PHASE_LABELS, SHIFT_MODELS } from '../planning-core';
@@ -29,6 +30,24 @@ export default function PlanningHeader() {
     targetShiftPreference,
     terms,
   } = usePlanning();
+
+  // کوهورت‌ها (ورودی‌ها) بر اساس رشتهٔ انتخاب‌شده فیلتر و جمع می‌شوند —
+  // تا «جمع تعداد دانشجو» با فیلتر رشته و نیمسال ورود هم‌خوان شود.
+  const visibleCohorts = useMemo(() => {
+    const filtered = selectedProgramId > 0
+      ? cohorts.filter(c => c.majorId == null || c.majorId === selectedProgramId)
+      : cohorts;
+    const map = new Map<string, typeof cohorts[number]>();
+    for (const c of filtered) {
+      const prev = map.get(c.id);
+      if (prev) {
+        prev.expectedStudents += c.expectedStudents;
+      } else {
+        map.set(c.id, { ...c });
+      }
+    }
+    return [...map.values()];
+  }, [cohorts, selectedProgramId]);
 
   return (
         <div className="bg-gradient-to-l from-indigo-950 via-indigo-900 to-slate-900 text-white rounded-2xl p-5 shadow-lg border border-indigo-700/50 space-y-4">
@@ -103,7 +122,7 @@ export default function PlanningHeader() {
                 className="w-full bg-slate-900/90 text-white border border-indigo-400/50 rounded-lg px-2.5 py-2 font-bold focus:ring-2 focus:ring-amber-400"
               >
                 {programs.map(p => (
-                  <option key={p.id} value={p.id}>{p.title} — {p.facultyName}</option>
+                  <option key={p.id} value={p.id}>{p.title} ({p.code}) — {p.facultyName}</option>
                 ))}
               </select>
             </div>
@@ -116,7 +135,7 @@ export default function PlanningHeader() {
                 className="w-full bg-slate-900/90 text-white border border-indigo-400/50 rounded-lg px-2.5 py-2 font-bold focus:ring-2 focus:ring-amber-400"
               >
                 <option value="ALL">کلیه نیمسال‌های ورود</option>
-                {cohorts.map(c => (
+                {visibleCohorts.map(c => (
                   <option key={c.id} value={c.id}>{c.title} — {faNum(c.expectedStudents)} دانشجوی در حال تحصیل</option>
                 ))}
               </select>

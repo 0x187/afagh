@@ -207,6 +207,7 @@ export function mapCohorts(cohorts: SchedulingWorkspace['cohorts']): CohortOptio
     semesterNo: c.entryTerm ?? 1,
     title: entryCohortTitle(c.entryYear, c.entryTerm),
     expectedStudents: c.expectedStudents,
+    majorId: (c as any).majorId ?? null,
   }));
 }
 
