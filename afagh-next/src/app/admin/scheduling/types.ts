@@ -48,6 +48,8 @@ export interface ClassroomOption {
   roomType: 'THEORY' | 'LAB' | 'GYM' | 'EXAM';
   equipment: string[];
   isActive: boolean;
+  facultyId: number | null;
+  facultyName: string;
   isAllocatedToDept: boolean;
 }
 
@@ -197,7 +199,7 @@ export interface SchedulingWorkspace {
   selectedTermId: number | null;
   programs: { id: number; code: string; title: string; facultyName: string; degreeLevel: string; facultyId: number | null }[];
   cohorts: { majorId: number | null; entryYear: number; entryTerm: number; expectedStudents: number }[];
-  classrooms: { id: number; name: string; buildingName: string; capacity: number; roomType: string }[];
+  classrooms: { id: number; name: string; buildingName: string; capacity: number; roomType: string; isActive: number | null; facultyId: number | null; facultyName: string | null }[];
   allocatedRoomIds: number[];
   roomGrants: { id: number; classroomId: number; shift: string; ownerDepartmentId: number; status: string }[];
   professors: { id: number; name: string; staffCode: string | null; academicRank: string | null; departmentId: number | null; departmentName: string | null }[];

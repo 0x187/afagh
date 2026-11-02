@@ -165,7 +165,9 @@ export function mapClassrooms(rooms: SchedulingWorkspace['classrooms'], allocate
     capacity: r.capacity,
     roomType: (['THEORY', 'LAB', 'GYM', 'EXAM'].includes(r.roomType) ? r.roomType : 'THEORY') as ClassroomOption['roomType'],
     equipment: [],
-    isActive: true,
+    isActive: r.isActive !== 0,
+    facultyId: r.facultyId ?? null,
+    facultyName: r.facultyName ?? '—',
     isAllocatedToDept: allocatedRoomIds.includes(r.id),
   }));
 }

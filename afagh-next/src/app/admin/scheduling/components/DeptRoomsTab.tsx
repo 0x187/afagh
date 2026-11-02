@@ -15,18 +15,25 @@ const SHIFT_LABEL: Record<string, string> = { MORNING: 'صبح', EVENING: 'عص�
 export default function DeptRoomsTab() {
   const { classrooms, currentProgram, isDeptScope, selectedTermId, reloadWorkspace, roomGrants, initial } = usePlanning();
   const departments = (initial?.departments ?? []) as { id: number; name: string }[];
-  const deptName = (id: number) => departments.find(d => d.id === id)?.name ?? `دپارتمان #${id}`;
+  const deptName = (id: number) => {
+    const d = departments.find(x => x.id === id);
+    return d ? `${d.name} (#${d.id})` : `دپارتمان #${id}`;
+  };
 
   const [allocating, setAllocating] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [facultyFilter, setFacultyFilter] = useState<number | 'ALL'>('ALL');
 
   // فرم تخصیص جدید
   const [newDept, setNewDept] = useState<number>(departments[0]?.id ?? 0);
   const [newShift, setNewShift] = useState<'MORNING' | 'EVENING'>('MORNING');
   const [newRoom, setNewRoom] = useState<number>(classrooms[0]?.id ?? 0);
 
-  const visibleRooms = isDeptScope ? classrooms.filter(c => c.isAllocatedToDept) : classrooms;
+  const facultyOptions = Array.from(new Set(classrooms.map(c => c.facultyId).filter((x): x is number => x != null)));
+  const visibleRooms = (isDeptScope ? classrooms.filter(c => c.isAllocatedToDept) : classrooms)
+    .filter(c => c.isActive)
+    .filter(c => facultyFilter === 'ALL' || c.facultyId === facultyFilter);
   const grantsOf = (roomId: number) => roomGrants.filter(g => g.classroomId === roomId);
 
   const run = async (key: string, fn: () => Promise<any>, okMsg: string) => {
@@ -63,6 +70,17 @@ export default function DeptRoomsTab() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={facultyFilter}
+            onChange={e => setFacultyFilter(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
+            className="border border-slate-300 rounded-lg px-2 py-1.5 text-xs font-bold bg-white"
+          >
+            <option value="ALL">همهٔ دانشکده‌ها</option>
+            {facultyOptions.map(fid => {
+              const name = classrooms.find(c => c.facultyId === fid)?.facultyName ?? `دانشکده #${fid}`;
+              return <option key={fid} value={fid}>{name}</option>;
+            })}
+          </select>
           <span className="px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-900 font-extrabold text-xs">
             {isDeptScope
               ? `${faNum(visibleRooms.length)} سالن سهمیه‌دار این گروه`
@@ -145,7 +163,7 @@ export default function DeptRoomsTab() {
               className="border border-slate-300 rounded-lg px-2 py-1.5 text-xs font-bold bg-white"
             >
               {departments.map(d => (
-                <option key={d.id} value={d.id}>{d.name}</option>
+                <option key={d.id} value={d.id}>{d.name} (#{d.id})</option>
               ))}
             </select>
             <select
@@ -212,7 +230,7 @@ export default function DeptRoomsTab() {
                               className="border border-slate-300 rounded-lg px-2 py-1 text-xs font-bold bg-white"
                             >
                               {departments.map(d => (
-                                <option key={d.id} value={d.id}>{d.name}</option>
+                                <option key={d.id} value={d.id}>{d.name} (#{d.id})</option>
                               ))}
                             </select>
                             <button
