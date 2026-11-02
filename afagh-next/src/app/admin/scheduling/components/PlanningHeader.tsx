@@ -19,6 +19,7 @@ export default function PlanningHeader() {
     programs,
     reloadWorkspace,
     selectedCohortId,
+    setActiveMainTab,
     selectedProgramId,
     selectedTermId,
     selectedWeekFilter,
@@ -75,6 +76,14 @@ export default function PlanningHeader() {
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
+              {!isDeptScope && (
+                <button
+                  onClick={() => setActiveMainTab('DEPT_ROOMS')}
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-extrabold text-xs shadow-md transition transform active:scale-95"
+                >
+                  <span>🏛️ مدیریت سهمیهٔ سالن‌ها</span>
+                </button>
+              )}
               <button
                 onClick={reloadWorkspace}
                 disabled={isLoadingWorkspace}
