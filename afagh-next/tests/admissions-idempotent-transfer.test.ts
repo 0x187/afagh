@@ -105,6 +105,14 @@ console.log('\n▶ گارد منبع: کد دیگر خطای «پروندهٔ ف
     ENGINE_SRC.includes('linked: true'),
     'نتیجهٔ «وصل شد» به لایهٔ UI گزارش می‌شود',
   );
+  ok(
+    ENGINE_SRC.includes('allExisting.filter(e => e.entryYear === entryYear)'),
+    'پنل «تکراری» فقط پروندهٔ همان ورودی را نشان می‌دهد (پروندهٔ ۱۴۰۱ با پذیرش ۱۴۰۵ تداخل ندارد)',
+  );
+  ok(
+    !ENGINE_SRC.includes('const existing = byNc.get(r.nationalCode) ?? [];'),
+    'فهرست بدون فیلتر ورودی برگردانده نمی‌شود',
+  );
 }
 
 console.log(`\n${fail === 0 ? '✅' : '❌'} admissions-idempotent-transfer: ${pass} passed, ${fail} failed`);

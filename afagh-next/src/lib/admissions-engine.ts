@@ -1123,15 +1123,20 @@ export async function findExistingRecordsForStaging(universityId: number | null)
 
   return rows
     .map(r => {
-      const existing = byNc.get(r.nationalCode) ?? [];
+      const allExisting = byNc.get(r.nationalCode) ?? [];
       const entryYear = r.entryYear || 1405;
+
+      // فقط پرونده‌های «همان ورودی» ربطی به این پذیرش دارند. پروندهٔ ۱۴۰۱ یا ۱۳۹۹
+      // با پذیرش ۱۴۰۵ تداخل ندارد و اصلاً نباید به‌عنوان «تکراری» نشان داده شود —
+      // وگرنه فهرست بی‌دلیل بلند می‌شود و کارشناس باید برای موارد بی‌ربط تصمیم بگیرد.
+      const existing = allExisting.filter(e => e.entryYear === entryYear);
 
       // «همان پذیرش» = پروندهٔ فعال با همان سال ورود و همان رشته (شناسه یا نام).
       // اگر چنین پرونده‌ای هست، این ردیف واقعاً تکراری نیست؛ فقط قبلاً ثبت شده
       // (مثلاً با انتقال دادهٔ ساما) و باید «وصل» شود، نه اینکه کارشناس برایش
       // تصمیم بگیرد. قبلاً همین‌جا ۴۶ کارت قرمز نشان داده می‌شد و کاربر باید
       // ۴۶ بار تصمیم می‌گرفت.
-      const sameYearActive = existing.filter(e => e.entryYear === entryYear && e.status === 'ACTIVE');
+      const sameYearActive = existing.filter(e => e.status === 'ACTIVE');
       const match = pickExistingProfile(
         sameYearActive.map(e => ({
           id: 0,

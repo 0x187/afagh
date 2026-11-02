@@ -659,9 +659,13 @@ export default function AdmissionsClient({
             <div className="card p-6 bg-amber-50 border border-amber-300 rounded-2xl space-y-4 shadow-sm dark:bg-amber-950 dark:border-amber-800">
               <div className="border-b pb-3 border-amber-200">
                 <h2 className="text-sm font-black text-amber-900 dark:text-amber-200">
-                  ⚠️ داوطلبان با پرونده دانشجویی موجود ({existingItems.length.toLocaleString('fa-IR')} نفر)
+                  ⚠️ داوطلبان با پروندهٔ موجود در همان ورودی ({existingItems.length.toLocaleString('fa-IR')} نفر)
                 </h2>
                 <p className="text-xs text-amber-800 mt-0.5 dark:text-amber-300">
+                  فقط پرونده‌هایی که <span className="font-bold">ورودی‌شان با پذیرش جدید یکی است</span> نشان
+                  داده می‌شوند؛ پرونده‌های سال‌های گذشته (انصراف، عدم‌مراجعه، فارغ‌التحصیلی) تداخلی ندارند و
+                  در این فهرست نمی‌آیند.
+                  {(autoLinked.length > 0 || needsDecision.length > 0) && <br />}
                   {autoLinked.length > 0 && (
                     <>
                       <span className="font-bold text-emerald-800 dark:text-emerald-300">
