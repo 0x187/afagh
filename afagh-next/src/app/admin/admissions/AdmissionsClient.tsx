@@ -652,18 +652,92 @@ export default function AdmissionsClient({
       {/* TAB 1: پردازش فایل متنی سنجش و Staging */}
       {activeTab === 'SANJESH_STAGING' && (
         <div className="space-y-6">
-          {existingItems.length > 0 && (
+          {existingItems.length > 0 && (() => {
+            const autoLinked = existingItems.filter((it: any) => it.autoLink && !it.decision);
+            const needsDecision = existingItems.filter((it: any) => !it.autoLink || !!it.decision);
+            return (
             <div className="card p-6 bg-amber-50 border border-amber-300 rounded-2xl space-y-4 shadow-sm dark:bg-amber-950 dark:border-amber-800">
               <div className="border-b pb-3 border-amber-200">
                 <h2 className="text-sm font-black text-amber-900 dark:text-amber-200">
                   ⚠️ داوطلبان با پرونده دانشجویی موجود ({existingItems.length.toLocaleString('fa-IR')} نفر)
                 </h2>
                 <p className="text-xs text-amber-800 mt-0.5 dark:text-amber-300">
-                  برای هر داوطلب تصمیم بگیرید: «ثبت پرونده جدید» یا «رد». پرونده‌های قبلی هیچ تغییری نمی‌کنند.
+                  {autoLinked.length > 0 && (
+                    <>
+                      <span className="font-bold text-emerald-800 dark:text-emerald-300">
+                        {autoLinked.length.toLocaleString('fa-IR')} نفر قبلاً همین پذیرش را دارند و هنگام انتقال
+                        <span className="mx-1">خودکار به همان پرونده وصل می‌شوند</span>
+                        (شمارهٔ تکراری ساخته نمی‌شود).
+                      </span>
+                      {needsDecision.length > 0 && <br />}
+                    </>
+                  )}
+                  {needsDecision.length > 0 && (
+                    <>
+                      فقط{' '}
+                      <span className="font-bold text-red-800 dark:text-red-300">
+                        {needsDecision.length.toLocaleString('fa-IR')} نفر
+                      </span>{' '}
+                      نیاز به تصمیم دارند: «ثبت پرونده جدید» یا «رد». پرونده‌های قبلی هیچ تغییری نمی‌کنند.
+                    </>
+                  )}
+                  {needsDecision.length === 0 && autoLinked.length > 0 && (
+                    <> نیازی به تصمیم‌گیری نیست — دکمهٔ «صدور شماره دانشجویی» را بزنید.</>
+                  )}
                 </p>
               </div>
+
+              {/* گروه ۱: همان پذیرش، خودکار وصل می‌شود */}
+              {autoLinked.length > 0 && (
+                <div className="rounded-xl border border-emerald-300 bg-white dark:bg-slate-900 dark:border-emerald-800">
+                  <div className="px-3 py-2 border-b border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
+                    <span className="text-[11px] font-black text-emerald-800 dark:text-emerald-300">
+                      ✓ قبلاً ثبت شده — خودکار وصل می‌شود ({autoLinked.length.toLocaleString('fa-IR')} نفر)
+                    </span>
+                    <span className="text-[10px] text-slate-500">شمارهٔ جدید ساخته نمی‌شود</span>
+                  </div>
+                  <div className="max-h-64 overflow-auto">
+                    <table className="w-full text-right text-[11px]">
+                      <thead className="text-slate-500 sticky top-0 bg-white dark:bg-slate-900">
+                        <tr>
+                          <th className="p-1.5 font-medium">نام</th>
+                          <th className="p-1.5 font-medium">کد ملی</th>
+                          <th className="p-1.5 font-medium">شمارهٔ موجود</th>
+                          <th className="p-1.5 font-medium">رشته</th>
+                          <th className="p-1.5 font-medium">اقدام</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {autoLinked.map((it: any) => (
+                          <tr key={it.stagingId} className="border-t border-slate-100 dark:border-slate-800">
+                            <td className="p-1.5 font-bold text-slate-900 dark:text-slate-100">{it.fullName}</td>
+                            <td className="p-1.5 tabular-nums text-slate-500" dir="ltr">{it.nationalCode}</td>
+                            <td className="p-1.5 font-mono tabular-nums text-emerald-700 dark:text-emerald-400" dir="ltr">
+                              {it.autoLink.studentCode ?? '—'}
+                            </td>
+                            <td className="p-1.5 text-slate-600 dark:text-slate-300">{it.autoLink.majorName ?? '—'}</td>
+                            <td className="p-1.5">
+                              <button
+                                onClick={() => decide(it.stagingId, 'ALLOW_DUPLICATE')}
+                                disabled={decisionBusy === it.stagingId}
+                                title="اگر واقعاً پذیرش دومی است، پروندهٔ تازه بساز"
+                                className="px-1.5 py-0.5 rounded border border-slate-300 bg-white text-[10px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600"
+                              >
+                                ثبت پروندهٔ جدید
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* گروه ۲: نیازمند تصمیم */}
+              {needsDecision.length > 0 && (
               <div className="space-y-3 max-h-[60vh] overflow-auto">
-                {existingItems.map((it: any) => (
+                {needsDecision.map((it: any) => (
                   <div key={it.stagingId} className={`rounded-xl border p-3 bg-white dark:bg-slate-900 ${it.sameMajorYearActive ? 'border-red-400' : 'border-amber-200'}`}>
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="text-xs">
@@ -751,8 +825,10 @@ export default function AdmissionsClient({
                   </div>
                 ))}
               </div>
+              )}
             </div>
-          )}
+            );
+          })()}
 
           <div className="card p-6 bg-white border border-slate-200 rounded-2xl space-y-4 shadow-sm">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">

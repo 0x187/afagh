@@ -1107,22 +1107,64 @@ export async function findExistingRecordsForStaging(universityId: number | null)
     byNc.set(f.nationalCode, list);
   }
 
+  // نام رشتهٔ «نگاشت‌شدهٔ» ردیف صف — برای تطبیق نام‌محور لازم است، چون جدول
+  // majors رکوردهای هم‌نام با شناسهٔ متفاوت دارد.
+  const mappedIds = [...new Set(
+    rows.map(r => r.mappedMajorId).filter((x): x is number => x != null),
+  )];
+  const mappedMajorNames = new Map<number, string>();
+  if (mappedIds.length > 0) {
+    const ms = await db
+      .select({ id: majors.id, name: majors.name })
+      .from(majors)
+      .where(inArray(majors.id, mappedIds));
+    for (const m of ms) mappedMajorNames.set(m.id, m.name);
+  }
+
   return rows
     .map(r => {
       const existing = byNc.get(r.nationalCode) ?? [];
       const entryYear = r.entryYear || 1405;
+
+      // «همان پذیرش» = پروندهٔ فعال با همان سال ورود و همان رشته (شناسه یا نام).
+      // اگر چنین پرونده‌ای هست، این ردیف واقعاً تکراری نیست؛ فقط قبلاً ثبت شده
+      // (مثلاً با انتقال دادهٔ ساما) و باید «وصل» شود، نه اینکه کارشناس برایش
+      // تصمیم بگیرد. قبلاً همین‌جا ۴۶ کارت قرمز نشان داده می‌شد و کاربر باید
+      // ۴۶ بار تصمیم می‌گرفت.
+      const sameYearActive = existing.filter(e => e.entryYear === entryYear && e.status === 'ACTIVE');
+      const match = pickExistingProfile(
+        sameYearActive.map(e => ({
+          id: 0,
+          studentCode: e.studentCode,
+          majorId: e.majorId,
+          majorName: e.majorName,
+        })),
+        {
+          majorId: r.mappedMajorId,
+          majorName: r.mappedMajorId != null ? (mappedMajorNames.get(r.mappedMajorId) ?? null) : null,
+        },
+      );
+
+      const autoLink = match
+        ? {
+            studentCode: match.profile.studentCode,
+            majorName: match.profile.majorName,
+            reason: match.reason,
+          }
+        : null;
+
       return {
         stagingId: r.id,
         nationalCode: r.nationalCode,
         fullName: r.fullName,
         newMajorId: r.mappedMajorId,
+        newMajorName: r.mappedMajorId != null ? (mappedMajorNames.get(r.mappedMajorId) ?? null) : null,
         newEntryYear: entryYear,
         decision: r.status === 'REJECTED'
           ? 'REJECT'
           : r.decisionNote === 'ALLOW_DUPLICATE' ? 'ALLOW_DUPLICATE' : null,
-        sameMajorYearActive: existing.some(
-          e => e.majorId === r.mappedMajorId && e.entryYear === entryYear && e.status === 'ACTIVE',
-        ),
+        autoLink,
+        sameMajorYearActive: autoLink != null,
         existing,
       };
     })
