@@ -25,6 +25,10 @@ import { pickExistingProfile } from '../src/lib/admissions-dedupe';
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ENGINE = path.join(HERE, '..', 'src', 'lib', 'admissions-engine.ts');
 const ENGINE_SRC = readFileSync(ENGINE, 'utf8');
+const PAGE = path.join(HERE, '..', 'src', 'app', 'admin', 'admissions', 'page.tsx');
+const PAGE_SRC = readFileSync(PAGE, 'utf8');
+const CLIENT = path.join(HERE, '..', 'src', 'app', 'admin', 'admissions', 'AdmissionsClient.tsx');
+const CLIENT_SRC = readFileSync(CLIENT, 'utf8');
 
 let pass = 0;
 let fail = 0;
@@ -112,6 +116,26 @@ console.log('\n▶ گارد منبع: کد دیگر خطای «پروندهٔ ف
   ok(
     !ENGINE_SRC.includes('const existing = byNc.get(r.nationalCode) ?? [];'),
     'فهرست بدون فیلتر ورودی برگردانده نمی‌شود',
+  );
+}
+
+console.log('\n▶ گارد منبع: مقطع از رشتهٔ تطبیق‌داده‌شده خوانده می‌شود');
+{
+  ok(
+    PAGE_SRC.includes('major?.degreeLevelId ?? s.degreeLevelId'),
+    'page.tsx مقطع را از رشتهٔ نگاشت‌شده می‌گیرد (نه فقط از فایل سنجش)',
+  );
+  ok(
+    PAGE_SRC.includes('degreeLevelName: level?.title ?? null'),
+    'نام مقطع به کلاینت پاس داده می‌شود',
+  );
+  ok(
+    CLIENT_SRC.includes('s?.degreeLevelName || s?.rawSanjeshData?.degreeLevel'),
+    'کلاینت ابتدا مقطعِ رشتهٔ نگاشت‌شده را می‌خواند',
+  );
+  ok(
+    CLIENT_SRC.includes('degreeTitleOf(st)'),
+    'همهٔ جدول‌ها از همان resolver استفاده می‌کنند',
   );
 }
 

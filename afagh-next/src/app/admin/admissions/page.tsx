@@ -100,6 +100,10 @@ export default async function AdminAdmissionsPage() {
     }
 
     const major = allMajors.find(m => m.id === s.mappedMajorId);
+    // مقطعِ واقعی: از رشتهٔ نگاشت‌شده، و اگر نگاشت نبود از ستون خودِ ردیف.
+    // فایل سنجشِ «فنی» فیلد مقطع را خالی می‌فرستد، پس اتکا به آن ستون را خالی می‌گذاشت.
+    const levelId = major?.degreeLevelId ?? s.degreeLevelId ?? null;
+    const level = levelId != null ? allLevels.find(l => l.id === levelId) : undefined;
 
     return {
       id: s.id,
@@ -108,6 +112,7 @@ export default async function AdminAdmissionsPage() {
       fullName: s.fullName,
       mappedMajorId: s.mappedMajorId,
       mappedMajorName: major?.name || null,
+      degreeLevelName: level?.title ?? null,
       status: s.status,
       quotaType: s.quotaType,
       studentId: s.studentId,

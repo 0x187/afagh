@@ -47,6 +47,12 @@ interface StagingItem {
   };
   /** فیلدهای کامل فایل سنجش برای جدول «بازبینی و تأیید» */
   profile?: Record<string, string>;
+  /**
+   * مقطعِ واقعیِ این ردیف — از رشتهٔ نگاشت‌شده استخراج می‌شود.
+   * فایل سنجش برای بعضی انواع (مثلاً فنی) فیلد مقطع را خالی می‌گذارد؛
+   * پس نمی‌توان تنها به `rawSanjeshData.degreeLevel` تکیه کرد.
+   */
+  degreeLevelName?: string | null;
 }
 
 interface SanjeshMappingItem {
@@ -131,7 +137,7 @@ export default function AdmissionsClient({
     { key: 'fullName', label: 'نام و نام خانوادگی', get: s => s.fullName ?? '' },
     { key: 'sanjeshCode', label: 'کد رشته سنجش', get: s => s.rawSanjeshData?.sanjeshCode ?? '' },
     { key: 'examType', label: 'نوع آزمون', get: s => s.rawSanjeshData?.examType ?? '' },
-    { key: 'degreeLevel', label: 'مقطع تحصیلی', get: s => s.rawSanjeshData?.degreeLevel ?? '' },
+    { key: 'degreeLevel', label: 'مقطع تحصیلی', get: s => degreeTitleOf(s) },
     { key: 'majorGroup', label: 'گروه رشته', get: s => s.rawSanjeshData?.majorGroup ?? '' },
     { key: 'major', label: 'رشته تطبیق‌یافته دانشگاه', get: s => s.mappedMajorName ?? '' },
     { key: 'quota', label: 'سهمیه پذیرش', get: s => s.rawSanjeshData?.quota ?? s.quotaType ?? '' },
@@ -253,12 +259,23 @@ export default function AdmissionsClient({
         map.set(code, {
           code,
           group: st.rawSanjeshData?.majorGroup ?? '',
-          degree: st.rawSanjeshData?.degreeLevel ?? '',
+          degree: degreeTitleOf(st),
           count: 1,
         });
     }
     return [...map.values()].sort((a, b) => b.count - a.count || a.code.localeCompare(b.code));
   }, [stagingList]);
+
+  /**
+   * مقطعِ یک ردیف صف. ترتیب اولویت:
+   *   ۱) مقطعِ رشتهٔ نگاشت‌شدهٔ دانشگاه — همان چیزی که واقعاً پرونده را می‌سازد
+   *   ۲) مقطعِ اعلامی خود فایل سنجش
+   * فایل سنجش «فنی» فیلد مقطع را خالی می‌فرستد، پس تکیه بر آن ستون را خالی
+   * می‌گذاشت در حالی که ردیف نگاشت شده و مقطعش معلوم بود.
+   */
+  const degreeTitleOf = (s: any): string =>
+    (s?.degreeLevelName || s?.rawSanjeshData?.degreeLevel || '').trim();
+
 
   /** رشته‌های متناسب با مقطعِ ردیف (اگر مقطع شناسا نبود، همهٔ رشته‌ها) */
   const majorsFor = (degreeTitle: string): MajorOption[] => {
@@ -483,7 +500,7 @@ export default function AdmissionsClient({
       s.fullName ?? '',
       s.rawSanjeshData?.sanjeshCode ?? '',
       s.rawSanjeshData?.examType ?? '',
-      s.rawSanjeshData?.degreeLevel ?? '',
+      degreeTitleOf(s),
       s.rawSanjeshData?.majorGroup ?? '',
       s.mappedMajorName ?? '',
       s.rawSanjeshData?.quota ?? s.quotaType ?? '',
@@ -1212,7 +1229,7 @@ export default function AdmissionsClient({
                             <td className="p-2 text-slate-800 whitespace-nowrap">{p.lastName || s.fullName || '—'}</td>
                             <td className="p-2 text-slate-600 whitespace-nowrap">{p.fatherName || '—'}</td>
                             <td className="p-2 text-slate-600">{genderFa(p.gender)}</td>
-                            <td className="p-2 text-slate-600 whitespace-nowrap">{p.degreeLevelTitle || s.rawSanjeshData?.degreeLevel || '—'}</td>
+                            <td className="p-2 text-slate-600 whitespace-nowrap">{degreeTitleOf(s) || p.degreeLevelTitle || '—'}</td>
                             <td className="p-2 text-slate-600 whitespace-nowrap">
                               {p.fieldPlaceTitle || p.fieldTitle || s.rawSanjeshData?.majorTitle || '—'}
                             </td>
@@ -1312,7 +1329,7 @@ export default function AdmissionsClient({
                       <td className="p-3 font-semibold text-slate-900">{st.fullName}</td>
                       <td className="p-3 font-mono text-indigo-900 font-bold">{st.rawSanjeshData?.sanjeshCode || ''}</td>
                       <td className="p-3 text-slate-600 font-mono">{st.rawSanjeshData?.examType || ''}</td>
-                      <td className="p-3 text-slate-600">{st.rawSanjeshData?.degreeLevel || ''}</td>
+                      <td className="p-3 text-slate-600">{degreeTitleOf(st) || '—'}</td>
                       <td className="p-3 text-slate-600">{st.rawSanjeshData?.majorGroup || ''}</td>
                       <td className="p-3">
                         {isResolved ? (
@@ -1322,7 +1339,7 @@ export default function AdmissionsClient({
                           // هیچ نگاشتی نوشته نمی‌شود.
                           const rowCode = (st.rawSanjeshData?.sanjeshCode ?? '').trim();
                           const rowTitle = st.rawSanjeshData?.majorTitle || st.rawSanjeshData?.majorGroup || '';
-                          const candidates = majorsFor(st.rawSanjeshData?.degreeLevel ?? '');
+                          const candidates = majorsFor(degreeTitleOf(st));
                           const sug = rowTitle ? bestSuggestion(rowTitle, candidates, 0.55) : null;
                           // اگر برای این کد از قبل نگاشتی ثبت شده، همان را نشان بده
                           // (وگرنه کاربر فکر می‌کند نگاشتش گم شده).
