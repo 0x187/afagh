@@ -32,6 +32,7 @@ import {
   class_sessions,
   classroom_edu_experts,
   classrooms,
+  faculties,
   course_offering_edu_experts,
   course_offerings,
   courses,
@@ -248,7 +249,10 @@ export interface ControlSessionRow {
   courseCode: string;
   groupNumber: number;
   professorStaffId: number | null;
+  professorStaffCode: string | null;
   professorName: string;
+  facultyId: number | null;
+  facultyName: string | null;
   /** ردیفِ حضورِ موجود (اگر ثبت شده باشد) */
   recordedAt: Date | null;
   recordedMethod: string | null;
@@ -326,24 +330,32 @@ export async function listTodaySessionsForRooms(
   // نگاشتِ اتاق‌ها
   const roomMeta = new Map(
     (await db
-      .select({ id: classrooms.id, name: classrooms.name, buildingName: classrooms.buildingName })
+      .select({ id: classrooms.id, name: classrooms.name, buildingName: classrooms.buildingName, facultyId: classrooms.facultyId })
       .from(classrooms)
       .where(inArray(classrooms.id, roomIds))
       .catch(() => []))
       .map((r) => [r.id, r] as const),
   );
 
+  const facultyIds = [...new Set([...roomMeta.values()].map((r) => r.facultyId).filter((v): v is number => typeof v === 'number'))];
+  const facultyName = new Map<number, string>();
+  if (facultyIds.length) {
+    const fs = await db.select({ id: faculties.id, name: faculties.name }).from(faculties).where(inArray(faculties.id, facultyIds)).catch(() => []);
+    for (const f of fs) facultyName.set(f.id, f.name);
+  }
+
   // استادها
   const profIds = [...new Set(rows.map((r) => r.professorStaffId).filter((v): v is number => typeof v === 'number'))];
   const profName = new Map<number, string>();
+  const profCode = new Map<number, string | null>();
   if (profIds.length) {
     const ps = await db
-      .select({ id: staff.id, firstName: users.firstName, lastName: users.lastName })
+      .select({ id: staff.id, firstName: users.firstName, lastName: users.lastName, staffCode: staff.staffCode })
       .from(staff)
       .innerJoin(users, eq(users.id, staff.userId))
       .where(inArray(staff.id, profIds))
       .catch(() => []);
-    for (const p of ps) profName.set(p.id, `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim());
+    for (const p of ps) { profName.set(p.id, `${p.firstName ?? ''} ${p.lastName ?? ''}`.trim()); profCode.set(p.id, p.staffCode ?? null); }
   }
 
   // حضورهای ثبت‌شده (همهٔ روش‌ها؛ آخرین ردیفِ معتبر برنده است)
@@ -368,7 +380,7 @@ export async function listTodaySessionsForRooms(
   const confirmName = new Map<number, string>();
   if (confirmIds.length) {
     const cs = await db
-      .select({ id: staff.id, firstName: users.firstName, lastName: users.lastName })
+      .select({ id: staff.id, firstName: users.firstName, lastName: users.lastName, staffCode: staff.staffCode })
       .from(staff)
       .innerJoin(users, eq(users.id, staff.userId))
       .where(inArray(staff.id, confirmIds))
@@ -410,6 +422,9 @@ export async function listTodaySessionsForRooms(
       groupNumber: r.groupNumber,
       professorStaffId: r.professorStaffId,
       professorName: (r.professorStaffId != null && profName.get(r.professorStaffId)) || '—',
+      professorStaffCode: (r.professorStaffId != null && profCode.get(r.professorStaffId)) || null,
+      facultyId: meta?.facultyId ?? null,
+      facultyName: (meta?.facultyId != null && facultyName.get(meta.facultyId)) || null,
       recordedAt: a?.recordedAt ?? null,
       recordedMethod: a?.method ?? null,
       recordedStatus: a?.status ?? null,

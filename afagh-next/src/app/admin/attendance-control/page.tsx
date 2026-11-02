@@ -1,7 +1,7 @@
 import { requireRole } from '@/lib/auth';
 import { getCurrentUniversity } from '@/lib/university-scope';
 import { faDigits } from '@/lib/calendar';
-import { checkinState, checkinWindowLabel, tehranNow } from '@/lib/room-checkin';
+import { checkinState, checkinWindowLabel, tehranNow, iranDowFromJalali } from '@/lib/room-checkin';
 import { listControlledRooms, listMergedTodaySessionsForRooms } from '@/lib/attendance-control';
 import { mergeBadgeText, mergeMemberTitles } from '@/lib/merged-class-core';
 import AttendanceControlClient, { type ControlRowView } from './AttendanceControlClient';
@@ -26,15 +26,34 @@ export const dynamic = 'force-dynamic';
  * استاد در یک اتاق برگزار شوند، فقط **یک** ردیف با نشان 🔗 نشان داده می‌شود و
  * ثبتِ آن روی همهٔ اعضا اعمال می‌شود.
  */
-export default async function AttendanceControlPage({ searchParams }: { searchParams?: Promise<{ date?: string }> }) {
-  const sp = await (searchParams ?? Promise.resolve<{ date?: string }>({}));
+export default async function AttendanceControlPage({ searchParams }: { searchParams?: Promise<{ date?: string; day?: string }> }) {
+  const sp = await (searchParams ?? Promise.resolve<{ date?: string; day?: string }>({}));
   const user = await requireRole(['ADMIN', 'EDU_EXPERT', 'ATTENDANCE_CONTROLLER']);
   const uni = await getCurrentUniversity().catch(() => null);
 
   const rooms = await listControlledRooms(user.id, uni?.id ?? null);
   const now = tehranNow();
   const requestedDate = (sp?.date || '').trim();
-  const jalaliDate = requestedDate || now.jalali;
+  let jalaliDate = requestedDate || now.jalali;
+  // فیلترِ «روزِ هفته»: نزدیک‌ترین تاریخ با آن روزِ هفته (شنبه=0 … جمعه=6)
+  const dayParam = (sp?.day || '').trim();
+  if (dayParam !== '' && !requestedDate) {
+    const targetDow = Number(dayParam);
+    if (Number.isInteger(targetDow) && targetDow >= 0 && targetDow <= 6) {
+      const curDow = iranDowFromJalali(jalaliDate);
+      if (curDow != null) {
+        const { j2d, d2j } = await import('@/lib/calendar');
+        const m = /^(\d{4})\/(\d{2})\/(\d{2})$/.exec(jalaliDate);
+        if (m) {
+          const jdn = j2d(Number(m[1]), Number(m[2]), Number(m[3]));
+          let offset = targetDow - curDow;
+          if (offset < 0) offset += 7;
+          const ng = d2j(jdn + offset);
+          jalaliDate = `${ng.jy}/${String(ng.jm).padStart(2, '0')}/${String(ng.jd).padStart(2, '0')}`;
+        }
+      }
+    }
+  }
   const groups = await listMergedTodaySessionsForRooms(rooms.map((r) => r.id), jalaliDate);
 
   const fa = (v: string) => faDigits(v);
@@ -55,6 +74,8 @@ export default async function AttendanceControlPage({ searchParams }: { searchPa
       courseCode: fa(r.courseCode),
       groupNumber: fa(String(r.groupNumber)),
       professorName: r.professorName,
+      professorStaffCode: r.professorStaffCode,
+      facultyName: r.facultyName,
       state,
       windowFrom: win ? fa(win.from) : '',
       windowTo: win ? fa(win.to) : '',

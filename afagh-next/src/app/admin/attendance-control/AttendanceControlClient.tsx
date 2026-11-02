@@ -17,6 +17,8 @@ export interface ControlRowView {
   courseCode: string;
   groupNumber: string;
   professorName: string;
+  professorStaffCode: string | null;
+  facultyName: string | null;
   /** BEFORE | OPEN | CLOSED */
   state: string;
   windowFrom: string;
@@ -72,6 +74,10 @@ export default function AttendanceControlClient({
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [, startTransition] = useTransition();
   const [filter, setFilter] = useState<Filter>('all');
+  const [filterFaculty, setFilterFaculty] = useState('');
+  const [filterRoom, setFilterRoom] = useState('');
+  const [filterProfCode, setFilterProfCode] = useState('');
+  const [filterCourseCode, setFilterCourseCode] = useState('');
   const [layout, setLayout] = useState<'row' | 'col'>('row');
   const [q, setQ] = useState('');
 
@@ -82,13 +88,17 @@ export default function AttendanceControlClient({
     return rows.filter((r) => {
       if (filter === 'pending' && isDone(r)) return false;
       if (filter === 'done' && !isDone(r)) return false;
+      if (filterFaculty && r.facultyName !== filterFaculty) return false;
+      if (filterRoom && r.roomName !== filterRoom) return false;
+      if (filterProfCode && !(r.professorStaffCode ?? '').includes(filterProfCode)) return false;
+      if (filterCourseCode && !r.courseCode.includes(filterCourseCode)) return false;
       if (needle) {
         const hay = `${r.roomName} ${r.courseTitle} ${r.courseCode} ${r.professorName} ${r.memberTitles}`;
         if (!hay.includes(needle)) return false;
       }
       return true;
     });
-  }, [rows, filter, q, done]);
+  }, [rows, filter, q, done, filterFaculty, filterRoom, filterProfCode, filterCourseCode]);
 
   const grouped = useMemo(() => {
     const m = new Map<number, ControlRowView[]>();
@@ -165,6 +175,26 @@ export default function AttendanceControlClient({
             <button type="button" onClick={() => setLayout('row')} className={`rounded-lg px-3 py-1 text-[10px] font-black ${layout === 'row' ? 'bg-white text-indigo-800 shadow' : 'text-slate-600'}`}>ردیفی</button>
             <button type="button" onClick={() => setLayout('col')} className={`rounded-lg px-3 py-1 text-[10px] font-black ${layout === 'col' ? 'bg-white text-indigo-800 shadow' : 'text-slate-600'}`}>ستونی</button>
           </div>
+          <select onChange={(e) => { if (e.target.value !== '') window.location.href = '/admin/attendance-control?day=' + e.target.value; }} className="rounded-xl border border-slate-300 px-3 py-1.5 text-[11px] font-bold">
+            <option value="">همهٔ روزها</option>
+            {['شنبه','یکشنبه','دوشنبه','سه‌شنبه','چهارشنبه','پنج‌شنبه','جمعه'].map((d, i) => (
+              <option key={i} value={i}>{d}</option>
+            ))}
+          </select>
+          <select value={filterFaculty} onChange={(e) => setFilterFaculty(e.target.value)} className="rounded-xl border border-slate-300 px-3 py-1.5 text-[11px] font-bold">
+            <option value="">همهٔ دانشکده‌ها</option>
+            {[...new Set(rows.map((r) => r.facultyName).filter(Boolean))].map((f) => (
+              <option key={f as string} value={f as string}>{f as string}</option>
+            ))}
+          </select>
+          <select value={filterRoom} onChange={(e) => setFilterRoom(e.target.value)} className="rounded-xl border border-slate-300 px-3 py-1.5 text-[11px] font-bold">
+            <option value="">همهٔ اتاق‌ها</option>
+            {[...new Set(rows.map((r) => r.roomName))].map((r) => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+          <input value={filterProfCode} onChange={(e) => setFilterProfCode(e.target.value)} placeholder="کد استاد" className="w-24 rounded-xl border border-slate-300 px-3 py-1.5 text-[11px] font-bold" dir="ltr" />
+          <input value={filterCourseCode} onChange={(e) => setFilterCourseCode(e.target.value)} placeholder="کد درس" className="w-24 rounded-xl border border-slate-300 px-3 py-1.5 text-[11px] font-bold" dir="ltr" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
