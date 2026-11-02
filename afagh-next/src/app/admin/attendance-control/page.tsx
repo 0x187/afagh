@@ -41,7 +41,8 @@ export default async function AttendanceControlPage({ searchParams }: { searchPa
 
   const rows: ControlRowView[] = groups.map((g) => {
     const r = g.members[0];
-    const state = checkinState(r.startTime, r.endTime, now.minutes);
+    const isAdmin = user.roles.includes('ADMIN');
+    const state = isAdmin ? 'OPEN' : checkinState(r.startTime, r.endTime, now.minutes);
     const win = checkinWindowLabel(r.startTime, r.endTime);
     return {
       roomId: r.roomId,
@@ -103,7 +104,7 @@ export default async function AttendanceControlPage({ searchParams }: { searchPa
           از مدیر سامانه بخواهید در صفحهٔ «تخصیص کارشناس به اتاق‌ها» اتاق‌های تحت مسئولیت شما را تعیین کند.
         </div>
       ) : (
-        <AttendanceControlClient rows={rows} minuteNow={now.minutes} />
+        <AttendanceControlClient rows={rows} minuteNow={now.minutes} date={jalaliDate} />
       )}
     </div>
   );

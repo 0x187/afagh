@@ -52,6 +52,7 @@ async function recordCore(px: {
   roomId: number;
   sessionId: number;
   user: SessionUser;
+  date?: string;
 }): Promise<RecordCoreResult> {
   const { roomId, sessionId, user } = px;
 
@@ -59,13 +60,15 @@ async function recordCore(px: {
   if (!me) return { ok: false, error: 'notstaff' };
 
   const now = tehranNow();
+  const jalaliDate = (px.date || '').trim() || now.jalali;
 
   // همان منبعِ حقیقتی که صفحه استفاده می‌کند: اتاق از برنامهٔ هفتگی حل می‌شود.
-  const todaySessions = await listSessionsInRoom(roomId, now.jalali);
+  const todaySessions = await listSessionsInRoom(roomId, jalaliDate);
   const session = todaySessions.find((s) => s.id === sessionId);
   if (!session) return { ok: false, error: 'nosession' };
 
-  if (checkinState(session.startTime, session.endTime, now.minutes) !== 'OPEN') {
+  const isAdmin = user.roles.includes('ADMIN');
+  if (!isAdmin && checkinState(session.startTime, session.endTime, now.minutes) !== 'OPEN') {
     return { ok: false, error: 'window' };
   }
 
@@ -277,6 +280,7 @@ export async function recordRoomAttendance(formData: FormData): Promise<void> {
 export async function recordAttendanceFromConsole(px: {
   roomId: number;
   sessionId: number;
+  date?: string;
 }): Promise<{
   ok: boolean;
   error?: string;

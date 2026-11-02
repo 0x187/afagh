@@ -60,9 +60,11 @@ type Filter = 'all' | 'pending' | 'done';
 export default function AttendanceControlClient({
   rows,
   minuteNow,
+  date,
 }: {
   rows: ControlRowView[];
   minuteNow: number;
+  date?: string;
 }) {
   const [done, setDone] = useState<Record<number, boolean>>({});
   const [err, setErr] = useState<string | null>(null);
@@ -70,6 +72,7 @@ export default function AttendanceControlClient({
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [, startTransition] = useTransition();
   const [filter, setFilter] = useState<Filter>('all');
+  const [layout, setLayout] = useState<'row' | 'col'>('row');
   const [q, setQ] = useState('');
 
   const isDone = (r: ControlRowView) => done[r.sessionId] ?? r.recorded;
@@ -105,7 +108,7 @@ export default function AttendanceControlClient({
     setNote(null);
     setPendingId(r.sessionId);
     startTransition(async () => {
-      const res = await recordAttendanceFromConsole({ roomId: r.roomId, sessionId: r.sessionId });
+      const res = await recordAttendanceFromConsole({ roomId: r.roomId, sessionId: r.sessionId, date });
       setPendingId(null);
       if (res.ok) {
         setDone((d) => ({ ...d, [r.sessionId]: true }));
@@ -158,6 +161,10 @@ export default function AttendanceControlClient({
               {t}
             </button>
           ))}
+          <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1">
+            <button type="button" onClick={() => setLayout('row')} className={`rounded-lg px-3 py-1 text-[10px] font-black ${layout === 'row' ? 'bg-white text-indigo-800 shadow' : 'text-slate-600'}`}>ردیفی</button>
+            <button type="button" onClick={() => setLayout('col')} className={`rounded-lg px-3 py-1 text-[10px] font-black ${layout === 'col' ? 'bg-white text-indigo-800 shadow' : 'text-slate-600'}`}>ستونی</button>
+          </div>
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
@@ -200,7 +207,7 @@ export default function AttendanceControlClient({
                 </div>
               </div>
 
-              <div className="divide-y divide-slate-100">
+              <div className={layout === 'col' ? 'grid grid-cols-1 sm:grid-cols-2 gap-2 p-2' : 'divide-y divide-slate-100'}>
                 {list.map((r) => {
                   const ok = isDone(r);
                   const busy = pendingId === r.sessionId;
