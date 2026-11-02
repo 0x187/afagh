@@ -189,6 +189,83 @@ async function maxSeqForDegree(q: any, degreeLevelId: number): Promise<number> {
   return Number(row?.m ?? 0);
 }
 
+async function maxSeqForMajor(q: any, majorId: number): Promise<number> {
+  // بیشینهٔ سریالِ در استفاده برای این رشته (همهٔ دانشگاه‌ها، محافظه‌کارانه).
+  const res: any = await q.execute(sql`
+    SELECT COALESCE(MAX(right("studentCode", 3)::int), 0) AS m
+    FROM students
+    WHERE "majorId" = ${majorId}
+      AND "studentCode" ~ '^[0-9]+$'
+      AND length("studentCode") >= 3
+  `);
+  const row = (res?.rows ?? res)?.[0];
+  return Number(row?.m ?? 0);
+}
+
+/**
+ * تولید کد در یک سریال مشخص — برای شماره‌گذاری «به‌ازای هر رشته» با شروعِ
+ * دستی (مثلاً «از ۰۰۱ شروع کن» یا «از ۶۰۱ شروع کن»).
+ * اگر کد تکراری باشد سریال بالا می‌رود؛ در سرریز عرض {Seq} خودترمیم می‌شود.
+ */
+async function assignCodeAtSeq(
+  q: any,
+  args: {
+    formula: string;
+    degreeLevelId: number;
+    entryYear: number;
+    majorCode?: string;
+    quotaCode?: number;
+    universityId: number | null;
+    startSeq: number;
+  },
+): Promise<{ code: string; seq: number; formula: string }> {
+  const [level] = await q
+    .select({ code: degree_level_configs.code })
+    .from(degree_level_configs)
+    .where(eq(degree_level_configs.id, args.degreeLevelId))
+    .limit(1);
+
+  let formula = args.formula;
+  let seq = Math.max(0, Math.floor(args.startSeq));
+
+  for (let i = 0; i < 5000; i++) {
+    const seqWidth = Number(formula.match(/\{Seq:(\d+)\}/)?.[1] ?? 0);
+    const seqMax = seqWidth > 0 ? Math.pow(10, seqWidth) - 1 : Infinity;
+
+    if (seqWidth > 0 && seq > seqMax) {
+      const newWidth = seqWidth + 1;
+      formula = formula.replace(/\{Seq:\d+\}/, `{Seq:${newWidth}}`);
+      await q
+        .update(student_id_formulas)
+        .set({ formula })
+        .where(eq(student_id_formulas.degreeLevelId, args.degreeLevelId));
+      log.warn('student_id_formula_seq_widened', { degreeLevelId: args.degreeLevelId, from: seqWidth, to: newWidth });
+    }
+
+    const code = renderStudentCode(formula, {
+      entryYear: args.entryYear,
+      degreeCode: level?.code,
+      majorCode: args.majorCode,
+      seq,
+      quotaCode: args.quotaCode,
+    });
+
+    const clashScope = args.universityId != null
+      ? or(eq(students.universityId, args.universityId), isNull(students.universityId))
+      : isNull(students.universityId);
+    const [clash] = await q
+      .select({ id: students.id })
+      .from(students)
+      .where(and(clashScope, eq(students.studentCode, code)))
+      .limit(1);
+
+    if (!clash) return { code, seq, formula };
+    seq++;
+  }
+
+  throw new Error('تولید شمارهٔ یکتا برای این رشته ممکن نشد.');
+}
+
 export async function generateStudentId(
   params: {
     degreeLevelId: number;
@@ -534,7 +611,7 @@ export async function parseAndStageSanjeshData(rawText: string, entryYear = 1405
  */
 export async function assignStudentNumbers(
   stagingIds: number[],
-  opts: { entryMethod: EntryMethod },
+  opts: { entryMethod: EntryMethod; starts?: Record<number, number> },
 ) {
   if (!isEntryMethod(opts.entryMethod)) throw new Error('روش ورود نامعتبر یا انتخاب‌نشده است.');
   const stagedRows = await db
@@ -545,8 +622,10 @@ export async function assignStudentNumbers(
   const [defaultReg] = await db.select().from(educational_regulations).limit(1);
   const importedResults: any[] = [];
   const failures: { stagingId: number; error: string }[] = [];
-  // کفِ سریال به‌ازای هر مقطع (یک‌بار محاسبه می‌شود، نه به‌ازای هر ردیف)
-  const seqFloorCache = new Map<number, number>();
+  // شمارندهٔ سریال به‌ازای هر رشته (شروعِ دستی یا ادامهٔ بیشینهٔ موجود)
+  const nextSeqByMajor = new Map<string, number>();
+  // کشِ فرمول به‌ازای هر مقطع (یک‌بار خوانده می‌شود)
+  const formulaCache = new Map<number, string>();
 
   for (const row of stagedRows) {
     if (!row.mappedMajorId || row.status !== 'RESOLVED') continue;
@@ -620,28 +699,43 @@ export async function assignStudentNumbers(
           }
         }
 
-        // ۳. مقطع از خود رشته گرفته می‌شود (نه پیش‌فرض کارشناسی)؛ سپس شمارهٔ دانشجویی (اتمیک — داخل همین تراکنش)
+        // ۳. مقطع از خود رشته گرفته می‌شود؛ سپس شمارهٔ دانشجویی «به‌ازای هر رشته»
+        //    با «شمارهٔ شروع» دستی (اگر داده شده) یا ادامهٔ بیشینهٔ موجودِ همان رشته.
         const [major] = await tx.select().from(majors).where(eq(majors.id, mappedMajorId)).limit(1);
         const degreeLevelId = major?.degreeLevelId ?? row.degreeLevelId ?? null;
         if (!degreeLevelId) throw new Error('مقطع این رشته مشخص نیست.');
-        let seqFloor = seqFloorCache.get(degreeLevelId);
-        if (seqFloor === undefined) {
-          seqFloor = await maxSeqForDegree(tx, degreeLevelId);
-          seqFloorCache.set(degreeLevelId, seqFloor);
+
+        let formula = formulaCache.get(degreeLevelId);
+        if (formula === undefined) {
+          const [fr] = await tx
+            .select({ formula: student_id_formulas.formula })
+            .from(student_id_formulas)
+            .where(eq(student_id_formulas.degreeLevelId, degreeLevelId))
+            .limit(1);
+          const raw = fr?.formula || DEFAULT_FORMULA;
+          formula = validateFormula(raw).length === 0 ? raw : DEFAULT_FORMULA;
+          formulaCache.set(degreeLevelId, formula);
         }
-        const studentCode = await generateStudentId(
-          { degreeLevelId, entryYear, majorCode: major?.majorCode || '412', universityId, minSeq: seqFloor },
-          tx,
-        );
-        const [clash] = await tx
-          .select({ id: students.id })
-          .from(students)
-          .where(and(
-            or(eq(students.universityId, universityId), isNull(students.universityId)),
-            eq(students.studentCode, studentCode),
-          ))
-          .limit(1);
-        if (clash) throw new Error(`شمارهٔ ${studentCode} قبلاً صادر شده است؛ فرمول را بررسی کنید.`);
+
+        const seqKey = `${row.universityId ?? 'null'}#${mappedMajorId}`;
+        let startSeq = nextSeqByMajor.get(seqKey);
+        if (startSeq === undefined) {
+          const explicit = opts.starts?.[mappedMajorId];
+          startSeq = (explicit != null && explicit > 0)
+            ? Math.floor(explicit)
+            : (await maxSeqForMajor(tx, mappedMajorId)) + 1;
+        }
+        const assigned = await assignCodeAtSeq(tx, {
+          formula,
+          degreeLevelId,
+          entryYear,
+          majorCode: major?.majorCode || '412',
+          universityId: row.universityId ?? null,
+          startSeq,
+        });
+        nextSeqByMajor.set(seqKey, assigned.seq + 1);
+        formulaCache.set(degreeLevelId, assigned.formula);
+        const studentCode = assigned.code;
 
         // ۴. ایجاد پروندهٔ دانشجویی با منبع و روش ورود
         const fromSanjesh = row.fileId != null;

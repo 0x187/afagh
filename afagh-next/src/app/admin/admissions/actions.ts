@@ -72,12 +72,16 @@ export async function setStagingDecisionAction(
   }
 }
 
-export async function assignStudentNumbersAction(stagingIds: number[], entryMethod: string) {
+export async function assignStudentNumbersAction(
+  stagingIds: number[],
+  entryMethod: string,
+  starts?: Record<number, number>,
+) {
   await requireRole(['ADMIN', 'EDU_EXPERT']);
 
   try {
     if (!isEntryMethod(entryMethod)) return { ok: false, error: 'روش ورود را انتخاب کنید.' };
-    const result = await assignStudentNumbers(stagingIds, { entryMethod });
+    const result = await assignStudentNumbers(stagingIds, { entryMethod, starts });
     revalidatePath('/admin/admissions');
     revalidatePath('/admin/students');
     return {

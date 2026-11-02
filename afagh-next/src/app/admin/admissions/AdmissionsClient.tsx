@@ -126,6 +126,8 @@ export default function AdmissionsClient({
   const [isStaging, setIsStaging] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
+  // شمارهٔ شروع سریال به‌ازای هر رشته (خالی = خودکار/ادامهٔ بیشینهٔ همان رشته)
+  const [majorStarts, setMajorStarts] = useState<Record<number, string>>({});
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [importEntryMethod, setImportEntryMethod] = useState<string>('');
   const [existingItems, setExistingItems] = useState<any[]>([]);
@@ -333,8 +335,15 @@ export default function AdmissionsClient({
       return;
     }
 
+    // شمارهٔ شروع هر رشته (خالی = خودکار)
+    const starts: Record<number, number> = {};
+    for (const [mid, val] of Object.entries(majorStarts)) {
+      const n = parseInt(String(val), 10);
+      if (Number.isFinite(n) && n > 0) starts[Number(mid)] = n;
+    }
+
     setIsAssigning(true);
-    const res = await assignStudentNumbersAction(resolvedIds, importEntryMethod);
+    const res = await assignStudentNumbersAction(resolvedIds, importEntryMethod, starts);
     setIsAssigning(false);
     if (res.ok) {
       const failNote = res.failures?.length ? ` — ${res.failures.length} رکورد ناموفق بود.` : '';
@@ -722,6 +731,45 @@ export default function AdmissionsClient({
                 </button>
               </div>
             </div>
+
+            {(() => {
+              const resolvedRows = stagingList.filter(s => s.status === 'RESOLVED' && s.mappedMajorId);
+              const byMajor = new Map<number, { name: string; count: number }>();
+              for (const r of resolvedRows) {
+                const mid = r.mappedMajorId as number;
+                const name = majors.find(m => m.id === mid)?.name || `رشته ${mid}`;
+                const prev = byMajor.get(mid);
+                byMajor.set(mid, { name, count: (prev?.count ?? 0) + 1 });
+              }
+              if (byMajor.size === 0) return null;
+              return (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+                  <div className="text-xs font-black text-amber-900">🔢 شمارهٔ شروع هر رشته (اختیاری)</div>
+                  <p className="text-[11px] leading-5 text-amber-800">
+                    برای هر رشته شمارهٔ شروع سریال را وارد کن (مثلاً <b>1</b> یا <b>601</b>).
+                    خالی بگذاری = ادامه از بیشینهٔ موجودِ همان رشته.
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {[...byMajor.entries()].map(([mid, info]) => (
+                      <div key={mid} className="flex items-center gap-2 rounded-lg border border-amber-200 bg-white px-2 py-1.5">
+                        <span className="flex-1 truncate text-[11px] font-bold text-slate-700" title={info.name}>
+                          {info.name} <span className="text-slate-400">({info.count})</span>
+                        </span>
+                        <input
+                          type="number"
+                          min={0}
+                          inputMode="numeric"
+                          placeholder="خودکار"
+                          value={majorStarts[mid] ?? ''}
+                          onChange={e => setMajorStarts(prev => ({ ...prev, [mid]: e.target.value }))}
+                          className="w-24 rounded-lg border border-slate-300 px-2 py-1 text-center font-mono text-xs"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             <textarea
               rows={5}
