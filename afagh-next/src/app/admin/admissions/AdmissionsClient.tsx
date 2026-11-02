@@ -398,6 +398,49 @@ export default function AdmissionsClient({
     }
   };
 
+  // خروجی اکسل (CSV با BOM — اکسل فارسی را درست نشان می‌دهد)
+  const handleExportExcel = () => {
+    if (stagingList.length === 0) {
+      setFeedback({ text: 'ردیفی برای خروجی گرفتن وجود ندارد.', type: 'error' });
+      return;
+    }
+    const headers = [
+      'کد ملی', 'نام و نام خانوادگی', 'کد رشته سنجش', 'نوع آزمون', 'مقطع',
+      'گروه رشته', 'رشتهٔ دانشگاه', 'سهمیه', 'کد دانشگاه', 'وضعیت',
+    ];
+    const statusFa: Record<string, string> = {
+      PENDING_MAPPING: 'نیازمند نگاشت',
+      RESOLVED: 'آماده ثبت‌نام',
+      NUMBER_ASSIGNED: 'شماره صادر شد',
+      IMPORTED: 'ثبت قطعی شد',
+    };
+    const rows = stagingList.map(s => [
+      s.nationalCode,
+      s.fullName ?? '',
+      s.rawSanjeshData?.sanjeshCode ?? '',
+      s.rawSanjeshData?.examType ?? '',
+      s.rawSanjeshData?.degreeLevel ?? '',
+      s.rawSanjeshData?.majorGroup ?? '',
+      s.mappedMajorName ?? '',
+      s.rawSanjeshData?.quota ?? s.quotaType ?? '',
+      s.rawSanjeshData?.universityCode ?? '',
+      statusFa[s.status ?? ''] ?? (s.status ?? ''),
+    ]);
+    const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const csv = '\uFEFF' + [headers, ...rows].map(r => r.map(esc).join(',')).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `admissions-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    setFeedback({ text: `${rows.length} ردیف به‌صورت اکسل (CSV) ذخیره شد.`, type: 'success' });
+    setTimeout(() => setFeedback(null), 4000);
+  };
+
   // ذخیره فرمول شماره دانشجویی
   const handleSaveFormula = async () => {
     const res = await saveStudentIdFormulaAction(selectedDegreeId, formulaPattern);
@@ -751,6 +794,13 @@ export default function AdmissionsClient({
                 >
                   {isFinalizing ? 'در حال ثبت قطعی...' : '2️⃣ ثبت قطعی'}
                 </button>
+                <button
+                  type="button"
+                  onClick={handleExportExcel}
+                  className="px-4 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-extrabold text-xs shadow-sm transition"
+                >
+                  📥 خروجی اکسل
+                </button>
               </div>
             </div>
 
@@ -821,6 +871,29 @@ export default function AdmissionsClient({
               <span className="text-[11px] text-slate-500">
                 {sanjeshCodeGroups.filter(g => !mappingsList.some(m => m.sanjeshCode === g.code)).length} کد بدون نگاشت
               </span>
+              {(() => {
+                // پیشنهادها فقط «پیشنهاد»اند؛ تا این دکمه زده نشود چیزی ذخیره نمی‌شود.
+                const pending = sanjeshCodeGroups.filter(g => !mappingsList.some(m => m.sanjeshCode === g.code));
+                const withSug: { code: string; majorId: number; majorName: string }[] = [];
+                for (const g of pending) {
+                  if (!g.group) continue;
+                  const s = bestSuggestion(g.group, majorsFor(g.degree), 0.55);
+                  if (s) withSug.push({ code: g.code, majorId: s.major.id, majorName: s.major.name });
+                }
+                if (withSug.length === 0) return null;
+                return (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!confirm(`نگاشت ${withSug.length} کد رشته با پیشنهاد هوشمند ثبت شود؟\n\n${withSug.map(x => `• ${x.code} ← ${x.majorName}`).join('\n')}`)) return;
+                      for (const x of withSug) await handleMapMajor(x.code, String(x.majorId));
+                    }}
+                    className="px-3 py-1.5 rounded-xl border border-amber-400 bg-amber-50 text-amber-900 font-bold text-[11px] hover:bg-amber-100"
+                  >
+                    🪄 تأیید {withSug.length} پیشنهاد
+                  </button>
+                );
+              })()}
             </div>
 
             {sanjeshCodeGroups.length === 0 ? (
@@ -850,22 +923,41 @@ export default function AdmissionsClient({
                           <td className="p-2 text-slate-600">{g.degree || '—'}</td>
                           <td className="p-2 tabular-nums text-slate-700">{g.count.toLocaleString('fa-IR')}</td>
                           <td className="p-2">
-                            <select
-                              value={selected}
-                              onChange={e => {
-                                const v = e.target.value;
-                                setMapSel(p => ({ ...p, [g.code]: v }));
-                                if (v) void handleMapMajor(g.code, v);
-                              }}
-                              className="w-full rounded-lg border border-slate-300 px-2 py-1 text-[11px] min-w-0"
-                            >
-                              <option value="">— انتخاب رشتهٔ دانشگاه —</option>
-                              {options.map(m => (
-                                <option key={m.id} value={m.id}>
-                                  {m.name}{m.majorCode ? ` (${m.majorCode})` : ''}
-                                </option>
-                              ))}
-                            </select>
+                            {(() => {
+                              const sug = g.group ? bestSuggestion(g.group, options, 0.55) : null;
+                              return (
+                                <div className="space-y-1">
+                                  {sug && !mapping?.majorName && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setMapSel(p => ({ ...p, [g.code]: String(sug.major.id) }));
+                                        void handleMapMajor(g.code, String(sug.major.id));
+                                      }}
+                                      className="text-right text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 rounded-lg px-1.5 py-0.5 hover:bg-amber-100 w-full"
+                                    >
+                                      🪄 پیشنهاد: {sug.major.name} ({sug.percent.toLocaleString('fa-IR')}٪)
+                                    </button>
+                                  )}
+                                  <select
+                                    value={selected}
+                                    onChange={e => {
+                                      const v = e.target.value;
+                                      setMapSel(p => ({ ...p, [g.code]: v }));
+                                      if (v) void handleMapMajor(g.code, v);
+                                    }}
+                                    className="w-full rounded-lg border border-slate-300 px-2 py-1 text-[11px] min-w-0"
+                                  >
+                                    <option value="">— انتخاب رشتهٔ دانشگاه —</option>
+                                    {options.map(m => (
+                                      <option key={m.id} value={m.id}>
+                                        {m.name}{m.majorCode ? ` (${m.majorCode})` : ''}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              );
+                            })()}
                           </td>
                           <td className="p-2">
                             {mapping?.majorName ? (

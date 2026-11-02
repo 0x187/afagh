@@ -64,14 +64,15 @@ for (const file of pages) {
   const rel = path.relative(path.join(HERE, '..'), file).replace(/\\/g, '/');
 
   // ۱) تایپ باید Promise<...> باشد
-  const typeMatch = /searchParams\s*:\s*([^;\n}]+)/.exec(src);
+  //    نکته: `searchParams?: Promise<...>` هم درست است (پارامتر اختیاری)؛
+  //    نسخهٔ اولِ این تست `?` را نمی‌شناخت و هشدار کاذب می‌داد.
+  const typeMatch = /searchParams\??\s*:\s*([^;\n}]+)/.exec(src);
   const typeText = typeMatch?.[1] ?? '';
   if (!/Promise\s*</.test(typeText)) badType.push(rel);
 
-  // ۲) باید await شود: `await searchParams` یا `await props.searchParams`
-  //    (نکته: بخشِ پیشوندی اختیاری است؛ نسخهٔ اولِ همین تست اشتباه بود و
-  //     `await searchParams` ساده را نمی‌شناخت.)
-  if (!/await\s+(?:[A-Za-z_$][\w$]*\s*\.\s*)?searchParams/.test(src)) badAwait.push(rel);
+  // ۲) باید await شود: `await searchParams`، `await props.searchParams`،
+  //    یا شکل پرانتزدار `await (searchParams ?? Promise.resolve(...))`.
+  if (!/await\s*\(?\s*(?:[A-Za-z_$][\w$]*\s*\.\s*)?searchParams/.test(src)) badAwait.push(rel);
 }
 
 ok(withParams > 0, `صفحه‌های دارای searchParams پیدا شدند (${withParams})`);

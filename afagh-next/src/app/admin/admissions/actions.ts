@@ -152,13 +152,24 @@ export async function saveSanjeshMappingAction(sanjeshCode: string, internalMajo
     // به‌روزرسانی رکوردهای staging متناظر که در حالت انتظار بودند.
     // ⚠ فقط ردیف‌های **همین کد رشته** — پیش‌تر شرط کد نداشت و نگاشت یک کد،
     // همهٔ ردیف‌های در انتظار (حتی رشته‌های دیگر) را به همان رشته می‌چسباند.
+    // ردیف‌هایی که با نسخهٔ قدیمی ساخته شده‌اند، JSON ندارند و خط خام در
+    // rawSanjeshData دارند؛ کدشان از profileJson.fields خوانده می‌شود.
     await db
       .update(admissions_staging)
       .set({ mappedMajorId: internalMajorId, status: 'RESOLVED' })
       .where(
         and(
           eq(admissions_staging.status, 'PENDING_MAPPING'),
-          sql`(CASE WHEN ${admissions_staging.rawSanjeshData} LIKE '{%' THEN ${admissions_staging.rawSanjeshData}::jsonb ->> 'sanjeshCode' END) = ${sanjeshCode}`,
+          sql`(
+            (CASE WHEN ${admissions_staging.rawSanjeshData} LIKE '{%'
+                  THEN ${admissions_staging.rawSanjeshData}::jsonb ->> 'sanjeshCode' END) = ${sanjeshCode}
+            OR
+            (CASE WHEN ${admissions_staging.profileJson} LIKE '{%'
+                  THEN COALESCE(
+                    ${admissions_staging.profileJson}::jsonb #>> '{fields,fieldPlaceCode}',
+                    ${admissions_staging.profileJson}::jsonb #>> '{fields,fieldCode}'
+                  ) END) = ${sanjeshCode}
+          )`,
           uniScope(admissions_staging.universityId),
         ),
       );
