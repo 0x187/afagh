@@ -138,7 +138,7 @@ export default function AdmissionsClient({
 
   useEffect(() => { loadExisting(); }, [initialStaging]);
 
-  const decide = async (stagingId: number, decision: 'ALLOW_DUPLICATE' | 'REJECT' | 'CLEAR') => {
+  const decide = async (stagingId: number, decision: 'ALLOW_DUPLICATE' | 'REJECT' | 'CLEAR' | 'REPLACE') => {
     setDecisionBusy(stagingId);
     const res = await setStagingDecisionAction(stagingId, decision);
     setDecisionBusy(null);
