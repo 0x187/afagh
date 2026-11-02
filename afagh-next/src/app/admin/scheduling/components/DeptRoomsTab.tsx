@@ -15,10 +15,10 @@ const SHIFT_LABEL: Record<string, string> = { MORNING: 'صبح', EVENING: 'عص�
 
 export default function DeptRoomsTab() {
   const { classrooms, currentProgram, isDeptScope, selectedTermId, reloadRoomGrants, roomGrants, initial } = usePlanning();
-  const departments = (initial?.departments ?? []) as { id: number; name: string }[];
+  const departments = (initial?.departments ?? []) as { id: number; name: string; departmentCode: string | null }[];
   const deptName = (id: number) => {
     const d = departments.find(x => x.id === id);
-    return d ? `${d.name} (#${d.id})` : `دپارتمان #${id}`;
+    return d ? `${d.name} (${d.departmentCode ?? d.id})` : `دپارتمان ${id}`;
   };
 
   const [allocating, setAllocating] = useState(false);
@@ -186,7 +186,7 @@ export default function DeptRoomsTab() {
               className="border border-slate-300 rounded-lg px-2 py-1.5 text-xs font-bold bg-white"
             >
               {departments.map(d => (
-                <option key={d.id} value={d.id}>{d.name} (#{d.id})</option>
+                <option key={d.id} value={d.id}>{d.name} ({d.departmentCode ?? d.id})</option>
               ))}
             </select>
             <select
@@ -265,7 +265,7 @@ export default function DeptRoomsTab() {
                               className="border border-slate-300 rounded-lg px-2 py-1 text-xs font-bold bg-white"
                             >
                               {departments.map(d => (
-                                <option key={d.id} value={d.id}>{d.name} (#{d.id})</option>
+                                <option key={d.id} value={d.id}>{d.name} ({d.departmentCode ?? d.id})</option>
                               ))}
                             </select>
                             <button

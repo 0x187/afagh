@@ -221,7 +221,7 @@ export interface SchedulingWorkspace {
     isSharedService: boolean;
     offeringScope: string;
   }[];
-  departments: { id: number; name: string }[];
+  departments: { id: number; name: string; departmentCode: string | null }[];
   availabilities: { staffId: number; dayOfWeek: number | null; startTime: string | null; endTime: string | null; status: string | null }[];
   phases: Record<number, string>;
   termCalendar: {

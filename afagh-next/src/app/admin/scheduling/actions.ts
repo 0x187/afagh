@@ -655,7 +655,7 @@ export type SchedulingWorkspaceResult =
       classrooms: { id: number; name: string; buildingName: string; capacity: number; roomType: string; isActive: number | null; facultyId: number | null; facultyName: string | null }[];
       allocatedRoomIds: number[];
       roomGrants: { id: number; classroomId: number; shift: string; ownerDepartmentId: number; status: string }[];
-      departments: { id: number; name: string }[];
+      departments: { id: number; name: string; departmentCode: string | null }[];
       availabilities: { staffId: number; dayOfWeek: number | null; startTime: string | null; endTime: string | null; status: string | null }[];
       professors: { id: number; name: string; staffCode: string | null; academicRank: string | null; departmentName: string | null }[];
       demands: {
@@ -701,7 +701,7 @@ export async function getSchedulingWorkspaceAction(termId?: number, _universityI
       listRealPrograms(uid),
       listRealClassrooms(uid),
       listRealProfessors(uid),
-      db.select({ id: departments.id, name: departments.name }).from(departments).where(uniOrGlobal(departments.universityId, uid)).orderBy(departments.name),
+      db.select({ id: departments.id, name: departments.name, departmentCode: departments.departmentCode }).from(departments).where(uniOrGlobal(departments.universityId, uid)).orderBy(departments.name),
     ]);
     let professors = professorsRaw;
     // دامنهٔ مدیرگروه: فقط استادانِ دپارتمان‌های تحت مدیریتِ خودش را ببیند
