@@ -6,6 +6,12 @@ import { getCurrentUniversity } from '@/lib/university-scope';
 import { createLogger, maskSecrets } from '@/lib/logger';
 import { isEntryMethod, type EntryMethod } from '@/lib/entry-methods';
 import {
+  DEFAULT_FORMULA,
+  applyFormula,
+  validateFormula,
+  degreeCodeFor,
+} from '@/lib/student-id-formula';
+import {
   admissions_staging,
   degree_level_configs,
   educational_regulations,
@@ -191,7 +197,7 @@ export async function generateStudentId(
     .where(eq(student_id_formulas.degreeLevelId, params.degreeLevelId))
     .limit(1);
 
-  const formula = formulaRow?.formula || '{Year:2}{DegreeCode:1}{MajorCode:3}{Seq:3}';
+  const formula = formulaRow?.formula || DEFAULT_FORMULA;
   let nextSeq: number;
 
   if (formulaRow) {
@@ -232,40 +238,57 @@ export async function generateStudentId(
     }
   }
 
-  // استخراج متغیرها
-  return renderStudentCode(formula, {
-    entryYear: params.entryYear,
-    degreeCode: level?.code,
-    majorCode: params.majorCode,
-    seq: nextSeq,
-    quotaCode: params.quotaCode,
-  });
+  // استخراج متغیرها به نقشهٔ مقادیر (مشترک با کلاینت)
+  const vars: Record<string, string> = {
+    Year: String(params.entryYear ?? 1405),
+    DegreeCode: degreeCodeFor(level?.code),
+    MajorCode: params.majorCode || '412',
+    Seq: String(nextSeq ?? 0),
+    QuotaCode: String(params.quotaCode ?? 1),
+    UniversityCode: '',
+  };
+
+  // جایگذاری متغیرها در الگوی فرمول با پارسِ واقعی (ماژول مشترک).
+  // اگر فرمول نامعتبر باشد، به فرمول پیش‌فرض بازمی‌گردیم تا هرگز شمارهٔ
+  // خراب/ناقص تولید نشود؛ خطا را لاگ می‌کنیم.
+  let generated = formula;
+  const validationErrors = validateFormula(formula);
+  if (validationErrors.length === 0) {
+    const applied = applyFormula(formula, vars);
+    if (applied.errors.length === 0) {
+      generated = applied.result;
+    } else {
+      log.warn('student_id_formula_apply_error', { errors: applied.errors, formula });
+    }
+  } else {
+    log.warn('student_id_formula_invalid', { errors: validationErrors, formula });
+  }
+
+  if (generated === formula || !generated) {
+    const fallback = applyFormula(DEFAULT_FORMULA, vars);
+    generated = fallback.result;
+  }
+
+  return generated;
 }
 
-/** جایگذاری متغیرهای فرمول شماره دانشجویی — تابع خالص، مشترک بین صدور و بررسی یکتایی */
+/**
+ * تابع میانجی سازگار با checkFormulaUniqueness — شماره را با موتور اشتراکی
+ * می‌سازد. کد مقطع (BS/MS/PHD) را به رقم تبدیل می‌کند.
+ */
 export function renderStudentCode(
   formula: string,
   v: { entryYear: number; degreeCode?: string | null; majorCode?: string; seq: number; quotaCode?: number },
 ): string {
-  const year2 = String(v.entryYear).slice(-2); // مثلاً 05 برای 1405
-  const degreeDigit = v.degreeCode === 'BS' ? '1' : v.degreeCode === 'MS' ? '2' : v.degreeCode === 'PHD' ? '3' : '1';
-  const major3 = (v.majorCode || '412').padStart(3, '0').slice(-3);
-  const seq3 = String(v.seq).padStart(3, '0');
-  const quota1 = String(v.quotaCode || 1);
-
-  let generated = formula
-    .replace('{Year:2}', year2)
-    .replace('{DegreeCode:1}', degreeDigit)
-    .replace('{MajorCode:3}', major3)
-    .replace('{Seq:3}', seq3)
-    .replace('{QuotaCode:1}', quota1);
-
-  // در صورتی که فرمول متغیرهای پیش‌فرض نداشت
-  if (!generated || generated === formula) {
-    generated = `${year2}${degreeDigit}${major3}${seq3}`;
-  }
-
-  return generated;
+  const vars: Record<string, string> = {
+    Year: String(v.entryYear),
+    DegreeCode: degreeCodeFor(v.degreeCode),
+    MajorCode: v.majorCode || '412',
+    Seq: String(v.seq ?? 0),
+    QuotaCode: String(v.quotaCode ?? 1),
+    UniversityCode: '',
+  };
+  return applyFormula(formula, vars).result;
 }
 
 /**
