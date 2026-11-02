@@ -45,6 +45,8 @@ interface StagingItem {
     majorTitle?: string;
     universityCode?: string;
   };
+  /** فیلدهای کامل فایل سنجش برای جدول «بازبینی و تأیید» */
+  profile?: Record<string, string>;
 }
 
 interface SanjeshMappingItem {
@@ -143,6 +145,15 @@ export default function AdmissionsClient({
   const [isAssigning, setIsAssigning] = useState(false);
   // شمارهٔ شروع سریال به‌ازای هر رشته (خالی = خودکار/ادامهٔ بیشینهٔ همان رشته)
   const [majorStarts, setMajorStarts] = useState<Record<number, string>>({});
+  // «بازبینی و تأیید»: هیچ ردیفی بدون دیدنِ اطلاعاتِ کاملش صادر شماره نمی‌شود
+  const [reviewed, setReviewed] = useState<Set<number>>(new Set());
+  const toggleReviewed = (id: number) =>
+    setReviewed(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   const [isFinalizing, setIsFinalizing] = useState(false);
   const [importEntryMethod, setImportEntryMethod] = useState<string>('');
   const [existingItems, setExistingItems] = useState<any[]>([]);
@@ -552,6 +563,10 @@ export default function AdmissionsClient({
   const simStudentId = simResult.result;
   const formulaErrors = [...validateFormula(formulaPattern), ...simResult.errors];
 
+  // دروازهٔ بازبینی: تا همهٔ ردیف‌های آماده تأیید نشوند، شماره صادر نمی‌شود
+  const readyRows = stagingList.filter(s => s.status === 'RESOLVED' && s.mappedMajorId);
+  const unreviewedCount = readyRows.filter(s => !reviewed.has(s.id)).length;
+
   return (
     <div className="space-y-6" dir="rtl">
       {/* سربرگ صفحه */}
@@ -829,8 +844,9 @@ export default function AdmissionsClient({
                 </select>
                 <button
                   onClick={handleAssignNumbers}
-                  disabled={isAssigning}
-                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow transition disabled:opacity-50"
+                  disabled={isAssigning || unreviewedCount > 0}
+                  title={unreviewedCount > 0 ? `${unreviewedCount} ردیف هنوز در جدول «بازبینی و تأیید» تأیید نشده است.` : undefined}
+                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow transition disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isAssigning ? 'در حال صدور شماره...' : '1️⃣ صدور شماره دانشجویی'}
                 </button>
@@ -1024,6 +1040,137 @@ export default function AdmissionsClient({
             )}
           </div>
 
+          {/* ── بازبینی و تأیید نهایی: همهٔ اطلاعات هر داوطلب در یک جدول ── */}
+          {(() => {
+            if (stagingList.length === 0) return null;
+            const ready = stagingList.filter(s => s.status === 'RESOLVED' && s.mappedMajorId);
+            const unreviewed = ready.filter(s => !reviewed.has(s.id));
+            const genderFa = (g?: string) => (g === '1' ? 'مرد' : g === '2' ? 'زن' : '—');
+            return (
+              <div className="card p-6 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
+                  <div>
+                    <h2 className="text-sm font-black text-slate-900">
+                      🔍 بازبینی و تأیید نهایی (همهٔ اطلاعات، نه فقط رشته)
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      قبل از صدور شماره دانشجویی، تک‌تک ردیف‌ها را ببینید و تأیید کنید.
+                      تا ردیفی تأیید نشود، دکمهٔ «صدور شماره دانشجویی» فعال نمی‌شود.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[11px] font-bold ${unreviewed.length ? 'text-amber-700' : 'text-emerald-700'}`}>
+                      {reviewed.size.toLocaleString('fa-IR')} از {ready.length.toLocaleString('fa-IR')} تأیید شده
+                      {unreviewed.length ? ` — ${unreviewed.length.toLocaleString('fa-IR')} باقی مانده` : ' ✓'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setReviewed(new Set(ready.map(s => s.id)))}
+                      className="px-2.5 py-1 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 text-[11px] font-bold hover:bg-emerald-100"
+                    >
+                      تأیید همه
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReviewed(new Set())}
+                      className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-600 text-[11px] font-bold hover:bg-slate-50"
+                    >
+                      لغو همه
+                    </button>
+                  </div>
+                </div>
+
+                <div className="overflow-auto max-h-[28rem] rounded-xl border border-slate-200">
+                  <table className="w-full text-right text-[11px]">
+                    <thead className="sticky top-0 z-10 bg-slate-100 text-slate-700">
+                      <tr>
+                        <th className="p-2 font-bold whitespace-nowrap">تأیید</th>
+                        <th className="p-2 font-bold whitespace-nowrap">#</th>
+                        <th className="p-2 font-bold whitespace-nowrap">کد ملی</th>
+                        <th className="p-2 font-bold whitespace-nowrap">نام</th>
+                        <th className="p-2 font-bold whitespace-nowrap">نام خانوادگی</th>
+                        <th className="p-2 font-bold whitespace-nowrap">نام پدر</th>
+                        <th className="p-2 font-bold whitespace-nowrap">جنسیت</th>
+                        <th className="p-2 font-bold whitespace-nowrap">مقطع</th>
+                        <th className="p-2 font-bold whitespace-nowrap">رشتهٔ سنجش</th>
+                        <th className="p-2 font-bold whitespace-nowrap">رشتهٔ دانشگاه</th>
+                        <th className="p-2 font-bold whitespace-nowrap">سهمیه</th>
+                        <th className="p-2 font-bold whitespace-nowrap">کد دانشگاه</th>
+                        <th className="p-2 font-bold whitespace-nowrap">موبایل</th>
+                        <th className="p-2 font-bold whitespace-nowrap">وضعیت</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {stagingList.map((s, i) => {
+                        const p = s.profile ?? {};
+                        const isReady = s.status === 'RESOLVED' && !!s.mappedMajorId;
+                        const isDone = reviewed.has(s.id);
+                        return (
+                          <tr
+                            key={s.id}
+                            className={`border-t border-slate-100 ${isDone ? 'bg-emerald-50/50' : isReady ? 'bg-amber-50/30' : ''}`}
+                          >
+                            <td className="p-2">
+                              <input
+                                type="checkbox"
+                                checked={isDone}
+                                disabled={!isReady}
+                                onChange={() => toggleReviewed(s.id)}
+                                title={isReady ? 'تأیید این ردیف' : 'اول رشته را نگاشت کنید'}
+                                className="h-4 w-4 accent-emerald-600 disabled:opacity-30"
+                              />
+                            </td>
+                            <td className="p-2 text-slate-400 tabular-nums">{(i + 1).toLocaleString('fa-IR')}</td>
+                            <td className="p-2 font-mono font-bold text-slate-800" dir="ltr">{s.nationalCode}</td>
+                            <td className="p-2 text-slate-800 whitespace-nowrap">{p.firstName || '—'}</td>
+                            <td className="p-2 text-slate-800 whitespace-nowrap">{p.lastName || s.fullName || '—'}</td>
+                            <td className="p-2 text-slate-600 whitespace-nowrap">{p.fatherName || '—'}</td>
+                            <td className="p-2 text-slate-600">{genderFa(p.gender)}</td>
+                            <td className="p-2 text-slate-600 whitespace-nowrap">{p.degreeLevelTitle || s.rawSanjeshData?.degreeLevel || '—'}</td>
+                            <td className="p-2 text-slate-600 whitespace-nowrap">
+                              {p.fieldPlaceTitle || p.fieldTitle || s.rawSanjeshData?.majorTitle || '—'}
+                            </td>
+                            <td className="p-2 whitespace-nowrap">
+                              {s.mappedMajorName
+                                ? <span className="font-bold text-emerald-700">{s.mappedMajorName}</span>
+                                : <span className="text-rose-600">نگاشت نشده</span>}
+                            </td>
+                            <td className="p-2 text-slate-600 whitespace-nowrap">
+                              {p.quotaAdmitTitle || p.quotaFinalTitle || s.rawSanjeshData?.quota || '—'}
+                            </td>
+                            <td className="p-2 font-mono text-slate-600" dir="ltr">
+                              {p.universityCode || s.rawSanjeshData?.universityCode || '—'}
+                            </td>
+                            <td className="p-2 font-mono text-slate-600" dir="ltr">{p.mobile || s.mobile || '—'}</td>
+                            <td className="p-2 whitespace-nowrap">
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                  s.status === 'IMPORTED'
+                                    ? 'bg-emerald-100 text-emerald-900'
+                                    : isReady
+                                    ? 'bg-sky-100 text-sky-900'
+                                    : 'bg-rose-100 text-rose-900'
+                                }`}
+                              >
+                                {s.status === 'IMPORTED'
+                                  ? 'ثبت قطعی'
+                                  : s.status === 'NUMBER_ASSIGNED'
+                                  ? 'شماره صادر شد'
+                                  : isReady
+                                  ? 'آماده'
+                                  : 'نیازمند نگاشت'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* جدول رکوردهای در صف Staging */}
           <div className="card overflow-x-auto bg-white border border-slate-200 rounded-2xl shadow-sm">
             <div className="p-4 border-b border-slate-100 flex items-center justify-between">
@@ -1091,10 +1238,14 @@ export default function AdmissionsClient({
                           const rowTitle = st.rawSanjeshData?.majorTitle || st.rawSanjeshData?.majorGroup || '';
                           const candidates = majorsFor(st.rawSanjeshData?.degreeLevel ?? '');
                           const sug = rowTitle ? bestSuggestion(rowTitle, candidates, 0.55) : null;
+                          // اگر برای این کد از قبل نگاشتی ثبت شده، همان را نشان بده
+                          // (وگرنه کاربر فکر می‌کند نگاشتش گم شده).
+                          const known = mappingsList.find(m => m.sanjeshCode === rowCode);
+                          const selValue = mapSel[rowCode] ?? (known?.internalMajorId ? String(known.internalMajorId) : '');
                           return (
                             <div className="flex flex-col gap-1">
                               <select
-                                value={mapSel[st.rawSanjeshData?.sanjeshCode ?? ''] ?? ''}
+                                value={selValue}
                                 onChange={e => {
                                   const v = e.target.value;
                                   const code = (st.rawSanjeshData?.sanjeshCode ?? '').trim();

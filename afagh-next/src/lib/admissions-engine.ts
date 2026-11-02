@@ -131,6 +131,46 @@ export const DEFAULT_SANJESH_MAPPINGS = [
   { sanjeshCode: '99005', majorName: 'سهمیه Nomadic', majorCode: '9905', quota: 'سهمیه عشایری' },
 ];
 
+/**
+ * همگام‌سازی ردیف‌های صف با جدول نگاشت.
+ *
+ * چرا لازم است: نگاشت یک کد رشته در `sanjesh_mappings` ذخیره می‌شود و اکشن
+ * تلاش می‌کند ردیف‌های staging را هم RESOLVED کند. اما اگر آن به‌روزرسانی به
+ * هر دلیلی نگیرد (نسخهٔ قدیمیِ کد، ردیفی که کدش فقط در profileJson است،
+ * قطع اتصال)، جدول برابری «✓ نگاشت شد» نشان می‌دهد ولی ردیف‌ها همچنان
+ * «نیازمند نگاشت» می‌مانند — دقیقاً همان ناهماهنگیِ گیج‌کننده.
+ *
+ * این تابع idempotent است و در بارگذاری صفحه اجرا می‌شود؛ فقط ردیف‌های
+ * PENDING_MAPPING را لمس می‌کند و هیچ نگاشت تازه‌ای نمی‌سازد.
+ */
+export async function resyncStagingMappings(): Promise<number> {
+  try {
+    const res: any = await db.execute(sql`
+      UPDATE admissions_staging s
+      SET "mappedMajorId" = m."internalMajorId",
+          status = 'RESOLVED'
+      FROM sanjesh_mappings m
+      WHERE s.status = 'PENDING_MAPPING'
+        AND m."internalMajorId" IS NOT NULL
+        AND (m."universityId" IS NULL OR m."universityId" = s."universityId")
+        AND (
+          (CASE WHEN s."rawSanjeshData" LIKE '{%'
+                THEN s."rawSanjeshData"::jsonb ->> 'sanjeshCode' END) = m."sanjeshCode"
+          OR
+          (CASE WHEN s."profileJson" LIKE '{%'
+                THEN COALESCE(
+                  s."profileJson"::jsonb #>> '{fields,fieldPlaceCode}',
+                  s."profileJson"::jsonb #>> '{fields,fieldCode}'
+                ) END) = m."sanjeshCode"
+        )
+    `);
+    return Number(res?.rowCount ?? res?.rows?.[0]?.count ?? 0);
+  } catch (err) {
+    log.error('staging_mapping_resync_failed', { err });
+    return 0;
+  }
+}
+
 export async function ensureDefaultSanjeshMappings() {
   try {
     const existing = await db.select().from(sanjesh_mappings);

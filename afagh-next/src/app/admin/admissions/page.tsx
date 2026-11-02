@@ -10,7 +10,7 @@ import {
   student_id_formulas,
 } from '@/db/schema';
 import { requireRole } from '@/lib/auth';
-import { ensureDefaultSanjeshMappings } from '@/lib/admissions-engine';
+import { ensureDefaultSanjeshMappings, resyncStagingMappings } from '@/lib/admissions-engine';
 import { ensureDefaultIntegrations } from '@/lib/api-integrations';
 import { getCurrentUniversity } from '@/lib/university-scope';
 import AdmissionsClient from './AdmissionsClient';
@@ -21,6 +21,9 @@ export default async function AdminAdmissionsPage() {
   await requireRole(['ADMIN', 'EDU_EXPERT']);
   // دو تضمینِ پیش‌فرض روی جدول‌های متفاوت‌اند و به هم وابسته نیستند — موازی می‌روند.
   await Promise.all([ensureDefaultSanjeshMappings(), ensureDefaultIntegrations()]);
+  // نگاشت‌هایی که قبلاً ثبت شده‌اند ولی ردیف‌های صف عقب مانده‌اند را همگام می‌کند
+  // (idempotent؛ فقط ردیف‌های PENDING_MAPPING را لمس می‌کند).
+  await resyncStagingMappings();
 
   const currentUniversity = await getCurrentUniversity();
   const currentUniversityId = currentUniversity?.id ?? null;
@@ -66,16 +69,19 @@ export default async function AdminAdmissionsPage() {
       parsedData = {};
     }
 
+    // فیلدهای کاملِ سنجش — برای جدول «بازبینی و تأیید» که همهٔ اطلاعات
+    // هر داوطلب را نشان می‌دهد، نه فقط رشته را.
+    let profileFields: Record<string, string> = {};
+    try {
+      if (s.profileJson) profileFields = JSON.parse(s.profileJson)?.fields ?? {};
+    } catch (_) {}
+
     // ردیف‌هایی که با نسخهٔ قدیمیِ ingest ساخته شده‌اند، به‌جای JSON خطِ خامِ
     // فایل را در rawSanjeshData دارند (JSON.parse می‌شکند) ⇒ همهٔ ستون‌ها خالی
     // می‌شدند و ردیف هرگز نگاشت نمی‌خورد. دادهٔ کامل در profileJson.fields هست؛
     // از همان بازسازی می‌کنیم تا نیازی به وارد کردن دوبارهٔ فایل نباشد.
     if (!parsedData || typeof parsedData !== 'object' || Object.keys(parsedData).length === 0) {
-      let profile: any = {};
-      try {
-        if (s.profileJson) profile = JSON.parse(s.profileJson);
-      } catch (_) {}
-      const f: Record<string, string> = profile?.fields ?? {};
+      const f = profileFields;
       const code = (f.fieldPlaceCode || f.fieldCode || '').trim();
       if (code || f.fieldTitle || f.fieldPlaceTitle) {
         parsedData = {
@@ -107,6 +113,7 @@ export default async function AdminAdmissionsPage() {
       studentId: s.studentId,
       mobile: s.mobile,
       rawSanjeshData: parsedData,
+      profile: profileFields,
     };
   });
 

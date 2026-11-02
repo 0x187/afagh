@@ -10,6 +10,7 @@ import {
   checkFormulaUniqueness,
   parseAndStageSanjeshData,
   registerManualStudent,
+  resyncStagingMappings,
 } from '@/lib/admissions-engine';
 import { executeIrandocCheck } from '@/lib/api-integrations';
 import { isEntryMethod } from '@/lib/entry-methods';
@@ -174,6 +175,9 @@ export async function saveSanjeshMappingAction(sanjeshCode: string, internalMajo
           uniScope(admissions_staging.universityId),
         ),
       );
+
+    // کمربند ایمنی: هر نگاشتِ دیگری که ردیفش عقب مانده هم همگام می‌شود
+    await resyncStagingMappings();
 
     revalidatePath('/admin/admissions');
     return { ok: true };
