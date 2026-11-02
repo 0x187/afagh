@@ -845,6 +845,34 @@ export function detectTemplateByColumnCount(colCount: number): SanjeshTemplate |
 }
 
 /**
+ * تشخیص «نزدیک‌ترین» قالب وقتی تعداد ستون دقیقاً برابر نیست.
+ *
+ * چرا لازم است: فایل‌های واقعی سنجش با تعداد ستون متفاوت می‌آیند
+ * (کاردانی ۵۷، ارشد ۷۴، کاردانی‌به‌کارشناسی ۶۹، سراسری ۸۵) و کوچک‌ترین
+ * تفاوت — یک `$` اضافه در انتهای خط یا حذف یک ستون در ویرایش جدید —
+ * باعث می‌شود تطبیق دقیق شکست بخورد و کل فایل «بی‌قالب» و نگاشت‌نشده بماند.
+ *
+ * قاعده: اختلاف حداکثر ۵ ستون؛ اولویت با قالبی که ستونش **بیشتر یا مساوی**
+ * فایل باشد (چون ستون‌های انتهایی معمولاً خالی/حذف‌شده‌اند)، سپس کمترین اختلاف.
+ */
+export function detectTemplateFuzzy(colCount: number): { template: SanjeshTemplate; exact: boolean } | null {
+  const exact = detectTemplateByColumnCount(colCount);
+  if (exact) return { template: exact, exact: true };
+  if (!colCount || colCount <= 0) return null;
+
+  const candidates = SANJESH_TEMPLATES
+    .map((t) => ({ t, diff: Math.abs(t.columnCount - colCount), covers: t.columnCount >= colCount }))
+    .filter((c) => c.diff <= 5)
+    .sort((a, b) => {
+      if (a.covers !== b.covers) return a.covers ? -1 : 1;
+      if (a.diff !== b.diff) return a.diff - b.diff;
+      return a.t.columnCount - b.t.columnCount;
+    });
+
+  return candidates.length > 0 ? { template: candidates[0].t, exact: false } : null;
+}
+
+/**
  * نگاشت مقدار خام به عنوان فارسی.
  * هم کد و هم عنوان را می‌پذیرد (فایل‌های واقعی هر دو حالت را دارند:
  * کاردانی `جنس='2'` و ارشد `جنسیت='مرد'`).

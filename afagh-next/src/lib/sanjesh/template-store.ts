@@ -163,6 +163,50 @@ export async function loadTemplateByKey(key: string, universityId?: number | nul
   return SANJESH_TEMPLATE_MAP[key] ?? null;
 }
 
+/**
+ * تشخیص قالب از تعداد ستون، با در نظر گرفتن قالب‌های **دیتابیس** (نه فقط کد).
+ * ابتدا تطبیق دقیق، بعد نزدیک‌ترین قالب با اختلاف حداکثر ۵ ستون.
+ * اگر تطبیق دقیق نبود `exact: false` برمی‌گردد تا در فایل هشدار ثبت شود.
+ */
+export async function detectTemplateKeyByColumnCount(
+  colCount: number,
+  universityId?: number | null,
+): Promise<{ key: string; exact: boolean } | null> {
+  if (!colCount || colCount <= 0) return null;
+  try {
+    const rows = await db
+      .select({
+        key: sanjesh_templates.key,
+        columnCount: sanjesh_templates.columnCount,
+        universityId: sanjesh_templates.universityId,
+        isActive: sanjesh_templates.isActive,
+      })
+      .from(sanjesh_templates);
+    const active = rows.filter((r) => r.isActive !== false);
+    if (active.length === 0) return null;
+
+    // اولویت قالب همان دانشگاه
+    const preferOwn = (list: typeof active) => {
+      const own = list.find((r) => r.universityId != null && r.universityId === universityId);
+      return own ?? list.find((r) => r.universityId == null) ?? list[0];
+    };
+
+    const exact = active.filter((r) => r.columnCount === colCount);
+    if (exact.length > 0) return { key: preferOwn(exact).key, exact: true };
+
+    const near = active
+      .map((r) => ({ r, diff: Math.abs(r.columnCount - colCount), covers: r.columnCount >= colCount }))
+      .filter((c) => c.diff <= 5)
+      .sort((a, b) => {
+        if (a.covers !== b.covers) return a.covers ? -1 : 1;
+        return a.diff - b.diff;
+      });
+    return near.length > 0 ? { key: near[0].r.key, exact: false } : null;
+  } catch {
+    return null;
+  }
+}
+
 /** یک قالب با شناسهٔ عددی */
 export async function loadTemplateById(id: number): Promise<SanjeshTemplate | null> {
   try {

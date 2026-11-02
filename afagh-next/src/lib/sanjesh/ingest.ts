@@ -25,8 +25,8 @@ import {
 import { universityScope } from './access';
 import { blindIndex, encryptPii } from '@/lib/pii';
 import { buildRowPayload, parseSanjeshFile, rowFingerprint, type SanjeshParseResult } from './parse';
-import { detectTemplateByColumnCount, type SanjeshTemplate } from './templates';
-import { loadTemplateByKey, templateIdOf } from './template-store';
+import { detectTemplateFuzzy, type SanjeshTemplate } from './templates';
+import { detectTemplateKeyByColumnCount, loadTemplateByKey, templateIdOf } from './template-store';
 
 /** پیشوند context شاخص کور — هرگز تغییر نکند، وگرنه همهٔ شاخص‌ها بی‌اعتبار می‌شوند. */
 const NC_CONTEXT = 'sanjesh_file_rows.nationalCode';
@@ -88,12 +88,34 @@ export async function ingestSanjeshFile(input: IngestInput): Promise<IngestResul
 
   // بدون قالب صریح: تلاش برای تشخیص از تعداد ستون
   if (!template) {
-    const guessed = detectTemplateByColumnCount(parsed.colCount);
-    if (guessed) {
-      template = guessed;
+    // ۱) قالب‌های کد (با تحمل اختلاف چند ستون)
+    const fuzzy = detectTemplateFuzzy(parsed.colCount);
+    let picked = fuzzy?.template ?? null;
+    let exact = fuzzy?.exact ?? false;
+
+    // ۲) قالب‌های تعریف‌شده در دیتابیس (قبلاً در تشخیص خودکار دیده نمی‌شدند)
+    if (!picked) {
+      const dbHit = await detectTemplateKeyByColumnCount(parsed.colCount, input.universityId ?? null);
+      if (dbHit) {
+        picked = await loadTemplateByKey(dbHit.key, input.universityId ?? null);
+        exact = dbHit.exact;
+      }
+    }
+
+    if (picked) {
+      template = picked;
       // پارس دوباره با قالب تشخیص‌داده‌شده تا فیلدها نگاشت شوند
-      const re = parseSanjeshFile(input.buffer, guessed);
+      const re = parseSanjeshFile(input.buffer, picked);
       Object.assign(parsed, re);
+      if (!exact) {
+        parsed.warnings.push(
+          `تعداد ستون فایل (${parsed.colCount}) دقیقاً با قالب «${picked.key}» (${picked.columnCount} ستون) برابر نبود؛ نزدیک‌ترین قالب انتخاب شد. اگر نگاشت اشتباه بود، قالب را دستی انتخاب کنید.`,
+        );
+      }
+    } else {
+      parsed.warnings.push(
+        `قالب متناسبی برای ${parsed.colCount} ستون پیدا نشد؛ ستون‌ها فقط با شماره ذخیره شدند و باید دستی نگاشت شوند.`,
+      );
     }
   }
 
