@@ -93,36 +93,71 @@ try {
   console.error('❌ pg_restore نتوانست آرشیو را بخواند — این فایل قابل بازگردانی نیست:', err.message);
   process.exit(1);
 }
-const countOf = (kind) => listing.split('\n').filter((l) => l.startsWith(`; Archive entry contents; ${kind}`)).length;
+
+// ═══ شمارشِ اقلامِ آرشیو ═══
+// ⚠ باگِ پیشین (اصلاح‌شده): شمارنده هرگز چیزی نمی‌شمرد، پس راستی‌آزمایی عملاً
+//   بی‌اثر بود و همیشه پیامِ دلگرم‌کنندهٔ «ادامه» می‌داد. دو خطا داشت:
+//     ۱) الگوی TABLE با `^;` شروع می‌شد، ولی سطرهای TOC در خروجیِ
+//        `pg_restore --list` با `;` شروع نمی‌شوند؛ شکلشان این است:
+//           215; 1259 16391 TABLE public.users afagh
+//     ۲) countOf() دنبالِ رشتهٔ «; Archive entry contents; KIND» می‌گشت که
+//        در این خروجی اصلاً وجود ندارد (باقی‌مانده از `pg_restore -l` نسخه‌های
+//        قدیمی). نتیجه: INDEX/CONSTRAINT/TABLE_DATA همیشه صفر.
+//   پیامدِ واقعی: یک دامپِ ۵۲ مگابایتیِ خراب هم «سالم» گزارش می‌شد.
+//   برای یک ERP مالی/آموزشی این ریسکِ خاموش قابل‌قبول نیست.
+const tocTypes = listing
+  .split('\n')
+  .filter((l) => /^\d+;\s+\d+\s+\d+\s+/.test(l))
+  .map((l) => l.replace(/^\d+;\s+\d+\s+\d+\s+/, ''));
+
 const counts = {
-  TABLE: listing.split('\n').filter((l) => /^;\s*\d+;\s+\d+\s+\d+\s+TABLE\s/.test(l)).length,
-  INDEX: countOf('INDEX'),
-  CONSTRAINT: countOf('CONSTRAINT'),
-  TABLE_DATA: countOf('TABLE DATA'),
+  // `TABLE DATA` جداست، پس باید از شمارشِ TABLE کنار گذاشته شود.
+  TABLE: tocTypes.filter((t) => /^TABLE\s/.test(t) && !/^TABLE DATA\s/.test(t)).length,
+  TABLE_DATA: tocTypes.filter((t) => /^TABLE DATA\s/.test(t)).length,
+  INDEX: tocTypes.filter((t) => /^INDEX\s/.test(t)).length,
+  // هم `CONSTRAINT` و هم `FK CONSTRAINT` و `CHECK CONSTRAINT`
+  CONSTRAINT: tocTypes.filter((t) => /^(FK |CHECK )?CONSTRAINT\s/.test(t)).length,
 };
+
 if (counts.TABLE === 0 || counts.TABLE_DATA === 0) {
   const bytes = statSync(file).size;
+  const kb = (bytes / 1024).toFixed(0);
+
+  // حالتِ ۱: خروجیِ --list اصلاً قابلِ تحلیل نیست (نه جدول، نه هیچ قلمِ دیگری).
+  // این یعنی آرشیو یا خراب است یا نسخهٔ pg_restore با فرمتِ دامپ نمی‌خواند.
+  if (tocTypes.length === 0) {
+    console.error(`❌ خروجیِ pg_restore --list هیچ قلمِ قابل‌تحلیلی ندارد (${kb}KB).`);
+    console.error('   یعنی فرمتِ آرشیو با این نسخهٔ pg_restore سازگار نیست یا فایل خراب است.');
+    console.error('   پیش از تکیه بر این پشتیبان، با «make drill» یک بازگردانیِ واقعی بگیرید.');
+    process.exit(1);
+  }
+
+  // حالتِ ۲: آرشیو اقلام دارد ولی هیچ جدولی ندارد → دامپِ بی‌محتوا.
   if (bytes > 4096) {
-    console.warn(`⚠ فرمت pg_restore --list با شمارشگر سازگار نیست (${counts.TABLE} جدول / ${counts.TABLE_DATA} داده) ولی حجم فایل (${(bytes / 1024).toFixed(0)}KB) نشان‌دهندهٔ محتواست — ادامه.`);
+    console.error(`❌ آرشیو ${kb}KB حجم دارد ولی هیچ جدولی در آن نیست (${tocTypes.length} قلمِ دیگر).`);
+    console.error('   این پشتیبان قابلِ بازگردانی نیست. استقرار متوقف شد.');
+    process.exit(1);
+  }
+
+  // حالتِ ۳: فایلِ کوچک — در نصب تازه، بک‌آپ پیش از migrate-db از DB خالی گرفته
+  // می‌شود، پس خالی بودن طبیعی است. فقط اگر DB فعلی جدول داشته باشد مشکوک است.
+  let dbHasTables = false;
+  try {
+    const { default: pgMod } = await import('pg');
+    const ck = new pgMod.Client({ connectionString: process.env.DATABASE_URL });
+    await ck.connect();
+    const r = await ck.query("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' LIMIT 1");
+    dbHasTables = r.rows.length > 0;
+    await ck.end();
+  } catch {}
+  if (dbHasTables) {
+    console.warn('⚠ پشتیبان بی‌محتواست (قبل از migrate-db ساخته شد) ولی DB فعلی جدول دارد — طبیعی در نصب تازه.');
   } else {
-    // در نصب تازه، بک‌آپ قبل از migrate-db می‌شود (DB خالی) → خالی بودن طبیعی است
-    let dbHasTables = false;
-    try {
-      const { default: pgMod } = await import('pg');
-      const ck = new pgMod.Client({ connectionString: process.env.DATABASE_URL });
-      await ck.connect();
-      const r = await ck.query("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_type='BASE TABLE' LIMIT 1");
-      dbHasTables = r.rows.length > 0;
-      await ck.end();
-    } catch {}
-    if (dbHasTables) {
-      console.warn('⚠ پشتیبان بی‌محتواست (قبل از migrate-db ساخته شد) ولی DB فعلی جدول دارد — طبیعی در نصب تازه.');
-    } else {
-      console.error('❌ آرشیو هیچ جدول یا داده‌ای ندارد — پشتیبان بی‌محتواست.');
-      process.exit(1);
-    }
+    console.error('❌ آرشیو هیچ جدول یا داده‌ای ندارد — پشتیبان بی‌محتواست.');
+    process.exit(1);
   }
 }
+
 console.log(`✓ آرشیو سالم است: ${counts.TABLE} جدول · ${counts.TABLE_DATA} بخش داده · ${counts.CONSTRAINT} قید`);
 
 // ── ۳) بازگردانی واقعی (اختیاری) ──
