@@ -389,3 +389,55 @@ CREATE INDEX IF NOT EXISTS "idx_req_process"     ON "student_requests" ("process
 
 -- فهرست درخواست‌های دانشجو و کارتابل‌های شخصی بر اساسِ وضعیت
 CREATE INDEX IF NOT EXISTS "idx_req_student_status" ON "student_requests" ("studentId", "status");
+
+-- ═══════════════════════════════════════════════════════════════════════════
+--  ایندکس‌های «گلوگاهِ حقوق و مالی» — پروفایلِ pg_stat_activity روی سرور
+--  ───────────────────────────────────────────────────────────────────────────
+--  دو کوئری‌ای که در پروفایلِ واقعی بیشترین زمان را می‌گرفتند:
+--
+--    ۱) select s.id as "staffId", count(e.id) as "pendingGrades" ...   → ۱ تا ۵ ثانیه
+--    ۲) select l."transactionType", l.amount::float8 ...               → ۰.۶۶ ثانیه
+--
+--  علتِ ریشه‌ای (نه تئوری — با `\di` روی دیتابیس تأیید شد):
+--
+--    • جدولِ `offering_professors` با **۱۶۰ ارجاع در کد** هیچ ایندکسی روی
+--      `offeringId` نداشت. تنها ایندکسش `(role, staffId)` بود که برای
+--      `where "offeringId" = X` بی‌فایده است. نتیجه: هر جست‌وجوی «اساتیدِ این
+--      ارائه» یک Seq Scan روی کلِ جدول.
+--
+--    • `course_offerings` هیچ ایندکسی روی `professorId` نداشت، در حالی که
+--      کارتابلِ استاد، حقوق، عملکردِ استاد و صورت‌جلسه‌ها همه با
+--      `where "professorId" = X` فیلتر می‌کنند.
+--
+--    • `student_ledger` ایندکسِ `universityId` نداشت؛ صفحاتِ مالی با
+--      `where ("universityId" = X or "universityId" is null)` می‌خوانند.
+--
+--  ⚠ `CONCURRENTLY` باز هم استفاده نشده (توضیحش بالاتر: تراکنشِ واحد).
+--    ساختنِ این ایندکس‌ها روی چند صد هزار ردیف در حدِ چند ثانیه است و چون
+--    زیرِ `pg_advisory_lock` اجرا می‌شود، هم‌زمانیِ دو دیپلوی مشکلی نمی‌سازد.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- ۱) اساتیدِ هر ارائه (جهتِ «ارائه → استاد») و برعکس (جهتِ «استاد → ارائه»).
+--    هر دو جهت لازم است: کارتابلِ استاد از دومی می‌خواند، حقوق/گلوگاه از اولی.
+CREATE INDEX IF NOT EXISTS "idx_op_offering_staff" ON "offering_professors" ("offeringId", "staffId");
+CREATE INDEX IF NOT EXISTS "idx_op_staff_offering" ON "offering_professors" ("staffId", "offeringId");
+
+-- ۲) ارائه‌های یک استاد در یک ترم (کارتابلِ استاد، حقوق، صورت‌جلسه).
+CREATE INDEX IF NOT EXISTS "idx_co_prof_term" ON "course_offerings" ("professorId", "termId");
+
+-- ۳) گلوگاهِ «نمراتِ قطعی‌نشده» — ایندکسِ جزئی.
+--    فقط ثبت‌نام‌های REGISTERED که نمره‌شان FINALIZED نیست ایندکس می‌شوند؛
+--    یعنی در عمل چند هزار ردیف، نه کلِ جدول. کوئریِ گلوگاه دقیقاً همین شرط را
+--    دارد، پس PostgreSQL می‌تواند فقط همین ایندکس را بخواند و به جدول دست نزند.
+--    (`coalesce` تابعِ IMMUTABLE است، پس در predicate مجاز است.)
+CREATE INDEX IF NOT EXISTS "idx_enr_pending_grade"
+  ON "enrollments" ("offeringId")
+  WHERE "status" = 'REGISTERED' AND coalesce("gradeStatus", '') <> 'FINALIZED';
+
+-- ۴) دفتر مالی: «آخرین تراکنش‌های دانشگاه» با `order by id desc limit 10`.
+--    ترتیبِ نزولیِ `id` داخلِ خودِ ایندکس است تا Sort حذف شود.
+CREATE INDEX IF NOT EXISTS "idx_ledger_uni_id" ON "student_ledger" ("universityId", "id" DESC);
+
+-- ۵) تفکیکِ وصولی بر اساسِ نوع واریز: `where "transactionType"='PAYMENT'`
+--    به‌همراهِ محدودهٔ دانشگاه.
+CREATE INDEX IF NOT EXISTS "idx_ledger_uni_type" ON "student_ledger" ("universityId", "transactionType", "depositType");

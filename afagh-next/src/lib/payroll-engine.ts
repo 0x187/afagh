@@ -479,14 +479,42 @@ export async function loadTermPayrollData(termId: number, universityId?: number)
         group by cs."offeringId"
       `),
 
-      // ۵) گلوگاه ۱: نمرات قطعی‌نشده به تفکیک استاد — یک GROUP BY
+      // ۵) گلوگاه ۱: نمرات قطعی‌نشده به تفکیک استاد.
+      //
+      // ⚠ بازنویسیِ عملکردی (این کوئری در پروفایلِ دیتابیس ۱ تا ۵ ثانیه طول
+      //   می‌کشید و چون از صفحهٔ حقوق اجرا می‌شود، بقیهٔ کوئری‌های سامانه پشتِ
+      //   آن صف می‌بستند).
+      //
+      //   شکلِ قبلی:
+      //     from staff s
+      //     join course_offerings o on o."termId" = X
+      //       and (o."professorId" = s.id or exists (...))
+      //   شرطِ اتصال یک `OR` با زیرکوئریِ همبسته بود؛ PostgreSQL نمی‌تواند برای
+      //   آن hash/merge join بسازد و مجبور است **حاصل‌ضربِ دکارتیِ staff ×
+      //   course_offerings** را با nested loop بپیماید (و برای هر جفت، یک
+      //   EXISTS هم اجرا کند). با چند صد استاد و چند هزار ارائه، این می‌شود
+      //   میلیون‌ها مقایسه.
+      //
+      //   شکلِ جدید: اول «جفت‌های (ارائه، استاد)» را با دو اتصالِ تساوی‌محور
+      //   می‌سازیم و با `union` یکتا می‌کنیم (استادی که هم professorId است و هم
+      //   در offering_professors، دوبار شمرده نمی‌شود)، بعد با enrollments
+      //   اتصال می‌زنیم. نتیجه دقیقاً همان است، ولی با hash join.
       db.execute(sql`
-        select s.id as "staffId", count(e.id) as "pendingGrades"
-        from staff s
-        join course_offerings o on o."termId" = ${termId}
-          and (o."professorId" = s.id or exists (select 1 from offering_professors op where op."offeringId" = o.id and op."staffId" = s.id))
-        join enrollments e on e."offeringId" = o.id and e.status = 'REGISTERED' and coalesce(e."gradeStatus", '') <> 'FINALIZED'
-        group by s.id
+        with teacher_offerings as (
+          select o.id as "offeringId", o."professorId" as "staffId"
+          from course_offerings o
+          where o."termId" = ${termId} and o."professorId" is not null
+          union
+          select op."offeringId" as "offeringId", op."staffId" as "staffId"
+          from offering_professors op
+          join course_offerings o2 on o2.id = op."offeringId"
+          where o2."termId" = ${termId}
+        )
+        select t."staffId" as "staffId", count(e.id) as "pendingGrades"
+        from teacher_offerings t
+        join enrollments e on e."offeringId" = t."offeringId"
+          and e.status = 'REGISTERED' and coalesce(e."gradeStatus", '') <> 'FINALIZED'
+        group by t."staffId"
       `),
 
       // ۶) گلوگاه ۲: اسناد امضانشده — یک GROUP BY
@@ -785,12 +813,25 @@ async function loadStaffGates(
   staffId: number,
 ) {
   const [gradeRow, docRow] = await Promise.all([
+    // همان بازنویسیِ گلوگاهِ ترم، ولی برای یک استاد: به‌جای
+    // `professorId = X OR exists(...)` که برای هر ارائه یک زیرکوئریِ همبسته
+    // اجرا می‌کرد، دو شاخهٔ تساوی‌محور را با `union` یکی می‌کنیم تا هر دو شاخه
+    // از ایندکسِ خودشان (`idx_co_prof_term` و `idx_op_staff_offering`) بخوانند.
     q.execute(sql`
+      with my_offerings as (
+        select o.id as "offeringId"
+        from course_offerings o
+        where o."termId" = ${termId} and o."professorId" = ${staffId}
+        union
+        select op."offeringId" as "offeringId"
+        from offering_professors op
+        join course_offerings o2 on o2.id = op."offeringId"
+        where o2."termId" = ${termId} and op."staffId" = ${staffId}
+      )
       select count(e.id) as "pendingGrades"
-      from course_offerings o
-      join enrollments e on e."offeringId" = o.id and e.status = 'REGISTERED' and coalesce(e."gradeStatus", '') <> 'FINALIZED'
-      where o."termId" = ${termId}
-        and (o."professorId" = ${staffId} or exists (select 1 from offering_professors op where op."offeringId" = o.id and op."staffId" = ${staffId}))
+      from my_offerings m
+      join enrollments e on e."offeringId" = m."offeringId"
+        and e.status = 'REGISTERED' and coalesce(e."gradeStatus", '') <> 'FINALIZED'
     `),
     q.execute(sql`
       select count(*) as "unsignedDocs"
