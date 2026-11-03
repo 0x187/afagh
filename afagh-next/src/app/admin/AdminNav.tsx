@@ -24,6 +24,8 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
+  // دسته‌ها پیش‌فرض بسته‌اند؛ با کلیک روی سرصفحه باز می‌شوند
+  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   // با عوض‌شدن مسیر، کشو بسته شود
   useEffect(() => { setOpen(false); }, [pathname]);
@@ -121,31 +123,43 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
             </Link>
 
             {filtered.length > 0 && q.trim() === '' ? (
-              grouped.map(g => (
-                <div key={g.group.key}>
-                  {/* سرخط دسته — متمایز از آیتم‌ها */}
-                  <div className={`flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold tracking-wide ${th.navMuted}`}>
-                    <span className="shrink-0">{g.group.icon}</span>
-                    <span>{g.group.title}</span>
+              grouped.map(g => {
+                // دستهٔ صفحهٔ جاری همیشه باز بماند تا کاربر گم نشود؛ بقیه طبق وضعیت باز/بسته
+                const open = expanded[g.group.key] || g.modules.some(m => pathname === m.href || pathname.startsWith(m.href + '/'));
+                return (
+                  <div key={g.group.key}>
+                    {/* سرصفحهٔ دسته — کلیک‌پذیر برای باز/بسته‌کردن (پیش‌فرض بسته) */}
+                    <button
+                      type="button"
+                      onClick={() => setExpanded(p => ({ ...p, [g.group.key]: !open }))}
+                      aria-expanded={open}
+                      className={`flex w-full items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold tracking-wide transition-colors ${th.navHover}`}
+                    >
+                      <span className="shrink-0">{g.group.icon}</span>
+                      <span className="flex-1 text-start">{g.group.title}</span>
+                      <span aria-hidden className={`text-3xs transition-transform duration-150 ${th.navMuted} ${open ? '' : 'rotate-[-90deg]'}`}>▼</span>
+                    </button>
+                    {open && (
+                      <div className="mt-0.5 space-y-0.5">
+                        {g.modules.map(m => {
+                          const active = pathname === m.href || pathname.startsWith(m.href + '/');
+                          return (
+                            <Link
+                              key={m.href}
+                              href={m.href}
+                              title={m.desc}
+                              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-colors ${active ? th.navActive : th.navHover}`}
+                            >
+                              <span className="shrink-0">{m.icon}</span>
+                              <span className="flex-1 truncate">{m.title}</span>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
-                  <div className="mt-0.5 space-y-0.5">
-                    {g.modules.map(m => {
-                      const active = pathname === m.href || pathname.startsWith(m.href + '/');
-                      return (
-                        <Link
-                          key={m.href}
-                          href={m.href}
-                          title={m.desc}
-                          className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-colors ${active ? th.navActive : th.navHover}`}
-                        >
-                          <span className="shrink-0">{m.icon}</span>
-                          <span className="flex-1 truncate">{m.title}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              ))
+                );
+              })
             ) : filtered.map(m => {
               const active = pathname === m.href || pathname.startsWith(m.href + '/');
               return (

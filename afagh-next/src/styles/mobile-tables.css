@@ -83,6 +83,9 @@
     position: sticky;
     right: 0;
     background: var(--bg-tertiary);
+    /* ستون اولِ چسبان هم پس‌زمینهٔ روشن می‌گیرد؛ متن باید با آن هم‌خوان باشد
+       وگرنه در حالت روشن نامرئی می‌شود. */
+    color: var(--t-800) !important;
     z-index: 1;
   }
 }
@@ -195,6 +198,11 @@
     top: 0;
     z-index: 5;
     background: var(--bg-tertiary);
+    /* رنگِ متنِ سرستون باید با پس‌زمینهٔ تم هم‌خوان باشد. پیش‌تر فقط
+       background ست می‌شد؛ در نتیجه متنِ سفیدِ `<tr className="bg-slate-900 text-white">`
+       روی زمینهٔ روشنِ `--bg-tertiary` در حالت روشن نامرئی می‌شد
+       (دارک خوب بود، روشن خراب). حالا با متغیرِ تم، هم روشن و هم تیره خواناست. */
+    color: var(--t-800) !important;
     box-shadow: inset 0 -1px 0 var(--b-200);
   }
 }
