@@ -16,9 +16,14 @@ const SHIFT_LABEL: Record<string, string> = { MORNING: 'صبح', EVENING: 'عص�
 export default function DeptRoomsTab() {
   const { classrooms, currentProgram, isDeptScope, selectedTermId, reloadRoomGrants, roomGrants, initial } = usePlanning();
   const departments = (initial?.departments ?? []) as { id: number; name: string; departmentCode: string | null }[];
+  // اگر گروه کد رسمی ندارد، «شناسهٔ ردیف» را جای کد نشان نمی‌دهیم — چون کاربر
+  // فکر می‌کند کد رسمی است. ۴ گروه «دروس عمومی و مشترک» دانشگاه‌های ۲..۵
+  // departmentCode ندارند (در منبع SAMA هم نبود)، پس فقط نامشان نمایش داده می‌شود.
+  const deptLabel = (d: { id: number; name: string; departmentCode: string | null }) =>
+    d.departmentCode ? `${d.name} (${d.departmentCode})` : d.name;
   const deptName = (id: number) => {
     const d = departments.find(x => x.id === id);
-    return d ? `${d.name} (${d.departmentCode ?? d.id})` : `دپارتمان ${id}`;
+    return d ? deptLabel(d) : `گروه #${id}`;
   };
 
   const [allocating, setAllocating] = useState(false);
@@ -190,7 +195,7 @@ export default function DeptRoomsTab() {
               className="border border-slate-300 rounded-lg px-2 py-1.5 text-xs font-bold bg-white"
             >
               {departments.map(d => (
-                <option key={d.id} value={d.id}>{d.name} ({d.departmentCode ?? d.id})</option>
+                <option key={d.id} value={d.id}>{deptLabel(d)}</option>
               ))}
             </select>
             <select
@@ -269,7 +274,7 @@ export default function DeptRoomsTab() {
                               className="border border-slate-300 rounded-lg px-2 py-1 text-xs font-bold bg-white"
                             >
                               {departments.map(d => (
-                                <option key={d.id} value={d.id}>{d.name} ({d.departmentCode ?? d.id})</option>
+                                <option key={d.id} value={d.id}>{deptLabel(d)}</option>
                               ))}
                             </select>
                             <button

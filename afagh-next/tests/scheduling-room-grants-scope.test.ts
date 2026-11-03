@@ -122,6 +122,22 @@ ok(
   !/setMsg\(`✅ \$\{faNum\(okCount\)\} سهمیه لغو شد\.`\);/.test(DEPT),
 );
 
+// شناسهٔ ردیف نباید جای «کد گروه» جا بزند. ۴ گروه «دروس عمومی و مشترک»
+// دانشگاه‌های ۲..۵ کد رسمی ندارند؛ قبلاً `(#103)` نشان داده می‌شد و کاربر
+// فکر می‌کرد کد رسمی است.
+ok(
+  'کد گروه: fallback به شناسهٔ ردیف حذف شده',
+  !/departmentCode \?\? d\.id/.test(DEPT) && !/departmentCode \?\? id/.test(DEPT),
+);
+ok(
+  'کد گروه: وقتی کد نیست فقط نام نمایش داده می‌شود',
+  /d\.departmentCode \? `\$\{d\.name\} \(\$\{d\.departmentCode\}\)` : d\.name/.test(DEPT),
+);
+ok(
+  'کد گروه: هر دو منوی انتخاب از همان برچسب مشترک استفاده می‌کنند',
+  (DEPT.match(/\{deptLabel\(d\)\}/g) ?? []).length >= 2,
+);
+
 // ── ۳) کد رشته در کارت فاز ۰ نباید خالی رندر شود ──────────────────────────
 const SCOPE = read('src/app/admin/scheduling/components/ProgramScopeTab.tsx');
 ok(
