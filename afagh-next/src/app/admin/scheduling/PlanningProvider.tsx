@@ -7,7 +7,7 @@
 // ═══════════════════════════════════════════════════════════════════════
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { faNum, parseJalaliDates, PHASE_LABELS, TIME_SLOT_PRESETS, DEMAND_PAGE, NO_PROFESSOR, MAX_GROUPS_PER_COURSE, clampGroupsCount, mapDemands, mapClassrooms, mapProfessors, mapCohorts, mapOfferings, buildRealScenario, computeProfUnits, slotAvailStatus, filterScenarioOfferings, filterContextDemands, inspectorSummary, nextGroupNumber, coTeachingWeights, resolveTab, programSemesterMatrix, cohortSemesterNo } from './planning-core';
+import { faNum, parseJalaliDates, PHASE_LABELS, TIME_SLOT_PRESETS, DEMAND_PAGE, NO_PROFESSOR, MAX_GROUPS_PER_COURSE, clampGroupsCount, mapDemands, mapClassrooms, mapProfessors, mapCohorts, mapOfferings, buildRealScenario, computeProfUnits, slotAvailStatus, filterScenarioOfferings, filterContextDemands, inspectorSummary, nextGroupNumber, coTeachingWeights, resolveTab, programSemesterMatrix, cohortSemesterNo, chartScopeSemester } from './planning-core';
 import type { PlanningTab, WeekRecurrence, ProgramShiftType, TimeSlot, CohortOption, ClassroomOption, ProfessorOption, CourseDemand, DepartmentOffering, AutoScheduleScenario, SchedulingWorkspace } from './types';
 import { getSchedulingWorkspaceAction, getRoomGrantsAction, generateClassSessionsAction, supplyGroupDraftsAction, getSmartSuggestionsAction, getSchedulingHealthAction, transitionSchedulingPhaseAction, getCurriculumDemandsAction, setOfferingCohortMergeAction } from './actions';
 import type { SmartSlot, SchedulingHealthReport, SchedulingWorkspaceResult, CurriculumDemandsResult } from './actions';
@@ -186,8 +186,19 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
     setIsLoadingCurriculumDemands(true);
     try {
       // سال ورودیِ دانشجو تعیین می‌کند کدام نسخهٔ چارت معتبر است
-      const entryYear = selectedCohortId === 'ALL' ? null : Number(selectedCohortId.split('-')[0]) || null;
-      const res = await getCurriculumDemandsAction(selectedTermId, selectedProgramId, entryYear);
+      const [rawYear, rawTerm] = selectedCohortId === 'ALL' ? [null, null] : selectedCohortId.split('-');
+      const entryYear = rawYear ? Number(rawYear) || null : null;
+      const entryTerm = rawTerm ? Number(rawTerm) || null : null;
+      // ⚠️ ترمِ چارتی که باید بیاید: ترمِ ورودیِ انتخابی، وگرنه چیپِ فاز ۰ («ترم ۳»).
+      //    بدون این پارامتر سرور دروسِ «ترم ۱» را می‌فرستاد و فیلترِ کلاینت همه را حذف می‌کرد.
+      const chartSemester = chartScopeSemester({
+        cohortId: selectedCohortId,
+        entryYear,
+        entryTerm,
+        termCode: terms.find(x => x.id === selectedTermId)?.code ?? null,
+        selectedSemester,
+      });
+      const res = await getCurriculumDemandsAction(selectedTermId, selectedProgramId, entryYear, chartSemester);
       if (!res.ok) { showToast(res.error, 'warning'); setCurriculumDemands([]); return; }
       setChartRange(res.chartRange ?? null);
       setCurriculumDemands(mapDemands((res as any).demands || []) as any);
@@ -199,11 +210,11 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
     }
   };
 
-  // بارگذاری دروس چارت عند تغییر رشته یا ترم
+  // بارگذاری دروس چارت عند تغییر رشته، ترم، ورودی یا ترمِ چارت (فاز ۰)
   useEffect(() => {
     loadCurriculumDemands();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTermId, selectedProgramId, selectedCohortId]);
+  }, [selectedTermId, selectedProgramId, selectedCohortId, selectedSemester]);
 
   /** پیشنهاد هوشمند موتور برای یک درس (درٔ دسترس بودن واقعی استاد + اشغال سالن‌ها + زونینگ) */
   const handleSuggestForDemand = async (demandId: number) => {
@@ -473,9 +484,6 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
     [currentScenario, selectedProgramId, selectedCohortId, selectedWeekFilter],
   );
 
-  // استفاده از دروس چارت درسی در صورت وجود، وگرنه تمام تقاضاها
-  const demandsSource = useMemo(() => curriculumDemands.length > 0 ? curriculumDemands : courseDemands, [curriculumDemands, courseDemands]);
-
   // «نیمسال ورود» → شمارهٔ ترمِ همان ورودی در نیمسال جاری. با انتخاب ورودی،
   // چارت به همان یک ترم محدود می‌شود (نه ترم ۱ و ۲ یک‌جا).
   const cohortOrdinal = useMemo(() => {
@@ -487,10 +495,15 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
 
   const effectiveSemester = cohortOrdinal ?? selectedSemester;
 
-  const filteredDemands = useMemo(
-    () => filterContextDemands(demandsSource, { programId: selectedProgramId, cohortId: selectedCohortId, semester: effectiveSemester }),
-    [demandsSource, selectedProgramId, selectedCohortId, effectiveSemester],
-  );
+  const filteredDemands = useMemo(() => {
+    const ctx = { programId: selectedProgramId, cohortId: selectedCohortId, semester: effectiveSemester };
+    const fromChart = filterContextDemands(curriculumDemands, ctx);
+    if (fromChart.length > 0) return fromChart;
+    // شبکهٔ ایمنی: اگر مسیرِ «چارت» چیزی نداد (چارتِ ناموجود، ترمِ بی‌عرضه،
+    // یا ناهماهنگیِ ترم)، مسیرِ «ارائه‌های واقعیِ ترم» هم امتحان می‌شود تا
+    // جدولِ گام ۱ بی‌دلیل خالی نماند (گزارش: رشتهٔ ۴۴ / ترم ۳ → «۰ درس»).
+    return filterContextDemands(courseDemands, ctx);
+  }, [curriculumDemands, courseDemands, selectedProgramId, selectedCohortId, effectiveSemester]);
 
   // فاز ۰: ماتریس رشته × ترم با وضعیت کامل/ناقص — «برنامه این رشته کامله»
   const programMatrix = useMemo(

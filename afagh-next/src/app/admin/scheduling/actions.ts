@@ -381,8 +381,23 @@ async function listRealDemands(termId: number, universityId?: number) {
   });
 }
 
-/** تقاضای مبتنی بر چارت درسی: درس‌های تعریف‌شده در curriculum_versions برای یک رشته/مقطع/ورودی */
-async function listCurriculumDemands(termId: number, programId: number, universityId?: number, entryYear?: number | null) {
+/**
+ * تقاضای مبتنی بر چارت درسی: درس‌های تعریف‌شده در curriculum_versions برای یک رشته/مقطع/ورودی
+ *
+ * ⚠️ `semester` = ترمِ چارتی که فاز ۱ باید نشان دهد (ترمِ ۱..۴ چارت).
+ *    **این پارامتر از دامنهٔ انتخابیِ کاربر می‌آید، نه از حدسِ سرور.**
+ *    نسخهٔ قبلی ترم را از زوج/فردِ `academic_terms."sortOrder"` درمی‌آورد:
+ *      sortOrder=14051 ⇒ ((14051-1)%2)+1 = 1  ⇒ همیشه «ترم ۱»!
+ *    نتیجه: دروس ترم ۳ و ۴ هرگز به کلاینت نمی‌رسید و جدول «گام ۱» خالی می‌ماند
+ *    (گزارش کاربر: مدیرگروه برق، رشتهٔ ۴۴ «برق قدرت»، ترم ۳ → «۰ درس»).
+ */
+async function listCurriculumDemands(
+  termId: number,
+  programId: number,
+  universityId?: number,
+  entryYear?: number | null,
+  semester?: number | 'ALL' | 'NONE' | null,
+) {
   // 1) پیدا کردن ترم و سال تحصیلی
   const [term] = await db.select().from(academic_terms).where(and(eq(academic_terms.id, termId), uniOrGlobal(academic_terms.universityId, universityId))).limit(1);
   if (!term) return [];
@@ -429,15 +444,15 @@ async function listCurriculumDemands(termId: number, programId: number, universi
   const curriculumVersionId = cvRows[0].id;
 
   // 4) درس‌های این نسخهٔ برنامه با ترم پیشنهادی (recommendedSemester)
-  // ترم فعلی را به شماره ترم (semester) مپ کنیم
-  // academic_terms.sortOrder یا termCode می‌تواند به semester مپ شود
-  // برای سادگی: اگر termType='SUMMER' → semester=9، وگرنه بر اساس sortOrder محاسبه می‌شود
-  let currentSemester = 1;
-  if (term.isSummer === 1) {
-    currentSemester = 9;
-  } else if (term.sortOrder) {
-    currentSemester = ((term.sortOrder - 1) % 2) + 1; // ساده‌سازی: زوج/فرد
-  }
+  // ⚠️ ترمِ چارت را «دامنهٔ انتخابیِ کاربر» تعیین می‌کند: چیپ فاز ۰ («ترم ۳») یا
+  //    ترمِ ورودیِ انتخاب‌شده. حدسِ زوج/فردِ sortOrder حذف شد (توضیح بالا).
+  //    'ALL' = همهٔ ترم‌های چارت، 'NONE' = فقط دروس بدون ترمِ تعیین‌شده.
+  const semFilter =
+    semester == null || semester === 'ALL'
+      ? null
+      : semester === 'NONE'
+        ? sql`${curriculum_courses.recommendedSemester} is null`
+        : eq(curriculum_courses.recommendedSemester, semester);
 
   const ccRows = await db
     .select({
@@ -449,15 +464,17 @@ async function listCurriculumDemands(termId: number, programId: number, universi
     .from(curriculum_courses)
     .where(and(
       eq(curriculum_courses.curriculumVersionId, curriculumVersionId),
-      or(
-        eq(curriculum_courses.recommendedSemester, currentSemester),
-        sql`${curriculum_courses.recommendedSemester} is null`
-      )
+      ...(semFilter ? [semFilter] : []),
     ));
 
   if (!ccRows.length) return [];
 
   const courseIds = ccRows.map(r => r.courseId);
+  /** ترمِ چارتِ هر درس — بدون این، فیلترِ کلاینت (semesterNo === ۳) همه‌چیز را حذف می‌کند */
+  const semesterByCourse = new Map<number, number | null>();
+  for (const r of ccRows) {
+    semesterByCourse.set(r.courseId, r.recommendedSemester != null ? Number(r.recommendedSemester) : null);
+  }
 
   // 5) ارائهٔ این درس‌ها در ترم جاری (course_offerings)
   const offerRows = await db
@@ -503,10 +520,55 @@ async function listCurriculumDemands(termId: number, programId: number, universi
     profsByOffering.set(p.offeringId, list);
   }
 
+  // «نیمسال ورود» واقعی — از ثبت‌نام دانشجویان (همان منبعِ listRealDemands).
+  // بدون این، شناسهٔ کوهورت با قالب کلاینت («۱۴۰۳-۱») نمی‌خواند و فیلترِ
+  // «نیمسال ورود» همهٔ ردیف‌ها را حذف می‌کند.
+  const offeringIds = offerRows.map(r => r.offeringId);
+  const cohortRows = offeringIds.length
+    ? await db
+        .select({ offeringId: enrollments.offeringId, entryYear: students.entryYear, entryTerm: students.entryTerm })
+        .from(enrollments)
+        .innerJoin(students, eq(students.id, enrollments.studentId))
+        .where(inArray(enrollments.offeringId, offeringIds))
+        .groupBy(enrollments.offeringId, students.entryYear, students.entryTerm)
+    : [];
+  const cohortsByOffering = new Map<number, { year: number; term: number }[]>();
+  for (const c of cohortRows) {
+    if (c.entryYear == null) continue;
+    const list = cohortsByOffering.get(c.offeringId) ?? [];
+    list.push({ year: Number(c.entryYear), term: Number(c.entryTerm ?? 1) });
+    cohortsByOffering.set(c.offeringId, list);
+  }
+
   return offerRows.map(r => {
-    const hasSingleEntryYear = r.entryYearStart != null && r.entryYearStart === r.entryYearEnd;
     const profs = profsByOffering.get(r.offeringId) ?? [];
     const isCoTaught = profs.length >= 2;
+
+    // کوهورت: از ثبت‌نام‌های واقعی، وگرنه ستون‌های ادغام صریح
+    const uniq = new Map<string, { year: number; term: number }>();
+    for (const c of cohortsByOffering.get(r.offeringId) ?? []) uniq.set(`${c.year}-${c.term}`, c);
+    const cohortList = [...uniq.values()].sort((a, b) => (b.year - a.year) || (b.term - a.term));
+    const explicitMerge = r.entryYearStart != null;
+    let cohortId = 'ALL';
+    let cohortTitle = 'کلیهٔ نیمسال‌های ورود';
+    if (explicitMerge) {
+      const from = r.entryYearStart as number;
+      const to = r.entryYearEnd ?? from;
+      if (from === to) {
+        cohortId = `${from}-ALL`;
+        cohortTitle = `نیمسال ورود ${from} (ادغام مهر و بهمن)`;
+      } else {
+        cohortTitle = `نیمسال‌های ورود ${from}–${to} (ادغام‌شده)`;
+      }
+    } else if (cohortList.length === 1) {
+      cohortId = `${cohortList[0].year}-${cohortList[0].term}`;
+      cohortTitle = entryCohortTitle(cohortList[0].year, cohortList[0].term);
+    } else if (cohortList.length === 2) {
+      cohortTitle = `${entryCohortTitle(cohortList[0].year, cohortList[0].term)}، ${entryCohortTitle(cohortList[1].year, cohortList[1].term)}`;
+    } else if (cohortList.length > 2) {
+      cohortTitle = `نیمسال‌های ورود ${cohortList[cohortList.length - 1].year}–${cohortList[0].year}`;
+    }
+
     return {
       offeringId: r.offeringId,
       courseId: r.courseId,
@@ -522,10 +584,15 @@ async function listCurriculumDemands(termId: number, programId: number, universi
       isCoTaught,
       coProfId: isCoTaught ? (profs.find(id => id !== r.professorId) ?? profs[1]) : null,
       enrolledCount: r.enrolledCount,
-      programId: r.targetMajorId ?? 0,
-      programTitle: r.targetMajorTitle ?? 'همهٔ رشته‌ها',
-      cohortId: hasSingleEntryYear ? String(r.entryYearStart) : 'ALL',
-      cohortTitle: hasSingleEntryYear ? `ورودی ${r.entryYearStart}` : 'کلیهٔ ورودی‌ها',
+      // این سطرها از چارتِ همین رشته آمده‌اند ⇒ تعلقشان به همین رشته قطعی است
+      programId,
+      programTitle: major.name,
+      programIds: [programId],
+      /** ترمِ چارتِ این درس — کلیدِ فیلترِ فاز ۱ («ترم ۳») */
+      semesterNo: semesterByCourse.get(r.courseId) ?? null,
+      cohortId,
+      cohortTitle,
+      cohortMerged: explicitMerge,
       examDate: '',
       isSharedService: r.isSharedService === 1,
       offeringScope: r.offeringScope ?? 'DEPARTMENTAL',
@@ -884,7 +951,13 @@ export type CurriculumDemandsResult =
     }
   | { ok: false; error: string };
 
-export async function getCurriculumDemandsAction(termId: number, programId: number, entryYear?: number | null, _universityId?: number): Promise<CurriculumDemandsResult> {
+export async function getCurriculumDemandsAction(
+  termId: number,
+  programId: number,
+  entryYear?: number | null,
+  semester?: number | 'ALL' | 'NONE' | null,
+  _universityId?: number,
+): Promise<CurriculumDemandsResult> {
   try {
     // خواندنِ تقاضای چارت — مدیرگروه هم مجاز است (فقط مشاهده، فقط رشته‌های خودش)
     const actor = await requireRole([...EDITORS, 'DEP_HEAD']);
@@ -897,7 +970,7 @@ export async function getCurriculumDemandsAction(termId: number, programId: numb
         .limit(1);
       if (!owned.length) return { ok: false, error: 'این رشته در دپارتمان‌های تحت مدیریت شما نیست.' };
     }
-    const demands = await listCurriculumDemands(termId, programId, await serverUniId(), entryYear ?? null);
+    const demands = await listCurriculumDemands(termId, programId, await serverUniId(), entryYear ?? null, semester ?? null);
     // بازهٔ ورودیِ چارتی که واقعاً استفاده شد — UI می‌گوید «چارت معتبر برای
     // ورودی‌های فلان تا فلان» یا «برای این ورودی چارت تعریف نشده».
     const chart = await db

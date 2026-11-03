@@ -15,7 +15,7 @@ import {
   buildRealScenario, clampGroupsCount, coTeachingWeights, computeProfUnits, courseTypeRank, DAY_NAMES, faNum, faToEnDigits,
   filterContextDemands, filterScenarioOfferings, inspectorSummary, mapCohorts, mapDemands,
   mapOfferings, MAX_GROUPS_PER_COURSE, nextGroupNumber, NO_PROFESSOR, parseJalaliDates, PHASE_LABELS,
-  slotAvailStatus, TIME_SLOT_PRESETS, PLANNING_TABS, resolveTab, cohortSemesterNo, suggestGroupsCount,
+  slotAvailStatus, TIME_SLOT_PRESETS, PLANNING_TABS, resolveTab, cohortSemesterNo, chartScopeSemester, suggestGroupsCount,
 } from '../src/app/admin/scheduling/planning-core.ts';
 import type { CourseDemand, DepartmentOffering, SchedulingWorkspace } from '../src/app/admin/scheduling/types.ts';
 
@@ -166,6 +166,10 @@ eq('ترم چارت فیلتر می‌شود', filterContextDemands([{ ...base, 
 eq('ورودی ۱۴۰۳۱ در ۱۴۰۵۱ → ترم ۵', cohortSemesterNo(1403, 1, '14051'), 5);
 eq('ورودی ۱۴۰۳۲ در ۱۴۰۵۱ → ترم ۴', cohortSemesterNo(1403, 2, '14051'), 4);
 eq('ورودی آینده → null', cohortSemesterNo(1406, 1, '14051'), null);
+// ترمِ دامنه: ورودیِ انتخاب‌شده بر چیپِ فاز ۰ اولویت دارد (فاز ۱ رشتهٔ ۴۴/ترم ۳)
+eq('دامنه: بدون ورودی ⇒ چیپ فاز ۰', chartScopeSemester({ cohortId: 'ALL', entryYear: null, entryTerm: null, termCode: '14051', selectedSemester: 3 }), 3);
+eq('دامنه: ورودی ۱۴۰۴-۱ ⇒ ترم ۳', chartScopeSemester({ cohortId: '1404-1', entryYear: 1404, entryTerm: 1, termCode: '14051', selectedSemester: 'ALL' }), 3);
+eq('دامنه: کد ترم نامعتبر ⇒ برمی‌گردد به چیپ', chartScopeSemester({ cohortId: '1404-1', entryYear: 1404, entryTerm: 1, termCode: null, selectedSemester: 2 }), 2);
 eq('تقاضا: نیمسال ورود ۱۴۰۴', filterContextDemands(dl, { programId: 0, cohortId: '1404-1' }).map(x => x.id).sort(), [1, 3, 4]);
 
 console.log('\n۶) آمار بازرس، گروه بعدی و سهم‌بندی');

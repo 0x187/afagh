@@ -498,6 +498,34 @@ export function cohortSemesterNo(
 }
 
 /**
+ * ترمِ چارتی که فاز ۱ (گام ۱) باید نشان دهد.
+ *
+ * دو منبع دارد و **اولویت با ورودیِ انتخاب‌شده است**:
+ *   ۱) اگر «نیمسال ورود» انتخاب شده باشد، ترمِ آن ورودی در نیمسال جاری
+ *      (`cohortSemesterNo`) — چون چارتِ مصوب برای همان ورودی انتخاب می‌شود.
+ *   ۲) وگرنه ترمِ چیپی که در فاز ۰ زده شده («ترم ۱..۴» / 'ALL' / 'NONE').
+ *
+ * ⚠️ چرا این تابع لازم شد: سرور (`listCurriculumDemands`) هم باید بداند کدام
+ *    ترمِ چارت را بیاورد. تا پیش از این، سرور ترم را از زوج/فردِ
+ *    `academic_terms."sortOrder"` حدس می‌زد (۱۴۰۵۱ ⇒ همیشه «ترم ۱») و کلاینت
+ *    هم بعداً با `semesterNo` فیلتر می‌کرد ⇒ برای «ترم ۳» جدول گام ۱ خالی می‌ماند.
+ *    حالا هر دو از همین یک تابع استفاده می‌کنند ⇒ هرگز ناهماهنگ نمی‌شوند.
+ */
+export function chartScopeSemester(opts: {
+  cohortId: string;
+  entryYear: number | null | undefined;
+  entryTerm: number | null | undefined;
+  termCode: string | number | null | undefined;
+  selectedSemester: number | 'ALL' | 'NONE';
+}): number | 'ALL' | 'NONE' {
+  if (opts.cohortId !== 'ALL') {
+    const ord = cohortSemesterNo(opts.entryYear, opts.entryTerm, opts.termCode);
+    if (ord != null) return ord;
+  }
+  return opts.selectedSemester;
+}
+
+/**
  * ماتریس «رشته × ترم» برای فاز ۰.
  *
  * یک گروه ممکن است سه رشته داشته باشد؛ برنامه‌ریزی هر رشته ترم‌به‌ترم تمام
