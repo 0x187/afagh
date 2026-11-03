@@ -87,11 +87,26 @@ const toLocalInput = (d: Date | null) =>
 export default async function OfferingsPage() {
   await requireRole(['ADMIN']);
   const { getCurrentUniversity } = await import('@/lib/university-scope');
-  const uni = await getCurrentUniversity().catch(() => null);
-  const [term] = await db.select().from(academic_terms)
-    .where(and(eq(academic_terms.isCurrent, 1), uni ? eq(academic_terms.universityId, uni.id) : undefined))
-    .limit(1);
+
+  // ── فاز ۱: مقاطع مرجع ملی‌اند و به دانشگاه وابسته نیستند، پس موازی می‌آیند ──
+  // قبلاً شش کوئری پشتِ سرِ هم اجرا می‌شدند و تأخیرشان جمع می‌شد.
+  const [uni, degrees] = await Promise.all([
+    getCurrentUniversity().catch(() => null),
+    db.select().from(degree_level_configs),
+  ]);
+
+  // ── فاز ۲: ترم جاری و رشته‌ها فقط به `uni` نیاز دارند ──
+  const [[term], majorRows] = await Promise.all([
+    db.select().from(academic_terms)
+      .where(and(eq(academic_terms.isCurrent, 1), uni ? eq(academic_terms.universityId, uni.id) : undefined))
+      .limit(1),
+    // رشته‌ها per-uni هستند
+    db.select().from(majors).where(uni ? eq(majors.universityId, uni.id) : undefined),
+  ]);
+
   const win = windowStatus(term);
+
+  // ── فاز ۳: ارائه‌های ترم (وابسته به `term`) ──
   const offs = term
     ? await db
         .select({ id: course_offerings.id, code: courses.code, title: courses.title, group: course_offerings.groupNumber, cap: course_offerings.capacity, enr: course_offerings.enrolledCount, deg: course_offerings.targetDegreeLevelId, major: course_offerings.targetMajorId, ys: course_offerings.entryYearStart, ye: course_offerings.entryYearEnd, typ: course_offerings.offeringType })
@@ -99,10 +114,7 @@ export default async function OfferingsPage() {
         .where(and(eq(course_offerings.termId, term.id), eq(course_offerings.isActive, 1)))
         .orderBy(courses.code)
     : [];
-  // مقاطع مرجع ملی‌اند (فیلتر نمی‌شوند)؛ رشته‌ها per-uni هستند
-  const degrees = await db.select().from(degree_level_configs);
-  const majorRows = await db.select().from(majors)
-    .where(uni ? eq(majors.universityId, uni.id) : undefined);
+
   const degTitle = (id: number) => degrees.find(d => d.id === id)?.title ?? String(id);
   const majorTitle = (id: number) => majorRows.find(m => m.id === id)?.name ?? String(id);
 

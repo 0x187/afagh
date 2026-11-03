@@ -199,40 +199,52 @@ async function createStaffExpertAction(input: {
 export default async function StaffPage() {
   await requireRole(['ADMIN']);
   const { getCurrentUniversity } = await import('@/lib/university-scope');
-  const uni = await getCurrentUniversity().catch(() => null);
+
+  // ── فاز ۱: این سه به هم وابسته نیستند ──
+  // قبلاً پشتِ سرِ هم اجرا می‌شدند و تأخیرشان جمع می‌شد (۷ رفت‌وبرگشتِ سریالی
+  // در کلِ صفحه). فقط `urRows` واقعاً به `rows` وابسته است.
+  const [uni, headRow, roleRows] = await Promise.all([
+    getCurrentUniversity().catch(() => null),
+    db.select().from(roles).where(eq(roles.code, 'DEP_HEAD')).limit(1),
+    db.select({ id: roles.id, code: roles.code, title: roles.title, isSystem: roles.isSystem }).from(roles).orderBy(roles.id),
+  ]);
+  const [head] = headRow;
   const uw = uni ? eq(staff.universityId, uni.id) : undefined;
-  const [head] = await db.select().from(roles).where(eq(roles.code, 'DEP_HEAD')).limit(1);
-  const rows = await db
-    .select({ staffId: staff.id, userId: users.id, code: users.nationalCode, name: users.firstName, family: users.lastName, staffCode: staff.staffCode, dept: departments.name, rank: staff.academicRank, type: staff.staffType, active: staff.isActive, userActive: users.isActive })
-    .from(staff)
-    .innerJoin(users, eq(users.id, staff.userId))
-    .leftJoin(departments, eq(departments.id, staff.departmentId))
-    .where(uw)
-    .orderBy(staff.id);
-  const headRoles = head ? await db.select().from(user_roles).where(eq(user_roles.roleId, head.id)) : [];
+
+  // ── فاز ۲: هر سه فقط به `uni` نیاز دارند ──
+  const [rows, headRoles, led, depts] = await Promise.all([
+    db
+      .select({ staffId: staff.id, userId: users.id, code: users.nationalCode, name: users.firstName, family: users.lastName, staffCode: staff.staffCode, dept: departments.name, rank: staff.academicRank, type: staff.staffType, active: staff.isActive, userActive: users.isActive })
+      .from(staff)
+      .innerJoin(users, eq(users.id, staff.userId))
+      .leftJoin(departments, eq(departments.id, staff.departmentId))
+      .where(uw)
+      .orderBy(staff.id),
+    head ? db.select().from(user_roles).where(eq(user_roles.roleId, head.id)) : Promise.resolve<{ userId: number }[]>([]),
+    db
+      .select({ userId: staff.userId, deptName: departments.name })
+      .from(departments)
+      .innerJoin(staff, eq(staff.id, departments.headStaffId))
+      .where(uni ? or(eq(departments.universityId, uni.id), isNull(departments.universityId)) : undefined),
+    db.select({ id: departments.id, name: departments.name }).from(departments).where(uni ? eq(departments.universityId, uni.id) : undefined).orderBy(departments.name),
+  ]);
+
   const heads = new Set(headRoles.map(h => h.userId));
 
   // کدام گروه‌ها را هر نفر اداره می‌کند (یک نفر می‌تواند مدیر چند گروه باشد،
   // مثلاً گروه تخصصی خودش + گروه دروس عمومی)
-  const led = await db
-    .select({ userId: staff.userId, deptName: departments.name })
-    .from(departments)
-    .innerJoin(staff, eq(staff.id, departments.headStaffId))
-    .where(uni ? or(eq(departments.universityId, uni.id), isNull(departments.universityId)) : undefined);
   const ledBy = new Map<number, string[]>();
   for (const l of led) {
     if (l.userId == null) continue;
     ledBy.set(l.userId, [...(ledBy.get(l.userId) ?? []), l.deptName]);
   }
 
-  // نقش‌های قابل تخصیص + نقشِ فعلی هر یک از کارکنان (برای ستون «نقش‌ها»)
-  const roleRows = await db.select({ id: roles.id, code: roles.code, title: roles.title, isSystem: roles.isSystem }).from(roles).orderBy(roles.id);
+  // ── فاز ۳: نقشِ فعلی کارکنان (وابسته به `rows`) ──
   const userIds = rows.map(r => r.userId).filter(Number.isInteger);
   const urRows = userIds.length ? await db.select().from(user_roles).where(inArray(user_roles.userId, userIds)) : [];
   const userRoleIds: Record<number, number[]> = {};
   for (const r of rows) userRoleIds[r.userId] = [];
   for (const ur of urRows) (userRoleIds[ur.userId] ??= []).push(ur.roleId);
-  const depts = await db.select({ id: departments.id, name: departments.name }).from(departments).where(uni ? eq(departments.universityId, uni.id) : undefined).orderBy(departments.name);
 
   return (
     <div className="card">
