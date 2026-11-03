@@ -441,3 +441,17 @@ CREATE INDEX IF NOT EXISTS "idx_ledger_uni_id" ON "student_ledger" ("universityI
 -- ۵) تفکیکِ وصولی بر اساسِ نوع واریز: `where "transactionType"='PAYMENT'`
 --    به‌همراهِ محدودهٔ دانشگاه.
 CREATE INDEX IF NOT EXISTS "idx_ledger_uni_type" ON "student_ledger" ("universityId", "transactionType", "depositType");
+
+-- ۶) ایندکسِ پوششی برای تجمیعِ سراسریِ دفتر مالی.
+--    دو کوئری در سامانه ذاتاً به کلِ دفتر نیاز دارند و با `limit` کوچک نمی‌شوند،
+--    چون باید **رتبه‌بندی** کنند:
+--      • «تعداد دانشجویان بدهکار» (صفحهٔ کارت دانشجویی، بخشِ blocked)
+--      • «۱۲ دانشجوی بیشترین بدهی» (صفحهٔ امور مالی، بخشِ debtors)
+--    هر دو به شکلِ `sum(case when "transactionType" in (...) then amount ...)
+--    group by "studentId"` هستند. `idx_student_ledger_student` فقط `studentId`
+--    را دارد، پس PostgreSQL برای خواندنِ `amount` و `transactionType` مجبور به
+--    مراجعه به heap است (۳۴۳٬۰۹۷ ردیف در پروفایلِ تولید).
+--    با این ایندکس، همان تجمیع به **index-only scan** تبدیل می‌شود و به جدول
+--    دست نمی‌زند. هزینهٔ نوشتنش ناچیز است چون دفتر مالی نسبتاً کم‌نوشت است.
+CREATE INDEX IF NOT EXISTS "idx_ledger_balance_cover"
+  ON "student_ledger" ("studentId", "transactionType", "amount");

@@ -92,7 +92,7 @@ try {
     for (const [t, list] of byTable) console.log(`   ${t}: ${list.join(', ')}`);
 
     // ایندکس‌هایی که اگر نبودند یعنی patches.sql اجرا نشده یا ایمیج کهنه است.
-    const MUST_HAVE = ['idx_op_offering_staff', 'idx_co_prof_term', 'idx_enr_pending_grade', 'idx_req_uni_created'];
+    const MUST_HAVE = ['idx_op_offering_staff', 'idx_co_prof_term', 'idx_enr_pending_grade', 'idx_req_uni_created', 'idx_ledger_balance_cover'];
     const present = new Set(idx.rows.map((r) => r.indexname));
     const absent = MUST_HAVE.filter((n) => !present.has(n));
     if (absent.length) {

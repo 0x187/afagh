@@ -1,6 +1,6 @@
 import { and, count, desc, eq, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
-import { degree_level_configs, majors, student_cards, student_ledger, students, users } from '@/db/schema';
+import { degree_level_configs, majors, student_cards, students, users } from '@/db/schema';
 import { requireRole } from '@/lib/auth';
 import { escapeLikeChars, normalizeFa, normCol, toEnDigits } from '@/lib/persian-search';
 import { getNumber, getSetting } from '@/lib/settings';
@@ -24,8 +24,20 @@ const fa = (n: unknown) => String(n ?? '—').replace(/\d/g, d => '۰۱۲۳۴۵�
  * بدهی هر دانشجو با یک **زیرکوئری همبسته** روی `student_ledger` حساب می‌شد و
  * همهٔ ۴۸٬۳۶۱ دانشجو یک‌جا به کلاینت می‌رفت. با ۳۴۳٬۰۹۷ ردیف دفتر مالی و
  * نبودِ ایندکس روی `student_ledger("studentId")`، کوئری از ۱۸۰ ثانیه هم رد
- * می‌شد و پروکسی ۵۰۴ می‌داد. اصلاح: تجمیع **یک‌بارهٔ** دفتر مالی (GROUP BY) +
- * جستجو و صفحه‌بندی سمت سرور (همان الگوی `/admin/students`).
+ * می‌شد و پروکسی ۵۰۴ می‌داد. اصلاحِ آن زمان: تجمیع **یک‌بارهٔ** دفتر مالی
+ * (GROUP BY) + جستجو و صفحه‌بندی سمت سرور (همان الگوی `/admin/students`).
+ *
+ * ⚠️ اصلاحِ دوم (۳ نوامبر ۲۰۲۶) — چرا دوباره به زیرکوئریِ همبسته برگشتیم:
+ * آن «تجمیعِ یک‌باره» با صفحه‌بندی ترکیب نشد. `left join (select ... group by
+ * "studentId")` یک جدولِ مشتق‌شده است و PostgreSQL نمی‌تواند `limit 10` را به
+ * داخلش هل بدهد؛ پس برای نمایشِ **۱۰ ردیف**، کلِ ۳۴۳٬۰۹۷ ردیفِ دفترِ همهٔ
+ * دانشگاه‌ها جمع می‌خورد. در پروفایلِ واقعی:
+ *      769.290 ms  execute ... left join (select ... group by ...) debt_agg ...
+ * نکتهٔ کلیدی: زیرکوئریِ همبسته آن‌موقع ۱۸۰ ثانیه بود چون **ایندکس نداشت**.
+ * حالا `idx_student_ledger_student("studentId")` وجود دارد (در patches.sql و
+ * pg-hardening)، پس همان زیرکوئری بعد از `limit 10` فقط ۱۰ بار اجرا می‌شود و
+ * هر بار یک پیمایشِ ایندکس است. یعنی فرمِ همبسته امروز درست است — به شرطِ
+ * وجودِ آن ایندکس. اگر روزی ایندکس حذف شد، این کوئری دوباره فاجعه می‌شود.
  */
 export default async function AdminStudentCardsPage({
   searchParams,
@@ -41,15 +53,24 @@ export default async function AdminStudentCardsPage({
   const currentUniversity = await getCurrentUniversity();
   const currentUniversityId = currentUniversity?.id ?? null;
 
-  // ── بدهی هر دانشجو: یک تجمیع، نه یک زیرکوئری به‌ازای هر ردیف ──
-  const debtAgg = db
-    .select({
-      studentId: student_ledger.studentId,
-      debt: sql<string>`sum(case when ${student_ledger.transactionType} in ('TUITION_CHARGE','CHARGE') then ${student_ledger.amount} else -${student_ledger.amount} end)`.as('debt'),
-    })
-    .from(student_ledger)
-    .groupBy(student_ledger.studentId)
-    .as('debt_agg');
+  // ── بدهی هر دانشجو ──
+  // ⚠ اینجا قبلاً یک زیرکوئریِ تجمیعی به‌عنوان جدولِ مشتق‌شده جوین می‌شد:
+  //     left join (select "studentId", sum(...) as debt
+  //                from "student_ledger" group by "studentId") debt_agg ...
+  //   مشکل: PostgreSQL نمی‌تواند `limit 10` را به داخلِ یک زیرکوئریِ GROUP BY
+  //   هل بدهد، پس **کلِ دفترِ مالیِ همهٔ دانشگاه‌ها** را برای همهٔ دانشجویان
+  //   جمع می‌زد و بعد فقط ۱۰ ردیف برمی‌داشت. در پروفایلِ واقعی:
+  //       769.290 ms  execute ... left join (select ... group by ...) ...
+  //   حالا به یک زیرکوئریِ همبسته در لیستِ SELECT تبدیل شده؛ چون بعد از
+  //   `order by ... limit 10` ارزیابی می‌شود، فقط برای همان ۱۰ دانشجوی بازگشتی
+  //   اجرا می‌گردد و هر اجرا یک پیمایشِ ایندکس روی
+  //   idx_student_ledger_student(studentId) است.
+  const debtOf = (studentIdCol: typeof students.id) => sql<string>`coalesce((
+    select sum(case when l."transactionType" in ('TUITION_CHARGE','CHARGE')
+                    then l."amount" else -l."amount" end)
+      from "student_ledger" l
+     where l."studentId" = ${studentIdCol}
+  ), 0)`;
 
   // ── جستجو + محدودیت دانشگاه (هم‌راستا با /admin/students: ادمین محدود فقط دانشگاه خودش را می‌بیند) ──
   const conds: unknown[] = [];
@@ -66,11 +87,32 @@ export default async function AdminStudentCardsPage({
   }
   const where = conds.length ? and(...(conds as Parameters<typeof and>)) : undefined;
 
-  const countRow = await db
-    .select({ n: count() })
-    .from(students)
-    .innerJoin(users, eq(users.id, students.userId))
-    .where(where as never);
+  // ── سه چیزِ مستقل موازی می‌آیند (قبلاً پشتِ سرِ هم بودند) ──
+  //   · شمارشِ کل برای صفحه‌بندی (rows به safePage وابسته است، پس زودتر لازم است)
+  //   · آمارِ کلیِ کارت‌ها
+  //   · تنظیمات (اعتبارِ روز و وجودِ رازِ توکن)
+  const [countRow, statsRes, validDays, secretValue] = await Promise.all([
+    db
+      .select({ n: count() })
+      .from(students)
+      .innerJoin(users, eq(users.id, students.userId))
+      .where(where as never),
+    db.execute(sql`
+      select
+        (select count(*) from students)::int as total,
+        (select count(*) from student_cards)::int as issued,
+        (select count(*) from (
+           select "studentId" from student_ledger
+            group by "studentId"
+           having sum(case when "transactionType" in ('TUITION_CHARGE','CHARGE') then amount else -amount end) > 0
+         ) d)::int as blocked,
+        (select count(*) from student_cards
+          where "expiresAt" < now() or "printStatus" in ('REVOKED','LOST'))::int as expired
+    `),
+    getNumber('STUDENT_CARD_VALID_DAYS', 365),
+    getSetting('TICKET_TOKEN_SECRET'),
+  ]);
+
   const total = Number(countRow[0]?.n ?? 0);
   const totalPages = Math.max(1, Math.ceil(total / PER_PAGE));
   const safePage = Math.min(page, totalPages);
@@ -91,38 +133,24 @@ export default async function AdminStudentCardsPage({
       rfidSerialNumber: student_cards.rfidSerialNumber,
       issuedAt: student_cards.issuedAt,
       expiresAt: student_cards.expiresAt,
-      debt: sql<string>`coalesce(${debtAgg.debt}, 0)`,
+      debt: debtOf(students.id),
     })
     .from(students)
     .innerJoin(users, eq(users.id, students.userId))
     .leftJoin(student_cards, eq(student_cards.studentId, students.id))
     .leftJoin(majors, eq(majors.id, students.majorId))
     .leftJoin(degree_level_configs, eq(degree_level_configs.id, students.degreeLevelId))
-    .leftJoin(debtAgg, eq(debtAgg.studentId, students.id))
     .where(where as never)
     .orderBy(desc(students.id))
     .limit(PER_PAGE)
     .offset((safePage - 1) * PER_PAGE);
 
-  // ── آمار کلی (مستقل از صفحه و جستجو) — شمارش‌های ارزان ──
-  const statsRes = await db.execute(sql`
-    select
-      (select count(*) from students)::int as total,
-      (select count(*) from student_cards)::int as issued,
-      (select count(*) from (
-         select "studentId" from student_ledger
-          group by "studentId"
-         having sum(case when "transactionType" in ('TUITION_CHARGE','CHARGE') then amount else -amount end) > 0
-       ) d)::int as blocked,
-      (select count(*) from student_cards
-        where "expiresAt" < now() or "printStatus" in ('REVOKED','LOST'))::int as expired
-  `);
+  // ── آمار کلی (مستقل از صفحه و جستجو) — در Promise.all بالا آمده ──
   const stats = (statsRes.rows?.[0] ?? { total: 0, issued: 0, blocked: 0, expired: 0 }) as {
     total: number; issued: number; blocked: number; expired: number;
   };
 
-  const validDays = await getNumber('STUDENT_CARD_VALID_DAYS', 365);
-  const secretSet = (await getSetting('TICKET_TOKEN_SECRET')).trim().length > 0;
+  const secretSet = secretValue.trim().length > 0;
 
   return (
     <div className="space-y-4" dir="rtl">
