@@ -8,6 +8,13 @@ interface FacultyOption {
   name: string;
 }
 
+/** گزینهٔ «گروه مسئول» — برای سالن‌هایی که مالِ یک گروه مشخص‌اند (مثل باشگاه‌ها). */
+interface DeptOption {
+  id: number;
+  name: string;
+  code: string | null;
+}
+
 interface RoomData {
   id: number;
   name: string;
@@ -15,6 +22,7 @@ interface RoomData {
   capacity: number;
   roomType: string | null;
   facultyId: number | null;
+  departmentId: number | null;
   floor: string | null;
   rowsCount: number | null;
   colsCount: number | null;
@@ -22,6 +30,9 @@ interface RoomData {
   isExamHall: number | null;
   examCapacity: number | null;
 }
+
+/** برچسب گروه: «نام (کد)» و اگر کد نبود فقط «نام» — شناسهٔ ردیف جای کد نمی‌نشیند. */
+const deptLabel = (d: DeptOption) => (d.code ? `${d.name} (${d.code})` : d.name);
 
 const ROOM_TYPES = ['کلاس درس', 'آزمایشگاه', 'سالن', 'ورزشی', 'کارگاه', 'اداری'];
 
@@ -39,10 +50,10 @@ const INITIAL: SaveClassroomResult = { ok: false };
  */
 const COLS =
   'grid-cols-2 sm:grid-cols-3 ' +
-  // ۱۲ ستون = تعداد واقعیِ خانه‌های RowForm. اگر خانه‌ای اضافه/حذف شد،
+  // ۱۳ ستون = تعداد واقعیِ خانه‌های RowForm. اگر خانه‌ای اضافه/حذف شد،
   // این الگو و HEADERS باید هم‌زمان به‌روز شوند، وگرنه ردیف می‌شکند و
   // ستون «عملیات» به سطر دوم می‌افتد (باگ سالن امتحان).
-  'md:grid-cols-[2rem_4.5rem_minmax(7rem,1.2fr)_4.5rem_6.5rem_minmax(6.5rem,1fr)_3.25rem_5.75rem_5.5rem_4.5rem_5rem_5.75rem]';
+  'md:grid-cols-[2rem_4.5rem_minmax(7rem,1.2fr)_4.5rem_6.5rem_minmax(6.5rem,1fr)_minmax(7rem,1fr)_3.25rem_5.75rem_5.5rem_4.5rem_5rem_5.75rem]';
 
 const INP =
   'w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-[13px] text-slate-800 ' +
@@ -68,6 +79,7 @@ const HEADERS: Array<{ label: string; hint: string; key: SortKey | null }> = [
   { label: 'ظرفیت', hint: 'ظرفیت اسمی اتاق (نفر)', key: 'capacity' },
   { label: 'نوع', hint: 'کلاس درس / آزمایشگاه / سالن / ورزشی / کارگاه', key: 'roomType' },
   { label: 'دانشکده', hint: 'دانشکدهٔ مالکِ اتاق — در سوییچ دانشگاه هم‌تراز می‌ماند', key: 'faculty' },
+  { label: 'گروه مسئول', hint: 'اگر اتاق مالِ یک گروه مشخص است (مثل باشگاه‌ها که مال «گروه مشترک تربیت بدنی» هستند) همین‌جا انتخابش کن. تخصیص خودکار سهمیه، هر دو شیفت را مستقیم به همین گروه می‌دهد و در توزیع ظرفیت‌محور دانشکده شرکت نمی‌کند. خالی = مثل قبل', key: null },
   { label: 'طبقه', hint: 'شمارهٔ طبقه', key: 'floor' },
   { label: 'نیمکت (ردیف × ستون)', hint: 'چیدمان نیمکت‌ها برای نقشهٔ حضور و غیاب — ابتدا تعداد ردیف، بعد تعداد ستون', key: 'seats' },
   { label: 'وضعیت', hint: 'کلاس غیرفعال در انتخاب‌گر سردر کلاس نمایش داده نمی‌شود', key: 'status' },
@@ -84,7 +96,7 @@ function normalizeDigits(s: string): string {
 }
 
 /** فرم افزودن کلاس جدید — «کد» اولین فیلد است تا با ستون اول جدول هم‌نام باشد. */
-function AddForm({ faculties }: { faculties: FacultyOption[] }) {
+function AddForm({ faculties, departments }: { faculties: FacultyOption[]; departments: DeptOption[] }) {
   const [state, action, pending] = useActionState(adminSaveClassroomAction, INITIAL);
   const LBL = 'flex min-w-0 flex-col gap-1 text-[11px] font-bold text-slate-500';
   return (
@@ -111,6 +123,12 @@ function AddForm({ faculties }: { faculties: FacultyOption[] }) {
         <select name="facultyId" className={INP}>
           <option value="">— بدون دانشکده —</option>
           {faculties.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+        </select>
+      </label>
+      <label className={`${LBL} col-span-2`}>گروه مسئول (اختیاری)
+        <select name="departmentId" className={INP}>
+          <option value="">— کل دانشکده —</option>
+          {departments.map(d => <option key={d.id} value={d.id}>{deptLabel(d)}</option>)}
         </select>
       </label>
       <label className={LBL}>طبقه
@@ -142,10 +160,11 @@ function AddForm({ faculties }: { faculties: FacultyOption[] }) {
 
 /** یک ردیف کامل = یک فرم؛ حذف هم با `intent=delete` از همین فرم می‌رود. */
 function RowForm({
-  room, faculties, selected, onToggle,
+  room, faculties, departments, selected, onToggle,
 }: {
   room: RoomData;
   faculties: FacultyOption[];
+  departments: DeptOption[];
   selected: boolean;
   onToggle: (id: number, next: boolean) => void;
 }) {
@@ -217,6 +236,13 @@ function RowForm({
         <select name="facultyId" defaultValue={String(room.facultyId ?? '')} className={INP}>
           <option value="">— بدون دانشکده —</option>
           {faculties.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
+        </select>
+      </Cell>
+
+      <Cell label="گروه مسئول">
+        <select name="departmentId" defaultValue={String(room.departmentId ?? '')} className={INP}>
+          <option value="">— کل دانشکده —</option>
+          {departments.map(d => <option key={d.id} value={d.id}>{deptLabel(d)}</option>)}
         </select>
       </Cell>
 
@@ -318,7 +344,7 @@ const SORT_OPTIONS: Array<[string, string]> = [
   ['status:desc', 'وضعیت (غیرفعال اول)'],
 ];
 
-export default function ClassroomManager({ rooms, faculties }: { rooms: RoomData[]; faculties: FacultyOption[] }) {
+export default function ClassroomManager({ rooms, faculties, departments }: { rooms: RoomData[]; faculties: FacultyOption[]; departments: DeptOption[] }) {
   const [query, setQuery] = useState('');
   const [facFilter, setFacFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -466,7 +492,7 @@ export default function ClassroomManager({ rooms, faculties }: { rooms: RoomData
         {ROOM_TYPES.map(t => <option key={t} value={t} />)}
       </datalist>
 
-      <AddForm faculties={faculties} />
+      <AddForm faculties={faculties} departments={departments} />
 
       <p className="text-[11px] text-slate-400">
         «کد کلاس» همان <span className="font-mono">LT4.Code</span> در سامانهٔ سماست؛ برنامهٔ هفتگی و سالن امتحان
@@ -614,7 +640,7 @@ export default function ClassroomManager({ rooms, faculties }: { rooms: RoomData
       )}
 
       <div className="overflow-x-auto">
-        <div className="md:min-w-[66rem]">
+        <div className="md:min-w-[73rem]">
           {/* سرسطر — فقط از دسکتاپ؛ کلیک روی هر عنوان = مرتب‌سازی همان ستون. */}
           <div className={`hidden md:grid ${COLS} items-center gap-1.5 px-1.5 pb-1.5`}>
             {HEADERS.map((h, i) => (
@@ -656,6 +682,7 @@ export default function ClassroomManager({ rooms, faculties }: { rooms: RoomData
                 key={r.id}
                 room={r}
                 faculties={faculties}
+                departments={departments}
                 selected={selected.has(r.id)}
                 onToggle={toggleOne}
               />

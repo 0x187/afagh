@@ -213,6 +213,42 @@ ok(
   !/بدون سهمیهٔ ثبت‌شده<\/p>/.test(DEPT),
 );
 
+// ── ۷) «گروه مسئول» اتاق (classrooms.departmentId) ────────────────────────
+// باشگاه‌ها و استخر مالِ «گروه مشترک تربیت بدنی» هستند، نه دانشکده‌ای که در آن
+// ثبت شده‌اند. بدون این ستون، موتور تخصیص سهمیهٔ باشگاه را در توزیع ظرفیت‌محور
+// دانشکده به گروه حقوق یا حسابداری می‌داد.
+ok(
+  'گروه مسئول: سالن‌های دارای مسئول مستقیم به همان گروه می‌روند',
+  /select id, "departmentId" from classrooms\s+where "departmentId" is not null/.test(ENGINE) &&
+    /departmentId: Number\(r\.departmentId\), shift: 'MORNING'/.test(ENGINE) &&
+    /departmentId: Number\(r\.departmentId\), shift: 'EVENING'/.test(ENGINE),
+);
+ok(
+  'گروه مسئول: سالن‌های دارای مسئول از استخر ظرفیت‌محور بیرون می‌مانند',
+  /where "facultyId" = \$\{f\.id\} and "departmentId" is null/.test(ENGINE),
+);
+ok(
+  'گروه مسئول: ستون در جدول کلاس‌ها هست',
+  /<Cell label="گروه مسئول">/.test(ROOMS) && /label: 'گروه مسئول'/.test(ROOMS),
+);
+ok(
+  'گروه مسئول: در فرم افزودن هم هست',
+  /گروه مسئول \(اختیاری\)/.test(ROOMS) && /name="departmentId"/.test(ROOMS),
+);
+ok(
+  'گروه مسئول: اکشن آن را ذخیره می‌کند',
+  /departmentId,\s*\n\s*\/\*\*/.test(read('src/app/admin/settings/actions.ts')) ||
+    /^\s*departmentId,$/m.test(read('src/app/admin/settings/actions.ts')),
+);
+ok(
+  'گروه مسئول: دامنهٔ دانشگاه در اکشن بررسی می‌شود',
+  /گروه انتخاب‌شده متعلق به دانشگاه فعال نیست/.test(read('src/app/admin/settings/actions.ts')),
+);
+ok(
+  'گروه مسئول: صفحهٔ تنظیمات فهرست گروه‌ها را پاس می‌دهد',
+  /departments=\{departmentsOfUni\}/.test(read('src/app/admin/settings/page.tsx')),
+);
+
 // ── ۳) کد رشته در کارت فاز ۰ نباید خالی رندر شود ──────────────────────────
 const SCOPE = read('src/app/admin/scheduling/components/ProgramScopeTab.tsx');
 ok(

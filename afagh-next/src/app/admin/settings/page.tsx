@@ -1,10 +1,10 @@
-import { eq } from 'drizzle-orm';
+import { eq, isNull, or } from 'drizzle-orm';
 import { requireRole } from '@/lib/auth';
 import { resolveAllSettings, SETTING_GROUPS } from '@/lib/settings';
 import { SECRET_MASK, type SettingView } from '@/lib/settings-shared';
 import { getCurrentUniversity } from '@/lib/university-scope';
 import { db } from '@/db';
-import { classrooms, faculties } from '@/db/schema';
+import { classrooms, departments, faculties } from '@/db/schema';
 import SettingsClient from './SettingsClient';
 import ClassroomManager from './ClassroomManager';
 
@@ -51,6 +51,22 @@ export default async function AdminSettingsPage() {
         .orderBy(faculties.name)
     : [];
 
+  /**
+   * گروه‌های آموزشی همین دانشگاه (+ ردیف‌های عمومی با `universityId = NULL`).
+   *
+   * برای ستون «گروه مسئول» در جدول کلاس‌ها: بعضی سالن‌ها به یک گروه مشخص تعلق
+   * دارند، نه به کل دانشکده — مثل باشگاه‌ها و استخر که مال «گروه مشترک تربیت
+   * بدنی» هستند. بدون این ستون، موتور تخصیص سهمیهٔ باشگاه را به گروه‌های دیگر
+   * می‌داد.
+   */
+  const departmentsOfUni = uni
+    ? await db
+        .select({ id: departments.id, name: departments.name, code: departments.departmentCode })
+        .from(departments)
+        .where(or(eq(departments.universityId, uni.id), isNull(departments.universityId)))
+        .orderBy(departments.name)
+    : [];
+
   return (
     <div className="space-y-8">
       {/*
@@ -72,7 +88,7 @@ export default async function AdminSettingsPage() {
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white px-5 py-5 shadow-sm">
               {/* موجودیت‌های دیگر (دانشکده‌ها، رشته‌ها، ترم‌ها و…) در ادامه اینجا اضافه می‌شوند. */}
-              <ClassroomManager rooms={rooms} faculties={facultiesOfUni} />
+              <ClassroomManager rooms={rooms} faculties={facultiesOfUni} departments={departmentsOfUni} />
             </div>
           </div>
         }

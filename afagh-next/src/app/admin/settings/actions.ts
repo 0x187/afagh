@@ -1,9 +1,9 @@
 'use server';
 
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/db';
-import { classrooms, faculties, schedules } from '@/db/schema';
+import { classrooms, departments, faculties, schedules } from '@/db/schema';
 import { requireRole } from '@/lib/auth';
 import { getCurrentUniversity } from '@/lib/university-scope';
 import { classroomOwnedBy, readClassroomUni } from '@/lib/offering-scheduling';
@@ -78,12 +78,43 @@ export async function adminSaveClassroomAction(
       facultyName = owned[0].name;
     }
 
+    /**
+     * «گروه مسئول» اتاق — اختیاری.
+     *
+     * برای اتاقی که مالِ یک گروه مشخص است، نه کل دانشکده: باشگاه‌ها و استخر مالِ
+     * «گروه مشترک تربیت بدنی» هستند. تخصیص خودکار سهمیه (allocateRoomQuotas)
+     * هر دو شیفتِ چنین اتاقی را مستقیم به همین گروه می‌دهد و آن را در توزیع
+     * ظرفیت‌محور دانشکده شرکت نمی‌دهد.
+     *
+     * دامنه: فقط گروه‌های همین دانشگاه یا ردیف‌های عمومی (`universityId = NULL`).
+     */
+    let departmentId: number | null = null;
+    const deptRaw = String(fd.get('departmentId') ?? '').trim();
+    if (deptRaw) {
+      const did = Number(deptRaw);
+      const ownedDept = Number.isFinite(did) && myUni
+        ? await db
+            .select({ id: departments.id })
+            .from(departments)
+            .where(and(
+              eq(departments.id, did),
+              or(eq(departments.universityId, myUni), isNull(departments.universityId)),
+            ))
+            .limit(1)
+        : [];
+      if (!ownedDept.length) {
+        return { ok: false, err: 'گروه انتخاب‌شده متعلق به دانشگاه فعال نیست.' };
+      }
+      departmentId = did;
+    }
+
     const vals = {
       name,
       code,
       capacity: cap,
       roomType: String(fd.get('roomType') ?? '') || null,
       facultyId,
+      departmentId,
       /**
        * نام دانشکده در ستون قدیمیِ `buildingName` هم نوشته می‌شود.
        *

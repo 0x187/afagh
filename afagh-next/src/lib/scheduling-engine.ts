@@ -304,12 +304,35 @@ export async function allocateSections(actorUserId: number | null, px: {
 
 /** تخصیص اولیهٔ سهمیه (سالن، شیفت) گروه‌های هر دانشکده بر اساس جمعیت دانشجویی */
 export async function allocateRoomQuotas(actorUserId: number | null, termId: number): Promise<{ ok: true; grants: number }> {
-  const faculties = await db.execute(sql`select id from faculties order by id`);
   const grantsAll: { departmentId: number; classroomId: number; shift: Shift }[] = [];
+
+  /**
+   * سالن‌هایی که «گروه مسئول» صریح دارند (`classrooms."departmentId"`) از استخرِ
+   * ظرفیت‌محور بیرون می‌مانند و هر دو شیفت مستقیم به همان گروه می‌رسد.
+   *
+   * چرا لازم است؟ باشگاه‌ها و استخر به «گروه مشترک تربیت بدنی» تعلق دارند، نه به
+   * دانشکده‌ای که اتفاقاً در آن ثبت شده‌اند. اگر در توزیع ظرفیت‌محور شرکت کنند،
+   * ممکن است سهمیه‌شان به گروه حقوق یا حسابداری برسد — که غلط است.
+   *
+   * سالنِ بدون گروه مسئول دقیقاً مثل قبل رفتار می‌کند (سازگاری کامل).
+   */
+  const owned = (await db.execute(sql`
+    select id, "departmentId" from classrooms
+    where "departmentId" is not null
+    order by id
+  `)).rows as { id: number; departmentId: number }[];
+  for (const r of owned) {
+    grantsAll.push({ classroomId: Number(r.id), departmentId: Number(r.departmentId), shift: 'MORNING' });
+    grantsAll.push({ classroomId: Number(r.id), departmentId: Number(r.departmentId), shift: 'EVENING' });
+  }
+
+  const faculties = await db.execute(sql`select id from faculties order by id`);
 
   for (const f of (faculties.rows as { id: number }[])) {
     const roomRows = (await db.execute(sql`
-      select id, capacity from classrooms where "facultyId" = ${f.id} order by id
+      select id, capacity from classrooms
+      where "facultyId" = ${f.id} and "departmentId" is null
+      order by id
     `)).rows as { id: number; capacity: number }[];
     if (!roomRows.length) continue;
     const deptRows = (await db.execute(sql`
