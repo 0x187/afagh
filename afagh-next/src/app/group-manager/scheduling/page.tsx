@@ -1,6 +1,5 @@
 import { requireRole } from '@/lib/auth';
-import { getSchedulingWorkspaceAction } from '@/app/admin/scheduling/actions';
-import { getCurrentUniversity } from '@/lib/university-scope';
+import { getSchedulingWorkspaceLightAction } from '@/app/admin/scheduling/actions';
 import DepartmentPlanningClient from '@/app/admin/scheduling/DepartmentPlanningClient';
 import { getTimeSlots } from '@/lib/schedule-config';
 
@@ -22,8 +21,9 @@ export default async function GroupSchedulingPage({
 }) {
   await requireRole(['DEP_HEAD']);
 
-  const currentUniversity = await getCurrentUniversity();
-  const workspace: any = await getSchedulingWorkspaceAction(undefined, currentUniversity?.id ?? undefined);
+  // نسخهٔ سبک: فقط اسکلت — دامنهٔ مدیرگروه در واکشیِ کاملِ سمتِ کلاینت
+  // (getSchedulingWorkspaceAction) همان‌طور که قبل اعمال می‌شود.
+  const workspace: any = await getSchedulingWorkspaceLightAction();
   if (!workspace.ok) {
     return (
       <div dir="rtl" className="rounded-2xl border border-rose-200 bg-white p-6 text-center">

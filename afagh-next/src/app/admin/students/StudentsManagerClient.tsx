@@ -104,6 +104,9 @@ export default function StudentsManagerClient(props: {
   const [staffRoleIds, setStaffRoleIds] = useState<Record<number, number[]>>(props.userRoleIds ?? {});
   const [staffLoading, setStaffLoading] = useState(false);
   const [staffLoadError, setStaffLoadError] = useState<string>('');
+  // جست‌وجوی استادان سمتِ سرور است — state باید قبل از effectِ واکشی تعریف شود
+  const [staffQuery, setStaffQuery] = useState('');
+  const [staffTotal, setStaffTotal] = useState<number | null>(null);
   const staffRequestedRef = useRef(false);
   const [searchQuery, setSearchQuery] = useState<string>(props.pagination?.q ?? '');
   const [toastMsg, setToastMsg] = useState<string>('');
@@ -408,37 +411,39 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
   };
 
   /**
-   * واکشی تنبل فهرست استادان: فقط یک‌بار، آن هم وقتی تب «استادان» باز شود.
-   * اگر پراپ اولیه وجود داشته باشد (تست/مسیر قدیمی) هیچ درخواستی نمی‌فرستد.
+   * واکشی فهرست استادان — با جست‌وجوی سمتِ سرور:
+   * قبلاً همهٔ ~۱۴۰۰ نفر × ۲۸ فیلد یکجا منتقل می‌شد (روی خطوط کم‌سرعت ده‌ها
+   * ثانیه). حالا سرور با ILIKE نرمال‌شدهٔ فارسی جستجو می‌کند و حداکثر ۱۰۰
+   * ردیف برمی‌گرداند؛ تایپ کاربر با debounce ۳۵۰ms دوباره واکشی می‌کند.
+   * اگر پراپ اولیه وجود داشته باشد (مسیر قدیمی/تست) واکشی نمیکند.
    */
   useEffect(() => {
     if (mainView !== 'professors') return;
-    if (staffRequestedRef.current) return;
     if ((props.staffList?.length ?? 0) > 0) return;
-    staffRequestedRef.current = true;
     let alive = true;
     setStaffLoading(true);
     setStaffLoadError('');
-    loadStaffListAction()
-      .then(res => {
-        if (!alive) return;
-        if (res.ok && res.staffList) {
-          setStaffList(res.staffList);
-          setStaffRoleIds(res.userRoleIds ?? {});
-        } else {
-          setStaffLoadError(res.error || 'فهرست استادان بارگذاری نشد.');
-          staffRequestedRef.current = false; // اجازهٔ تلاش دوباره
-        }
-      })
-      .catch(() => {
-        if (!alive) return;
-        setStaffLoadError('ارتباط برقرار نشد. دوباره تلاش کنید.');
-        staffRequestedRef.current = false;
-      })
-      .finally(() => { if (alive) setStaffLoading(false); });
-    return () => { alive = false; };
+    const t = setTimeout(() => {
+      loadStaffListAction(staffQuery)
+        .then(res => {
+          if (!alive) return;
+          if (res.ok && res.staffList) {
+            setStaffList(res.staffList);
+            setStaffRoleIds(res.userRoleIds ?? {});
+            setStaffTotal(typeof res.total === 'number' ? res.total : null);
+          } else {
+            setStaffLoadError(res.error || 'فهرست استادان بارگذاری نشد.');
+          }
+        })
+        .catch(() => {
+          if (!alive) return;
+          setStaffLoadError('ارتباط برقرار نشد. دوباره تلاش کنید.');
+        })
+        .finally(() => { if (alive) setStaffLoading(false); });
+    }, staffQuery ? 350 : 0);
+    return () => { alive = false; clearTimeout(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mainView]);
+  }, [mainView, staffQuery]);
 
   const currentStudent = props.students[selectedStuIdx] || props.students[0];
   const currentStaff = staffList[selectedProfIdx] || staffList[0];
@@ -605,8 +610,8 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
   const router = useRouter();
   const pathname = usePathname();
   const pg = props.pagination;
-  // جست‌وجوی دانشجو سمت سرور است (props.students فقط یک صفحه است)؛ جست‌وجوی استاد محلی
-  const [staffQuery, setStaffQuery] = useState('');
+  // جست‌وجوی دانشجو و استاد هر دو سمتِ سرور است (props.students فقط یک صفحه؛
+  // فهرست استادان حداکثر ۱۰۰ ردیف با ILIKE نرمال‌شدهٔ فارسی)
   const [staffVisible, setStaffVisible] = useState(100);
   const [staffTypeFilter, setStaffTypeFilter] = useState('ALL');
   // ── ساخت URL فقط با فیلترهای غیرحساس ──
@@ -2052,6 +2057,11 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                   >
                     تلاش دوباره
                   </button>
+                </div>
+              )}
+              {!staffLoading && !staffLoadError && staffTotal != null && staffList.length < staffTotal && (
+                <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700">
+                  نمایش {staffList.length.toLocaleString('fa-IR')} نفر از {staffTotal.toLocaleString('fa-IR')} نتیجه — برای رسیدن به فرد موردنظر در کادر جست‌وجو تایپ کنید (کد پرسنلی، کد ملی یا نام).
                 </div>
               )}
               <div className="flex items-center justify-between gap-3 flex-wrap">

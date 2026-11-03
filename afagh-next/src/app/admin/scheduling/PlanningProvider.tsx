@@ -169,6 +169,40 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTermId]);
 
+  /** نسخهٔ سبکِ سروری (initial.partial): صفحه با اسکلت فوراً رندر شده؛
+   *  حالا workspace کامل را در پس‌زمینه واکشی و اعمال می‌کنیم — همان مسیرِ
+   *  «تغییر نیمسال». فقط یک بار، در mount. */
+  useEffect(() => {
+    if ((initial as any).partial !== true || !selectedTermId) return;
+    let cancelled = false;
+    setIsLoadingWorkspace(true);
+    getSchedulingWorkspaceAction(selectedTermId)
+      .then(w => {
+        if (cancelled || !w.ok) return;
+        applyWorkspace(w);
+        // این دو در applyWorkspace تنظیم نمیشوند (فقط initial-literalهای useState)
+        const ww: any = w;
+        setEditingProfId(ww.professors[0]?.id ?? 1);
+        // همان هیوریستیکِ پیشفرضِ بازرس: استادی که بیشترین ارائهٔ مصوب را دارد
+        const counts = new Map<number, number>();
+        for (const o of ww.approvedOfferings ?? []) {
+          const pid = o.professorId ?? 0;
+          if (pid) counts.set(pid, (counts.get(pid) ?? 0) + 1);
+        }
+        let best = ww.professors[0]?.id ?? 1;
+        let bestN = -1;
+        for (const p of ww.professors ?? []) {
+          const n = counts.get(p.id) ?? 0;
+          if (n > bestN) { bestN = n; best = p.id; }
+        }
+        setInspectorProfId(best);
+      })
+      .catch(() => showToast('⚠️ بارگذاری دادهٔ کارتابل از سرور ناموفق بود.', 'warning'))
+      .finally(() => { if (!cancelled) setIsLoadingWorkspace(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /** بازخوانی کارتابل از سرور (بعد از تأمین/تخصیص/گذار فاز) */
   const reloadWorkspace = () => {
     if (!selectedTermId) return;

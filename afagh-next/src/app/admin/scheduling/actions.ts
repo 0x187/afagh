@@ -746,6 +746,8 @@ async function listRoomGrants(termId: number, universityId?: number) {
 export type SchedulingWorkspaceResult =
   | {
       ok: true;
+      /** true = نسخهٔ سبکِ اسکلتی؛ لیستهای سنگین را کلاینت پس از paint واکشی میکند */
+      partial?: boolean;
       terms: { id: number; code: string; title: string; isCurrent: boolean }[];
       selectedTermId: number | null;
       programs: { id: number; code: string; title: string; facultyName: string; degreeLevel: string; facultyId: number | null }[];
@@ -781,6 +783,75 @@ export type SchedulingWorkspaceResult =
       }[];
     }
   | { ok: false; error: string };
+
+/**
+ * نسخهٔ سبکِ کارتابل — فقط اسکلت (ترم‌ها/رشته‌ها/دپارتمان‌ها/فازها/تقویم) و
+ * لیستهای سنگین خالی. ~۵ کوئری کوچک به‌جای ~۱۳ کوئری سنگینِ نسخهٔ کامل.
+ *
+ * چرا؟ HAR نشان داد RSC این صفحه ۱٫۷MB است (کل workspace داخل payload
+ * سریالایز میشود) و روی لینکِ کند دانلودش ۸+ ثانیه طول میکشد، در حالی‌که
+ * رندرِ سرور فقط ~۲۵۰ms است. صفحه با اسکلتِ چندکیلوبایتی فوراً رندر میشود و
+ * PlanningProvider پس از اولین paint، workspace کامل را با همین
+ * `getSchedulingWorkspaceAction` واکشی میکند (وقتی `initial.partial === true`).
+ */
+export async function getSchedulingWorkspaceLightAction(): Promise<SchedulingWorkspaceResult> {
+  try {
+    await requireRole([...EDITORS, 'DEP_HEAD']);
+    const uid = await serverUniId();
+    const [terms, programs, deptRows, phases] = await Promise.all([
+      listRealTerms(uid),
+      listRealPrograms(uid),
+      db.select({ id: departments.id, name: departments.name, departmentCode: departments.departmentCode })
+        .from(departments).where(uniOrGlobal(departments.universityId, uid)).orderBy(departments.name),
+      db.select({ termId: term_scheduling_states.termId, phase: term_scheduling_states.phase })
+        .from(term_scheduling_states).where(uniOrGlobal(term_scheduling_states.universityId, uid)),
+    ]);
+    const resolvedTermId = terms.find(t => t.isCurrent === 1)?.id ?? terms[0]?.id ?? null;
+    let termCalendar: { id: number; startJalali: string | null; endJalali: string | null; startDate: string | null } | null = null;
+    if (resolvedTermId != null) {
+      const term = await db.select().from(academic_terms).where(and(
+        eq(academic_terms.id, resolvedTermId),
+        uniOrGlobal(academic_terms.universityId, uid),
+      )).limit(1).then(rows => rows[0] ?? null);
+      if (term) {
+        termCalendar = {
+          id: term.id,
+          startJalali: term.startDate ? jalaliDateOf(term.startDate) : null,
+          endJalali: term.endDate ? jalaliDateOf(term.endDate) : null,
+          startDate: term.startDate ? term.startDate.toISOString() : null,
+        };
+      }
+    }
+    return {
+      ok: true,
+      partial: true,
+      terms: terms.map(t => ({ id: t.id, code: t.code, title: t.title, isCurrent: t.isCurrent === 1 })),
+      selectedTermId: resolvedTermId,
+      programs: programs.map(p => ({
+        id: p.id, code: p.code ?? '', title: p.title,
+        facultyName: (p as any).facultyName ?? '—', degreeLevel: (p as any).degreeLevel ?? '—',
+        facultyId: (p as any).facultyId ?? (p as any).deptFacultyId ?? null,
+      })),
+      cohorts: [],
+      classrooms: [],
+      allocatedRoomIds: [],
+      roomGrants: [],
+      departments: deptRows,
+      availabilities: [],
+      professors: [],
+      demands: [],
+      phases: Object.fromEntries(phases.map(p => [p.termId, p.phase])),
+      termCalendar,
+      sessionsTotal: 0,
+      sessionsByOffering: {},
+      hardConflictCount: 0,
+      approvedOfferings: [],
+      makeupSessions: [],
+    };
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? 'خطا در بارگذاری کارتابل برنامه‌ریزی درسی.' };
+  }
+}
 
 /** دادهٔ اولیهٔ واقعی صفحه (جایگزین INITIAL_* های Mock) */
 export async function getSchedulingWorkspaceAction(termId?: number, _universityId?: number): Promise<SchedulingWorkspaceResult> {

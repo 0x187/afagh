@@ -1,7 +1,8 @@
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { departments, faculties, staff, user_roles, users } from '@/db/schema';
 import { currentExpertFilters } from '@/lib/expert-scope';
+import { faLikePattern, normCol } from '@/lib/persian-search';
 import type { StaffItem } from './types';
 
 /**
@@ -35,10 +36,36 @@ async function staffScopeConds(roles: string[]) {
 export async function loadStaffBundle(opts: {
   universityId: number | null;
   roles: string[];
-}): Promise<{ staffList: StaffItem[]; userRoleIds: Record<number, number[]> }> {
+  /** جست‌وجوی سمتِ سرور (کد پرسنلی/ملی/نام) — نرمال‌سازی فارسی با normCol */
+  q?: string;
+  /** سقف ردیف‌های برگشتی (پیش‌فرض ۱۰۰ — کاربر برای بقیه جست‌وجو می‌کند) */
+  limit?: number;
+}): Promise<{ staffList: StaffItem[]; userRoleIds: Record<number, number[]>; total: number }> {
   const { universityId, roles } = opts;
+  const limit = Math.min(Math.max(opts.limit ?? 100, 1), 500);
 
-  const staffRows = await db
+  // جست‌وجوی فارسی‌نرمال: نام/نام‌خانوادگی/کد پرسنلی/کد ملی.
+  // قبلاً همهٔ ~۱۴۰۰ نفر × ۲۸ فیلد یکجا به کلاینت می‌رفت؛ حالا سرور فیلتر
+  // می‌کند و حداکثر `limit` ردیف برمی‌گردد.
+  const q = (opts.q ?? '').trim();
+  const qConds = q
+    ? [
+        sql`${normCol(users.firstName)} ILIKE ${faLikePattern(q)} ESCAPE '\\'`,
+        sql`${normCol(users.lastName)} ILIKE ${faLikePattern(q)} ESCAPE '\\'`,
+        sql`${normCol(sql`${users.firstName} || ' ' || ${users.lastName}`)} ILIKE ${faLikePattern(q)} ESCAPE '\\'`,
+        sql`${normCol(staff.staffCode)} ILIKE ${faLikePattern(q)} ESCAPE '\\'`,
+        sql`${normCol(users.nationalCode)} ILIKE ${faLikePattern(q)} ESCAPE '\\'`,
+      ]
+    : [];
+
+  const where = and(
+    universityId ? eq(staff.universityId, universityId) : undefined,
+    ...(await staffScopeConds(roles)),
+    qConds.length ? or(...qConds) : undefined,
+  );
+
+  const [staffRows, totalRow] = await Promise.all([
+    db
     .select({
       id: staff.id,
       staffCode: staff.staffCode,
@@ -77,11 +104,13 @@ export async function loadStaffBundle(opts: {
     .innerJoin(users, eq(users.id, staff.userId))
     .leftJoin(departments, eq(departments.id, staff.departmentId))
     .leftJoin(faculties, eq(faculties.id, staff.facultyId))
-    .where(and(
-      universityId ? eq(staff.universityId, universityId) : undefined,
-      ...(await staffScopeConds(roles)),
-    ))
-    .orderBy(desc(staff.id));
+    .where(where)
+    .orderBy(desc(staff.id))
+    .limit(limit),
+    db.select({ n: count() }).from(staff)
+      .innerJoin(users, eq(users.id, staff.userId))
+      .where(where),
+  ]);
 
   // نقش‌های کاربریِ استادان (برای نشان نقش در سربرگ دوسیه)
   const staffUserIds = staffRows.map(r => r.userId).filter(Number.isInteger);
@@ -91,6 +120,8 @@ export async function loadStaffBundle(opts: {
   const userRoleIds: Record<number, number[]> = {};
   for (const r of staffRows) if (r.userId) userRoleIds[r.userId] = [];
   for (const ur of urRows) (userRoleIds[ur.userId] ??= []).push(ur.roleId);
+
+  const total = Number(totalRow[0]?.n ?? 0);
 
   const staffList: StaffItem[] = staffRows.map(st => ({
     id: st.id,
@@ -129,5 +160,5 @@ export async function loadStaffBundle(opts: {
     role: 'استاد / هیئت علمی',
   }));
 
-  return { staffList, userRoleIds };
+  return { staffList, userRoleIds, total };
 }

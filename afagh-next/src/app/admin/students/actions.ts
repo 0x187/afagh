@@ -1160,10 +1160,12 @@ export async function updateStaffProfileAction(
  *
  * 🔒 همان گاردِ خود صفحه: نقش‌ها/مجوزها + دامنهٔ دانشگاه فعال.
  */
-export async function loadStaffListAction(): Promise<{
+export async function loadStaffListAction(q?: string): Promise<{
   ok: boolean;
   staffList?: StaffItem[];
   userRoleIds?: Record<number, number[]>;
+  /** تعداد کل نتایجِ جست‌وجو (ممکن است از سقفِ ۱۰۰ ردیف بیشتر باشد) */
+  total?: number;
   error?: string;
 }> {
   try {
@@ -1174,11 +1176,12 @@ export async function loadStaffListAction(): Promise<{
     );
     const uni = await getCurrentUniversity();
     const { loadStaffBundle } = await import('./staff-data');
-    const { staffList, userRoleIds } = await loadStaffBundle({
+    const { staffList, userRoleIds, total } = await loadStaffBundle({
       universityId: uni?.id ?? null,
       roles: user.roles,
+      q,
     });
-    return { ok: true, staffList, userRoleIds };
+    return { ok: true, staffList, userRoleIds, total };
   } catch (e: unknown) {
     return { ok: false, error: e instanceof Error ? e.message : 'فهرست استادان بارگذاری نشد.' };
   }
