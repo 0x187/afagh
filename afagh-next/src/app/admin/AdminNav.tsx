@@ -33,9 +33,8 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [open ]);
+  }, [open]);
   // اسکرول بدنه قفل شود تا کشو روی محتوایِ در حال اسکرول شناور نماند
-  // (پیش‌تر با باز بودن کشو، صفحهٔ پشت آن هم اسکرول می‌شد).
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
@@ -45,7 +44,6 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
 
   const modules = useMemo(() => navModules(roles, permissions), [roles, permissions]);
   const grouped = useMemo(() => groupedModules(roles, permissions), [roles, permissions]);
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
   const filtered = useMemo(() => {
     const t = normalizeFa(q);
     if (!t) return modules;
@@ -54,7 +52,7 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
 
   return (
     <>
-      {/* دکمهٔ ثابت بالا-راست */}
+      {/* دکمهٔ ثابت بالا-راست (موبایل) */}
       <button
         onClick={() => setOpen(true)}
         aria-label="باز کردن منوی مدیریت"
@@ -72,101 +70,112 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
           موبایل: کشوی تمام‌قد که فقط با `open` باز می‌شود.
           دسکتاپ (`lg+`): همان محتوا به سایدبارِ دائمیِ چسبان تبدیل می‌شود
           (`lg:static` + `lg:sticky` روی aside) تا کاربر بدون دو کلیک به
-          همهٔ ماژول‌ها دسترسی داشته باشد — پیش‌تر حتی روی مانیتور بزرگ هم
-          فقط کشو وجود داشت. */}
+          همهٔ ماژول‌ها دسترسی داشته باشد. */}
       <div
         className={`${open ? 'fixed inset-0 z-50' : 'hidden'} lg:static lg:inset-auto lg:z-auto lg:block lg:shrink-0 print:hidden`}
         {...(open ? { role: 'dialog', 'aria-modal': true as const, 'aria-label': 'منوی مدیریت' } : {})}
       >
-          {/* پس‌زمینه */}
-          <div className="absolute inset-0 bg-slate-950/60 lg:hidden" onClick={() => setOpen(false)} aria-hidden />
-          {/* پنل سمت راست (موبایل: کشو / دسکتاپ: سایدبار) */}
-          <aside
-            className={`absolute top-0 right-0 h-full w-80 max-w-[85vw] ${th.navPanel} text-white shadow-2xl flex flex-col border-s
-              lg:static lg:top-auto lg:right-auto lg:min-h-[calc(100dvh-8rem)] lg:w-64 xl:w-72 lg:max-w-none lg:sticky lg:top-[6.5rem]
-              lg:rounded-2xl lg:border lg:shadow-sm lg:overflow-y-auto`}
-          >
-            <div className={`flex items-center justify-between p-3 border-b ${th.navBorder}`}>
-              <p className="flex items-center gap-2 font-extrabold text-sm"><Icon emoji="🧭" className="h-4 w-4" /> منوی مدیریت</p>
-              <button
-                onClick={() => setOpen(false)}
-                aria-label="بستن منو"
-                className={`lg:hidden rounded-lg p-1.5 ${th.navHover}`}
-              >
-                <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
-              </button>
-            </div>
-            <div className={`p-3 border-b ${th.navBorder}`}>
+        {/* پس‌زمینهٔ نیمه‌شفاف (فقط موبایل) */}
+        <div className="absolute inset-0 bg-slate-950/60 lg:hidden" onClick={() => setOpen(false)} aria-hidden />
+        <aside
+          className={`absolute top-0 right-0 h-full w-80 max-w-[85vw] ${th.navPanel} text-white shadow-2xl flex flex-col
+            lg:static lg:top-auto lg:right-auto lg:min-h-[calc(100dvh-8rem)] lg:w-64 xl:w-72 lg:max-w-none lg:sticky lg:top-[6.5rem]
+            lg:rounded-2xl lg:border lg:shadow-sm`}
+        >
+          {/* هدر */}
+          <div className={`flex items-center justify-between p-3 border-b ${th.navBorder}`}>
+            <p className="flex items-center gap-2 font-extrabold text-sm">
+              <Icon emoji="🧭" className="h-4 w-4" /> منوی مدیریت
+            </p>
+            <button
+              onClick={() => setOpen(false)}
+              aria-label="بستن منو"
+              className={`lg:hidden rounded-lg p-1.5 ${th.navHover}`}
+            >
+              <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
+          </div>
+
+          {/* جست‌وجو */}
+          <div className={`p-3 border-b ${th.navBorder}`}>
+            <div className="relative">
+              <Icon emoji="🔍" className="absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 opacity-70" />
               <input
                 autoFocus={open}
                 value={q}
                 onChange={e => setQ(e.target.value)}
                 placeholder="جست‌وجوی ماژول…"
-                className={`w-full rounded-lg border px-3 py-1.5 text-xs focus:outline-none ${th.navInput}`}
+                className={`w-full rounded-lg border py-1.5 pr-8 pl-3 text-xs focus:outline-none ${th.navInput}`}
               />
             </div>
-            <nav className="flex-1 overflow-y-auto p-2 space-y-0.5 text-[13px]">
-              <Link
-                href="/admin"
-                className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-colors ${pathname === '/admin' ? th.navActive : th.navHover}`}
-              >
-                <Icon emoji="🏠" className="h-4 w-4" /> داشبورد
-              </Link>
-              {filtered.length > 0 && q.trim() === '' ? (
-                grouped.map(g => (
-                  <div key={g.group.key} className="mt-1">
-                    <button
-                      onClick={() => setCollapsed(p => ({ ...p, [g.group.key]: !p[g.group.key] }))}
-                      aria-expanded={!collapsed[g.group.key]}
-                      className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 font-extrabold transition-colors ${th.navHover}`}
-                    >
-                      {g.group.icon}
-                      <span className="flex-1 text-start">{g.group.title}</span>
-                      <span aria-hidden className={`text-3xs ${th.navMuted}`}>{collapsed[g.group.key] ? '◀' : '▼'}</span>
-                    </button>
-                    {!collapsed[g.group.key] && g.modules.map(m => {
+          </div>
+
+          {/* لیست ماژول‌ها (اسکرول‌پذیر) */}
+          <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-3 text-[13px]">
+            <Link
+              href="/admin"
+              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-colors ${pathname === '/admin' ? th.navActive : th.navHover}`}
+            >
+              <Icon emoji="🏠" className="h-4 w-4 shrink-0" />
+              <span className="flex-1">داشبورد</span>
+            </Link>
+
+            {filtered.length > 0 && q.trim() === '' ? (
+              grouped.map(g => (
+                <div key={g.group.key}>
+                  {/* سرخط دسته — متمایز از آیتم‌ها */}
+                  <div className={`flex items-center gap-1.5 px-3 py-1 text-[11px] font-bold tracking-wide ${th.navMuted}`}>
+                    <span className="shrink-0">{g.group.icon}</span>
+                    <span>{g.group.title}</span>
+                  </div>
+                  <div className="mt-0.5 space-y-0.5">
+                    {g.modules.map(m => {
                       const active = pathname === m.href || pathname.startsWith(m.href + '/');
                       return (
                         <Link
                           key={m.href}
                           href={m.href}
                           title={m.desc}
-                          className={`ms-3 flex items-center gap-2 rounded-lg px-3 py-1.5 transition-colors ${active ? th.navActive : th.navHover}`}
+                          className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-colors ${active ? th.navActive : th.navHover}`}
                         >
-                          {m.icon}
-                          <span className="flex-1">{m.title}</span>
+                          <span className="shrink-0">{m.icon}</span>
+                          <span className="flex-1 truncate">{m.title}</span>
                         </Link>
                       );
                     })}
                   </div>
-                ))
-              ) : filtered.map(m => {
-                const active = pathname === m.href || pathname.startsWith(m.href + '/');
-                return (
-                  <Link
-                    key={m.href}
-                    href={m.href}
-                    title={m.desc}
-                    className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-colors ${active ? th.navActive : th.navHover}`}
-                  >
-                    {m.icon}
-                    <span className="flex-1">{m.title}</span>
-                  </Link>
-                );
-              })}
-              {filtered.length === 0 && (
-                <p className={`px-3 py-4 text-center text-xs ${th.navMuted}`}>ماژولی یافت نشد.</p>
-              )}
-            </nav>
-            <div className={`p-2 border-t ${th.navBorder}`}>
-              <Link
-                href="/help/admin"
-                className="flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] bg-emerald-700/70 hover:bg-emerald-700 border border-emerald-500/40 font-bold transition-colors"
-              >
-                <Icon emoji="📖" className="h-4 w-4" /> راهنمای کاربری و PDF
-              </Link>
-            </div>
-          </aside>
+                </div>
+              ))
+            ) : filtered.map(m => {
+              const active = pathname === m.href || pathname.startsWith(m.href + '/');
+              return (
+                <Link
+                  key={m.href}
+                  href={m.href}
+                  title={m.desc}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-colors ${active ? th.navActive : th.navHover}`}
+                >
+                  <span className="shrink-0">{m.icon}</span>
+                  <span className="flex-1 truncate">{m.title}</span>
+                </Link>
+              );
+            })}
+
+            {filtered.length === 0 && (
+              <p className={`px-3 py-4 text-center text-xs ${th.navMuted}`}>ماژولی یافت نشد.</p>
+            )}
+          </nav>
+
+          {/* دکمهٔ راهنما */}
+          <div className={`p-2 border-t ${th.navBorder}`}>
+            <Link
+              href="/help/admin"
+              className="flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] bg-emerald-700/70 hover:bg-emerald-700 border border-emerald-500/40 font-bold transition-colors"
+            >
+              <Icon emoji="📖" className="h-4 w-4 shrink-0" /> راهنمای کاربری و PDF
+            </Link>
+          </div>
+        </aside>
       </div>
     </>
   );
