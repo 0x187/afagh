@@ -890,7 +890,13 @@ export async function getSchedulingWorkspaceAction(termId?: number, _universityI
       const facIds = deptRows
         .filter(d => allowed.has(d.id) && d.facultyId != null)
         .map(d => d.facultyId as number);
-      classrooms = scopeClassroomsToDepts(classrooms, facIds, deptIds, allocatedRoomIds);
+      // ⚠️ فقط سهمیه‌های *خودِ* این گروه‌ها. `allocatedRoomIds` سراسری است و
+      // سهمیهٔ همهٔ گروه‌ها (از جمله باشگاه‌های تربیت‌بدنی) را دارد؛ اگر همان
+      // به تابعِ دامنه داده شود، سالن‌های گروه‌های دیگر دوباره برمی‌گردند.
+      const myAllocated = roomGrants
+        .filter(g => g.status === 'ALLOCATED' && allowed.has(g.ownerDepartmentId))
+        .map(g => g.classroomId);
+      classrooms = scopeClassroomsToDepts(classrooms, facIds, deptIds, myAllocated);
       const roomIds = new Set(classrooms.map(c => c.id));
       // سهمیه‌ها فقط از آنِ همین گروه‌ها (نه سهمیهٔ گروه‌های دیگر روی همان سالن)
       roomGrants = roomGrants.filter(g => allowed.has(g.ownerDepartmentId) && roomIds.has(g.classroomId));

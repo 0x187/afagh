@@ -111,8 +111,16 @@ console.log('\n▶ گارد منبع: اکشن‌های سرور از توابع
     'تقاضای چارت به دپارتمان‌های مدیرگروه محدود می‌شود',
   );
   ok(
-    ACTIONS_SRC.includes('scopeClassroomsToDepts(classrooms, facIds, deptIds, allocatedRoomIds)'),
+    ACTIONS_SRC.includes('scopeClassroomsToDepts(classrooms, facIds, deptIds, myAllocated)'),
     'سالن‌ها به دانشکدهٔ مدیرگروه محدود می‌شوند',
+  );
+  ok(
+    /const myAllocated = roomGrants[\s\S]{0,160}ALLOCATED[\s\S]{0,120}allowed\.has\(g\.ownerDepartmentId\)/.test(ACTIONS_SRC),
+    'فقط سهمیهٔ ALLOCATED خودِ گروه به دامنهٔ سالن‌ها داده می‌شود (نه سهمیهٔ سراسری)',
+  );
+  ok(
+    !ACTIONS_SRC.includes('scopeClassroomsToDepts(classrooms, facIds, deptIds, allocatedRoomIds)'),
+    'لیستِ سراسریِ allocatedRoomIds (شاملِ باشگاه‌های تربیت‌بدنی) به دامنه داده نمی‌شود',
   );
   ok(
     ACTIONS_SRC.includes('hasOwnCourse'),
