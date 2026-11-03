@@ -466,3 +466,33 @@ CREATE INDEX IF NOT EXISTS "idx_ledger_balance_cover"
 CREATE INDEX IF NOT EXISTS "idx_co_active_history"
   ON "course_offerings" ("courseId", "termId", "professorId")
   WHERE "isActive" = 1;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+--  تنظیمِ autovacuum برای جدول‌های داغ — جلوگیری از «کندیِ تدریجی»
+--  ───────────────────────────────────────────────────────────────────────────
+--  روی سرورِ تولید دیده شد که `last_autovacuum` برای `enrollments` (۶۹۱٬۹۵۳
+--  ردیف) و `student_ledger` (۴۰۹٬۲۷۸ ردیف) **خالی** بود؛ یعنی autovacuum هرگز
+--  روی این‌ها اجرا نشده بود.
+--
+--  چرا این مهم است (و چرا کندی «یک‌شبه» ظاهر می‌شود):
+--    • پیش‌فرضِ PostgreSQL `autovacuum_vacuum_scale_factor = 0.2` است، یعنی
+--      وکیوم تا وقتی ۲۰٪ ردیف‌ها مرده نشوند شروع نمی‌شود — روی `enrollments`
+--      یعنی حدود ۱۳۸٬۰۰۰ ردیفِ مرده. عملاً هرگز.
+--    • تا وقتی visibility map تازه نشده، هیچ `Index Only Scan` واقعاً
+--      «only» نیست؛ PostgreSQL برای هر ردیف به heap مراجعه می‌کند. یعنی
+--      به‌جای یک اسکنِ ترتیبی، هزاران دسترسیِ تصادفی.
+--    • نتیجه: تجمیع‌های کل‌جدولی (مثلِ شمارشِ بدهکاران) به‌تدریج کندتر
+--      می‌شوند تا جایی که کاربر می‌گوید «دیروز این‌قدر کند نبود».
+--
+--  با ۲٪، وکیوم روی `enrollments` بعد از ~۱۳٬۸۰۰ تغییر فعال می‌شود — یعنی
+--  visibility map همیشه تازه می‌ماند و ایندکس‌ها واقعاً index-only می‌شوند.
+--  `autovacuum_analyze_scale_factor = 0.01` هم آمارِ بهینه‌ساز را تازه نگه
+--  می‌دارد تا پلن‌ها با رشدِ داده از دست نروند.
+--
+--  ⚠ `ALTER TABLE ... SET (...)` خودش idempotent است؛ اجرای مکرر بی‌خطر.
+-- ═══════════════════════════════════════════════════════════════════════════
+ALTER TABLE "enrollments"      SET (autovacuum_vacuum_scale_factor = 0.02, autovacuum_analyze_scale_factor = 0.01);
+ALTER TABLE "student_ledger"   SET (autovacuum_vacuum_scale_factor = 0.02, autovacuum_analyze_scale_factor = 0.01);
+ALTER TABLE "course_offerings" SET (autovacuum_vacuum_scale_factor = 0.02, autovacuum_analyze_scale_factor = 0.01);
+ALTER TABLE "students"         SET (autovacuum_vacuum_scale_factor = 0.02, autovacuum_analyze_scale_factor = 0.01);
+ALTER TABLE "offering_professors" SET (autovacuum_vacuum_scale_factor = 0.05, autovacuum_analyze_scale_factor = 0.02);
