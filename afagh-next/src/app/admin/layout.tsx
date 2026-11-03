@@ -51,18 +51,42 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     const { requireRoleOrPermission } = await import('@/lib/permissions-enforcer');
     await requireRoleOrPermission([], ['*']).catch(() => {});
   }
-  // بارگذاری مجوزهای کاربر (بدون نقش سیستمی هم کار می‌کند) برای منوی مبتنی بر RBAC
+  // ── ⚡ واکشیِ موازیِ سربرگ ─────────────────────────────────────────────────
+  // پیش‌تر این‌ها **پشتِ سرِ هم** اجرا می‌شدند: مجوزها، مجوزهای سفارشی، فهرست
+  // دانشگاه‌ها، دانشگاه فعال، عکس، مدتِ قفل و حساب‌های هم‌شخص — یعنی ۷ رفت‌و‌برگشتِ
+  // دیتابیس که تأخیرشان جمع می‌شد. هیچ‌کدام به هم وابسته نیستند، پس با هم اجرا
+  // می‌شوند؛ فقط مرحلهٔ دوم (تم/نیمسال/قفل) به `curUni` و `lockMin` نیاز دارد.
   const { getUserPermissionCodes, getUserCustomPermissionCodes } = await import('@/lib/permissions-enforcer');
-  const permissionCodes = await getUserPermissionCodes(user.id).catch(() => []);
-  // سوییچر کارتابل‌ها فقط باید مجوزهای «نقش سفارشی» را ملاک بگیرد (نه مجوزهای ذاتیِ
-  // نقش‌های سیستمی)؛ وگرنه مدیرگروه/استادِ صرف هم لینک «داشبورد مدیریت» می‌بیند.
-  // permissionCodes بالا برای منوی مبتنی بر RBAC دست‌نخورده می‌ماند.
-  const customPermissionCount = (await getUserCustomPermissionCodes(user.id).catch(() => [])).length;
+  const { evaluateIdleLock, resolveIdleTimeoutMinutes, idleMinutes, resolveReauthMinutes } = await import('@/lib/session-lock');
+
+  const [
+    permissionCodes,
+    customPermissionCodes,
+    unis,
+    curUni,
+    photoRows,
+    lockMin,
+    siblings,
+  ] = await Promise.all([
+    // بارگذاری مجوزهای کاربر (بدون نقش سیستمی هم کار می‌کند) برای منوی مبتنی بر RBAC
+    getUserPermissionCodes(user.id).catch(() => [] as string[]),
+    // سوییچر کارتابل‌ها فقط باید مجوزهای «نقش سفارشی» را ملاک بگیرد (نه مجوزهای
+    // ذاتیِ نقش‌های سیستمی)؛ وگرنه مدیرگروه/استادِ صرف هم لینک «داشبورد مدیریت»
+    // می‌بیند. `permissionCodes` بالا برای منوی مبتنی بر RBAC دست‌نخورده می‌ماند.
+    getUserCustomPermissionCodes(user.id).catch(() => [] as string[]),
+    listUniversities(),
+    getCurrentUniversity(),
+    // عکس پرسنلی کاربر (برای آواتار هدر) — کلید شیء، نمایش از مسیر امن
+    db.select({ photoKey: users.photoKey }).from(users).where(eq(users.id, user.id)).limit(1),
+    resolveIdleTimeoutMinutes(user.roles).catch(() => 15),
+    // حساب‌های هم‌شخصِ همین کدملی — برای سوییچر واحد بالای صفحه
+    getSiblingAccounts().catch(() => []),
+  ]);
+  const customPermissionCount = customPermissionCodes.length;
+  const [photoRow] = photoRows;
   // انتخاب دانشگاه فعال، ابزار مدیریتی است؛ به دو نقش محدود بالا نشان داده نمی‌شود
   // (کنشِ `setUniversityCookie` خودش گارد ندارد — گزارش شود).
   const canSwitchUniversity = user.roles.some(r => AREA_ROLES.includes(r));
-  const unis = await listUniversities();
-  const curUni = await getCurrentUniversity();
   // 🔒 مرز دانشگاهی (fail-closed) — قفل کلِ شاخهٔ مدیریت:
   // وقتی کاربر به هیچ دانشگاهی مجاز نیست، `getCurrentUniversity` شناسهٔ ۰
   // (DENY_UNI) برمی‌گرداند. پیش از این، صفحه‌ها و کوئری‌های زیرشاخه با
@@ -87,14 +111,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </div>
     );
   }
-  const th = await uniThemeResolved(curUni.code);
-  // عکس پرسنلی کاربر (برای آواتار هدر) — کلید شیء، نمایش از مسیر امن
-  const [photoRow] = await db.select({ photoKey: users.photoKey }).from(users).where(eq(users.id, user.id)).limit(1);
-  const termScope = await getTermScope(curUni.id);
-  // قفل خودکار بیکاری — سرور-محور (مدت به تفکیک نقش؛ ۰ = غیرفعال).
-  // منبع حقیقت «زمان آخرین فعالیت» است؛ پس رفرش قفل را دور نمی‌زند و کاربرِ در حال کار بیرون نمی‌افتد.
-  const { evaluateIdleLock, resolveIdleTimeoutMinutes, idleMinutes, resolveReauthMinutes } = await import('@/lib/session-lock');
-  const lockMin = await resolveIdleTimeoutMinutes(user.roles).catch(() => 15);
+  // مرحلهٔ دوم — وابسته به `curUni` و `lockMin`؛ این سه هم با هم می‌روند.
+  const [th, termScope, lockOn] = await Promise.all([
+    uniThemeResolved(curUni.code),
+    getTermScope(curUni.id),
+    evaluateIdleLock(user.id, lockMin).catch(() => false),
+  ]);
   // غیبت طولانی → نشست همین دستگاه بسته و صفحهٔ ورود (نه قفل روی دادهٔ کهنه)
   if (lockMin > 0) {
     const reauthMin = await resolveReauthMinutes(lockMin).catch(() => 0);
@@ -104,9 +126,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       redirect('/login?expired=1');
     }
   }
-  const lockOn = await evaluateIdleLock(user.id, lockMin).catch(() => false);
-  // حساب‌های هم‌شخصِ همین کدملی — برای سوییچر واحد بالای صفحه
-  const siblings = await getSiblingAccounts().catch(() => []);
   // سوییچرهای سراسری (نقش/نیمسال/دانشگاه) — ردیف دوم هدر، دقیقاً مثل کارتابل استاد.
   // روی همهٔ اندازه‌ها نمایش داده می‌شوند تا در موبایل هم دیده شوند (پیش‌تر فقط
   // دسکتاپ و وگرنه داخل کشوی ☰ می‌رفتند و کاربر موبایل آن‌ها را گم می‌کرد).

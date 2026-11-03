@@ -26,31 +26,63 @@ export default async function StudentLayout({ children }: { children: React.Reac
   if (await alumniOf(user.id)) redirect('/alumni');
 
   const me = await getStudentByUser(user.id);
-  // عکس پرسنلی کاربر (آواتار هدر) + جنسیت (چیپ نظام وظیفه فقط برای مردان)
-  const [userRow] = await db
-    .select({ photoKey: users.photoKey, gender: users.gender })
-    .from(users)
-    .where(eq(users.id, user.id))
-    .limit(1);
 
-  // ── داده‌های سربرگ ادغام‌شده ───────────────────────────────────────────────
-  // پیش از این، خوش‌آمدگویی/رشته/وضعیت مالی/ترم در یک کارت سبز جداگانه زیر هدر
-  // («هیرو») نمایش داده می‌شد و با خود هدر تکرار می‌شد. حالا همه در یک بلوک
-  // سبز بالای صفحه جمع شده‌اند و کارت جداگانه‌ای وجود ندارد.
-  const [uniRow, levelRow] = await Promise.all([
+  // ── ⚡ واکشیِ موازیِ سربرگ ─────────────────────────────────────────────────
+  // پیش‌تر: عکس → دانشگاه/مقطع → تنظیماتِ ارم → بدهی → فهرست ترم‌ها → دمو →
+  // حساب‌های هم‌شخص → مجوزها → مدتِ قفل → وضعیت قفل؛ یعنی تا ۹ رفت‌و‌برگشتِ
+  // دیتابیس پشتِ سرِ هم که تأخیرشان جمع می‌شد. همه فقط به `user` و `me` وابسته‌اند
+  // و یک‌جا اجرا می‌شوند.
+  const hasStaffRole = user.roles.some(r => r !== 'STUDENT');
+  const alreadyAdmin = user.roles.some(r => (ADMIN_PANEL_ROLES as readonly string[]).includes(r));
+  const { evaluateIdleLock, resolveIdleTimeoutMinutes, idleMinutes, resolveReauthMinutes } = await import('@/lib/session-lock');
+  const { getUserCustomPermissionCodes } = await import('@/lib/permissions-enforcer');
+
+  const [
+    userRows,
+    uniRow,
+    levelRow,
+    logoSetting,
+    debtRials,
+    termScope,
+    demo,
+    siblings,
+    customCodes,
+    lockMin,
+  ] = await Promise.all([
+    // عکس پرسنلی کاربر (آواتار هدر) + جنسیت (چیپ نظام وظیفه فقط برای مردان)
+    db
+      .select({ photoKey: users.photoKey, gender: users.gender })
+      .from(users)
+      .where(eq(users.id, user.id))
+      .limit(1),
+    // داده‌های سربرگ ادغام‌شده: نشان دانشگاه
     me?.universityId
       ? db.select({ title: universities.title, logoUrl: universities.logoUrl }).from(universities).where(eq(universities.id, me.universityId)).limit(1)
-      : Promise.resolve([]),
+      : Promise.resolve([] as { title: string; logoUrl: string | null }[]),
+    // مقطع تحصیلی
     me?.degreeLevelId
       ? db.select({ title: degree_level_configs.title }).from(degree_level_configs).where(eq(degree_level_configs.id, me.degreeLevelId)).limit(1)
-      : Promise.resolve([]),
+      : Promise.resolve([] as { title: string }[]),
+    getSetting('UNIVERSITY_LOGO').catch(() => ''),
+    // وضعیت مالی — یک کوئری سبک روی دفتر تراکنش (همان محاسبهٔ بدهی کارت آزمون)
+    me ? studentDebtRials(me.id).catch(() => null) : Promise.resolve(null),
+    getTermScope(me?.universityId ?? null),
+    isDemoStudentUser(user.id),
+    // حساب‌های هم‌شخص (شماره دانشجویی/کد پرسنلی دیگرِ همین کدملی) برای سوییچر بالای صفحه
+    getSiblingAccounts().catch(() => []),
+    // دانشجو معمولاً یک نقش دارد؛ فقط وقتی نقش/مجوز دیگری هم دارد سراغ RBAC می‌رویم
+    // تا یک کوئری اضافه به هر بارگذاری پنل دانشجو تحمیل نشود.
+    hasStaffRole && !alreadyAdmin
+      ? getUserCustomPermissionCodes(user.id).catch(() => [] as string[])
+      : Promise.resolve([] as string[]),
+    resolveIdleTimeoutMinutes(user.roles).catch(() => 15),
   ]);
-  const universityLogoUrl = uniRow?.[0]?.logoUrl || (await getSetting('UNIVERSITY_LOGO').catch(() => '')) || null;
+
+  const [userRow] = userRows;
+  const universityLogoUrl = uniRow?.[0]?.logoUrl || logoSetting || null;
   // رشته (major) عمداً خوانده/نمایش داده نمی‌شود؛ در هدر موبایل فقط نام و مقطع کافی است.
   const levelTitle = levelRow?.[0]?.title ?? null;
 
-  // وضعیت مالی — یک کوئری سبک روی دفتر تراکنش (همان محاسبهٔ بدهی کارت آزمون)
-  const debtRials = me ? await studentDebtRials(me.id).catch(() => null) : null;
   const financialLabel =
     debtRials == null
       ? 'نامشخص'
@@ -58,9 +90,8 @@ export default async function StudentLayout({ children }: { children: React.Reac
         ? 'تسویه کامل (تراز ۰ ریال)'
         : `بدهی ${debtRials.toLocaleString('fa-IR')} ریال`;
 
-  const termScope = await getTermScope(me?.universityId ?? null);
-  const demo = await isDemoStudentUser(user.id);
   const sidebarStudentCode = demo ? DEMO_STUDENT.studentCode : me?.studentCode ?? null;
+  const permissionCount = customCodes.length;
 
   // شمارهٔ «ترم» هدر = وضعیتِ تحصیلیِ فعلیِ دانشجو، نه ترمِ در حال مرور.
   // پیش‌تر از «ترمِ انتخاب‌شده» حساب می‌شد؛ با مرورِ یک نیمسال قدیمی‌تر شماره
@@ -81,25 +112,12 @@ export default async function StudentLayout({ children }: { children: React.Reac
 
   const firstName = (user.name || '').trim().split(/\s+/)[0] || 'دانشجو';
 
-  // حساب‌های هم‌شخص (شماره دانشجویی/کد پرسنلی دیگرِ همین کدملی) برای سوییچر بالای صفحه
-  const siblings = await getSiblingAccounts().catch(() => []);
-
-  // دانشجو معمولاً یک نقش دارد؛ فقط وقتی نقش/مجوز دیگری هم دارد سراغ RBAC می‌رویم
-  // تا یک کوئری اضافه به هر بارگذاری پنل دانشجو تحمیل نشود.
-  const hasStaffRole = user.roles.some(r => r !== 'STUDENT');
-  const alreadyAdmin = user.roles.some(r => (ADMIN_PANEL_ROLES as readonly string[]).includes(r));
-  let permissionCount = 0;
-  if (hasStaffRole && !alreadyAdmin) {
-    // فقط مجوزهای «نقش سفارشی» شمرده می‌شود؛ نقش‌های سیستمی (DEP_HEAD/PROFESSOR/STUDENT)
-    // مجوزهای ذاتی دارند و نباید لینک «داشبورد مدیریت» بسازند.
-    const { getUserCustomPermissionCodes } = await import('@/lib/permissions-enforcer');
-    permissionCount = (await getUserCustomPermissionCodes(user.id).catch(() => [])).length;
-  }
+  // (`siblings` — حساب‌های هم‌شخص — در همان Promise.all بالا خوانده شد.)
 
   // قفل خودکار بیکاری — سرور-محور (مدت به تفکیک نقش؛ ۰ = غیرفعال).
   // منبع حقیقت «زمان آخرین فعالیت» است؛ پس رفرش قفل را دور نمی‌زند و کاربرِ در حال کار بیرون نمی‌افتد.
-  const { evaluateIdleLock, resolveIdleTimeoutMinutes, idleMinutes, resolveReauthMinutes } = await import('@/lib/session-lock');
-  const lockMin = await resolveIdleTimeoutMinutes(user.roles).catch(() => 15);
+  // (`lockMin` در همان Promise.all بالا خوانده شد.)
+  const lockOn = await evaluateIdleLock(user.id, lockMin).catch(() => false);
   // غیبت طولانی → پایان نشست همین دستگاه و هدایت به صفحهٔ ورود
   if (lockMin > 0) {
     const reauthMin = await resolveReauthMinutes(lockMin).catch(() => 0);
@@ -109,7 +127,6 @@ export default async function StudentLayout({ children }: { children: React.Reac
       redirect('/login?expired=1');
     }
   }
-  const lockOn = await evaluateIdleLock(user.id, lockMin).catch(() => false);
 
   return (
     <div className="app-page min-h-screen bg-slate-100 print:!bg-white flex flex-col" dir="rtl">

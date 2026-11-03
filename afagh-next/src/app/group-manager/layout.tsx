@@ -14,12 +14,26 @@ import BackToDashboard from '@/components/BackToDashboard';
 export default async function GroupManagerLayout({ children }: { children: React.ReactNode }) {
   const user = await requireRole(['DEP_HEAD']);
 
-  // قفل خودکار بیکاری — سرور-محور (مدت به تفکیک نقش؛ ۰ = غیرفعال).
-  // منبع حقیقت «زمان آخرین فعالیت» است؛ پس رفرش قفل را دور نمی‌زند و کاربرِ در حال کار بیرون نمی‌افتد.
+  // ── ⚡ واکشیِ موازیِ سربرگ ─────────────────────────────────────────────────
+  // پیش‌تر: مدتِ قفل → وضعیت قفل → پروندهٔ کارمند → گروه‌های سرپرستی → کوکیِ
+  // گروه → مجوزهای سفارشی → حساب‌های هم‌شخص؛ هفت رفت‌و‌برگشتِ پشتِ سرِ هم.
+  const alreadyAdmin = user.roles.some(r => (ADMIN_PANEL_ROLES as readonly string[]).includes(r));
   const { evaluateIdleLock, resolveIdleTimeoutMinutes, idleMinutes, resolveReauthMinutes } = await import('@/lib/session-lock');
-  const lockMin = await resolveIdleTimeoutMinutes(user.roles).catch(() => 15);
-  // غیبت طولانی (بیش از SESSION_REAUTH_MINUTES) → نشست همین دستگاه بسته شود و
-  // کاربر به صفحهٔ ورود برود؛ نه قفل روی صفحهٔ کهنهٔ چند ساعت پیش.
+  const { getUserCustomPermissionCodes } = await import('@/lib/permissions-enforcer');
+
+  const [lockMin, st, siblings, customCodes, cookieStore] = await Promise.all([
+    resolveIdleTimeoutMinutes(user.roles).catch(() => 15),
+    getStaffByUser(user.id),
+    // حساب‌های هم‌شخصِ همین کدملی (کد پرسنلی/دانشجویی دیگر) در همان سوییچر می‌آیند
+    getSiblingAccounts().catch(() => []),
+    // فقط مجوزهای «نقش سفارشی» شمرده می‌شود؛ نقش‌های سیستمی (DEP_HEAD/PROFESSOR/
+    // STUDENT) مجوزهای ذاتی دارند و نباید لینک «داشبورد مدیریت» بسازند.
+    alreadyAdmin ? Promise.resolve([] as string[]) : getUserCustomPermissionCodes(user.id).catch(() => [] as string[]),
+    cookies(),
+  ]);
+  const permissionCount = customCodes.length;
+
+  // غیبت طولانی → نشست همین دستگاه بسته و صفحهٔ ورود (نه قفل روی دادهٔ کهنه)
   if (lockMin > 0) {
     const reauthMin = await resolveReauthMinutes(lockMin).catch(() => 0);
     const away = reauthMin > 0 ? await idleMinutes(user.id).catch(() => null) : null;
@@ -28,24 +42,13 @@ export default async function GroupManagerLayout({ children }: { children: React
       redirect('/login?expired=1');
     }
   }
-  const lockOn = await evaluateIdleLock(user.id, lockMin).catch(() => false);
-  const st = await getStaffByUser(user.id);
-  const depts = st ? await headedDepartments(st.id, st.departmentId ?? null) : [];
-  const active = Number((await cookies()).get('gm_dept')?.value || 0) || depts[0]?.id || 0;
-  const current = depts.find(d => d.id === active) ?? depts[0] ?? null;
 
-  // مدیر گروهی که استاد/کارشناس مالی/آموزش هم هست، از همین‌جا (بالای صفحه) بین
-  // همهٔ کارتابل‌هایش جابه‌جا می‌شود — پیش‌تر فقط لینک استاد و (برای ADMIN) مدیر بود.
-  const alreadyAdmin = user.roles.some(r => (ADMIN_PANEL_ROLES as readonly string[]).includes(r));
-  let permissionCount = 0;
-  if (!alreadyAdmin) {
-    // فقط مجوزهای «نقش سفارشی» شمرده می‌شود؛ نقش‌های سیستمی (DEP_HEAD/PROFESSOR/STUDENT)
-    // مجوزهای ذاتی دارند و نباید لینک «داشبورد مدیریت» بسازند.
-    const { getUserCustomPermissionCodes } = await import('@/lib/permissions-enforcer');
-    permissionCount = (await getUserCustomPermissionCodes(user.id).catch(() => [])).length;
-  }
-  // حساب‌های هم‌شخصِ همین کدملی (کد پرسنلی/دانشجویی دیگر) در همان سوییچر می‌آیند
-  const siblings = await getSiblingAccounts().catch(() => []);
+  const [lockOn, depts] = await Promise.all([
+    evaluateIdleLock(user.id, lockMin).catch(() => false),
+    st ? headedDepartments(st.id, st.departmentId ?? null) : Promise.resolve([] as Awaited<ReturnType<typeof headedDepartments>>),
+  ]);
+  const active = Number(cookieStore.get('gm_dept')?.value || 0) || depts[0]?.id || 0;
+  const current = depts.find(d => d.id === active) ?? depts[0] ?? null;
 
   return (
     <div className="app-page min-h-screen bg-slate-50 print:!bg-white">
