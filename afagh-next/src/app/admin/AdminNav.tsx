@@ -120,7 +120,7 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
                       aria-expanded={!collapsed[g.group.key]}
                       className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 font-extrabold transition-colors ${th.navHover}`}
                     >
-                      <Icon emoji={g.group.icon} className="h-4 w-4" />
+                      {g.group.icon}
                       <span className="flex-1 text-start">{g.group.title}</span>
                       <span aria-hidden className={`text-3xs ${th.navMuted}`}>{collapsed[g.group.key] ? '◀' : '▼'}</span>
                     </button>
@@ -133,7 +133,7 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
                           title={m.desc}
                           className={`ms-3 flex items-center gap-2 rounded-lg px-3 py-1.5 transition-colors ${active ? th.navActive : th.navHover}`}
                         >
-                          <Icon emoji={m.icon} className="h-4 w-4" />
+                          {m.icon}
                           <span className="flex-1">{m.title}</span>
                         </Link>
                       );
@@ -149,7 +149,7 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
                     title={m.desc}
                     className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-colors ${active ? th.navActive : th.navHover}`}
                   >
-                    <Icon emoji={m.icon} className="h-4 w-4" />
+                    {m.icon}
                     <span className="flex-1">{m.title}</span>
                   </Link>
                 );

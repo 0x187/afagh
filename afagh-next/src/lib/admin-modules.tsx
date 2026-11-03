@@ -11,24 +11,26 @@
  *   و برای «میز دفاع پایان‌نامه»: GRADUATION_EXPERT, PROFESSOR, DEP_HEAD
  */
 
+import React from 'react';
+import Icon from '@/components/ui/Icon';
+
 export type ModuleGroupKey =
   | 'edu' | 'fin' | 'plan' | 'exam' | 'research' | 'reports' | 'archive' | 'settings';
 
 /** دسته‌های کلی فرانت‌اند — ترتیب نمایش در داشبورد */
-export const MODULE_GROUPS: { key: ModuleGroupKey; title: string; icon: string; desc: string }[] = [
-  { key: 'edu', title: 'آموزش', icon: '🎓', desc: 'دانشجویان، پذیرش، کاتالوگ، دروس و آیین‌نامه' },
-  { key: 'fin', title: 'مالی', icon: '💰', desc: 'حقوق، شهریه، دفتر مالی و صندوق' },
-  { key: 'plan', title: 'برنامه‌ریزی درسی', icon: '🗓️', desc: 'کارتابل مدیر گروه و فرآیندها' },
-  { key: 'exam', title: 'امتحانات', icon: '📝', desc: 'برنامه‌ریزی و مدیریت امتحانات' },
-  { key: 'research', title: 'پژوهش و فارغ‌التحصیلی', icon: '🔬', desc: 'دفاع، فارغ‌التحصیلی و مدارک' },
-  { key: 'reports', title: 'گزارش‌ها', icon: '📑', desc: 'مرکز گزارش‌ها و هوش تجاری' },
-  { key: 'archive', title: 'سامانه بایگانی و درخواستها', icon: '🗄️', desc: 'اسناد، ثمین و موارد خاص' },
-  { key: 'settings', title: 'تنظیمات', icon: '⚙️', desc: 'دسترسی‌ها، دانشگاه‌ها، انتقال داده و پیکربندی' },
+export const MODULE_GROUPS: { key: ModuleGroupKey; title: string; icon: React.ReactNode; desc: string }[] = [
+  { key: 'edu', title: 'آموزش', icon: <Icon emoji="🎓" />, desc: 'دانشجویان، پذیرش، کاتالوگ، دروس و آیین‌نامه' },
+  { key: 'fin', title: 'مالی', icon: <Icon emoji="💰" />, desc: 'حقوق، شهریه، دفتر مالی و صندوق' },
+  { key: 'plan', title: 'برنامه‌ریزی درسی', icon: <Icon emoji="🗓️" />, desc: 'کارتابل مدیر گروه و فرآیندها' },
+  { key: 'exam', title: 'امتحانات', icon: <Icon emoji="📝" />, desc: 'برنامه‌ریزی و مدیریت امتحانات' },
+  { key: 'research', title: 'پژوهش و فارغ‌التحصیلی', icon: <Icon emoji="🔬" />, desc: 'دفاع، فارغ‌التحصیلی و مدارک' },
+  { key: 'reports', title: 'گزارش‌ها', icon: <Icon emoji="📑" />, desc: 'مرکز گزارش‌ها و هوش تجاری' },
+  { key: 'archive', title: 'سامانه بایگانی و درخواستها', icon: <Icon emoji="🗄️" />, desc: 'اسناد، ثمین و موارد خاص' },
+  { key: 'settings', title: 'تنظیمات', icon: <Icon emoji="⚙️" />, desc: 'دسترسی‌ها، دانشگاه‌ها، انتقال داده و پیکربندی' },
 ];
 
 export interface AdminModule {
   href: string;
-  icon: string;
   title: string;
   desc: string;
   group?: ModuleGroupKey;
@@ -40,6 +42,8 @@ export interface AdminModule {
   accent: string;
   /** رنگ آیکن کارت */
   iconBg: string;
+  /** آیکون — React element (جایگزین اموجی) */
+  icon: React.ReactNode;
   /** آیا در منوی افقی بالای صفحه هم نمایش داده شود؟ */
   inNav?: boolean;
   /** آیا به‌صورت کارت در شبکهٔ داشبورد نمایش داده شود؟ */
@@ -51,7 +55,7 @@ const EDU = ['ADMIN', 'EDU_EXPERT'];
 export const ADMIN_MODULES: AdminModule[] = [
   {
     href: '/admin',
-    icon: '📋',
+    icon: <Icon emoji="📋" />,
     title: 'کارتابل گردش کار و جبرانی',
     desc: 'رسیدگی به درخواست‌های دانشجویی و شورای آموزشی',
     roles: EDU,
@@ -62,7 +66,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/students',
-    icon: '🎓',
+    icon: <Icon emoji="🎓" />,
     title: 'پرونده جامع دانشجویان و پرسنل',
     desc: 'پرونده، مدارک، KYC و سوابق',
     group: 'edu',
@@ -75,7 +79,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/admissions',
-    icon: '📥',
+    icon: <Icon emoji="📥" />,
     title: 'پذیرش سنجش و فرمول‌ساز',
     desc: 'ثبت‌نام، سنجش و فرمول‌های پذیرش',
     group: 'edu',
@@ -90,7 +94,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/sanjesh',
-    icon: '🗂️',
+    icon: <Icon emoji="🗂️" />,
     title: 'تبدیل اطلاعات سازمان سنجش',
     desc: 'فایل‌ها، تطبیق فیلدها، براورد، تطبیق و صف پذیرش',
     group: 'edu',
@@ -102,7 +106,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/codes',
-    icon: '🔑',
+    icon: <Icon emoji="🔑" />,
     title: 'مرکز کدها',
     desc: 'تعریف و بازبینی کد دانشکده، گروه، رشته، مقطع و درس',
     group: 'settings',
@@ -114,7 +118,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/departments',
-    icon: '🏛️',
+    icon: <Icon emoji="🏛️" />,
     title: 'گروه‌های آموزشی و مدیران گروه',
     desc: 'تعریف گروه، انتخاب مدیر گروه و اعضا',
     group: 'edu',
@@ -126,7 +130,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/curriculum',
-    icon: '📚',
+    icon: <Icon emoji="📚" />,
     title: 'کاتالوگ و سرفصل رشته‌ها',
     desc: 'طرح‌های آموزشی و سرفصل دروس',
     group: 'edu',
@@ -138,7 +142,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/virtual-classes',
-    icon: '📡',
+    icon: <Icon emoji="📡" />,
     title: 'کلاس‌های آنلاین (BBB)',
     desc: 'گزارش برگزاری، در حال برگزاری، دانشجو و ضبط‌ها',
     group: 'reports',
@@ -150,7 +154,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/grade-status-codes',
-    icon: '🏷️',
+    icon: <Icon emoji="🏷️" />,
     title: 'مدیریت دروس و کدهای وضعیت نمره',
     desc: 'تعریف، ویرایش و کدگذاری وضعیت نمره دروس بانک و چارت',
     group: 'settings',
@@ -162,7 +166,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/equivalence-clusters',
-    icon: '🧩',
+    icon: <Icon emoji="🧩" />,
     title: 'خوشه‌های دروس هم‌ارز',
     desc: 'تعریف خوشه و افزودن/حذف دروس هم‌محتوا',
     group: 'settings',
@@ -174,7 +178,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/regulations',
-    icon: '⚖️',
+    icon: <Icon emoji="⚖️" />,
     title: 'مرکز مدیریت آیین‌نامه‌ها',
     desc: 'تدوین و نسخه‌بندی آیین‌نامه‌های آموزشی',
     group: 'edu',
@@ -186,7 +190,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/discipline',
-    icon: '🛡️',
+    icon: <Icon emoji="🛡️" />,
     title: 'کمیته انضباطی',
     desc: 'پرونده‌سازی تخلفات، تصمیم کمیته و اسناد مرتبط',
     group: 'edu',
@@ -198,7 +202,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/council',
-    icon: '🏛️',
+    icon: <Icon emoji="🏛️" />,
     title: 'شورای آموزشی',
     desc: 'جلسات شورا، صورت‌جلسه و مصوبات با پیگیری اجرا',
     group: 'edu',
@@ -210,7 +214,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/warnings',
-    icon: '⏰',
+    icon: <Icon emoji="⏰" />,
     title: 'هشدارهای زمان‌بندی‌شده',
     desc: 'هشدار شهریه، غیبت، مدارک و امتحان به دانشجویان',
     group: 'edu',
@@ -222,7 +226,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/enrollment-approvals',
-    icon: '✅',
+    icon: <Icon emoji="✅" />,
     title: 'تأییدیه انتخاب واحد انگلیسی',
     desc: 'درخواست ثبت‌نام درس انگلیسی و تأیید/رد کارشناس',
     group: 'edu',
@@ -234,7 +238,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/bypass',
-    icon: '🔀',
+    icon: <Icon emoji="🔀" />,
     title: 'درخواست‌های بدون پیش‌نیاز / تداخل امتحانی',
     desc: 'تصمیم کارشناس آموزش رشته و معاون آموزش + گزارش رد خودکار',
     group: 'edu',
@@ -246,7 +250,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/dorm',
-    icon: '🏠',
+    icon: <Icon emoji="🏠" />,
     title: 'کارت سکونت خوابگاه',
     desc: 'ثبت سکونت دوره‌ای و صدور کارت سکونت قابل چاپ',
     group: 'edu',
@@ -258,7 +262,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/enrollment-confirmation',
-    icon: '🖨️',
+    icon: <Icon emoji="🖨️" />,
     title: 'تأییدیه انتخاب واحد',
     desc: 'صدور برگه چاپی با QR استعلام برای هر دانشجو',
     group: 'edu',
@@ -270,7 +274,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/course-merge',
-    icon: '🔗',
+    icon: <Icon emoji="🔗" />,
     title: 'ادغام دروس',
     desc: 'ادغام دستی کلاس‌ها، جدا کردن و بازگشت به خودکار',
     group: 'edu',
@@ -282,7 +286,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/regulation-check',
-    icon: '🔍',
+    icon: <Icon emoji="🔍" />,
     title: 'بررسی کدهای وضعیت نمره',
     desc: 'تشخیص و اصلاح خودکار کدهای وضعیت نمره سما بر اساس آیین‌نامه',
     group: 'settings',
@@ -294,7 +298,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/scheduling?tab=DEPT_ROOMS',
-    icon: '🏛️',
+    icon: <Icon emoji="🏛️" />,
     title: 'مدیریت سهمیهٔ سالن‌ها',
     desc: 'تخصیص/لغو/واگذاری سالن‌ها به دپارتمان‌ها',
     group: 'plan',
@@ -306,7 +310,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/scheduling',
-    icon: '🗓️',
+    icon: <Icon emoji="🗓️" />,
     title: 'برنامه‌ریزی درسی مدیر گروه',
     desc: 'ماتریس حضور، سناریوها و تقویم جلسات',
     group: 'plan',
@@ -320,7 +324,7 @@ export const ADMIN_MODULES: AdminModule[] = [
     // همان صفحهٔ /admin/curriculum — کارت دوم تا از «برنامه‌ریزی درسی» هم دیده شود
     // (پیش‌تر فقط در دستهٔ «آموزش» بود و مدیران پیدا نمی‌کردند).
     href: '/admin/curriculum',
-    icon: '📚',
+    icon: <Icon emoji="📚" />,
     title: 'تعریف کاتالوگ رشته',
     desc: 'کاتالوگ، دروس، ترم‌بندی، پیش‌نیاز و سهم واحد هر نوع درس',
     group: 'plan',
@@ -332,7 +336,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/exams',
-    icon: '📝',
+    icon: <Icon emoji="📝" />,
     title: 'مدیریت و برنامه‌ریزی امتحانات',
     desc: 'موتور ضدتقلب، سالن‌ها و غیبت‌ها',
     group: 'plan',
@@ -344,7 +348,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/evaluations',
-    icon: '🗓️',
+    icon: <Icon emoji="🗓️" />,
     title: 'پنجرهٔ ارزشیابی اساتید',
     desc: 'بازهٔ باز/بستهٔ ارزشیابی پیش از امتحانات',
     group: 'plan',
@@ -356,7 +360,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/schedule-conflicts',
-    icon: '🚦',
+    icon: <Icon emoji="🚦" />,
     title: 'تداخل‌های واقعی برنامه',
     desc: 'گزارش و رفع تداخل استاد/سالن (کلاس ادغامی تفکیک شده)',
     group: 'plan',
@@ -368,7 +372,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/templates',
-    icon: '📨',
+    icon: <Icon emoji="📨" />,
     title: 'قالب‌های پیامک و ارتباطات',
     desc: 'طراحی متون آزاد، تگ‌های پویا و تست',
     group: 'settings',
@@ -380,7 +384,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/broadcast',
-    icon: '📣',
+    icon: <Icon emoji="📣" />,
     title: 'ارسال پیام همگانی',
     desc: 'پیام به دانشجویان/اساتید رشته، گروه، دانشکده یا ورودی',
     group: 'settings',
@@ -392,7 +396,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/manual-enroll',
-    icon: '📝',
+    icon: <Icon emoji="📝" />,
     title: 'ثبت‌نام به‌جای دانشجو',
     desc: 'تکی/دسته‌جمعی با کاتالوگ و پیش‌نیاز — ردیابی کی و چرا',
     group: 'edu',
@@ -405,7 +409,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/group-transfer',
-    icon: '🔀',
+    icon: <Icon emoji="🔀" />,
     title: 'انتقال بین گروه‌ها',
     desc: 'انتقال دانشجو بین گروه‌های یک درس با چک سخت‌گیری‌ها',
     group: 'edu',
@@ -418,7 +422,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/offering-editor',
-    icon: '🛠️',
+    icon: <Icon emoji="🛠️" />,
     title: 'تعریف درس در ترم',
     desc: 'ظرفیت، زمان کلاس، سالن و امتحان — با گارد تداخل',
     group: 'plan',
@@ -431,7 +435,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/expert-scopes',
-    icon: '🔐',
+    icon: <Icon emoji="🔐" />,
     title: 'دامنهٔ دسترسی کارشناسان',
     desc: 'تخصیص دانشگاه/دانشکده/گروه/رشته به کارشناس آموزش',
     group: 'settings',
@@ -443,7 +447,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/edu-expert-assign',
-    icon: '👤',
+    icon: <Icon emoji="👤" />,
     title: 'تخصیص کارشناس به کلاس‌ها',
     desc: 'کارشناس آموزشِ مسئولِ هر کلاس — تک‌تک یا گروهی برای یک ترم',
     group: 'settings',
@@ -455,7 +459,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/code-hub',
-    icon: '🧩',
+    icon: <Icon emoji="🧩" />,
     title: 'کدها و وضعیت نمره',
     desc: 'مرکز کدها + کدهای وضعیت نمره + بررسی خودکار سما — یکجا',
     group: 'settings',
@@ -467,7 +471,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/weekly-board',
-    icon: '🗓️',
+    icon: <Icon emoji="🗓️" />,
     title: 'سردر برنامهٔ هفتگی',
     desc: 'برنامهٔ هفتگی کلاس‌ها — قابل چاپ برای نصب روی سردر',
     group: 'plan',
@@ -480,7 +484,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/attendance-control',
-    icon: '⏱️',
+    icon: <Icon emoji="⏱️" />,
     title: 'کنترل حضور و غیاب کلاس‌ها',
     desc: 'ثبتِ تشکیلِ کلاس‌های امروز در اتاق‌های تحت مسئولیت — به‌نامِ استاد هر درس',
     group: 'edu',
@@ -492,7 +496,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/archive',
-    icon: '🗄️',
+    icon: <Icon emoji="🗄️" />,
     title: 'بایگانی الکترونیک مدارک',
     desc: 'اسناد، تأیید و بازیابی مدارک',
     group: 'archive',
@@ -504,7 +508,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/payroll',
-    icon: '💼',
+    icon: <Icon emoji="💼" />,
     title: 'حقوق و دستمزد',
     desc: 'حکم کارگزینی، فیش و تسویه مالی',
     group: 'fin',
@@ -517,7 +521,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/payroll/coverage',
-    icon: '🗺️',
+    icon: <Icon emoji="🗺️" />,
     title: 'پوشش فرمول‌ها',
     desc: 'کدام درس‌ها فرمول دارند، کدام ندارند و چرا',
     group: 'fin',
@@ -529,7 +533,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/student-finance',
-    icon: '💳',
+    icon: <Icon emoji="💳" />,
     title: 'امور مالی دانشجویان',
     desc: 'شهریه، دفتر مالی و بدهی دانشجویان',
     group: 'fin',
@@ -542,7 +546,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/finance',
-    icon: '🗂️',
+    icon: <Icon emoji="🗂️" />,
     title: 'کارتابل کارشناس مالی',
     desc: 'فهرست کامل دانشجویان، کارنامهٔ مالی، تخفیف، بنیاد، چک و وام',
     group: 'fin',
@@ -555,7 +559,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/tuition',
-    icon: '🧮',
+    icon: <Icon emoji="🧮" />,
     title: 'موتور شهریه',
     desc: 'قواعد شهریهٔ ثابت و متغیر بر اساس نوع ترم و نوع درس',
     group: 'fin',
@@ -568,7 +572,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/course-finance',
-    icon: '🏷️',
+    icon: <Icon emoji="🏷️" />,
     title: 'نوع درس مالی دروس',
     desc: 'تعیین «نوع درس مالی» سما برای هر درس — کلید محاسبهٔ شهریهٔ متغیر',
     group: 'fin',
@@ -581,7 +585,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/finance/pos',
-    icon: '🏧',
+    icon: <Icon emoji="🏧" />,
     title: 'ترمینال‌های POS (پرداخت حضوری)',
     desc: 'ثبت پرداخت کارت‌خوان فیزیکی، ویدی، گزارش روزانه صندوق',
     group: 'fin',
@@ -594,7 +598,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/student-cards',
-    icon: '🪪',
+    icon: <Icon emoji="🪪" />,
     title: 'کارت دانشجویی',
     desc: 'صدور، چاپ و استعلام کارت',
     group: 'edu',
@@ -606,7 +610,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/short-courses',
-    icon: '🏆',
+    icon: <Icon emoji="🏆" />,
     title: 'آموزش‌های آزاد و گواهینامه‌ها',
     desc: 'دوره‌های آزاد و صدور گواهینامه',
     group: 'edu',
@@ -618,7 +622,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/grade-objections',
-    icon: '📝',
+    icon: <Icon emoji="📝" />,
     title: 'بررسی اعتراض به نمره',
     desc: 'کارتابل اعتراض‌های دانشجویان به نمرات قطعی و ثبت نتیجهٔ کارشناس',
     group: 'edu',
@@ -630,7 +634,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/workflows',
-    icon: '🔀',
+    icon: <Icon emoji="🔀" />,
     title: 'فرآیندها، SLA و کارتابل (BPM)',
     desc: 'موتور فرآیندها و پایش گلوگاه‌ها',
     group: 'archive',
@@ -643,7 +647,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/reports',
-    icon: '📑',
+    icon: <Icon emoji="📑" />,
     title: 'مرکز گزارش‌های آموزشی',
     desc: 'فعال ترم، خلاصه وضعیت، مشروطی، برترها + خروجی Excel',
     group: 'reports',
@@ -656,7 +660,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/finance/reports',
-    icon: '📊',
+    icon: <Icon emoji="📊" />,
     title: 'گزارش‌های مالی',
     desc: 'شهریه، صورت‌حساب، کارتابل مالی، حق‌التدریس و BI مالی',
     group: 'fin',
@@ -669,7 +673,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/finance/reports/student-statement',
-    icon: '📄',
+    icon: <Icon emoji="📄" />,
     title: 'صورت حساب مالی دانشجویان (۹ مشخصه)',
     desc: 'شهریه ثابت/متغیر، تخفیف، موضوعی، بنیاد، پرداخت آنلاین/POS، وام، مانده',
     group: 'fin',
@@ -681,7 +685,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/bi',
-    icon: '📊',
+    icon: <Icon emoji="📊" />,
     title: 'ارزشیابی اساتید و کارکنان',
     desc: 'داشبوردها و تحلیل ارزشیابی',
     group: 'reports',
@@ -693,7 +697,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/permissions',
-    icon: '🛡️',
+    icon: <Icon emoji="🛡️" />,
     title: 'ماتریس دسترسی‌ها (RBAC)',
     desc: 'نقش‌ها، مجوزها و کاربران',
     group: 'settings',
@@ -705,7 +709,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/graduation',
-    icon: '🎓',
+    icon: <Icon emoji="🎓" />,
     title: 'فارغ‌التحصیلی و مدارک',
     desc: 'تسویه‌حساب و صدور مدارک پایانی',
     group: 'research',
@@ -718,7 +722,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/defense-scheduling',
-    icon: '🛡️',
+    icon: <Icon emoji="🛡️" />,
     title: 'برنامه‌ریزی و ثبت نتیجهٔ دفاع پایان‌نامه',
     desc: 'تأیید پروپوزال، تعیین وقت دفاع و ثبت نتیجه با هیأت داوران',
     group: 'research',
@@ -730,7 +734,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/universities',
-    icon: '🏛️',
+    icon: <Icon emoji="🏛️" />,
     title: 'مدیریت دانشگاه‌ها (چندمستأجری)',
     desc: 'آفاق + منحل‌شده‌ها — کد و اتصال ثمین',
     group: 'settings',
@@ -742,7 +746,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/migration',
-    icon: '🔄',
+    icon: <Icon emoji="🔄" />,
     title: 'انتقال داده از سیستم قدیمی',
     desc: 'نگاشت کد، شهریه و نمرات (ETL)',
     group: 'settings',
@@ -754,7 +758,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/sama-sync',
-    icon: '🔁',
+    icon: <Icon emoji="🔁" />,
     title: 'همگام‌سازی هفتگی سما',
     desc: 'افزودن ثبت‌نام‌ها و نمره‌های تازه از فایل سما — بدون حذف یا بازنویسی',
     group: 'settings',
@@ -766,7 +770,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/samin',
-    icon: '📡',
+    icon: <Icon emoji="📡" />,
     title: 'هاب ثمین — سازمان امور دانشجویان',
     desc: 'ارسال per-دانشگاه + رهگیری trace',
     group: 'settings',
@@ -778,7 +782,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/login-showcase',
-    icon: '🖼️',
+    icon: <Icon emoji="🖼️" />,
     title: 'ویترین صفحه ورود',
     desc: 'اطلاعیه‌ها، اسلایدها و ارم دانشگاه‌ها',
     group: 'settings',
@@ -790,7 +794,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/saham',
-    icon: '📤',
+    icon: <Icon emoji="📤" />,
     title: 'گزارش سالانهٔ سهام',
     desc: 'خروجی اکسل سامانهٔ آماری (IRPHE)',
     group: 'settings',
@@ -802,7 +806,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/lesson-plans',
-    icon: '📋',
+    icon: <Icon emoji="📋" />,
     title: 'طرح درس اساتید',
     desc: 'الزام تکمیل و پایش پیشرفت طرح‌های درس',
     group: 'settings',
@@ -814,7 +818,7 @@ export const ADMIN_MODULES: AdminModule[] = [
   },
   {
     href: '/admin/settings',
-    icon: '⚙️',
+    icon: <Icon emoji="⚙️" />,
     title: 'پیکربندی سامانه',
     desc: 'تنظیمات سراسری، پارامترها و داده‌های پایه (کلاس‌ها و…)',
     group: 'settings',
