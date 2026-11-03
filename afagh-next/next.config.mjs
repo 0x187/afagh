@@ -90,6 +90,32 @@ const nextConfig = {
           { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
         ],
       })),
+      /**
+       * دارایی‌های ایستای `public/` — کش طولانی.
+       *
+       * ⚠ چرا لازم شد: Next برای فایل‌های داخل `public/` پیش‌فرض
+       * `Cache-Control: public, max-age=0` می‌فرستد، یعنی **هیچ‌وقت کش نمی‌شوند**.
+       * در HAR یک بارگذاریِ `/admin/scheduling` دیده شد که `manifest.webmanifest`
+       * (۶۷۶ بایت!) **۱۷ بار** درخواست شد و هر بار ۲۰۰ تا ۵۳۰ میلی‌ثانیه طول کشید
+       * — چیزی حدود ۵ ثانیه رفت‌وبرگشتِ کامل برای یک فایل ثابت. علتش همین
+       * `max-age=0` بود: مرورگر در هر ناوبری دوباره سراغ سرور می‌رفت.
+       *
+       * `manifest.webmanifest` و آیکون‌ها محتوای ثابت‌اند و به نشست/دانشگاه وابسته
+       * نیستند، پس کش یک‌روزه بی‌خطر است. `sw.js` عمداً در این فهرست نیست: باید
+       * همیشه تازه بماند تا نسخهٔ جدید Service Worker زودتر فعال شود.
+       */
+      {
+        source: '/manifest.webmanifest',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=86400' }],
+      },
+      {
+        source: '/icons/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=604800' }],
+      },
+      {
+        source: '/fonts/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+      },
     ];
   },
 };

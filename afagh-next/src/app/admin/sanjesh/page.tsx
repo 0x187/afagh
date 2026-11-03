@@ -61,7 +61,7 @@ export default async function SanjeshFilesPage({
           </p>
         </div>
         {/* ادامهٔ جریان: صف پذیرش در همین ماژول است، نه کارت جداگانه در «آموزش» */}
-        <Link
+        <Link prefetch={false}
           href="/admin/admissions"
           className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-2xs font-bold text-indigo-800 hover:bg-indigo-100"
         >
@@ -143,7 +143,7 @@ export default async function SanjeshFilesPage({
       <section className="card">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-sm font-semibold text-slate-700">فایل‌های بارگذاری‌شده ({files.length.toLocaleString('fa-IR')})</h2>
-          <Link href="/admin/sanjesh/templates" className="text-xs text-teal-700 hover:underline">
+          <Link prefetch={false} href="/admin/sanjesh/templates" className="text-xs text-teal-700 hover:underline">
             مدیریت قالب‌ها ←
           </Link>
         </div>
@@ -172,7 +172,7 @@ export default async function SanjeshFilesPage({
                   return (
                     <tr key={f.id} className="border-t border-slate-100 odd:bg-white even:bg-slate-50/60 dark:odd:bg-slate-800 dark:even:bg-slate-900">
                       <td className="p-2">
-                        <Link href={`/admin/sanjesh/${f.id}/fields`} className="font-medium text-teal-700 hover:underline">
+                        <Link prefetch={false} href={`/admin/sanjesh/${f.id}/fields`} className="font-medium text-teal-700 hover:underline">
                           {f.title}
                         </Link>
                         <div className="text-3xs text-slate-400" dir="ltr">

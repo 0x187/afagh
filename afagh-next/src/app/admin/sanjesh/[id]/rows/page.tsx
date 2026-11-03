@@ -170,7 +170,7 @@ export default async function SanjeshRowsPage({
                   </td>
                   <td className="p-2">
                     <div className="flex items-center gap-2">
-                      <Link href={`/admin/sanjesh/${fileId}/rows/${r.id}`} className="text-2xs text-teal-700 hover:underline">
+                      <Link prefetch={false} href={`/admin/sanjesh/${fileId}/rows/${r.id}`} className="text-2xs text-teal-700 hover:underline">
                         مشاهده
                       </Link>
                       <form action={setRowStatusAction}>
@@ -193,7 +193,7 @@ export default async function SanjeshRowsPage({
       {pages > 1 && (
         <div className="mt-3 flex items-center justify-center gap-1 text-xs">
           {page > 1 && (
-            <Link href={`/admin/sanjesh/${fileId}/rows${qs({ page: page - 1 })}`} className="btn-ghost !py-1">
+            <Link prefetch={false} href={`/admin/sanjesh/${fileId}/rows${qs({ page: page - 1 })}`} className="btn-ghost !py-1">
               قبلی
             </Link>
           )}
@@ -201,7 +201,7 @@ export default async function SanjeshRowsPage({
             صفحهٔ {page.toLocaleString('fa-IR')} از {pages.toLocaleString('fa-IR')} · {total.toLocaleString('fa-IR')} ردیف
           </span>
           {page < pages && (
-            <Link href={`/admin/sanjesh/${fileId}/rows${qs({ page: page + 1 })}`} className="btn-ghost !py-1">
+            <Link prefetch={false} href={`/admin/sanjesh/${fileId}/rows${qs({ page: page + 1 })}`} className="btn-ghost !py-1">
               بعدی
             </Link>
           )}

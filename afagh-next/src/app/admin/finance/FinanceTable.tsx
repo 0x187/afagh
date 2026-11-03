@@ -101,12 +101,12 @@ export default function FinanceTable({ students }: { students: FinanceStudent[] 
                     {initial(s) || '؟'}
                   </span>
                   <span className="min-w-0 flex-1">
-                    <Link href={`/admin/finance/student/${s.studentId}`} className="block truncate font-bold text-slate-800 hover:text-emerald-700">
+                    <Link prefetch={false} href={`/admin/finance/student/${s.studentId}`} className="block truncate font-bold text-slate-800 hover:text-emerald-700">
                       {`${s.firstName || ''} ${s.lastName || ''}`.trim() || '—'}
                     </Link>
                     <span className="mt-0.5 flex items-center justify-between gap-1">
                       <span className="truncate text-3xs text-slate-400" dir="ltr">{s.nationalCode || '—'}</span>
-                      <Link
+                      <Link prefetch={false}
                         href={`/admin/finance/student/${s.studentId}`}
                         title="کارنامهٔ مالی دانشجو"
                         className="shrink-0 rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-px text-3xs font-black text-emerald-700 transition hover:bg-emerald-100 print:hidden"
@@ -190,7 +190,7 @@ export default function FinanceTable({ students }: { students: FinanceStudent[] 
       ]}
       getKey={(s) => s.studentId}
       renderActions={(s) => (
-        <Link href={`/admin/finance/student/${s.studentId}`} title="کارنامهٔ مالی دانشجو" className="shrink-0 rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-px text-3xs font-black text-emerald-700 transition hover:bg-emerald-100">
+        <Link prefetch={false} href={`/admin/finance/student/${s.studentId}`} title="کارنامهٔ مالی دانشجو" className="shrink-0 rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-px text-3xs font-black text-emerald-700 transition hover:bg-emerald-100">
           📄 کارنامهٔ مالی
         </Link>
       )}
