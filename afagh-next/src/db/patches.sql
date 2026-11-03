@@ -455,3 +455,14 @@ CREATE INDEX IF NOT EXISTS "idx_ledger_uni_type" ON "student_ledger" ("universit
 --    دست نمی‌زند. هزینهٔ نوشتنش ناچیز است چون دفتر مالی نسبتاً کم‌نوشت است.
 CREATE INDEX IF NOT EXISTS "idx_ledger_balance_cover"
   ON "student_ledger" ("studentId", "transactionType", "amount");
+
+-- ۷) ایندکسِ پوششی برای محاسبهٔ «دفعهٔ تدریس» (payroll-engine، کوئری ۹).
+--    آن کوئری سابقهٔ تدریسِ هر (استاد، درس) را از **همهٔ** ارائه‌های فعالِ
+--    همهٔ ترم‌ها می‌سازد: `where "isActive" = 1` روی کلِ course_offerings،
+--    بدونِ محدودیتِ ترم (چون باید تاریخچه را بشمارد). در پروفایل ۵۴۲.۹۱۵ms بود.
+--    ستون‌های هر سه در ایندکس هستند، پس شاخهٔ اولِ union به index-only scan
+--    تبدیل می‌شود و به heap دست نمی‌زند. جزئی است تا فقط ارائه‌های فعال را
+--    دربر بگیرد (ارائه‌های غیرفعال/حذف‌شده حجمِ بی‌فایده‌اند).
+CREATE INDEX IF NOT EXISTS "idx_co_active_history"
+  ON "course_offerings" ("courseId", "termId", "professorId")
+  WHERE "isActive" = 1;

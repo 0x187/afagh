@@ -557,8 +557,23 @@ export async function loadTermPayrollData(termId: number, universityId?: number)
       `),
 
       // ۹) دفعهٔ تدریس: تعداد ترم‌های قبلیِ همین استاد+درس (پارامتر پنجم قدیم)
+      //
+      // ⚠ بهینه‌سازی (این کوئری در پروفایل ۵۴۲.۹۱۵ms بود):
+      //   `count(distinct s."termId")` روی نتیجهٔ یک `union`، یک یکتاسازیِ
+      //   **دوگانه** است: خودِ `union` قبلاً همهٔ سه‌تایی‌های
+      //   (courseId, termId, staffId) را یکتا کرده، بعد تابعِ تجمیعی دوباره
+      //   برای هر گروه مرتب/هش می‌کند تا termIdهای تکراری را بشمارد.
+      //
+      //   نکتهٔ کلیدی: بعد از `union`، هر termId در هر گروهِ (staffId, courseId)
+      //   حداکثر یک بار ظاهر می‌شود — چون courseId و staffId در گروه ثابت‌اند و
+      //   سه‌تاییِ (courseId, termId, staffId) یکتاست. پس
+      //   `count(*)` **دقیقاً** همان عدد را می‌دهد، بدون یکتاسازیِ دوم.
+      //
+      //   ⚠ `union` را عمداً به `union all` تغییر ندادیم: آن‌وقت برای استادی که
+      //   هم `professorId` است و هم در `offering_professors`، ردیف تکراری می‌آمد
+      //   و `count(*)` عدد را بالا می‌برد (پارامترِ حقوق را خراب می‌کرد).
       db.execute(sql`
-        select s."staffId" as "staffId", s."courseId" as "courseId", count(distinct s."termId") as "priorTerms"
+        select s."staffId" as "staffId", s."courseId" as "courseId", count(*) as "priorTerms"
         from (
           select o."courseId" as "courseId", o."termId" as "termId", o."professorId" as "staffId"
           from course_offerings o where o."isActive" = 1 and o."professorId" is not null
