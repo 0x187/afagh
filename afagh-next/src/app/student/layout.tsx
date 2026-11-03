@@ -112,12 +112,12 @@ export default async function StudentLayout({ children }: { children: React.Reac
   const lockOn = await evaluateIdleLock(user.id, lockMin).catch(() => false);
 
   return (
-    <div className="min-h-screen bg-slate-100 print:!bg-white flex flex-col" dir="rtl">
+    <div className="app-page min-h-screen bg-slate-100 print:!bg-white flex flex-col" dir="rtl">
       {/* هدر دانشجو — طراحی دو‌ردیفه و پایدار در موبایل:
           ردیف ۱: نشان دانشگاه + آواتار + خوش‌آمدگویی (فقط نام) + دکمه‌های راهنما/تم/خروج
           ردیف ۲: چیپ‌های وضعیت (مالی/سخا/ترم) + سوییچر ترم/کارتابل
           رشته (major) عمداً حذف شد تا خط هویت در موبایل سرریز/بریده نشود. */}
-      <header className="bg-emerald-800 text-white shadow-md print:hidden sticky top-0 z-40">
+      <header className="app-header bg-emerald-800 text-white print:hidden sticky top-0 z-40">
         <div className="max-w-7xl mx-auto flex flex-col gap-2 px-3 sm:px-4 py-2.5">
 
           {/* ردیف ۱ — هویت و دکمه‌ها */}

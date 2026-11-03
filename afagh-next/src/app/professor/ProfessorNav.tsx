@@ -43,7 +43,7 @@ export default function ProfessorNav() {
   return (
     <>
       <nav
-        className="md:hidden fixed inset-x-0 bottom-0 z-50 bg-white border-t border-slate-200 print:hidden"
+        className="ui-bottom-nav md:hidden fixed inset-x-0 bottom-0 z-50 print:hidden"
         style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
         aria-label="ناوبری اصلی استاد"
       >
@@ -56,11 +56,14 @@ export default function ProfessorNav() {
                 key={t.href}
                 href={t.href}
                 style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
-                className={`flex flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 transition active:bg-slate-100 active:scale-95 ${
-                  active ? 'text-indigo-700 font-bold' : 'text-slate-500'
+                aria-current={active ? 'page' : undefined}
+                className={`flex min-h-[2.75rem] flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 transition active:scale-95 ${
+                  active
+                    ? 'bg-indigo-50 font-extrabold text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300'
+                    : 'text-slate-500 hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800'
                 }`}
               >
-                <span className="text-lg leading-none">{n.icon}</span>
+                <span className="text-lg leading-none" aria-hidden>{n.icon}</span>
                 <span className="text-2xs leading-tight text-center">{t.label}</span>
               </Link>
             );
@@ -69,9 +72,9 @@ export default function ProfessorNav() {
             type="button"
             onClick={() => setOpen(true)}
             aria-label="باز کردن منوی کامل"
-            className="flex flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 text-slate-500 active:bg-slate-100 active:scale-95 transition"
+            className="flex min-h-[2.75rem] flex-1 flex-col items-center justify-center gap-0.5 rounded-xl px-1 py-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 active:scale-95 dark:text-slate-400 dark:hover:bg-slate-800"
           >
-            <span className="text-lg leading-none">☰</span>
+            <span className="text-lg leading-none" aria-hidden>☰</span>
             <span className="text-2xs leading-tight">منو</span>
           </button>
         </div>
@@ -80,8 +83,10 @@ export default function ProfessorNav() {
       {open && (
         <div className="md:hidden fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label="منوی استاد">
           <div className="absolute inset-0 bg-slate-950/50" onClick={() => setOpen(false)} />
-          <aside className="absolute bottom-0 inset-x-0 max-h-[82vh] overflow-y-auto rounded-t-2xl bg-white shadow-2xl flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-2xl">
+          <aside className="absolute bottom-0 inset-x-0 max-h-[82vh] overflow-y-auto rounded-t-3xl bg-white shadow-2xl flex flex-col pb-[env(safe-area-inset-bottom,0px)]">
+            {/* دستگیرهٔ کشیدن — نشانهٔ بصریِ «شیت» و کمک به درکِ بستن */}
+            <div aria-hidden className="mx-auto mt-2 h-1 w-10 rounded-full bg-slate-300 dark:bg-slate-600" />
+            <div className="flex items-center justify-between p-4 border-b border-slate-100 sticky top-0 bg-white">
               <p className="font-extrabold text-slate-900">منوی استاد</p>
               <button
                 type="button"

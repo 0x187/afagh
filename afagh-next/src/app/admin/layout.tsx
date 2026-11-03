@@ -129,8 +129,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     </>
   );
   return (
-    <div className="min-h-screen bg-sky-50/70 print:!bg-white" data-uni={curUni.code}>
-      <header className={`${th.header} text-white shadow-md transition-colors sticky top-0 z-40 print:hidden`}>
+    <div className="app-page min-h-screen bg-sky-50/70 print:!bg-white" data-uni={curUni.code}>
+      {/* `.app-header` (globals.css) یک درخششِ ملایم از بالا و یک خطِ موییِ
+          روشن در پایین اضافه می‌کند تا سربرگ روی هر رنگِ دانشگاه از بدنهٔ
+          صفحه جدا دیده شود؛ رنگِ پایه همان توکنِ دانشگاه است و دست‌نخورده
+          می‌ماند. */}
+      <header className={`app-header ${th.header} text-white transition-colors sticky top-0 z-40 print:hidden`}>
         {/*
           هدرِ دو‌ردیفیِ صریح (همان الگوی کارتابل استاد):
             ردیف ۱ — [جای دکمهٔ شناور «منو»] + هویت + ابزارها
@@ -188,9 +192,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       {/* بدنهٔ دوستونه در دسکتاپ: سایدبارِ دائمی (AdminNav در `lg+` به سایدبار
           تبدیل می‌شود) + محتوا. در موبایل سایدبار وجود ندارد و فقط دکمهٔ
           شناور «منو» با کشو کار می‌کند. */}
-      <div className="mx-auto flex w-full max-w-[2100px] items-start gap-4 p-3 sm:p-5 pb-16">
+      <div className="mx-auto flex w-full max-w-[2100px] items-start gap-4 p-3 pb-16 sm:p-5 lg:gap-6">
         <AdminNav roles={user.roles} permissions={permissionCodes} theme={th} />
-        <main id="main" className="min-w-0 flex-1 overflow-y-auto">
+        <main id="main" className="min-w-0 flex-1 overflow-y-auto pb-4">
         {/* نوارِ بازگشت — **دو سطحی**: اگر زیرصفحهٔ یک کارتابل باشیم (مثل
             `/admin/finance/pos`) به همان کارتابل (`/admin/finance`) برمی‌گردد،
             نه به داشبورد کل؛ و میان‌بر داشبورد هم کنارش می‌ماند.

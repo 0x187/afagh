@@ -1135,3 +1135,251 @@ html {
     box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.10);
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   لایهٔ طراحیِ یکپارچهٔ کارتابل‌ها — نسخهٔ ۲
+   ───────────────────────────────────────────────────────────────────────────
+   هدف: یک زبانِ بصریِ واحد برای **هر چهار کارتابل** (مدیریت / استاد / دانشجو /
+   مدیر گروه) در **حالت روشن، تیره و موبایل**.
+
+   چرا اینجا و نه در هر صفحه: صفحه‌ها با یوتیلیتی‌های خام تیلویند نوشته شده‌اند
+   (صدها فایل). هر تغییری در سطحِ «توکن + کلاس‌های مشترک» به‌طور خودکار به همه
+   می‌رسد و ریسکِ شکستنِ یک صفحهٔ خاص را صفر می‌کند.
+
+   ⚠ قواعد این بلوک:
+     ۱) فقط متغیرِ جدید اضافه می‌کند؛ هیچ متغیرِ قبلی را بازنویسی نمی‌کند.
+     ۲) `!important` فقط جایی که باید بر یوتیلیتی‌های `!important`دارِ بالا غلبه کند.
+     ۳) همه‌چیز داخل `@media screen` است تا **چاپ** دست‌نخورده بماند.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* سطوح (surface) */
+  --ui-page: #f3f5fa;
+  --ui-page-2: #eaeef7;
+  --ui-card: #ffffff;
+  --ui-sunken: #f7f9fc;
+  /* خطوط */
+  --ui-stroke: #e4e9f2;
+  --ui-stroke-strong: #d3dae7;
+  /* متن */
+  --ui-text: #0f172a;
+  --ui-text-soft: #5b6779;
+  /* برند */
+  --ui-brand: #4f46e5;
+  --ui-brand-2: #6366f1;
+  --ui-brand-ink: #ffffff;
+  --ui-ring: rgba(79, 70, 229, 0.38);
+  /* ارتفاع (elevation) — سه پلهٔ روشن و قابل‌تشخیص */
+  --ui-shadow-1: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --ui-shadow-2: 0 1px 2px rgba(16, 24, 40, 0.05), 0 10px 26px -14px rgba(16, 24, 40, 0.18);
+  --ui-shadow-3: 0 2px 6px rgba(16, 24, 40, 0.07), 0 22px 50px -22px rgba(16, 24, 40, 0.30);
+  /* درخششِ پس‌زمینهٔ صفحه (یک لکهٔ نرم در گوشهٔ بالا) */
+  --ui-glow: radial-gradient(1100px 380px at 92% -8%, rgba(99, 102, 241, 0.10), transparent 62%),
+             radial-gradient(800px 320px at 4% 0%, rgba(14, 165, 233, 0.07), transparent 60%);
+}
+
+.dark {
+  --ui-page: #0a101c;
+  --ui-page-2: #0d1524;
+  --ui-card: #141d2e;
+  --ui-sunken: #101827;
+  --ui-stroke: #253248;
+  --ui-stroke-strong: #33415c;
+  --ui-text: #eef2f9;
+  --ui-text-soft: #93a1b5;
+  --ui-brand: #6366f1;
+  --ui-brand-2: #818cf8;
+  --ui-ring: rgba(129, 140, 248, 0.45);
+  --ui-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.50);
+  --ui-shadow-2: 0 1px 2px rgba(0, 0, 0, 0.50), 0 12px 30px -16px rgba(0, 0, 0, 0.75);
+  --ui-shadow-3: 0 2px 6px rgba(0, 0, 0, 0.55), 0 26px 60px -26px rgba(0, 0, 0, 0.85);
+  --ui-glow: radial-gradient(1100px 380px at 92% -8%, rgba(99, 102, 241, 0.16), transparent 62%),
+             radial-gradient(800px 320px at 4% 0%, rgba(14, 165, 233, 0.09), transparent 60%);
+}
+
+@media screen {
+  /* ── ۱) بومِ صفحه ────────────────────────────────────────────────────────
+     پس‌زمینهٔ تخت جای خود را به یک «بومِ» آرام با درخششِ گوشه می‌دهد.
+     فقط `background-image` می‌نشیند تا رنگِ پایهٔ هر کارتابل (که با کلاس
+     تیلویند روی همان عنصر است) دست‌نخورده بماند. */
+  .app-page {
+    /* رنگِ بومِ یکسان برای هر چهار کارتابل — رنگِ برندِ هر کارتابل در سربرگ
+       و کارت‌ها می‌ماند، نه در پس‌زمینهٔ صفحه. `!important` لازم است چون
+       یوتیلیتی‌های `bg-*` بالاتر در همین فایل `!important` دارند. */
+    background-color: var(--ui-page) !important;
+    background-image: var(--ui-glow);
+    background-repeat: no-repeat;
+    background-attachment: scroll;
+  }
+
+  /* ── ۲) سربرگِ کارتابل ──────────────────────────────────────────────────
+     یک درخششِ ملایم از بالا + خطِ موییِ روشن در پایین. روی هر رنگی
+     (ایندیگو/سبز/فیروزه‌ای/صورتی/نارنجی) کار می‌کند چون با شفافیتِ سفید
+     ساخته شده، نه با رنگِ ثابت. */
+  .app-header {
+    position: relative;
+    isolation: isolate;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow: 0 10px 30px -20px rgba(2, 6, 23, 0.65);
+  }
+  .app-header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 58%),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.10), rgba(0, 0, 0, 0) 42%);
+  }
+  /* در دارک، درخشش کمی قوی‌تر تا سربرگ از بوم جدا شود */
+  .dark .app-header::before {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0) 60%),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0) 45%);
+  }
+
+  /* ── ۳) کارتِ استاندارد ──────────────────────────────────────────────────
+     الگوی غالبِ صفحه‌ها: `bg-white rounded-* border shadow-sm`. */
+  .ui-card {
+    background-color: var(--ui-card) !important;
+    border: 1px solid var(--ui-stroke);
+    border-radius: 0.875rem;
+    box-shadow: var(--ui-shadow-2);
+  }
+  .ui-card--flat { box-shadow: var(--ui-shadow-1); }
+  .ui-card--sunken { background-color: var(--ui-sunken) !important; }
+
+  /* کارت‌های «سطح» موجود که فقط border دارند و سایه ندارند: یک سایهٔ سبک
+     بگیرند تا از بوم جدا شوند (بدون دست‌زدن به مودال‌ها که shadow-xl دارند). */
+  .bg-white.rounded-xl.border:not([class*='shadow']),
+  .bg-white.rounded-2xl.border:not([class*='shadow']),
+  .bg-white.rounded-3xl.border:not([class*='shadow']) {
+    box-shadow: var(--ui-shadow-1);
+  }
+
+  /* ── ۴) سربرگِ بخش (الگوی تیتر + زیرتیتر + دکمه‌ها) ───────────────────── */
+  .ui-section-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--ui-stroke);
+  }
+  .ui-section-title {
+    font-weight: 800;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--ui-text);
+  }
+  .ui-section-sub {
+    font-weight: 700;
+    font-size: 0.6875rem;
+    line-height: 1.6;
+    color: var(--ui-text-soft);
+  }
+
+  /* ── ۵) دکمه‌ها ─────────────────────────────────────────────────────────
+     سه نقشِ روشن: اصلی (پر)، نرم (کم‌رنگ) و خطر. همه با ارتفاع/شعاع/فونتِ یکسان
+     تا در یک ردیف هم‌تراز بنشینند. */
+  .ui-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    height: 2rem;
+    padding: 0 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid transparent;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease, transform .12s ease;
+  }
+  .ui-btn:active:not(:disabled) { transform: translateY(0.5px); }
+  .ui-btn:disabled { opacity: .55; cursor: not-allowed; }
+
+  .ui-btn-primary {
+    background-color: var(--ui-brand);
+    color: var(--ui-brand-ink);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, .12), 0 6px 16px -10px var(--ui-brand);
+  }
+  .ui-btn-primary:hover:not(:disabled) { background-color: var(--ui-brand-2); }
+
+  .ui-btn-soft {
+    background-color: var(--ui-sunken);
+    color: var(--ui-text);
+    border-color: var(--ui-stroke);
+  }
+  .ui-btn-soft:hover:not(:disabled) { background-color: var(--ui-page-2); border-color: var(--ui-stroke-strong); }
+
+  .ui-btn-ghost { background-color: transparent; color: var(--ui-text-soft); }
+  .ui-btn-ghost:hover:not(:disabled) { background-color: var(--ui-sunken); color: var(--ui-text); }
+
+  .ui-btn-danger { background-color: #e11d48; color: #fff; }
+  .ui-btn-danger:hover:not(:disabled) { background-color: #be123c; }
+
+  .ui-btn-sm { height: 1.75rem; padding: 0 0.625rem; font-size: 0.6875rem; border-radius: 0.4375rem; }
+
+  /* ── ۶) چیپِ وضعیت ──────────────────────────────────────────────────────*/
+  .ui-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    border: 1px solid var(--ui-stroke);
+    background-color: var(--ui-sunken);
+    color: var(--ui-text-soft);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    line-height: 1.5;
+    white-space: nowrap;
+  }
+
+  /* ── ۷) قابِ جدول ───────────────────────────────────────────────────────
+     همان الگویی که در تب دروس به‌کار رفت، اینجا عمومی می‌شود: هر جدولِ `.rt`
+     که داخل قابِ گرد باشد گوشه‌ها را نمی‌شکند. */
+  .ui-table-frame {
+    border: 1px solid var(--ui-stroke);
+    border-radius: 0.75rem;
+    background-color: var(--ui-card);
+    box-shadow: var(--ui-shadow-1);
+    overflow: hidden;
+  }
+
+  /* ── ۸) نوارِ پایینِ موبایل (کارتابل استاد/دانشجو) ─────────────────────
+     `env(safe-area-inset-bottom)` برای آیفون‌های ناچ‌دار.
+     ⚠ عمداً **بدون** `backdrop-filter`: در `StudentNav` مستند شده که بلور روی
+     المانِ `fixed` عاملِ اصلیِ تأخیرِ لمس در موبایل است؛ اینجا هم تکرار نمی‌شود. */
+  .ui-bottom-nav {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background-color: var(--ui-card);
+    border-top: 1px solid var(--ui-stroke);
+    box-shadow: 0 -8px 22px -18px rgba(2, 6, 23, .45);
+  }
+
+  /* ── ۹) موبایل: اندازهٔ لمس و فاصله‌ها ──────────────────────────────────
+     هدفِ لمس حداقل ۴۰px برای اکشن‌های اصلیِ نوارها و آیکون‌ها. */
+  @media (max-width: 767px) {
+    .ui-btn { height: 2.25rem; }
+    .ui-btn-sm { height: 2rem; }
+    .ui-section-head { gap: 0.5rem; }
+    /* سربرگِ چسبان در موبایل کمی فشرده‌تر تا محتوا زودتر دیده شود */
+    .app-header { box-shadow: 0 6px 18px -14px rgba(2, 6, 23, .55); }
+  }
+
+  /* ── ۱۰) احترام به «کاهش حرکت» ──────────────────────────────────────────*/
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
