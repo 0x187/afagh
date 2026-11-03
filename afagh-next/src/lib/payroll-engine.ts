@@ -572,18 +572,35 @@ export async function loadTermPayrollData(termId: number, universityId?: number)
       //   ⚠ `union` را عمداً به `union all` تغییر ندادیم: آن‌وقت برای استادی که
       //   هم `professorId` است و هم در `offering_professors`، ردیف تکراری می‌آمد
       //   و `count(*)` عدد را بالا می‌برد (پارامترِ حقوق را خراب می‌کرد).
+      //
+      //   ⚠ بازنویسیِ دوم: فیلترِ «ترم‌های قبل» قبلاً **بعد از** `union` اعمال
+      //   می‌شد، پس هر دو شاخه کلِ ۶۶٬۲۱۲ ردیفِ course_offerings را می‌خواندند و
+      //   تنها بعدش اکثرشان دور ریخته می‌شد. حالا `termId` داخلِ هر دو شاخه با
+      //   یک نیمه‌اتصال محدود می‌شود تا `union` روی دادهٔ کمتر کار کند.
+      //
+      //   هم‌ارزی: `academic_terms` قبلاً با inner join می‌آمد؛ حالا
+      //   `termId in (select id from past_terms)` همان اثر را دارد (زیرمجموعهٔ
+      //   academic_terms است، پس ارائه‌های بدونِ ترمِ معتبر همچنان حذف می‌شوند).
+      //   اگر ترمِ جاری پیدا نشود، زیرکوئری NULL می‌دهد و هیچ ردیفی برنمی‌گردد —
+      //   دقیقاً مثلِ قبل که `coalesce(sortOrder,0) < coalesce(NULL,0)` بود.
       db.execute(sql`
+        with past_terms as (
+          select id from academic_terms
+           where coalesce("sortOrder", 0) < coalesce((select "sortOrder" from academic_terms where id = ${termId}), 0)
+        )
         select s."staffId" as "staffId", s."courseId" as "courseId", count(*) as "priorTerms"
         from (
           select o."courseId" as "courseId", o."termId" as "termId", o."professorId" as "staffId"
-          from course_offerings o where o."isActive" = 1 and o."professorId" is not null
+          from course_offerings o
+          where o."isActive" = 1 and o."professorId" is not null
+            and o."termId" in (select id from past_terms)
           union
           select o."courseId" as "courseId", o."termId" as "termId", op."staffId" as "staffId"
-          from course_offerings o join offering_professors op on op."offeringId" = o.id
+          from course_offerings o
+          join offering_professors op on op."offeringId" = o.id
           where o."isActive" = 1
+            and o."termId" in (select id from past_terms)
         ) s
-        join academic_terms t on t.id = s."termId"
-        where coalesce(t."sortOrder", 0) < coalesce((select "sortOrder" from academic_terms where id = ${termId}), 0)
         group by s."staffId", s."courseId"
       `),
 
