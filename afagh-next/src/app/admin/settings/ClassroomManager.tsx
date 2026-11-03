@@ -39,7 +39,10 @@ const INITIAL: SaveClassroomResult = { ok: false };
  */
 const COLS =
   'grid-cols-2 sm:grid-cols-3 ' +
-  'md:grid-cols-[2rem_4.5rem_minmax(7rem,1.2fr)_4.5rem_6.5rem_minmax(6.5rem,1fr)_3.25rem_5.75rem_5.5rem_5.75rem]';
+  // ۱۲ ستون = تعداد واقعیِ خانه‌های RowForm. اگر خانه‌ای اضافه/حذف شد،
+  // این الگو و HEADERS باید هم‌زمان به‌روز شوند، وگرنه ردیف می‌شکند و
+  // ستون «عملیات» به سطر دوم می‌افتد (باگ سالن امتحان).
+  'md:grid-cols-[2rem_4.5rem_minmax(7rem,1.2fr)_4.5rem_6.5rem_minmax(6.5rem,1fr)_3.25rem_5.75rem_5.5rem_4.5rem_5rem_5.75rem]';
 
 const INP =
   'w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-[13px] text-slate-800 ' +
@@ -56,7 +59,7 @@ function Cell({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /** کلیدهای مرتب‌سازی — همان ستون‌هایی که سرسطرِ کلیک‌پذیر دارند. */
-type SortKey = 'code' | 'name' | 'capacity' | 'roomType' | 'faculty' | 'floor' | 'seats' | 'status';
+type SortKey = 'code' | 'name' | 'capacity' | 'roomType' | 'faculty' | 'floor' | 'seats' | 'status' | 'examHall';
 
 const HEADERS: Array<{ label: string; hint: string; key: SortKey | null }> = [
   { label: '✓', hint: 'انتخاب ردیف برای عملیات گروهی', key: null },
@@ -68,6 +71,8 @@ const HEADERS: Array<{ label: string; hint: string; key: SortKey | null }> = [
   { label: 'طبقه', hint: 'شمارهٔ طبقه', key: 'floor' },
   { label: 'نیمکت (ردیف × ستون)', hint: 'چیدمان نیمکت‌ها برای نقشهٔ حضور و غیاب — ابتدا تعداد ردیف، بعد تعداد ستون', key: 'seats' },
   { label: 'وضعیت', hint: 'کلاس غیرفعال در انتخاب‌گر سردر کلاس نمایش داده نمی‌شود', key: 'status' },
+  { label: 'سالن امتحان', hint: 'اگر «بله» باشد، این کلاس در سهمیه‌بندی و برنامه‌ریزی آزمون‌ها به‌عنوان حوزهٔ امتحان هم قابل استفاده است', key: 'examHall' },
+  { label: 'ظرفیت امتحان', hint: 'ظرفیت مخصوص آزمون — اگر خالی بماند از ظرفیت عادی کلاس استفاده می‌شود (مثلاً نیمکت‌ها برداشته می‌شوند)', key: null },
   { label: 'عملیات', hint: 'ذخیره یا حذف همین ردیف', key: null },
 ];
 
@@ -307,6 +312,8 @@ const SORT_OPTIONS: Array<[string, string]> = [
   ['floor:desc', 'طبقه ↓'],
   ['seats:desc', 'تعداد نیمکت (بیشترین)'],
   ['seats:asc', 'تعداد نیمکت (کمترین)'],
+  ['examHall:desc', 'سالن امتحان (اول)'],
+  ['examHall:asc', 'سالن امتحان (آخر)'],
   ['status:asc', 'وضعیت (فعال اول)'],
   ['status:desc', 'وضعیت (غیرفعال اول)'],
 ];
@@ -400,6 +407,7 @@ export default function ClassroomManager({ rooms, faculties }: { rooms: RoomData
         case 'floor': return (r.floor ?? '').padStart(4, '0');
         case 'seats': return (r.rowsCount ?? 0) * (r.colsCount ?? 0);
         case 'status': return r.isActive ?? 1;
+        case 'examHall': return r.isExamHall ?? 0;
       }
     };
     return [...list].sort((a, b) => {
@@ -431,7 +439,8 @@ export default function ClassroomManager({ rooms, faculties }: { rooms: RoomData
 
   const toggleSort = (k: SortKey) => {
     if (k === sortKey) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
-    else { setSortKey(k); setSortDir(k === 'capacity' || k === 'seats' ? 'desc' : 'asc'); }
+    // برای این سه ستون، «بیشترین/بله» اولویت اول کاربر است.
+    else { setSortKey(k); setSortDir(k === 'capacity' || k === 'seats' || k === 'examHall' ? 'desc' : 'asc'); }
   };
 
   const resetFilters = () => {
@@ -605,7 +614,7 @@ export default function ClassroomManager({ rooms, faculties }: { rooms: RoomData
       )}
 
       <div className="overflow-x-auto">
-        <div className="md:min-w-[56rem]">
+        <div className="md:min-w-[66rem]">
           {/* سرسطر — فقط از دسکتاپ؛ کلیک روی هر عنوان = مرتب‌سازی همان ستون. */}
           <div className={`hidden md:grid ${COLS} items-center gap-1.5 px-1.5 pb-1.5`}>
             {HEADERS.map((h, i) => (

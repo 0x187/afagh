@@ -138,6 +138,44 @@ ok(
   (DEPT.match(/\{deptLabel\(d\)\}/g) ?? []).length >= 2,
 );
 
+// ── ۵) هم‌ترازی ساختاری جدول پیکربندی کلاس‌ها ──────────────────────────────
+// جدول با CSS Grid ساخته می‌شود، نه <table>: هر ردیف `<Cell>` است و عرض
+// ستون‌ها از الگوی `grid-template-columns` می‌آید. اگر خانه‌ای اضافه شود ولی
+// الگو و `HEADERS` به‌روز نشوند، خانه‌های آخر به سطر دوم می‌ریزند و ستون
+// «عملیات» (دکمهٔ ذخیره) از جای خودش بیرون می‌افتد. این دقیقاً باگ «سالن
+// امتحان» بود: ۱۲ خانه در شبکهٔ ۱۰ ستونی.
+const ROOMS = read('src/app/admin/settings/ClassroomManager.tsx');
+
+const rowForm = ROOMS.slice(ROOMS.indexOf('function RowForm'), ROOMS.indexOf('const LBL_TB'));
+const cellCount = (rowForm.match(/<Cell label=/g) ?? []).length;
+
+const colsMatch = ROOMS.match(/md:grid-cols-\[([^\]]+)\]/);
+const trackCount = colsMatch ? colsMatch[1].split('_').length : 0;
+
+const headersBlock = ROOMS.slice(ROOMS.indexOf('const HEADERS'), ROOMS.indexOf('/** رقم‌های فارسی'));
+const headerCount = (headersBlock.match(/\{ label: '/g) ?? []).length;
+
+ok('جدول کلاس‌ها: الگوی ستون‌ها پیدا شد', trackCount > 0, `trackCount=${trackCount}`);
+ok('جدول کلاس‌ها: سرستون‌ها پیدا شدند', headerCount > 0, `headerCount=${headerCount}`);
+ok(
+  'جدول کلاس‌ها: تعداد خانه‌های ردیف = تعداد ستون‌های شبکه',
+  cellCount === trackCount,
+  `خانه=${cellCount} ستون=${trackCount}`,
+);
+ok(
+  'جدول کلاس‌ها: تعداد سرستون‌ها = تعداد ستون‌های شبکه',
+  headerCount === trackCount,
+  `سرستون=${headerCount} ستون=${trackCount}`,
+);
+ok(
+  'جدول کلاس‌ها: هر دو ستون سالن امتحان سرستون دارند',
+  /label: 'سالن امتحان'/.test(headersBlock) && /label: 'ظرفیت امتحان'/.test(headersBlock),
+);
+ok(
+  'جدول کلاس‌ها: مرتب‌سازی سالن امتحان پیاده شده',
+  /case 'examHall': return r\.isExamHall \?\? 0;/.test(ROOMS),
+);
+
 // ── ۳) کد رشته در کارت فاز ۰ نباید خالی رندر شود ──────────────────────────
 const SCOPE = read('src/app/admin/scheduling/components/ProgramScopeTab.tsx');
 ok(
