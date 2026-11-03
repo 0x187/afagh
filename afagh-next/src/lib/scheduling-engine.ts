@@ -304,7 +304,12 @@ export async function allocateSections(actorUserId: number | null, px: {
 
 /** تخصیص اولیهٔ سهمیه (سالن، شیفت) گروه‌های هر دانشکده بر اساس جمعیت دانشجویی */
 export async function allocateRoomQuotas(actorUserId: number | null, termId: number): Promise<{ ok: true; grants: number }> {
-  const grantsAll: { departmentId: number; classroomId: number; shift: Shift }[] = [];
+  /**
+   * `enforceOwner` = مالکیت صریح است، پس حتی اگر سهمیهٔ قبلی به گروه دیگری داده
+   * شده باشد، مالکش اصلاح می‌شود. `status` دست‌نخورده می‌ماند تا تصمیم
+   * «آزاد شده برای استخر مشترک» با اجرای دوباره از بین نرود.
+   */
+  const grantsAll: { departmentId: number; classroomId: number; shift: Shift; enforceOwner?: boolean }[] = [];
 
   /**
    * سالن‌هایی که «گروه مسئول» صریح دارند (`classrooms."departmentId"`) از استخرِ
@@ -322,8 +327,8 @@ export async function allocateRoomQuotas(actorUserId: number | null, termId: num
     order by id
   `)).rows as { id: number; departmentId: number }[];
   for (const r of owned) {
-    grantsAll.push({ classroomId: Number(r.id), departmentId: Number(r.departmentId), shift: 'MORNING' });
-    grantsAll.push({ classroomId: Number(r.id), departmentId: Number(r.departmentId), shift: 'EVENING' });
+    grantsAll.push({ classroomId: Number(r.id), departmentId: Number(r.departmentId), shift: 'MORNING', enforceOwner: true });
+    grantsAll.push({ classroomId: Number(r.id), departmentId: Number(r.departmentId), shift: 'EVENING', enforceOwner: true });
   }
 
   const faculties = await db.execute(sql`select id from faculties order by id`);
@@ -359,12 +364,22 @@ export async function allocateRoomQuotas(actorUserId: number | null, termId: num
   await db.transaction(async tx => {
     await advisoryLock(tx, 'sched_quota', termId);
     for (const g of grantsAll) {
-      const [ins] = await tx
-        .insert(scheduling_room_grants)
-        .values({ termId, classroomId: g.classroomId, shift: g.shift, ownerDepartmentId: g.departmentId })
-        .onConflictDoNothing()
-        .returning({ id: scheduling_room_grants.id });
-      if (ins) n++;
+      const [row] = g.enforceOwner
+        ? await tx
+            .insert(scheduling_room_grants)
+            .values({ termId, classroomId: g.classroomId, shift: g.shift, ownerDepartmentId: g.departmentId })
+            // مالکیت صریح بر تصمیم قبلی اولویت دارد؛ فقط مالک عوض می‌شود.
+            .onConflictDoUpdate({
+              target: [scheduling_room_grants.termId, scheduling_room_grants.classroomId, scheduling_room_grants.shift],
+              set: { ownerDepartmentId: g.departmentId },
+            })
+            .returning({ id: scheduling_room_grants.id })
+        : await tx
+            .insert(scheduling_room_grants)
+            .values({ termId, classroomId: g.classroomId, shift: g.shift, ownerDepartmentId: g.departmentId })
+            .onConflictDoNothing()
+            .returning({ id: scheduling_room_grants.id });
+      if (row) n++;
     }
     await auditChain(tx, actorUserId, 'SCHEDULING_QUOTA_ALLOCATED', 'academic_term', termId, { grants: n });
   });

@@ -227,6 +227,17 @@ ok(
   'گروه مسئول: سالن‌های دارای مسئول از استخر ظرفیت‌محور بیرون می‌مانند',
   /where "facultyId" = \$\{f\.id\} and "departmentId" is null/.test(ENGINE),
 );
+// «گروه مسئول» باید مالکیت را تحمیل کند. باشگاه تختي سهمیهٔ RELEASED به نام
+// «حقوق» داشت و با onConflictDoNothing دست‌نخورده می‌ماند — یعنی تنظیم جدید
+// روی سالن‌هایی که از قبل سهمیه داشتند هیچ اثری نمی‌گذاشت.
+ok(
+  'گروه مسئول: مالکیت صریح بر سهمیهٔ قبلی اولویت دارد',
+  /enforceOwner: true/.test(ENGINE) && /onConflictDoUpdate\(\{\s*target: \[scheduling_room_grants\.termId/.test(ENGINE),
+);
+ok(
+  'گروه مسئول: status با اجرای دوباره صفر نمی‌شود',
+  !/set: \{ ownerDepartmentId: g\.departmentId, status:/.test(ENGINE),
+);
 ok(
   'گروه مسئول: ستون در جدول کلاس‌ها هست',
   /<Cell label="گروه مسئول">/.test(ROOMS) && /label: 'گروه مسئول'/.test(ROOMS),
