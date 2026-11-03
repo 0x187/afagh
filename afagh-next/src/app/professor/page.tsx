@@ -220,6 +220,13 @@ export default async function ProfessorHome() {
         ))}
       </div>
 
+      {/* عنوانِ بخشِ دسترسی سریع — پیش‌تر شبکهٔ کاشی‌ها بدون سرفصل شروع می‌شد
+          و در موبایل معلوم نبود این کاشی‌ها «میان‌بر»اند یا محتوای صفحه. */}
+      <div className="print:hidden flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5">
+        <h2 className="text-xs font-extrabold text-slate-900 sm:text-sm">دسترسی سریع</h2>
+        <span className="text-3xs font-bold text-slate-400">۱۱ میان‌بر</span>
+      </div>
+
       <div className="print:hidden grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-4">
         <Link
           href="/professor/schedule"

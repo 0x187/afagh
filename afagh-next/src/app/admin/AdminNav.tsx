@@ -116,7 +116,8 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
           <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-3 text-[13px]">
             <Link
               href="/admin"
-              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-colors ${pathname === '/admin' ? th.navActive : th.navHover}`}
+              aria-current={pathname === '/admin' ? 'page' : undefined}
+              className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-colors ${pathname === '/admin' ? th.navActive : th.navHover}`}
             >
               <Icon emoji="🏠" className="h-4 w-4 shrink-0" />
               <span className="flex-1">داشبورد</span>
@@ -125,22 +126,32 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
             {filtered.length > 0 && q.trim() === '' ? (
               grouped.map(g => {
                 // همهٔ دسته‌ها پیش‌فرض بسته‌اند؛ فقط با کلیکِ کاربر باز می‌شوند.
-                const open = !!expanded[g.group.key];
+                // (نام `isOpen` است تا با state بیرونیِ `open` — که کشوی موبایل را
+                //  کنترل می‌کند — قاطی نشود.)
+                const isOpen = !!expanded[g.group.key];
                 return (
                   <div key={g.group.key}>
                     {/* سرصفحهٔ دسته — کلیک‌پذیر برای باز/بسته‌کردن (پیش‌فرض بسته) */}
                     <button
                       type="button"
-                      onClick={() => setExpanded(p => ({ ...p, [g.group.key]: !open }))}
-                      aria-expanded={open}
-                      className={`flex w-full items-center gap-1.5 rounded-lg px-3 py-1.5 text-[11px] font-bold tracking-wide transition-colors ${th.navHover}`}
+                      onClick={() => setExpanded(p => ({ ...p, [g.group.key]: !isOpen }))}
+                      aria-expanded={isOpen}
+                      className={`flex w-full items-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-extrabold tracking-wide transition-colors ${th.navHover}`}
                     >
-                      <span className="shrink-0">{g.group.icon}</span>
+                      <span aria-hidden className="shrink-0">{g.group.icon}</span>
                       <span className="flex-1 text-start">{g.group.title}</span>
-                      <span aria-hidden className={`text-3xs transition-transform duration-150 ${th.navMuted} ${open ? '' : 'rotate-[-90deg]'}`}>▼</span>
+                      <span className={`shrink-0 rounded px-1 text-3xs font-black tabular-nums ${th.navMuted}`}>
+                        {g.modules.length}
+                      </span>
+                      <span
+                        aria-hidden
+                        className={`shrink-0 text-3xs transition-transform duration-150 ${th.navMuted} ${isOpen ? '' : 'rotate-[-90deg]'}`}
+                      >
+                        ▼
+                      </span>
                     </button>
-                    {open && (
-                      <div className="mt-0.5 space-y-0.5">
+                    {isOpen && (
+                      <div className="mb-1 mt-0.5 space-y-0.5">
                         {g.modules.map(m => {
                           const active = pathname === m.href || pathname.startsWith(m.href + '/');
                           return (
@@ -148,9 +159,10 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
                               key={m.href}
                               href={m.href}
                               title={m.desc}
-                              className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-colors ${active ? th.navActive : th.navHover}`}
+                              aria-current={active ? 'page' : undefined}
+                              className={`flex items-center gap-2 rounded-lg py-2 pe-3 ps-4 text-[12.5px] transition-colors ${active ? th.navActive : th.navHover}`}
                             >
-                              <span className="shrink-0">{m.icon}</span>
+                              <span aria-hidden className="shrink-0">{m.icon}</span>
                               <span className="flex-1 truncate">{m.title}</span>
                             </Link>
                           );
@@ -167,9 +179,10 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
                   key={m.href}
                   href={m.href}
                   title={m.desc}
-                  className={`flex items-center gap-2 rounded-lg px-3 py-1.5 transition-colors ${active ? th.navActive : th.navHover}`}
+                  aria-current={active ? 'page' : undefined}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-[12.5px] transition-colors ${active ? th.navActive : th.navHover}`}
                 >
-                  <span className="shrink-0">{m.icon}</span>
+                  <span aria-hidden className="shrink-0">{m.icon}</span>
                   <span className="flex-1 truncate">{m.title}</span>
                 </Link>
               );
