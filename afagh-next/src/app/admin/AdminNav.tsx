@@ -124,8 +124,8 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
 
             {filtered.length > 0 && q.trim() === '' ? (
               grouped.map(g => {
-                // دستهٔ صفحهٔ جاری همیشه باز بماند تا کاربر گم نشود؛ بقیه طبق وضعیت باز/بسته
-                const open = expanded[g.group.key] || g.modules.some(m => pathname === m.href || pathname.startsWith(m.href + '/'));
+                // همهٔ دسته‌ها پیش‌فرض بسته‌اند؛ فقط با کلیکِ کاربر باز می‌شوند.
+                const open = !!expanded[g.group.key];
                 return (
                   <div key={g.group.key}>
                     {/* سرصفحهٔ دسته — کلیک‌پذیر برای باز/بسته‌کردن (پیش‌فرض بسته) */}
