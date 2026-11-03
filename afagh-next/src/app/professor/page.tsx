@@ -20,6 +20,7 @@ import { getSetting } from '@/lib/settings';
 import { getStaffByUser, requireRole } from '@/lib/auth';
 import VirtualClassroomWidget from '@/components/VirtualClassroomWidget';
 import MessengerOnboardBanner from '@/components/MessengerOnboardBanner';
+import PanelHero from '@/components/PanelHero';
 import { getTodayLiveClasses, hasVirtualClassroomSetup } from '@/lib/moodle-bbb';
 import { professorTermFilter } from '@/lib/professor-term-filter';
 import {
@@ -207,18 +208,22 @@ export default async function ProfessorHome() {
         />
       )}
 
-      {/* ── نوار وضعیت (جانشین چهار کادر حذف‌شدهٔ سربرگ) ──────────────────
-          یک ردیف باریک، چهار ستون مساوی: آیکن + مقدار + برچسب کوتاه.
-          ارتفاع کل ~۵۶px در برابر ~۱۳۵px کادرهای قبلی در سربرگ. */}
-      <div className="print:hidden grid grid-cols-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs [&>*+*]:border-r [&>*+*]:border-slate-200">
-        {stats.map(s => (
-          <div key={s.label} className="min-w-0 px-1.5 py-2.5 text-center" title={s.title}>
-            <div className="text-base leading-none" aria-hidden>{s.icon}</div>
-            <div className={`mt-1 truncate text-2xs font-extrabold leading-tight ${s.tone}`}>{s.value}</div>
-            <div className="truncate text-3xs leading-tight text-slate-500">{s.label}</div>
-          </div>
-        ))}
-      </div>
+      {/* ── ویترینِ صفحهٔ اول ────────────────────────────────────────────────
+          پیش‌تر یک نوارِ چهارکاشیِ تخت بود که هم بی‌عنوان شروع می‌شد و هم از
+          سربرگ جدا افتاده بود؛ حالا عنوان/نیمسال و همان چهار عدد در یک بلوکِ
+          واحد و هم‌تراز با ویترینِ سه کارتابل دیگر. */}
+      <PanelHero
+        tone="indigo"
+        icon="🎓"
+        eyebrow="کارتابل استاد"
+        title="میز کار استاد"
+        subtitle={
+          term?.title
+            ? `نیمسال جاری: ${term.title} — خلاصهٔ تدریس، حضور، قرارداد و مهلت نمرات شما`
+            : 'نیمسال جاری برای شما تعیین نشده است؛ در صورت نیاز با آموزش تماس بگیرید.'
+        }
+        stats={stats.map(s => ({ label: s.label, value: s.value, tone: s.tone, title: s.title }))}
+      />
 
       {/* عنوانِ بخشِ دسترسی سریع — پیش‌تر شبکهٔ کاشی‌ها بدون سرفصل شروع می‌شد
           و در موبایل معلوم نبود این کاشی‌ها «میان‌بر»اند یا محتوای صفحه. */}

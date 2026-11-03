@@ -10,6 +10,7 @@ import { revalidatePath } from 'next/cache';
 import Link from 'next/link';
 import RequestActionButtons from './RequestActionButtons';
 import AdminMakeupRequestsCard from './AdminMakeupRequestsCard';
+import PanelHero from '@/components/PanelHero';
 
 async function warmupAction() {
   'use server';
@@ -191,17 +192,30 @@ export default async function AdminHome({
     }
   }
 
+  const moduleCount = groups.reduce((s, g) => s + g.modules.length, 0);
+
   return (
     <div className="space-y-5">
-      {/* ═══ سربرگِ صفحه ═══ */}
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div className="min-w-0">
-          <h1 className="text-base font-black tracking-tight text-slate-900 sm:text-lg">داشبورد مدیریت</h1>
-          <p className="mt-0.5 text-2xs font-bold text-slate-500 sm:text-xs">
-            دسته‌بندی ماژول‌ها و کارتابلِ رسیدگی — {groups.reduce((s, g) => s + g.modules.length, 0)} ماژول در دسترسِ نقش شما
-          </p>
-        </div>
-      </div>
+      {/* ═══ ویترینِ صفحهٔ اول ═══ */}
+      <PanelHero
+        tone="indigo"
+        icon="🧭"
+        eyebrow="کارتابل مدیریت"
+        title="داشبورد مدیریت جامع"
+        subtitle={`${moduleCount.toLocaleString('fa-IR')} ماژول در دسترسِ نقش شما — برای ورود به هر حوزه، دستهٔ مربوط را انتخاب کنید.`}
+        stats={
+          isEdu
+            ? [
+                { label: 'کل درخواست‌ها', value: total.toLocaleString('fa-IR'), tone: 'text-indigo-700', title: 'همهٔ درخواست‌های ثبت‌شدهٔ این دانشگاه' },
+                ...(['SUBMITTED', 'IN_REVIEW', 'APPROVED', 'REJECTED'] as const).map(k => ({
+                  label: stFa[k],
+                  value: (counts.find(c => c.status === k)?.n ?? 0).toLocaleString('fa-IR'),
+                  title: `درخواست‌های ${stFa[k]}`,
+                })),
+              ]
+            : undefined
+        }
+      />
 
       {/* ═══ دسته‌های کلی — کلیک = صفحهٔ کاشی‌های همان دسته ═══ */}
       <section>
@@ -210,16 +224,24 @@ export default async function AdminHome({
             <Link
               key={g.group.key}
               href={`/admin/c/${g.group.key}`}
-              className="group flex h-full items-start gap-2.5 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-lg sm:gap-3 sm:p-4"
+              className="group relative flex h-full items-start gap-3 overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-lg sm:p-4"
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-indigo-100 bg-indigo-50 text-xl transition-transform group-hover:scale-110 sm:h-11 sm:w-11 sm:text-2xl">
+              {/* نوارِ رنگیِ بالای کارت — فقط در hover ظاهر می‌شود؛ نشانهٔ «قابل کلیک» */}
+              <span
+                aria-hidden
+                className="absolute inset-x-0 top-0 h-0.5 origin-right scale-x-0 bg-gradient-to-l from-indigo-500 via-violet-500 to-fuchsia-500 transition-transform duration-200 group-hover:scale-x-100"
+              />
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-sm transition-transform group-hover:scale-105 [&>svg]:h-5 [&>svg]:w-5">
                 {g.group.icon}
               </div>
-              <div className="min-w-0">
+              <div className="min-w-0 flex-1">
                 <h3 className="text-[12px] font-extrabold leading-tight text-slate-800 sm:text-sm">{g.group.title}</h3>
                 {/* توضیح دسته فقط از sm به بالا — در موبایل کارت را بی‌دلیل بلند می‌کرد */}
                 <p className="mt-1 hidden text-2xs leading-5 text-slate-500 sm:block">{g.group.desc}</p>
-                <p className="mt-1 text-3xs font-bold text-indigo-600">{g.modules.length} ماژول ←</p>
+                <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-3xs font-black text-indigo-700">
+                  {g.modules.length.toLocaleString('fa-IR')} ماژول
+                  <span aria-hidden className="transition-transform group-hover:-translate-x-0.5">←</span>
+                </span>
               </div>
             </Link>
           ))}
@@ -228,21 +250,8 @@ export default async function AdminHome({
 
       {isEdu && (
         <>
-          {/* کارت‌های خلاصه وضعیت کل سیستم — یک نوارِ پنج‌کاشیِ هم‌تراز */}
-          <div className="grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-5">
-            {[{ k: 'ALL', label: 'کل درخواست‌ها', n: total, accent: 'text-indigo-700' } as const,
-              ...['SUBMITTED', 'IN_REVIEW', 'APPROVED', 'REJECTED'].map(k => ({
-                k,
-                label: stFa[k],
-                n: counts.find(c => c.status === k)?.n ?? 0,
-                accent: 'text-slate-700',
-              }))].map(s => (
-              <div key={s.k} className="card flex flex-col items-center justify-center gap-0.5 !p-3 text-center">
-                <p className={`text-xl font-black tabular-nums sm:text-2xl ${s.accent}`}>{s.n}</p>
-                <p className="text-3xs font-bold text-slate-500 sm:text-2xs">{s.label}</p>
-              </div>
-            ))}
-          </div>
+          {/* (نوارِ آمارِ پنج‌کاشی به ویترینِ بالای صفحه منتقل شد تا صفحهٔ اول
+              یک سربرگِ واحد داشته باشد، نه دو بلوکِ آماریِ جدا.) */}
 
           {/* کارتابل درخواست‌های کلاس جبرانی اساتید */}
           <AdminMakeupRequestsCard />

@@ -4,6 +4,7 @@ import { courses, departments } from '@/db/schema';
 import { requireDepHead } from '@/lib/group-manager';
 import { MALI_TYPE_OPTIONS, maliTypeLabel } from '@/lib/mali-types';
 import { createCourseAction, deleteCourseAction, updateCourseAction } from './actions';
+import PanelHero from '@/components/PanelHero';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +18,19 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
 
   return (
     <div className="space-y-4">
+      {/* ── ویترینِ صفحهٔ اولِ کارتابل مدیر گروه ──
+          `/group-manager` به همین صفحه هدایت می‌شود، پس این نخستین چیزی است که
+          مدیر گروه می‌بیند؛ پیش‌تر صفحه مستقیم با فرمِ «تعریف درس جدید» شروع
+          می‌شد و هیچ سربرگ/زمینه‌ای نداشت. */}
+      <PanelHero
+        tone="teal"
+        icon="🗂️"
+        eyebrow="کارتابل مدیر گروه"
+        title={`دروس گروه ${dept?.name ?? ''}`.trim()}
+        subtitle="تعریف و ویرایش دروسِ گروه؛ ارائه‌های ترم، برنامه‌ریزی درسی و معادل‌سازی از نوارِ بالا در دسترس است."
+        stats={[{ label: 'درس ثبت‌شده', value: rows.length.toLocaleString('fa-IR') }]}
+      />
+
       {sp.msg && <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">✓ {sp.msg}</p>}
       {sp.err && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">⛔ {sp.err}</p>}
 

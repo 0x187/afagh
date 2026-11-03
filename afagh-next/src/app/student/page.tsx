@@ -17,6 +17,7 @@ import {
 } from '@/lib/student-dashboard-helpers';
 import { isDemoStudentUser } from '@/lib/demo-accounts';
 import MessengerOnboardBanner from '@/components/MessengerOnboardBanner';
+import PanelHero from '@/components/PanelHero';
 import Link from 'next/link';
 import { DemoDashboard } from './demo-sections';
 
@@ -105,8 +106,32 @@ export default async function StudentDashboardPage() {
 
   const profMap = buildProfNameMap(profUsers);
 
+  // جمعِ واحدهای ترمِ جاری — برای ویترینِ بالای صفحه (درس‌های حذف‌شده شمرده نمی‌شوند)
+  const activeEnrollments = currentEnrollments.filter(c => c.status !== 'DROPPED');
+  const unitsSum = activeEnrollments.reduce((s, c) => s + (Number(c.units) || 0), 0);
+
   return (
     <div className="space-y-6 animate-in fade-in">
+      {/* ── ویترینِ صفحهٔ اول ──
+          پیش‌تر صفحه مستقیم با شبکهٔ «دسترسی سریع» شروع می‌شد و هیچ سربرگی
+          نداشت؛ حالا نام/نیمسال/تعداد درس و واحد در یک بلوکِ واحد می‌آید تا
+          صفحهٔ اولِ کارتابل دانشجو هم‌تراز سه کارتابل دیگر باشد. */}
+      <PanelHero
+        tone="emerald"
+        icon="🎓"
+        eyebrow="کارتابل دانشجو"
+        title={`سلام ${user.name.split(' ')[0]} 👋`}
+        subtitle={
+          term?.title
+            ? `نیمسال ${term.title} — درس‌ها، وضعیت مالی و خدمات آموزشی شما یک‌جا`
+            : 'برای شما نیمسال فعالی ثبت نشده است؛ با آموزش تماس بگیرید.'
+        }
+        stats={[
+          { label: 'درس این ترم', value: activeEnrollments.length.toLocaleString('fa-IR') },
+          { label: 'واحد', value: unitsSum.toLocaleString('fa-IR') },
+        ]}
+      />
+
       {/* ========================================================================= */}
       {/* 3. QUICK ACTION SERVICE PORTAL (میز دسترسی سریع به امکانات) */}
       {/* ========================================================================= */}
