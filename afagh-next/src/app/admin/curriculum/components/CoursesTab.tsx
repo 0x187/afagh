@@ -106,12 +106,17 @@ export default function CoursesTab() {
       {/* Courses — تب: دروس کاتالوگ */}
       {activeTab === 'COURSES' && detail && (
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="font-extrabold text-slate-900 text-sm">📖 دروس نسخه ({faNum(detail.courses.length)} درس)</h4>
-            <div className="flex items-center gap-1.5">
+          <div className="flex flex-wrap items-start justify-between gap-3 pb-3 border-b border-slate-100">
+            <div className="min-w-0">
+              <h4 className="font-extrabold text-slate-900 text-sm">📖 دروس نسخه</h4>
+              <p className="text-[11px] text-slate-500 font-bold mt-0.5">
+                {faNum(detail.courses.length)} درس در این نسخه
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
               <button
                 onClick={() => setModal('NEW_COURSE')}
-                className="px-3 py-2 rounded-lg bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-2xs"
+                className="px-3 py-1.5 rounded-lg bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-[11px] transition-colors"
               >
                 ✨ تعریف درس جدید
               </button>
@@ -119,7 +124,7 @@ export default function CoursesTab() {
                 <>
                   <button
                     onClick={() => setModal('ADD_COURSE')}
-                    className="px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-2xs"
+                    className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[11px] transition-colors"
                   >
                     ➕ افزودن درس از بانک
                   </button>
@@ -128,7 +133,7 @@ export default function CoursesTab() {
                       onClick={handleSyncRoles}
                       disabled={busy}
                       title="نقش همهٔ دروس نسخه از روی ستون «نوع درس» بانک بازخوانی می‌شود (تغییرات دستی بازنویسی می‌شود)"
-                      className="px-3 py-2 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 font-extrabold text-2xs disabled:opacity-50"
+                      className="px-3 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-[11px] disabled:opacity-50 transition-colors"
                     >
                       🔄 همگام‌سازی نقش از بانک
                     </button>
@@ -138,7 +143,7 @@ export default function CoursesTab() {
                       onClick={handleMarkGradReq}
                       disabled={busy}
                       title="همهٔ دروس الزامی (تیک «الزامی در ترم») و نقش‌های تخصصی/پایه به‌عنوان «شرط فارغ‌التحصیلی» علامت می‌خورند؛ مواردی که قبلاً علامت خورده‌اند دست‌نخورده می‌مانند"
-                      className="px-3 py-2 rounded-lg bg-teal-100 hover:bg-teal-200 text-teal-900 font-extrabold text-2xs disabled:opacity-50"
+                      className="px-3 py-1.5 rounded-lg bg-teal-100 hover:bg-teal-200 text-teal-900 font-bold text-[11px] disabled:opacity-50 transition-colors"
                     >
                       🎓 شرط فارغ‌التحصیلی برای دروس الزامی
                     </button>
@@ -154,17 +159,17 @@ export default function CoursesTab() {
           )}
           {/* نوار سورت/فیلتر ستون‌ها */}
           {detail.courses.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
+            <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/60 px-3 py-2">
               <input
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 placeholder="🔍 جست‌وجوی کد یا نام درس…"
-                className="flex-1 min-w-[180px] rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-2xs font-bold outline-none focus:border-indigo-500"
+                className="flex-1 min-w-[180px] rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-bold outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/15"
               />
               <select
                 value={roleFilter}
                 onChange={e => setRoleFilter(e.target.value)}
-                className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-2xs font-bold"
+                className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-[11px] font-bold"
                 title="فیلتر نقش درس"
               >
                 <option value="">همهٔ نقش‌ها</option>
@@ -173,7 +178,7 @@ export default function CoursesTab() {
               <select
                 value={semFilter}
                 onChange={e => setSemFilter(e.target.value)}
-                className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-2xs font-bold"
+                className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-[11px] font-bold"
                 title="فیلتر ترم پیشنهادی"
               >
                 <option value="">همهٔ ترم‌ها</option>
@@ -184,17 +189,17 @@ export default function CoursesTab() {
               {filtersActive && (
                 <button
                   onClick={() => { setQuery(''); setRoleFilter(''); setSemFilter(''); }}
-                  className="rounded-lg bg-slate-200 hover:bg-slate-300 px-2.5 py-1.5 text-2xs font-extrabold text-slate-700"
+                  className="rounded-lg bg-slate-200 hover:bg-slate-300 px-2.5 py-1.5 text-[11px] font-extrabold text-slate-700 transition-colors"
                 >
                   ✕ پاک‌کردن فیلتر
                 </button>
               )}
-              <span className={`text-3xs font-black ${visibleCourses.length === detail.courses.length ? 'text-slate-500' : 'text-indigo-800'}`}>
+              <span className={`ms-auto text-[11px] font-black ${visibleCourses.length === detail.courses.length ? 'text-slate-500' : 'text-indigo-800'}`}>
                 {faNum(visibleCourses.length)} از {faNum(detail.courses.length)} درس
               </span>
             </div>
           )}
-          <div className="overflow-x-auto">
+          <div className="overflow-x-auto rounded-xl border border-slate-200">
             <table className="w-full border-collapse text-xs rt">
               <thead>
                 <tr className="bg-slate-900 text-white text-center">
