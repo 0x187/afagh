@@ -1192,7 +1192,11 @@ html {
 .dark {
   --ui-page: #0a101c;
   --ui-page-2: #0d1524;
-  --ui-card: #141d2e;
+  /* عمداً برابر با `--bg-secondary` تیره (#1e293b): خیلی از کارت‌ها کلاس
+     `card bg-white` دارند و `bg-white` با `!important` رنگِ `--bg-secondary`
+     را می‌گذارد؛ اگر اینجا رنگِ دیگری بود، دو کارتِ کنارِ هم دو تیرهٔ متفاوت
+     می‌گرفتند. */
+  --ui-card: #1e293b;
   --ui-sunken: #101827;
   --ui-stroke: #253248;
   --ui-stroke-strong: #33415c;
