@@ -188,9 +188,9 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       {/* بدنهٔ دوستونه در دسکتاپ: سایدبارِ دائمی (AdminNav در `lg+` به سایدبار
           تبدیل می‌شود) + محتوا. در موبایل سایدبار وجود ندارد و فقط دکمهٔ
           شناور «منو» با کشو کار می‌کند. */}
-      <div className="mx-auto flex w-full max-w-[1600px] items-start gap-4 p-3 sm:p-5 pb-16">
+      <div className="mx-auto flex w-full max-w-[2100px] items-start gap-4 p-3 sm:p-5 pb-16">
         <AdminNav roles={user.roles} permissions={permissionCodes} theme={th} />
-        <main id="main" className="min-w-0 flex-1">
+        <main id="main" className="min-w-0 flex-1 overflow-y-auto">
         {/* نوارِ بازگشت — **دو سطحی**: اگر زیرصفحهٔ یک کارتابل باشیم (مثل
             `/admin/finance/pos`) به همان کارتابل (`/admin/finance`) برمی‌گردد،
             نه به داشبورد کل؛ و میان‌بر داشبورد هم کنارش می‌ماند.

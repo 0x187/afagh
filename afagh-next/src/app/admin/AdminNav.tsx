@@ -83,8 +83,8 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
           {/* پنل سمت راست (موبایل: کشو / دسکتاپ: سایدبار) */}
           <aside
             className={`absolute top-0 right-0 h-full w-80 max-w-[85vw] ${th.navPanel} text-white shadow-2xl flex flex-col border-s
-              lg:static lg:top-auto lg:right-auto lg:h-[calc(100dvh-8rem)] lg:w-64 xl:w-72 lg:max-w-none lg:sticky lg:top-[6.5rem]
-              lg:rounded-2xl lg:border lg:shadow-sm`}
+              lg:static lg:top-auto lg:right-auto lg:min-h-[calc(100dvh-8rem)] lg:w-64 xl:w-72 lg:max-w-none lg:sticky lg:top-[6.5rem]
+              lg:rounded-2xl lg:border lg:shadow-sm lg:overflow-y-auto`}
           >
             <div className={`flex items-center justify-between p-3 border-b ${th.navBorder}`}>
               <p className="flex items-center gap-2 font-extrabold text-sm"><Icon emoji="🧭" className="h-4 w-4" /> منوی مدیریت</p>
