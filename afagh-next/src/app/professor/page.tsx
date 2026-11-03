@@ -233,7 +233,7 @@ export default async function ProfessorHome() {
       </div>
 
       <div className="print:hidden grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-4">
-        <Link
+        <Link prefetch={false}
           href="/professor/schedule"
           className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-indigo-400 hover:shadow-md transition space-y-2 group"
         >
@@ -248,7 +248,7 @@ export default async function ProfessorHome() {
           </div>
         </Link>
 
-        <Link
+        <Link prefetch={false}
           href="/professor/virtual-classes"
           className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-sky-400 hover:shadow-md transition space-y-2 group"
         >
@@ -263,7 +263,7 @@ export default async function ProfessorHome() {
           </div>
         </Link>
 
-        <Link
+        <Link prefetch={false}
           href="/professor/attendance"
           className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-emerald-400 hover:shadow-md transition space-y-2 group"
         >          <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-lg group-hover:scale-110 transition">
@@ -277,7 +277,7 @@ export default async function ProfessorHome() {
           </div>
         </Link>
 
-        <Link
+        <Link prefetch={false}
           href="/professor/grades"
           className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-purple-400 hover:shadow-md transition space-y-2 group"
         >
@@ -292,7 +292,7 @@ export default async function ProfessorHome() {
           </div>
         </Link>
 
-        <Link
+        <Link prefetch={false}
           href="/professor/contract"
           className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-amber-400 hover:shadow-md transition space-y-2 group"
         >
@@ -307,7 +307,7 @@ export default async function ProfessorHome() {
           </div>
         </Link>
 
-        <Link
+        <Link prefetch={false}
           href="/professor/availability"
           className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-teal-400 hover:shadow-md transition space-y-2 group"
         >
@@ -322,7 +322,7 @@ export default async function ProfessorHome() {
           </div>
         </Link>
 
-        <Link
+        <Link prefetch={false}
           href="/professor/performance"
           className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-sky-400 hover:shadow-md transition space-y-2 group"
         >
@@ -337,7 +337,7 @@ export default async function ProfessorHome() {
           </div>
         </Link>
 
-        <Link
+        <Link prefetch={false}
           href="/professor/evaluation"
           className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-rose-400 hover:shadow-md transition space-y-2 group"
         >
@@ -352,7 +352,7 @@ export default async function ProfessorHome() {
           </div>
         </Link>
 
-        <Link
+        <Link prefetch={false}
           href="/professor/broadcast"
           className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-indigo-400 hover:shadow-md transition space-y-2 group"
         >
@@ -367,7 +367,7 @@ export default async function ProfessorHome() {
           </div>
         </Link>
 
-        <Link
+        <Link prefetch={false}
           href="/professor/documents"
           className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-slate-400 hover:shadow-md transition space-y-2 group"
         >
@@ -382,7 +382,7 @@ export default async function ProfessorHome() {
           </div>
         </Link>
 
-        <Link
+        <Link prefetch={false}
           href="/help/professor"
           className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-emerald-400 hover:shadow-md transition space-y-2 group"
         >
@@ -420,7 +420,7 @@ export default async function ProfessorHome() {
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">فهرست دروس تخصیص‌یافته به همراه عملیات سریع</p>
             </div>
-            <Link href="/professor/schedule" className="text-xs font-bold text-indigo-700 hover:underline">
+            <Link prefetch={false} href="/professor/schedule" className="text-xs font-bold text-indigo-700 hover:underline">
               مشاهده تقویم هفتگی ←
             </Link>
           </div>
@@ -460,10 +460,10 @@ export default async function ProfessorHome() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`badge font-bold text-xs ${c.isCoTaught ? 'bg-purple-100 text-purple-900' : 'bg-sky-100 text-sky-800'}`}>{faNum(c.enrolled)}/{faNum(c.capacity)} دانشجو</span>
-                  <Link href={`/professor/attendance?offeringId=${c.offeringId}`} className="px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-900 font-bold text-xs hover:bg-emerald-200 transition">
+                  <Link prefetch={false} href={`/professor/attendance?offeringId=${c.offeringId}`} className="px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-900 font-bold text-xs hover:bg-emerald-200 transition">
                     حضور و غیاب
                   </Link>
-                  <Link href={`/professor/grades?offeringId=${c.offeringId}`} className="px-2.5 py-1 rounded-xl bg-indigo-100 text-indigo-900 font-bold text-xs hover:bg-indigo-200 transition">
+                  <Link prefetch={false} href={`/professor/grades?offeringId=${c.offeringId}`} className="px-2.5 py-1 rounded-xl bg-indigo-100 text-indigo-900 font-bold text-xs hover:bg-indigo-200 transition">
                     ثبت نمره
                   </Link>
                 </div>
@@ -508,7 +508,7 @@ export default async function ProfessorHome() {
               </div>
 
               <div className="pt-2">
-                <Link
+                <Link prefetch={false}
                   href="/professor/contract"
                   className="w-full block text-center py-2.5 rounded-xl bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-xs shadow transition"
                 >
@@ -538,7 +538,7 @@ export default async function ProfessorHome() {
               </div>
 
               <div className="pt-2">
-                <Link
+                <Link prefetch={false}
                   href="/professor/contract"
                   className="w-full block text-center py-2.5 rounded-xl bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-xs shadow transition"
                 >
@@ -553,7 +553,7 @@ export default async function ProfessorHome() {
                   ? `برای نیمسال «${selectedTerm.title}» قرارداد حق‌التدریسی ثبت نشده است.`
                   : 'برای نیمسال جاری دانشگاه شما قرارداد حق‌التدریسی ثبت نشده است.'}
               </div>
-              <Link
+              <Link prefetch={false}
                 href="/professor/documents"
                 className="w-full block text-center py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition"
               >

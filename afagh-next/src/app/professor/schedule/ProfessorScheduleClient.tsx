@@ -135,13 +135,13 @@ export default function ProfessorScheduleClient({ professor, termTitle, initialO
             >
               <span>🖨️ چاپ برنامه هفتگی</span>
             </button>
-            <Link
+            <Link prefetch={false}
               href="/professor/attendance"
               className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow transition"
             >
               📋 ثبت حضور و غیاب
             </Link>
-            <Link
+            <Link prefetch={false}
               href="/professor/grades"
               className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow transition"
             >
@@ -372,19 +372,19 @@ export default function ProfessorScheduleClient({ professor, termTitle, initialO
                   </td>
                   <td className="p-2 border border-slate-200 text-center">
                     <div className="flex items-center justify-center gap-1.5">
-                      <Link
+                      <Link prefetch={false}
                         href={`/professor/attendance?offeringId=${item.id}`}
                         className="px-2 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-bold text-3xs transition"
                       >
                         📋 حضور و غیاب
                       </Link>
-                      <Link
+                      <Link prefetch={false}
                         href={`/professor/grades?offeringId=${item.id}`}
                         className="px-2 py-1 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold text-3xs transition"
                       >
                         📝 ثبت نمره
                       </Link>
-                      <Link
+                      <Link prefetch={false}
                         href={`/professor/lesson-plan/${item.id}`}
                         className="px-2 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-3xs transition"
                       >

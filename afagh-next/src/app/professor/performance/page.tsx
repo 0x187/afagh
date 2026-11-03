@@ -166,7 +166,7 @@ export default async function ProfessorPerformancePage() {
             خط عمودی تیره روی هر نوار، میانگین واقعی {fa(perf.peers.count)} استاد دارای کلاس در همین ترم است.
             {perf.evaluation.respondents > 0 ? ` نمرهٔ ارزشیابی شما از ${fa(perf.evaluation.respondents)} پاسخ دانشجویی محاسبه شده است.` : ''}
           </p>
-          <Link href="/professor/evaluation" className="inline-block rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-extrabold text-white hover:bg-slate-800">
+          <Link prefetch={false} href="/professor/evaluation" className="inline-block rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-extrabold text-white hover:bg-slate-800">
             📈 کارنامهٔ تفصیلی ارزشیابی
           </Link>
         </div>
@@ -190,7 +190,7 @@ export default async function ProfessorPerformancePage() {
             <span className={`text-xs font-bold ${perf.incentive.eligible ? 'text-emerald-400' : 'text-slate-400'}`}>
               {perf.incentive.eligible ? `✓ واجد دریافت ${fa(perf.incentive.percent)}٪ ضریب ترجیحی` : '✗ فعلاً واجد شرایط نیستید'}
             </span>
-            <Link href="/professor/contract" className="rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-extrabold text-white shadow hover:bg-indigo-700">
+            <Link prefetch={false} href="/professor/contract" className="rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-extrabold text-white shadow hover:bg-indigo-700">
               💼 قرارداد و امور پرسنلی
             </Link>
           </div>

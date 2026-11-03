@@ -120,7 +120,7 @@ export default async function ClassroomsPage() {
         <p className="mt-1 text-2xs leading-5 text-slate-500">
           تعریف و ویرایش کلاس‌ها با مدیر سامانه است. این صفحه فقط کلاس‌هایی را نشان می‌دهد که به این گروه
           تخصیص یافته‌اند، همراه با برنامهٔ هفتگیِ نوشته‌شده در آن‌ها. برای افزودن/تغییر جلسه به کارتابل{' '}
-          <Link href="/group-manager/offerings" className="font-bold text-teal-700 hover:underline">ارائه‌ها</Link>{' '}
+          <Link prefetch={false} href="/group-manager/offerings" className="font-bold text-teal-700 hover:underline">ارائه‌ها</Link>{' '}
           (بخش «برنامهٔ هفتگی» هر ارائه) بروید.
         </p>
       </div>

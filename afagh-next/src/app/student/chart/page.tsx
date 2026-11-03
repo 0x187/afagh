@@ -263,7 +263,7 @@ export default async function StudentCurriculumChartPage() {
                 : ''}
             </p>
           </div>
-          <Link
+          <Link prefetch={false}
             href="/student/enroll"
             className="text-xs bg-white text-emerald-900 font-bold px-3 py-2 rounded-xl hover:bg-emerald-50 transition-colors shadow-sm inline-flex items-center gap-1.5"
           >
@@ -325,7 +325,7 @@ export default async function StudentCurriculumChartPage() {
                       )}
                     </div>
                     {isCurrentSemester && (
-                      <Link
+                      <Link prefetch={false}
                         href="/student/enroll"
                         className="text-2xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition-colors print:hidden"
                       >

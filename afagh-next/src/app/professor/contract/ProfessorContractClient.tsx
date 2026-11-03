@@ -140,7 +140,7 @@ export default function ProfessorContractClient({ demo = false, initialContract,
             </span>
           )}
 
-          <Link
+          <Link prefetch={false}
             href="/professor"
             className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs transition"
           >

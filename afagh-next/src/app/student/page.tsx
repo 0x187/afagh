@@ -144,7 +144,7 @@ export default async function StudentDashboardPage() {
         </div>
 
         <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-4">
-          <Link
+          <Link prefetch={false}
             href="/student/enroll"
             className="card p-4 bg-white hover:bg-emerald-50/50 border border-slate-200 hover:border-emerald-300 rounded-2xl shadow-xs transition-all group flex flex-col justify-between"
           >
@@ -163,7 +163,7 @@ export default async function StudentDashboardPage() {
             </div>
           </Link>
 
-          <Link
+          <Link prefetch={false}
             href="/student/exam-card"
             className="card p-4 bg-white hover:bg-teal-50/50 border border-slate-200 hover:border-teal-300 rounded-2xl shadow-xs transition-all group flex flex-col justify-between"
           >
@@ -182,7 +182,7 @@ export default async function StudentDashboardPage() {
             </div>
           </Link>
 
-          <Link
+          <Link prefetch={false}
             href="/student/enroll-confirm"
             className="card p-4 bg-white hover:bg-lime-50/50 border border-slate-200 hover:border-lime-300 rounded-2xl shadow-xs transition-all group flex flex-col justify-between"
           >
@@ -201,7 +201,7 @@ export default async function StudentDashboardPage() {
             </div>
           </Link>
 
-          <Link
+          <Link prefetch={false}
             href="/student/transcript"
             className="card p-4 bg-white hover:bg-indigo-50/50 border border-slate-200 hover:border-indigo-300 rounded-2xl shadow-xs transition-all group flex flex-col justify-between"
           >
@@ -223,7 +223,7 @@ export default async function StudentDashboardPage() {
             </div>
           </Link>
 
-          <Link
+          <Link prefetch={false}
             href="/student/virtual-classes"
             className="card p-4 bg-white hover:bg-sky-50/50 border border-slate-200 hover:border-sky-300 rounded-2xl shadow-xs transition-all group flex flex-col justify-between"
           >
@@ -245,7 +245,7 @@ export default async function StudentDashboardPage() {
             </div>
           </Link>
 
-          <Link
+          <Link prefetch={false}
             href="/student/schedule"
             className="card p-4 bg-white hover:bg-amber-50/50 border border-slate-200 hover:border-amber-300 rounded-2xl shadow-xs transition-all group flex flex-col justify-between"
           >
@@ -267,7 +267,7 @@ export default async function StudentDashboardPage() {
             </div>
           </Link>
 
-          <Link
+          <Link prefetch={false}
             href="/student/requests"
             className="card p-4 bg-white hover:bg-purple-50/50 border border-slate-200 hover:border-purple-300 rounded-2xl shadow-xs transition-all group flex flex-col justify-between"
           >
@@ -289,7 +289,7 @@ export default async function StudentDashboardPage() {
             </div>
           </Link>
 
-          <Link
+          <Link prefetch={false}
             href="/student/chart"
             className="card p-4 bg-white hover:bg-rose-50/50 border border-slate-200 hover:border-rose-300 rounded-2xl shadow-xs transition-all group flex flex-col justify-between"
           >
@@ -311,7 +311,7 @@ export default async function StudentDashboardPage() {
             </div>
           </Link>
 
-          <Link
+          <Link prefetch={false}
             href="/student/documents"
             className="card p-4 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-400 rounded-2xl shadow-xs transition-all group flex flex-col justify-between"
           >
@@ -354,7 +354,7 @@ export default async function StudentDashboardPage() {
                 </p>
               </div>
             </div>
-            <Link
+            <Link prefetch={false}
               href="/student/virtual-classes"
               className="text-xs font-bold text-sky-700 hover:text-sky-900 bg-sky-50 px-2.5 py-1 rounded-lg"
             >
@@ -394,7 +394,7 @@ export default async function StudentDashboardPage() {
                         : ''}
                     </p>
                   </div>
-                  <Link
+                  <Link prefetch={false}
                     href="/student/virtual-classes"
                     className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-black text-xs shadow-xs transition active:scale-95 whitespace-nowrap"
                   >

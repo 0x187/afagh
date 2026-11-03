@@ -965,7 +965,7 @@ export default function ProfessorAttendanceClient({
             >
               <span>➕ ایجاد جلسه جدید جبرانی</span>
             </button>
-            <Link
+            <Link prefetch={false}
               href="/professor/schedule"
               className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 transition"
             >

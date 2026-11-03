@@ -42,7 +42,7 @@ export default function GroupManagerNav() {
           const active = it.exact ? pathname === it.href : pathname.startsWith(it.href);
           return (
             <li key={it.href} className="shrink-0">
-              <Link
+              <Link prefetch={false}
                 href={it.href}
                 aria-current={active ? 'page' : undefined}
                 className={`flex h-8 items-center gap-1.5 whitespace-nowrap rounded-full px-3 text-xs font-bold transition-colors ${

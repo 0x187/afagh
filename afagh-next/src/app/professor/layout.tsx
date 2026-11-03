@@ -116,7 +116,7 @@ export default async function ProfessorLayout({ children }: { children: React.Re
                     کاربر گفت «در کارتابل استاد در هدر نوشته‌ای که روش می‌زدیم و
                     به کارتابل برمی‌گشتیم نیست» — در پنل مدیر این عنوان لینک بود
                     ولی اینجا متن ساده بود و راهی به /professor نداشت. */}
-                <Link href="/professor" title="بازگشت به کارتابل استاد" className="block hover:opacity-90 transition-opacity">
+                <Link prefetch={false} href="/professor" title="بازگشت به کارتابل استاد" className="block hover:opacity-90 transition-opacity">
                   <p className="font-extrabold text-sm sm:text-base truncate">
                     {/* در موبایل سلامِ کوتاه‌تر تا نام استاد کامل دیده شود */}
                     <span className="sm:hidden">استاد {user.name}</span>

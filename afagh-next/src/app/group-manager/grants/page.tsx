@@ -182,7 +182,7 @@ export default async function GrantsPage({
                     <td className="p-2 dir-ltr text-right font-mono text-slate-600">{s.studentCode}</td>
                     <td className="p-2 text-slate-600">{faNum(s.entryYear)}{s.entryTerm === 2 ? '/۲' : ''}</td>
                     <td className="p-2">
-                      <Link
+                      <Link prefetch={false}
                         href={`/group-manager/grants?major=${majorId}&year=${year}&student=${s.id}`}
                         className="rounded-lg bg-slate-100 px-2 py-1 font-bold text-slate-700 hover:bg-slate-200"
                       >

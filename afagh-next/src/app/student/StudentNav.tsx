@@ -62,7 +62,7 @@ export function StudentSidebar({ user }: { user: { name: string; studentCode?: s
         {NAV_ITEMS.map(n => {
           const isActive = n.exact ? pathname === n.href : pathname.startsWith(n.href);
           return (
-            <Link
+            <Link prefetch={false}
               key={n.href}
               href={n.href}
               className={`flex items-center justify-between px-3 py-2.5 rounded-xl font-bold transition-all ${
@@ -91,7 +91,7 @@ export function StudentSidebar({ user }: { user: { name: string; studentCode?: s
 
       {/* Manual & Help link */}
       <div className="p-3 border-t border-slate-100 bg-slate-50/50 space-y-1">
-        <Link
+        <Link prefetch={false}
           href="/help/student"
           className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-emerald-800 hover:bg-emerald-50 transition"
         >
@@ -127,7 +127,7 @@ export default function StudentNav() {
             .map(n => {
             const active = isActive(n);
             return (
-              <Link
+              <Link prefetch={false}
                 key={n.href}
                 href={n.href}
                 style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
@@ -177,7 +177,7 @@ export default function StudentNav() {
               {NAV_ITEMS.map(n => {
                 const active = isActive(n);
                 return (
-                  <Link
+                  <Link prefetch={false}
                     key={n.href}
                     href={n.href}
                     onClick={() => setOpen(false)}
@@ -203,7 +203,7 @@ export default function StudentNav() {
                   </Link>
                 );
               })}
-              <Link
+              <Link prefetch={false}
                 href="/help/student"
                 onClick={() => setOpen(false)}
                 className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:text-emerald-800 hover:bg-emerald-50 transition"

@@ -496,3 +496,27 @@ ALTER TABLE "student_ledger"   SET (autovacuum_vacuum_scale_factor = 0.02, autov
 ALTER TABLE "course_offerings" SET (autovacuum_vacuum_scale_factor = 0.02, autovacuum_analyze_scale_factor = 0.01);
 ALTER TABLE "students"         SET (autovacuum_vacuum_scale_factor = 0.02, autovacuum_analyze_scale_factor = 0.01);
 ALTER TABLE "offering_professors" SET (autovacuum_vacuum_scale_factor = 0.05, autovacuum_analyze_scale_factor = 0.02);
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- ۱۳) ایندکسِ سادهٔ `enrollments("offeringId")` — بزرگ‌ترین سوراخِ باقی‌مانده.
+--
+--  وضعیتِ پیش از این: تنها ایندکس‌هایی که `offeringId` را در خود داشتند
+--  این‌ها بودند:
+--    • `uq_enrollments ("studentId","offeringId")` — ستونِ اول `studentId` است،
+--      پس برای `where "offeringId" = X` بی‌فایده است (پیشوندِ ایندکس نیست).
+--    • `idx_enr_pending_grade ("offeringId") WHERE "status"='REGISTERED' AND
+--      coalesce("gradeStatus",'') <> 'FINALIZED'` — جزئی است و فقط همان شرط
+--      را پوشش می‌دهد.
+--
+--  نتیجه: هر کوئری‌ای که با `offeringId` تنها فیلتر کند (فهرستِ دانشجویانِ
+--  کلاس، برگهٔ نمره، لیستِ گیرندگانِ پیام، انتقالِ گروهی، شمارشِ دانشجوی هر
+--  ارائه) روی ۶۹۱٬۹۵۳ ردیف / ۱۲۹ مگابایت **اسکنِ ترتیبی** می‌زد. بیش از ۱۴۰
+--  ارجاع در کد به همین الگو وجود دارد.
+--
+--  ایندکسِ جزئیِ فعلی عمداً دست‌نخورده می‌ماند: کوچک است و برای کوئریِ
+--  «نمراتِ قطعی‌نشده» که در هر بازدیدِ کارتابل اجرا می‌شود هنوز بهترین گزینه
+--  است. این ایندکسِ جدید نقشهٔ عمومی است.
+--
+--  هزینهٔ ساخت: یک‌بار، چند ثانیه، ~۱۵ مگابایت.
+-- ═══════════════════════════════════════════════════════════════════════════
+CREATE INDEX IF NOT EXISTS "idx_enr_offering" ON "enrollments" ("offeringId");

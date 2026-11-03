@@ -117,7 +117,7 @@ export function DemoDashboard({
                   <span>{DEMO_DASHBOARD.gpaNote}</span>
                 </p>
               </div>
-              <Link
+              <Link prefetch={false}
                 href="/student/transcript"
                 className="text-2xs font-bold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 pt-2 border-t border-slate-100"
               >
@@ -140,7 +140,7 @@ export function DemoDashboard({
                 </div>
                 <p className="text-2xs text-slate-500 font-bold mt-0.5">{DEMO_DASHBOARD.chartProgressText}</p>
               </div>
-              <Link
+              <Link prefetch={false}
                 href="/student/chart"
                 className="text-2xs font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 pt-2 border-t border-slate-100"
               >
@@ -165,7 +165,7 @@ export function DemoDashboard({
                   {DEMO_DASHBOARD.currentTermCourseCountText} عنوان درسی ثبت قطعی
                 </p>
               </div>
-              <Link
+              <Link prefetch={false}
                 href="/student/schedule"
                 className="text-2xs font-bold text-amber-700 hover:text-amber-900 flex items-center gap-1 pt-2 border-t border-slate-100"
               >
@@ -188,7 +188,7 @@ export function DemoDashboard({
                 </div>
                 <p className="text-2xs text-slate-500 font-bold mt-0.5">{DEMO_DASHBOARD.examCardSeatNoteText}</p>
               </div>
-              <Link
+              <Link prefetch={false}
                 href="/student/exam-card"
                 className="text-2xs font-bold text-rose-700 hover:text-rose-900 flex items-center gap-1 pt-2 border-t border-slate-100"
               >
@@ -207,7 +207,7 @@ export function DemoDashboard({
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-4">
               {DEMO_QUICK_ACTIONS.map(a => (
-                <Link
+                <Link prefetch={false}
                   key={a.href}
                   href={a.href}
                   className="card p-4 bg-white hover:bg-emerald-50/50 border border-slate-200 hover:border-emerald-300 rounded-2xl shadow-xs transition-all group flex flex-col justify-between"
@@ -243,7 +243,7 @@ export function DemoDashboard({
                     </p>
                   </div>
                 </div>
-                <Link
+                <Link prefetch={false}
                   href="/student/virtual-classes"
                   className="text-xs font-bold text-sky-700 hover:text-sky-900 bg-sky-50 px-2.5 py-1 rounded-lg"
                 >
@@ -280,7 +280,7 @@ export function DemoDashboard({
                         {` · اتاق مجازی: ${vc.meetingId}`}
                       </p>
                     </div>
-                    <Link
+                    <Link prefetch={false}
                       href="/student/virtual-classes"
                       className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-black text-xs shadow-xs transition active:scale-95 whitespace-nowrap"
                     >
@@ -326,7 +326,7 @@ export function DemoChart({ filteredTermTitle }: { filteredTermTitle: string | n
                   {DEMO_CURRICULUM_TOTAL_UNITS_TEXT})
                 </p>
               </div>
-              <Link
+              <Link prefetch={false}
                 href="/student/enroll"
                 className="text-xs bg-white text-emerald-900 font-bold px-3 py-2 rounded-xl hover:bg-emerald-50 transition-colors shadow-sm inline-flex items-center gap-1.5"
               >
@@ -349,7 +349,7 @@ export function DemoChart({ filteredTermTitle }: { filteredTermTitle: string | n
                       </span>
                     </div>
                     {sem.semester === 2 && (
-                      <Link
+                      <Link prefetch={false}
                         href="/student/enroll"
                         className="text-2xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition-colors print:hidden"
                       >

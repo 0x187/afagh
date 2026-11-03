@@ -203,7 +203,7 @@ export default function ProfessorAvailabilityClient({ demo = false, professor, t
             برنامهٔ هفتگی نهایی را پس از تأیید گروه از کارتابل خود پیگیری کنید.
           </p>
         </div>
-        <Link
+        <Link prefetch={false}
           href="/professor/schedule"
           className="px-4 py-2 rounded-xl bg-white text-indigo-950 font-extrabold text-xs shadow hover:bg-sky-50 transition shrink-0 flex items-center gap-1.5"
         >
@@ -228,7 +228,7 @@ export default function ProfessorAvailabilityClient({ demo = false, professor, t
           </div>
 
           <div className="flex items-center gap-2">
-            <Link href="/professor/schedule" className="px-3.5 py-2 rounded-xl bg-indigo-700/80 hover:bg-indigo-600 text-white font-bold text-xs border border-indigo-500/50 transition">
+            <Link prefetch={false} href="/professor/schedule" className="px-3.5 py-2 rounded-xl bg-indigo-700/80 hover:bg-indigo-600 text-white font-bold text-xs border border-indigo-500/50 transition">
               🗓️ برنامه هفتگی من
             </Link>
           </div>
@@ -435,7 +435,7 @@ export default function ProfessorAvailabilityClient({ demo = false, professor, t
             </div>
 
             <div className="flex gap-2 pt-2">
-              <Link
+              <Link prefetch={false}
                 href="/professor/schedule"
                 className="flex-1 py-2.5 rounded-xl bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-xs text-center transition"
               >

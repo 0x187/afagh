@@ -52,7 +52,7 @@ export default function ProfessorNav() {
             const n = PROFESSOR_NAV.find(x => x.href === t.href)!;
             const active = isActive(n);
             return (
-              <Link
+              <Link prefetch={false}
                 key={t.href}
                 href={t.href}
                 style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
@@ -101,7 +101,7 @@ export default function ProfessorNav() {
               {PROFESSOR_NAV.map(n => {
                 const active = isActive(n);
                 return (
-                  <Link
+                  <Link prefetch={false}
                     key={n.href}
                     href={n.href}
                     onClick={() => setOpen(false)}
@@ -116,7 +116,7 @@ export default function ProfessorNav() {
                   </Link>
                 );
               })}
-              <Link
+              <Link prefetch={false}
                 href="/help/professor"
                 onClick={() => setOpen(false)}
                 className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:text-indigo-800 hover:bg-indigo-50 transition"
