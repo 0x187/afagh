@@ -145,11 +145,19 @@ export async function getProfessorPerformance(staffId: number): Promise<Professo
   const gradesPending = gradeRows.filter(r => r.st === 'PENDING').reduce((a, r) => a + r.n, 0);
   const gradesEntered = gradesTotal - gradesPending;
 
+  // مهلتِ نزدیک‌ترین درسِ همین استاد — با همان CTEِ مالکیت.
+  // ⚠ قبلاً به‌صورت `o."professorId" = X OR exists (...)` نوشته شده بود؛ برای
+  //   PostgreSQL قابلِ hash join نیست و به nested loop روی حاصل‌ضربِ
+  //   course_offerings × offering_professors می‌افتد (همان الگویی که کوئریِ
+  //   گلوگاهِ حقوق را ۱ تا ۵ ثانیه‌ای کرده بود). `min()` از تکرار اثر نمی‌گیرد،
+  //   پس unionِ یکتاسازِ OWNERSHIP_CTE دقیقاً همان نتیجه را می‌دهد.
   const [deadlineRow] = (await db.execute(sql`
+    with ${OWNERSHIP_CTE}
     select min(coalesce(o."customGradeDeadline", t."gradeEntryDeadline")) as deadline
-      from course_offerings o join academic_terms t on t.id = o."termId"
-     where o."termId" = ${term.id} and (o."professorId" = ${staffId}
-        or exists (select 1 from offering_professors op where op."offeringId" = o.id and op."staffId" = ${staffId} and op.role = 'MAIN_LECTURER'))
+      from ownership ow
+      join course_offerings o on o.id = ow.offering_id and o."termId" = ${term.id}
+      join academic_terms t on t.id = o."termId"
+     where ow.staff_id = ${staffId}
   `)).rows as unknown as { deadline: Date | string | null }[];
 
   const [appealsRow] = (await db.execute(sql`
