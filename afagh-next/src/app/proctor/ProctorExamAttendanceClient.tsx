@@ -212,13 +212,13 @@ export default function ProctorExamAttendanceClient({ sessions, staffName }: { s
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <span className={`px-3 py-1.5 rounded-xl text-[11px] font-black ${session.clockInStatus === 'PRESENT' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
+              <span className={`px-3 py-1.5 rounded-xl text-2xs font-black ${session.clockInStatus === 'PRESENT' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}`}>
                 {session.clockInStatus === 'PRESENT' ? '✓ حضور ثبت شده' : '⏳ ورود ثبت نشده'}
               </span>
-              <button onClick={handleClockIn} disabled={busy} className="px-3.5 py-1.5 rounded-xl bg-teal-800 hover:bg-teal-900 text-white text-[11px] font-black transition disabled:opacity-50">
+              <button onClick={handleClockIn} disabled={busy} className="px-3.5 py-1.5 rounded-xl bg-teal-800 hover:bg-teal-900 text-white text-2xs font-black transition disabled:opacity-50">
                 🕐 ثبت ورود مراقب
               </button>
-              <button onClick={() => void showVaultQr()} disabled={busy} className="px-3.5 py-1.5 rounded-xl bg-indigo-800 hover:bg-indigo-900 text-white text-[11px] font-black transition disabled:opacity-50">
+              <button onClick={() => void showVaultQr()} disabled={busy} className="px-3.5 py-1.5 rounded-xl bg-indigo-800 hover:bg-indigo-900 text-white text-2xs font-black transition disabled:opacity-50">
                 🔳 QR تحویل اوراق به مخزن
               </button>
             </div>
@@ -239,15 +239,15 @@ export default function ProctorExamAttendanceClient({ sessions, staffName }: { s
           {/* خلاصهٔ زنده */}
           <div className="p-4 grid grid-cols-3 gap-3 text-center border-b border-slate-100">
             <div className="bg-emerald-50 rounded-2xl p-3 border border-emerald-200">
-              <p className="text-[10px] font-bold text-emerald-700">حاضر</p>
+              <p className="text-3xs font-bold text-emerald-700">حاضر</p>
               <p className="font-black text-emerald-900 text-xl">{faNum(presentCount)}</p>
             </div>
             <div className="bg-amber-50 rounded-2xl p-3 border border-amber-200">
-              <p className="text-[10px] font-bold text-amber-700">در انتظار بررسی</p>
+              <p className="text-3xs font-bold text-amber-700">در انتظار بررسی</p>
               <p className="font-black text-amber-900 text-xl">{faNum(pendingCount)}</p>
             </div>
             <div className="bg-slate-50 rounded-2xl p-3 border border-slate-200">
-              <p className="text-[10px] font-bold text-slate-500">کل صندلی‌ها</p>
+              <p className="text-3xs font-bold text-slate-500">کل صندلی‌ها</p>
               <p className="font-black text-slate-900 text-xl">{faNum(roster.length)}</p>
             </div>
           </div>
@@ -256,7 +256,7 @@ export default function ProctorExamAttendanceClient({ sessions, staffName }: { s
           <div className="p-4 border-b border-slate-100 bg-teal-50/50">
             <div className="flex flex-wrap items-end gap-2">
               <label className="flex-1 min-w-[240px]">
-                <span className="block text-[11px] font-black text-teal-900 mb-1">
+                <span className="block text-2xs font-black text-teal-900 mb-1">
                   📷 اسکن QR کارت ورود به جلسه (یا چسباندن کد)
                 </span>
                 <input
@@ -279,13 +279,13 @@ export default function ProctorExamAttendanceClient({ sessions, staffName }: { s
               </button>
             </div>
             {scanResult && (
-              <p className={`mt-2 text-[11px] font-black ${scanResult.ok ? 'text-emerald-700' : 'text-rose-700'}`}>
+              <p className={`mt-2 text-2xs font-black ${scanResult.ok ? 'text-emerald-700' : 'text-rose-700'}`}>
                 {scanResult.ok
                   ? `✓ ${scanResult.name}${scanResult.code ? ` — ${scanResult.code}` : ''} به‌عنوان حاضر ثبت شد.`
                   : `⛔ ${scanResult.name} در این جلسه/سالن نیست.`}
               </p>
             )}
-            <p className="mt-1 text-[10px] text-teal-800/80">
+            <p className="mt-1 text-3xs text-teal-800/80">
               توکن کارت با امضای سامانه بررسی می‌شود؛ حضور فقط برای دانشجوی همین سالن ثبت می‌گردد و در زنجیرهٔ ممیزی می‌ماند.
               دانشجویی که کارت نیاورده را از ستون «حاضر» تیک بزنید — به‌صورت خودکار با روش «ثبت دستی مراقب» و در صورتجلسه ثبت می‌شود.
             </p>
@@ -295,7 +295,7 @@ export default function ProctorExamAttendanceClient({ sessions, staffName }: { s
           <div className="overflow-x-auto">
             <table className="w-full text-xs rt">
               <thead>
-                <tr className="bg-slate-900 text-white text-center text-[11px]">
+                <tr className="bg-slate-900 text-white text-center text-2xs">
                   <th className="p-2.5">صندلی</th>
                   <th className="p-2.5">دانشجو</th>
                   <th className="p-2.5">شمارهٔ دانشجویی</th>
@@ -321,7 +321,7 @@ export default function ProctorExamAttendanceClient({ sessions, staffName }: { s
                       <td className="p-2.5 text-slate-600 font-bold">{r.majorTitle}</td>
                       <td className="p-2.5">
                         <span className="font-black text-indigo-950">{r.courseCode}</span>
-                        <span className="block text-[10px] text-slate-500">{r.courseTitle}</span>
+                        <span className="block text-3xs text-slate-500">{r.courseTitle}</span>
                       </td>
                       <td className="p-2.5 text-center">
                         <input type="checkbox" checked={present} onChange={e => toggleMark(r.studentId, { present: e.target.checked })} className="w-4 h-4 accent-emerald-600" />
@@ -331,11 +331,11 @@ export default function ProctorExamAttendanceClient({ sessions, staffName }: { s
                       </td>
                       <td className="p-2.5 text-center">
                         {present ? (
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-black text-[10px]">
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-black text-3xs">
                             ✓ حاضر {r.checkInTime ? `(${faNum(r.checkInTime)})` : ''}
                           </span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-black text-[10px]">—</span>
+                          <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 font-black text-3xs">—</span>
                         )}
                         {present && (
                           <span className={`mt-1 block text-[9px] font-black ${methodFor(r) === 'QR_SCAN' ? 'text-teal-700' : 'text-amber-700'}`}>
@@ -351,7 +351,7 @@ export default function ProctorExamAttendanceClient({ sessions, staffName }: { s
           </div>
 
           <div className="p-4 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3">
-            <p className="text-[11px] text-slate-500 font-bold">
+            <p className="text-2xs text-slate-500 font-bold">
               ثبت نهایی، حضور را در جدول «حضور و غیاب آزمون» (exam_attendances) با امضای مراقب ثبت می‌کند — قابل استعلام در زنجیرهٔ تحویل.
             </p>
             <button onClick={handleVerify} disabled={busy} className="px-5 py-2.5 rounded-xl bg-teal-800 hover:bg-teal-900 text-white font-black text-xs transition shadow disabled:opacity-50">

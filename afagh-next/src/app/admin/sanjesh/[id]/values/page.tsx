@@ -47,7 +47,7 @@ export default async function SanjeshValuesPage({
       <SanjeshSteps fileId={fileId} active="values" />
       <header className="mb-3">
         <h1 className="text-base font-bold text-slate-800">جدول براورد — {file.title}</h1>
-        <p className="text-[11px] text-slate-500">
+        <p className="text-2xs text-slate-500">
           هر مقدار سنجش (کد یا عنوان) را به عنوان/کد داخلی آفاق نگاشت می‌کند. جدول براورد هم کد و هم عنوان را به‌عنوان
           کلید می‌پذیرد.
         </p>
@@ -60,7 +60,7 @@ export default async function SanjeshValuesPage({
           <input type="hidden" name="fileId" value={fileId} />
           <button className="btn-ghost !py-1 text-xs">پرکردن از دیکدهای قالب</button>
         </form>
-        <span className="text-[11px] text-slate-500">{maps.length.toLocaleString('fa-IR')} ردیف براورد</span>
+        <span className="text-2xs text-slate-500">{maps.length.toLocaleString('fa-IR')} ردیف براورد</span>
       </div>
 
       {/* افزودن ردیف براورد */}
@@ -68,23 +68,23 @@ export default async function SanjeshValuesPage({
         <h2 className="mb-2 text-sm font-semibold text-slate-700">افزودن / ویرایش براورد</h2>
         <form action={saveValueMapAction} className="grid grid-cols-2 items-end gap-2 md:grid-cols-12">
           <input type="hidden" name="fileId" value={fileId} />
-          <label className="col-span-1 flex min-w-0 flex-col gap-0.5 text-[10px] text-slate-500 md:col-span-2">
+          <label className="col-span-1 flex min-w-0 flex-col gap-0.5 text-3xs text-slate-500 md:col-span-2">
             <span>فیلد</span>
             <input name="field" required className="input !py-1 !px-2 text-xs" dir="ltr" placeholder="gender" />
           </label>
-          <label className="col-span-1 flex min-w-0 flex-col gap-0.5 text-[10px] text-slate-500 md:col-span-2">
+          <label className="col-span-1 flex min-w-0 flex-col gap-0.5 text-3xs text-slate-500 md:col-span-2">
             <span>مقدار سنجش</span>
             <input name="sanjeshValue" required className="input !py-1 !px-2 text-xs" dir="auto" placeholder="2 یا مرد" />
           </label>
-          <label className="col-span-2 flex min-w-0 flex-col gap-0.5 text-[10px] text-slate-500 md:col-span-2">
+          <label className="col-span-2 flex min-w-0 flex-col gap-0.5 text-3xs text-slate-500 md:col-span-2">
             <span>عنوان سنجش</span>
             <input name="sanjeshLabel" className="input !py-1 !px-2 text-xs" />
           </label>
-          <label className="col-span-1 flex min-w-0 flex-col gap-0.5 text-[10px] text-slate-500 md:col-span-1">
+          <label className="col-span-1 flex min-w-0 flex-col gap-0.5 text-3xs text-slate-500 md:col-span-1">
             <span>کد داخلی</span>
             <input name="internalValue" className="input !py-1 !px-2 text-xs" dir="ltr" placeholder="MALE" />
           </label>
-          <label className="col-span-1 flex min-w-0 flex-col gap-0.5 text-[10px] text-slate-500 md:col-span-2">
+          <label className="col-span-1 flex min-w-0 flex-col gap-0.5 text-3xs text-slate-500 md:col-span-2">
             <span>عنوان داخلی</span>
             <input name="internalLabel" className="input !py-1 !px-2 text-xs" />
           </label>
@@ -125,7 +125,7 @@ export default async function SanjeshValuesPage({
                       <form action={deleteValueMapAction}>
                         <input type="hidden" name="fileId" value={fileId} />
                         <input type="hidden" name="id" value={m.id} />
-                        <button className="text-[11px] text-red-600 hover:underline">حذف</button>
+                        <button className="text-2xs text-red-600 hover:underline">حذف</button>
                       </form>
                     </td>
                   </tr>

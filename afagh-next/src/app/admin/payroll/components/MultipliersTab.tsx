@@ -48,7 +48,7 @@ export default function MultipliersTab({ state, api }: Props) {
                   <tr key={rule.id} className="border-b border-slate-100 hover:bg-slate-50">
                     <td className="p-2.5 font-black text-slate-900">{rule.ruleTitle}</td>
                     <td className="p-2.5">
-                      <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-[10px] font-bold">
+                      <span className="px-2 py-0.5 rounded bg-slate-100 text-slate-700 text-3xs font-bold">
                         {rule.category}
                       </span>
                     </td>
@@ -63,9 +63,9 @@ export default function MultipliersTab({ state, api }: Props) {
                         className="w-20 text-center border border-slate-300 rounded px-1.5 py-0.5 font-mono font-bold text-slate-800 text-xs"
                       />
                     </td>
-                    <td className="p-2.5 text-slate-600 text-[11px]">{rule.description}</td>
+                    <td className="p-2.5 text-slate-600 text-2xs">{rule.description}</td>
                     <td className="p-2.5 text-center">
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-900">
+                      <span className="px-2 py-0.5 rounded-full text-3xs font-black bg-emerald-100 text-emerald-900">
                         فعال ✓
                       </span>
                     </td>

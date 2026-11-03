@@ -108,11 +108,11 @@ export default function ProfessorWeekTable({ termTitle, selectedTermTitle, rows,
           <h3 className="text-xs font-extrabold text-amber-900">
             کلاس‌های بدون ساعت‌بندی ثبت‌شده ({faNum(new Set(unscheduled.map(r => r.id)).size)} کلاس)
           </h3>
-          <p className="text-[11px] text-amber-800 leading-5">
+          <p className="text-2xs text-amber-800 leading-5">
             این کلاس‌ها در {scopeLabel} به شما تخصیص یافته‌اند ولی هنوز روز و ساعتی در جدول زمان‌بندی
             برایشان ثبت نشده است؛ به همین دلیل در جدول بالا دیده نمی‌شوند.
           </p>
-          <ul className="space-y-1 text-[11px] font-bold text-amber-900">
+          <ul className="space-y-1 text-2xs font-bold text-amber-900">
             {unscheduled.map(r => (
               <li key={`${r.id}-${r.weekType}-${r.code}-unscheduled`}>
                 {r.code} · {r.title} · گروه {faNum(r.groupNumber)} · {faNum(r.units)} واحد · {scopeLabel}

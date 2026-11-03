@@ -47,10 +47,10 @@ export default function ProfessorQuotasTab() {
                   <div key={prof.id} className="bg-white rounded-2xl p-4 border-2 border-slate-200 shadow-sm flex flex-col justify-between space-y-3">
                     <div>
                       <div className="flex items-center justify-between mb-2">
-                        <span className="text-[11px] font-extrabold px-2 py-0.5 rounded bg-indigo-100 text-indigo-900">
+                        <span className="text-2xs font-extrabold px-2 py-0.5 rounded bg-indigo-100 text-indigo-900">
                           {prof.academicRank} — {prof.contractType}
                         </span>
-                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        <span className={`text-3xs font-bold px-2 py-0.5 rounded-full ${
                           prof.hasSubmittedAvailability ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
                         }`}>
                           {prof.hasSubmittedAvailability ? '✅ فرم حضور ثبت‌شده' : '⏳ در انتظار تکمیل'}

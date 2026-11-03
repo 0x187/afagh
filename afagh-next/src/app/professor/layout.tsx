@@ -10,11 +10,10 @@ import PanelSwitcher from '@/components/PanelSwitcher';
 import { ADMIN_PANEL_ROLES } from '@/lib/panel-links';
 import SessionLock from '@/components/SessionLock';
 import TermSwitcher from '@/components/TermSwitcher';
-import ThemeToggle from '@/components/ThemeToggle';
+import HeaderActions from '@/components/HeaderActions';
 import UserAvatar from '@/components/UserAvatar';
 import BackToDashboard from '@/components/BackToDashboard';
 import ProfessorNav from './ProfessorNav';
-import { logoutAction } from '../login/actions';
 import { professorTermFilter } from '@/lib/professor-term-filter';
 import { getSetting } from '@/lib/settings';
 
@@ -143,32 +142,9 @@ export default async function ProfessorLayout({ children }: { children: React.Re
                       : undefined
                 }
               />
-              {/* ⚠ این دو لینک باید داخل یک ظرف باشند، نه فرزندِ مستقیمِ
-                  `.hdr-controls`: قاعدهٔ `.hdr-controls > a { display:inline-flex }`
-                  در globals.css بر `.hidden` غلبه می‌کرد و در موبایل هم دیده
-                  می‌شدند (۱۸۰px سرریز افقی در ۳۹۰px). */}
-              <div className="hidden sm:flex items-center gap-2">
-                <Link
-                  href="/help/professor"
-                  className="inline-flex items-center px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-slate-300 hover:text-white transition"
-                >
-                  📖 راهنمای استاد
-                </Link>
-                <a
-                  href="/help/pdfs/professor.pdf"
-                  download
-                  className="inline-flex items-center px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold text-slate-300 hover:text-white transition"
-                >
-                  📕 PDF
-                </a>
-              </div>
-              <ThemeToggle />
-              <form action={logoutAction}>
-                <button className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition">
-                  <span className="sm:hidden">خروج</span>
-                  <span className="hidden sm:inline">خروج از سامانه</span>
-                </button>
-              </form>
+              {/* ابزارهای یکسان با بقیهٔ کارتابل‌ها — از `HeaderActions`.
+                  (پیش‌تر هر کارتابل اندازه/آیکون/برچسب خودش را داشت.) */}
+              <HeaderActions helpHref="/help/professor" pdfHref="/help/pdfs/professor.pdf" />
             </div>
           </div>
 
@@ -181,7 +157,7 @@ export default async function ProfessorLayout({ children }: { children: React.Re
 
       </header>
 
-      <main className="mx-auto w-full max-w-6xl min-w-0 overflow-x-hidden p-4 sm:p-6 pb-24 md:pb-6">
+      <main id="main" className="mx-auto w-full max-w-6xl min-w-0 overflow-x-hidden p-4 sm:p-6 pb-24 md:pb-6">
         {/* دکمهٔ بازگشت به کارتابل استاد — روی همهٔ زیرصفحه‌ها (نه خودِ /professor)
             رنگ از `lib/back-button.ts` می‌آید تا با بقیهٔ پنل‌ها یکی بماند. */}
         <BackToDashboard href="/professor" label="بازگشت به کارتابل استاد" />

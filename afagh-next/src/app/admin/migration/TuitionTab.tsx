@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { acceptLegacyBalanceAction, applyFormulasAction, compareTuitionAction } from './actions';
 import { ImportReport, Msg, ReportBox, Stat, Uploader, fmt } from './ui';
+import { askConfirm } from '@/lib/ui-feedback';
 
 type Formula = {
   id: number; formulaCode: string; title: string | null; termCode: string | null; degreeCode: string | null;
@@ -50,8 +51,13 @@ export default function TuitionTab({ sourceCode, formulas, runs, financialCount 
     const what = scope === 'mismatch'
       ? 'همهٔ ردیف‌های مغایرِ آخرین مقایسه'
       : `همهٔ ردیف‌های مالی مبدأ ${sourceCode}` + (termCode ? ` در ترم ${termCode}` : '');
-    if (!confirm(`تراز سیستم قدیمی برای ${what} به‌عنوان «مانده اولیه» در دفتر مالی ثبت شود؟\n\n` +
-      'مبلغ = شهریهٔ قدیمی − تخفیف − پرداختی. اسناد تکراری ثبت نمی‌شوند و همه‌چیز از تب «واگرد» قابل برگشت است.')) return;
+    const ok = await askConfirm({
+      title: 'ثبت مانده اولیه',
+      body: `تراز سیستم قدیمی برای ${what} به‌عنوان «مانده اولیه» در دفتر مالی ثبت شود؟` +
+        ' مبلغ = شهریهٔ قدیمی − تخفیف − پرداختی. اسناد تکراری ثبت نمی‌شوند و همه‌چیز از تب «واگرد» قابل برگشت است.',
+      confirmText: 'ثبت کن',
+    });
+    if (!ok) return;
     setBusy('bal'); setMsg(null);
     const r = await acceptLegacyBalanceAction({
       sourceCode, termCode,
@@ -143,7 +149,7 @@ export default function TuitionTab({ sourceCode, formulas, runs, financialCount 
           <button className="btn-primary md:col-span-3" disabled={!!busy || !financialCount} onClick={compare}>
             {busy === 'cmp' ? '…' : '🔍 مقایسهٔ فرمول با دادهٔ قدیمی'}
           </button>
-          <p className="md:col-span-3 text-[11px] text-slate-400">
+          <p className="md:col-span-3 text-2xs text-slate-400">
             {fmt(formulas.length)} فرمول · {fmt(financialCount)} ردیف مالی قدیمی
           </p>
         </div>
@@ -185,7 +191,7 @@ export default function TuitionTab({ sourceCode, formulas, runs, financialCount 
                         <td className="p-2">{fmt(w.computed)}</td>
                         <td className={'p-2 font-bold ' + (w.diff === 0 ? 'text-slate-500' : w.diff > 0 ? 'text-red-600' : 'text-amber-600')}>{fmt(w.diff)}</td>
                         <td className="p-2">{ST_FA[w.status] ?? w.status}</td>
-                        <td className="p-2 text-[11px] text-slate-500">{w.detail}</td>
+                        <td className="p-2 text-2xs text-slate-500">{w.detail}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -212,7 +218,7 @@ export default function TuitionTab({ sourceCode, formulas, runs, financialCount 
                 <td className="p-2">{fmt(f.perUnitTheory)}</td>
                 <td className="p-2">{fmt(f.perUnitPractical)}</td>
                 <td className="p-2">{fmt(f.perUnitGeneral)}</td>
-                <td className="p-2 text-[11px] text-slate-500" dir="ltr">{f.expression}</td>
+                <td className="p-2 text-2xs text-slate-500" dir="ltr">{f.expression}</td>
               </tr>
             ))}
           </tbody>

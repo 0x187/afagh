@@ -95,7 +95,7 @@ export default function LessonPlansClient({
       <div className="bg-gradient-to-l from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl p-5 shadow-lg border border-indigo-700/50">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-400 text-slate-950">
+            <span className="px-2.5 py-0.5 rounded-full text-2xs font-bold bg-amber-400 text-slate-950">
               {universityTitle}
             </span>
             <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight mt-1">📋 پایش طرح درس ارائه‌ها</h1>
@@ -118,7 +118,7 @@ export default function LessonPlansClient({
 
       <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-3">
         <h3 className="font-extrabold text-slate-900 text-base">الزام تکمیل طرح درس</h3>
-        <p className="text-[11px] text-slate-500 leading-5">
+        <p className="text-2xs text-slate-500 leading-5">
           فعال‌سازی این گزینه فقط یک بنر یادآوری برای اساتید نمایش می‌دهد و هیچ‌گاه مانع ثبت نمره یا سایر
           عملیات آموزشی نمی‌شود.
         </p>
@@ -141,8 +141,8 @@ export default function LessonPlansClient({
             className="w-full border border-slate-300 rounded-xl p-3 text-xs font-bold text-slate-800 focus:ring-2 focus:ring-indigo-500"
           />
         </div>
-        {msg && <p className="text-[11px] font-bold text-emerald-700">{msg}</p>}
-        {err && <p className="text-[11px] font-bold text-rose-700">{err}</p>}
+        {msg && <p className="text-2xs font-bold text-emerald-700">{msg}</p>}
+        {err && <p className="text-2xs font-bold text-rose-700">{err}</p>}
         <button
           onClick={doSave}
           disabled={saving || !universityId}
@@ -185,11 +185,11 @@ export default function LessonPlansClient({
                       <td className="p-2 border border-slate-200 font-extrabold text-slate-900">{r.courseTitle}</td>
                       <td className="p-2 border border-slate-200 text-slate-700">{r.professorName}</td>
                       <td className="p-2 border border-slate-200 text-center">
-                        <span className={`px-2 py-0.5 rounded-full font-bold text-[10px] ${b.cls}`}>{b.label}</span>
+                        <span className={`px-2 py-0.5 rounded-full font-bold text-3xs ${b.cls}`}>{b.label}</span>
                       </td>
                       <td className="p-2 border border-slate-200 text-center font-bold">{faNum(r.sessionsCount)}</td>
                       <td className="p-2 border border-slate-200 text-center font-bold">{faNum(r.weightsSum)}</td>
-                      <td className="p-2 border border-slate-200 text-center text-slate-500 text-[11px]">
+                      <td className="p-2 border border-slate-200 text-center text-slate-500 text-2xs">
                         {r.updatedAt ?? '—'}
                       </td>
                     </tr>

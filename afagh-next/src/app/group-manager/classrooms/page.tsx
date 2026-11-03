@@ -113,11 +113,11 @@ export default async function ClassroomsPage() {
       <div className="card !p-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h1 className="text-sm font-bold">کلاس‌های گروه {dept.name}</h1>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-2xs text-slate-500">
             ترم جاری: {term?.title ?? '—'} · {rooms.length} کلاس · {totalSessions} جلسه در هفته
           </p>
         </div>
-        <p className="mt-1 text-[11px] leading-5 text-slate-500">
+        <p className="mt-1 text-2xs leading-5 text-slate-500">
           تعریف و ویرایش کلاس‌ها با مدیر سامانه است. این صفحه فقط کلاس‌هایی را نشان می‌دهد که به این گروه
           تخصیص یافته‌اند، همراه با برنامهٔ هفتگیِ نوشته‌شده در آن‌ها. برای افزودن/تغییر جلسه به کارتابل{' '}
           <Link href="/group-manager/offerings" className="font-bold text-teal-700 hover:underline">ارائه‌ها</Link>{' '}
@@ -134,7 +134,7 @@ export default async function ClassroomsPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-right text-xs">
               <thead>
-                <tr className="text-[11px] text-slate-500">
+                <tr className="text-2xs text-slate-500">
                   <th className="p-2 font-normal">نام کلاس</th>
                   <th className="p-2 font-normal">کد</th>
                   <th className="p-2 font-normal">ظرفیت</th>
@@ -150,8 +150,8 @@ export default async function ClassroomsPage() {
                     <tr key={r.id} className="border-t border-slate-100 align-top">
                       <td className="p-2 font-bold text-slate-800">
                         {r.name}
-                        {r.isActive === 0 && <span className="ms-1 rounded-md bg-rose-100 px-1 py-0.5 text-[10px] font-normal text-rose-700">غیرفعال</span>}
-                        {r.floor && <span className="ms-1 text-[10px] font-normal text-slate-400">طبقه {r.floor}</span>}
+                        {r.isActive === 0 && <span className="ms-1 rounded-md bg-rose-100 px-1 py-0.5 text-3xs font-normal text-rose-700">غیرفعال</span>}
+                        {r.floor && <span className="ms-1 text-3xs font-normal text-slate-400">طبقه {r.floor}</span>}
                       </td>
                       <td className="p-2 font-mono text-slate-500" dir="ltr">{r.code ?? '—'}</td>
                       <td className="p-2 text-slate-600">{r.capacity}</td>
@@ -159,11 +159,11 @@ export default async function ClassroomsPage() {
                       <td className="p-2 text-slate-600">{r.facultyName ?? '—'}</td>
                       <td className="p-2">
                         {list.length === 0 ? (
-                          <span className="text-[11px] text-slate-400">برنامه‌ای ثبت نشده</span>
+                          <span className="text-2xs text-slate-400">برنامه‌ای ثبت نشده</span>
                         ) : (
                           <div className="flex flex-wrap gap-1">
                             {list.map((s, i) => (
-                              <span key={i} className="rounded-lg bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-700">
+                              <span key={i} className="rounded-lg bg-slate-100 px-1.5 py-0.5 text-3xs text-slate-700">
                                 <b className="font-bold">{DAYS[s.day ?? 0]}</b> {hm(s.st)}–{hm(s.en)}
                                 {' · '}{s.courseTitle}
                                 <span className="font-mono text-slate-400" dir="ltr"> ({s.courseCode})</span>

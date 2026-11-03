@@ -131,7 +131,7 @@ export default function EquivalenceClustersClient({ clusters, courses }: { clust
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-4">
         <div className="flex flex-wrap items-end gap-2">
           <div className="flex-1 min-w-[240px]">
-            <label className="block text-[11px] font-bold text-slate-600 mb-1">خوشهٔ جدید</label>
+            <label className="block text-2xs font-bold text-slate-600 mb-1">خوشهٔ جدید</label>
             <input
               value={newTitle}
               onChange={e => setNewTitle(e.target.value)}
@@ -149,7 +149,7 @@ export default function EquivalenceClustersClient({ clusters, courses }: { clust
           >
             + ساخت خوشه
           </button>
-          {pending && <span className="text-[11px] text-slate-500">در حال ذخیره…</span>}
+          {pending && <span className="text-2xs text-slate-500">در حال ذخیره…</span>}
         </div>
       </div>
 
@@ -157,11 +157,11 @@ export default function EquivalenceClustersClient({ clusters, courses }: { clust
         <aside className="bg-white rounded-2xl border border-slate-200 shadow-sm p-3">
           <div className="flex items-center justify-between px-1 pb-2">
             <h2 className="text-xs font-extrabold text-slate-800">خوشه‌ها</h2>
-            <span className="text-[10px] text-slate-500">{faNum(clusters.length)} مورد</span>
+            <span className="text-3xs text-slate-500">{faNum(clusters.length)} مورد</span>
           </div>
           <div className="space-y-1.5 max-h-[70vh] overflow-y-auto">
             {clusters.length === 0 && (
-              <p className="text-[11px] text-slate-500 px-1 py-3">هنوز خوشه‌ای تعریف نشده است.</p>
+              <p className="text-2xs text-slate-500 px-1 py-3">هنوز خوشه‌ای تعریف نشده است.</p>
             )}
             {clusters.map(cluster => {
               const count = courses.filter(c => c.clusterId === cluster.id).length;
@@ -175,7 +175,7 @@ export default function EquivalenceClustersClient({ clusters, courses }: { clust
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs font-bold text-slate-800 truncate">{cluster.clusterTitle}</span>
-                    <span className="shrink-0 text-[10px] rounded-full bg-white border border-slate-200 px-1.5 py-0.5 text-slate-600">{faNum(count)} درس</span>
+                    <span className="shrink-0 text-3xs rounded-full bg-white border border-slate-200 px-1.5 py-0.5 text-slate-600">{faNum(count)} درس</span>
                   </div>
                   <div className="mt-1 flex items-center gap-1.5">
                     {cluster.isGeneralService === 1 && (
@@ -198,7 +198,7 @@ export default function EquivalenceClustersClient({ clusters, courses }: { clust
             <>
               <div className="flex flex-wrap items-end gap-2 pb-3 border-b border-slate-100">
                 <div className="flex-1 min-w-[220px]">
-                  <label className="block text-[11px] font-bold text-slate-600 mb-1">عنوان خوشه</label>
+                  <label className="block text-2xs font-bold text-slate-600 mb-1">عنوان خوشه</label>
                   <input
                     value={title}
                     onChange={e => setTitle(e.target.value)}
@@ -206,7 +206,7 @@ export default function EquivalenceClustersClient({ clusters, courses }: { clust
                     className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-teal-500/40"
                   />
                 </div>
-                <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 cursor-pointer select-none">
+                <label className="inline-flex items-center gap-1.5 text-2xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 cursor-pointer select-none">
                   <input type="checkbox" checked={general} onChange={e => setGeneral(e.target.checked)} className="accent-teal-700" />
                   درس عمومی
                 </label>
@@ -231,16 +231,16 @@ export default function EquivalenceClustersClient({ clusters, courses }: { clust
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <h3 className="text-xs font-extrabold text-slate-800">اعضای خوشه ({faNum(members.length)})</h3>
-                  <span className="text-[10px] text-slate-500">با حذف هر درس، از خوشه جدا می‌شود.</span>
+                  <span className="text-3xs text-slate-500">با حذف هر درس، از خوشه جدا می‌شود.</span>
                 </div>
                 {members.length === 0 ? (
-                  <p className="text-[11px] text-slate-500 bg-slate-50 border border-dashed border-slate-300 rounded-xl px-3 py-4 text-center">
+                  <p className="text-2xs text-slate-500 bg-slate-50 border border-dashed border-slate-300 rounded-xl px-3 py-4 text-center">
                     هنوز درسی به این خوشه اضافه نشده است.
                   </p>
                 ) : (
                   <div className="flex flex-wrap gap-2">
                     {members.map(course => (
-                      <span key={course.id} className="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-2.5 py-1.5 text-[11px]">
+                      <span key={course.id} className="inline-flex items-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-2.5 py-1.5 text-2xs">
                         <span className="font-mono font-bold text-teal-900" dir="ltr">{course.code}</span>
                         <span className="text-slate-700 max-w-[240px] truncate">{course.title}</span>
                         <span className="text-[9px] text-slate-500">{faNum(course.units)}و</span>
@@ -266,12 +266,12 @@ export default function EquivalenceClustersClient({ clusters, courses }: { clust
                     value={query}
                     onChange={e => setQuery(e.target.value)}
                     placeholder="جستجوی کد یا نام درس…"
-                    className="flex-1 min-w-[200px] rounded-xl border border-slate-300 px-3 py-1.5 text-[11px] focus:outline-none focus:ring-2 focus:ring-teal-500/40"
+                    className="flex-1 min-w-[200px] rounded-xl border border-slate-300 px-3 py-1.5 text-2xs focus:outline-none focus:ring-2 focus:ring-teal-500/40"
                   />
                 </div>
                 <div className="max-h-72 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100">
                   {filteredCourses.length === 0 && (
-                    <p className="text-[11px] text-slate-500 px-3 py-4 text-center">درسی یافت نشد.</p>
+                    <p className="text-2xs text-slate-500 px-3 py-4 text-center">درسی یافت نشد.</p>
                   )}
                   {filteredCourses.map(course => {
                     const isMember = memberIdSet.has(course.id);
@@ -280,8 +280,8 @@ export default function EquivalenceClustersClient({ clusters, courses }: { clust
                       : null;
                     return (
                       <div key={course.id} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50">
-                        <span className="font-mono text-[11px] font-bold text-indigo-900 w-24 shrink-0" dir="ltr">{course.code}</span>
-                        <span className="flex-1 text-[11px] text-slate-700 truncate">{course.title}</span>
+                        <span className="font-mono text-2xs font-bold text-indigo-900 w-24 shrink-0" dir="ltr">{course.code}</span>
+                        <span className="flex-1 text-2xs text-slate-700 truncate">{course.title}</span>
                         <span className="text-[9px] text-slate-500 shrink-0">{faNum(course.units)} واحد</span>
                         {otherCluster && (
                           <span className="text-[9px] text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 shrink-0 max-w-[160px] truncate">
@@ -292,7 +292,7 @@ export default function EquivalenceClustersClient({ clusters, courses }: { clust
                           type="button"
                           onClick={() => toggleMember(course.id)}
                           disabled={pending}
-                          className={`shrink-0 rounded-lg px-2.5 py-1 text-[10px] font-black border disabled:opacity-40 ${isMember ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100' : 'bg-teal-700 text-white border-teal-700 hover:bg-teal-800'}`}
+                          className={`shrink-0 rounded-lg px-2.5 py-1 text-3xs font-black border disabled:opacity-40 ${isMember ? 'bg-rose-50 text-rose-700 border-rose-200 hover:bg-rose-100' : 'bg-teal-700 text-white border-teal-700 hover:bg-teal-800'}`}
                         >
                           {isMember ? 'حذف' : 'افزودن'}
                         </button>

@@ -103,8 +103,8 @@ export default function ClassroomRowForm(props: Props) {
       <button className={variant === 'new' ? 'btn-primary !py-1 !px-3' : 'btn-ghost !py-1 !px-2'} disabled={pending}>
         {pending ? 'در حال ذخیره…' : variant === 'new' ? 'افزودن کلاس' : 'ذخیره'}
       </button>
-      {state.err && <span className="text-[11px] font-bold text-rose-600">{state.err}</span>}
-      {state.msg && <span className="text-[11px] font-bold text-emerald-700">{state.msg}</span>}
+      {state.err && <span className="text-2xs font-bold text-rose-600">{state.err}</span>}
+      {state.msg && <span className="text-2xs font-bold text-emerald-700">{state.msg}</span>}
     </form>
   );
 }

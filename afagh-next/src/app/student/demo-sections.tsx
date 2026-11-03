@@ -112,14 +112,14 @@ export function DemoDashboard({
                 <div className="text-2xl sm:text-3xl font-black text-slate-900 font-mono">
                   {DEMO_DASHBOARD.gpaText}
                 </div>
-                <p className="text-[11px] text-emerald-600 font-bold mt-0.5 flex items-center gap-1">
+                <p className="text-2xs text-emerald-600 font-bold mt-0.5 flex items-center gap-1">
                   <span>✓</span>
                   <span>{DEMO_DASHBOARD.gpaNote}</span>
                 </p>
               </div>
               <Link
                 href="/student/transcript"
-                className="text-[11px] font-bold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 pt-2 border-t border-slate-100"
+                className="text-2xs font-bold text-indigo-700 hover:text-indigo-900 flex items-center gap-1 pt-2 border-t border-slate-100"
               >
                 <span>مشاهده جزئیات کارنامه</span>
                 <span>←</span>
@@ -138,11 +138,11 @@ export function DemoDashboard({
                   {DEMO_DASHBOARD.passedUnitsText}{' '}
                   <span className="text-sm font-bold text-slate-400">/ {DEMO_DASHBOARD.requiredUnitsText}</span>
                 </div>
-                <p className="text-[11px] text-slate-500 font-bold mt-0.5">{DEMO_DASHBOARD.chartProgressText}</p>
+                <p className="text-2xs text-slate-500 font-bold mt-0.5">{DEMO_DASHBOARD.chartProgressText}</p>
               </div>
               <Link
                 href="/student/chart"
-                className="text-[11px] font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 pt-2 border-t border-slate-100"
+                className="text-2xs font-bold text-emerald-700 hover:text-emerald-900 flex items-center gap-1 pt-2 border-t border-slate-100"
               >
                 <span>مشاهده چارت و سرفصل‌ها</span>
                 <span>←</span>
@@ -161,13 +161,13 @@ export function DemoDashboard({
                   {fa(DEMO_DASHBOARD.currentTermUnits)}{' '}
                   <span className="text-sm font-bold text-slate-400">واحد</span>
                 </div>
-                <p className="text-[11px] text-emerald-700 font-bold mt-0.5">
+                <p className="text-2xs text-emerald-700 font-bold mt-0.5">
                   {DEMO_DASHBOARD.currentTermCourseCountText} عنوان درسی ثبت قطعی
                 </p>
               </div>
               <Link
                 href="/student/schedule"
-                className="text-[11px] font-bold text-amber-700 hover:text-amber-900 flex items-center gap-1 pt-2 border-t border-slate-100"
+                className="text-2xs font-bold text-amber-700 hover:text-amber-900 flex items-center gap-1 pt-2 border-t border-slate-100"
               >
                 <span>برنامه هفتگی و ساعات کلاس</span>
                 <span>←</span>
@@ -186,11 +186,11 @@ export function DemoDashboard({
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
                   <span>{DEMO_EXAM.statusText}</span>
                 </div>
-                <p className="text-[11px] text-slate-500 font-bold mt-0.5">{DEMO_DASHBOARD.examCardSeatNoteText}</p>
+                <p className="text-2xs text-slate-500 font-bold mt-0.5">{DEMO_DASHBOARD.examCardSeatNoteText}</p>
               </div>
               <Link
                 href="/student/exam-card"
-                className="text-[11px] font-bold text-rose-700 hover:text-rose-900 flex items-center gap-1 pt-2 border-t border-slate-100"
+                className="text-2xs font-bold text-rose-700 hover:text-rose-900 flex items-center gap-1 pt-2 border-t border-slate-100"
               >
                 <span>دریافت و چاپ کارت امتحان</span>
                 <span>←</span>
@@ -216,13 +216,13 @@ export function DemoDashboard({
                     <div className="w-11 h-11 rounded-2xl bg-emerald-100 text-emerald-800 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
                       {a.icon}
                     </div>
-                    <span className="text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
+                    <span className="text-3xs bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-bold">
                       {a.badge}
                     </span>
                   </div>
                   <div className="mt-3">
                     <h3 className="font-black text-slate-900 text-xs sm:text-sm">{a.title}</h3>
-                    <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{a.subtitle}</p>
+                    <p className="text-2xs text-slate-500 mt-0.5 line-clamp-1">{a.subtitle}</p>
                   </div>
                 </Link>
               ))}
@@ -238,7 +238,7 @@ export function DemoDashboard({
                     <h3 className="font-black text-slate-900 text-sm">
                       کلاس‌های آنلاین و جلسات وبینار LMS (امروز)
                     </h3>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-2xs text-slate-500">
                       اتصال مستقیم به سرور BigBlueButton دانشگاه با پروتکل امن SSO
                     </p>
                   </div>
@@ -266,14 +266,14 @@ export function DemoDashboard({
                         <span className={`w-2 h-2 rounded-full ${vc.isRunning ? 'bg-emerald-500 animate-ping' : 'bg-amber-400'}`}></span>
                         <strong className="text-xs font-black text-slate-900">{vc.courseTitle}</strong>
                         <span
-                          className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                          className={`text-3xs font-bold px-1.5 py-0.5 rounded ${
                             vc.isRunning ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-700'
                           }`}
                         >
                           {vc.stateText}
                         </span>
                       </div>
-                      <p className="text-[11px] text-slate-600">
+                      <p className="text-2xs text-slate-600">
                         استاد: {vc.professorName}
                         {vc.timeText ? ` · ${vc.timeText}` : ''}
                         {vc.participantsText ? ` (${vc.participantsText})` : ''}
@@ -344,14 +344,14 @@ export function DemoChart({ filteredTermTitle }: { filteredTermTitle: string | n
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                     <div className="flex items-center gap-2">
                       <span className="font-extrabold text-slate-800 text-sm">{sem.title}</span>
-                      <span className="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-mono">
+                      <span className="text-2xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-mono">
                         {fa(semUnits)} واحد
                       </span>
                     </div>
                     {sem.semester === 2 && (
                       <Link
                         href="/student/enroll"
-                        className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition-colors print:hidden"
+                        className="text-2xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition-colors print:hidden"
                       >
                         ⚡ انتخاب هوشمند این ترم
                       </Link>
@@ -391,15 +391,15 @@ export function DemoChart({ filteredTermTitle }: { filteredTermTitle: string | n
                             <td className="p-2 text-slate-500">{c.prereq}</td>
                             <td className="p-2 text-left">
                               {sem.semester === 1 ? (
-                                <span className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">
+                                <span className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-3xs">
                                   ✅ گذرانده‌شده
                                 </span>
                               ) : sem.semester === 2 ? (
-                                <span className="inline-block px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 font-bold text-[10px]">
+                                <span className="inline-block px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 font-bold text-3xs">
                                   ⏳ ترم جاری (پیشنهادی)
                                 </span>
                               ) : (
-                                <span className="inline-block px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium text-[10px]">
+                                <span className="inline-block px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium text-3xs">
                                   🔒 ترم‌های بعد
                                 </span>
                               )}
@@ -442,7 +442,7 @@ export function DemoFinance({ filteredTermTitle }: { filteredTermTitle: string |
             <div className="card">
               <div className="mb-3 border-b border-slate-100 pb-2 text-center">
                 <h2 className="font-extrabold text-slate-800">کارنامهٔ مالی دانشجو</h2>
-                <p className="text-[11px] text-slate-500 mt-0.5">دانشگاه آزاد اسلامی — واحد ممسنی</p>
+                <p className="text-2xs text-slate-500 mt-0.5">دانشگاه آزاد اسلامی — واحد ممسنی</p>
               </div>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-3">
                 <div>
@@ -479,24 +479,24 @@ export function DemoFinance({ filteredTermTitle }: { filteredTermTitle: string |
               <div className="grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
                 <div>
                   <p className="text-lg font-bold text-slate-800">{fa(DEMO_FINANCE.balance)}</p>
-                  <p className="text-[11px] text-slate-500">جمع شهریه (ریال)</p>
+                  <p className="text-2xs text-slate-500">جمع شهریه (ریال)</p>
                 </div>
                 <div>
                   <p className="text-lg font-bold text-violet-700">{fa(0)}</p>
-                  <p className="text-[11px] text-slate-500">تخفیف‌ها</p>
+                  <p className="text-2xs text-slate-500">تخفیف‌ها</p>
                 </div>
                 <div>
                   <p className="text-lg font-bold text-indigo-700">{fa(0)}</p>
-                  <p className="text-[11px] text-slate-500">پوشش بنیادها</p>
+                  <p className="text-2xs text-slate-500">پوشش بنیادها</p>
                 </div>
                 <div>
                   <p className="text-lg font-bold text-emerald-700">{fa(0)}</p>
-                  <p className="text-[11px] text-slate-500">پرداخت / وام / چک وصولی</p>
+                  <p className="text-2xs text-slate-500">پرداخت / وام / چک وصولی</p>
                 </div>
               </div>
               <div className="mt-3 rounded-lg bg-slate-50 p-3 text-center">
                 <p className="text-xl font-extrabold text-emerald-700">{fa(DEMO_FINANCE.balance)} ریال</p>
-                <p className="text-[11px] text-slate-600">{DEMO_FINANCE.settledLabel}</p>
+                <p className="text-2xs text-slate-600">{DEMO_FINANCE.settledLabel}</p>
               </div>
             </div>
 

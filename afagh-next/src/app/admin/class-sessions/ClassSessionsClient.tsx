@@ -98,7 +98,7 @@ export default function ClassSessionsClient({
       type="button"
       onClick={onClick}
       disabled={pending}
-      className={`rounded-full border px-2 py-0.5 text-[10px] font-black transition disabled:opacity-40 ${
+      className={`rounded-full border px-2 py-0.5 text-3xs font-black transition disabled:opacity-40 ${
         on ? tone : 'border-slate-200 bg-white text-slate-400 hover:bg-slate-50'}`}
     >
       {on ? '✓' : '○'} {label}
@@ -116,7 +116,7 @@ export default function ClassSessionsClient({
       </div>
 
       <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-300 bg-white p-3">
-        <label className="text-[11px] font-bold text-slate-700">
+        <label className="text-2xs font-bold text-slate-700">
           نیمسال
           <select
             value={termId}
@@ -128,7 +128,7 @@ export default function ClassSessionsClient({
             ))}
           </select>
         </label>
-        <label className="text-[11px] font-bold text-slate-700">
+        <label className="text-2xs font-bold text-slate-700">
           جست‌وجو (کد/نام درس یا استاد)
           <input
             value={q}
@@ -144,7 +144,7 @@ export default function ClassSessionsClient({
         >
           جست‌وجو
         </button>
-        <label className="text-[11px] font-bold text-slate-700">
+        <label className="text-2xs font-bold text-slate-700">
           درس
           <select
             value={selectedOfferingId}
@@ -159,7 +159,7 @@ export default function ClassSessionsClient({
             ))}
           </select>
         </label>
-        <span className="mr-auto text-[11px] text-slate-500">
+        <span className="mr-auto text-2xs text-slate-500">
           {faNum(offerings.length)} درس · {termTitle}
         </span>
       </div>
@@ -182,7 +182,7 @@ export default function ClassSessionsClient({
           </div>
           <a
             href={`/admin/reports?kind=attendance-list&term=${encodeURIComponent(termCode)}&courseCode=${encodeURIComponent(selected.code)}`}
-            className="rounded-lg bg-indigo-700 px-3 py-1.5 text-[11px] font-black text-white hover:bg-indigo-800"
+            className="rounded-lg bg-indigo-700 px-3 py-1.5 text-2xs font-black text-white hover:bg-indigo-800"
           >
             👥 لیست دانشجویان (حضور و غیاب)
           </a>
@@ -192,7 +192,7 @@ export default function ClassSessionsClient({
       <div className="overflow-x-auto rounded-xl border border-slate-300 bg-white">
         <table className="w-full text-xs rt hidden md:table">
           <thead>
-            <tr className="bg-slate-900 text-center text-[11px] text-white">
+            <tr className="bg-slate-900 text-center text-2xs text-white">
               <th className="p-2.5">جلسه</th>
               <th className="p-2.5">تاریخ</th>
               <th className="p-2.5">ساعت</th>
@@ -212,16 +212,16 @@ export default function ClassSessionsClient({
               <tr key={s.id} className={`border-b border-slate-100 ${!flagOf(s, 'isActive') ? 'bg-slate-50 text-slate-400' : ''}`}>
                 <td className="p-2.5 text-center font-mono font-black text-slate-700">{faNum(s.sessionNo)}</td>
                 <td className="p-2.5 text-center font-mono">{faNum(s.sessionDate)}</td>
-                <td className="p-2.5 text-center font-mono text-[10px] text-slate-500" dir="ltr">{s.startTime}–{s.endTime}</td>
+                <td className="p-2.5 text-center font-mono text-3xs text-slate-500" dir="ltr">{s.startTime}–{s.endTime}</td>
                 <td className="p-2.5 text-center text-slate-600">{s.roomName ?? '—'}</td>
                 <td className="p-2.5 text-center">
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-700">
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-3xs font-black text-slate-700">
                     {STATUS_FA[s.status] ?? s.status}
                   </span>
                 </td>
                 <td className="p-2.5 text-center">
                   {Number(s.isMakeUp ?? 0) === 1
-                    ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800">جبرانی</span>
+                    ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-3xs font-black text-amber-800">جبرانی</span>
                     : <span className="text-slate-300">—</span>}
                 </td>
                 <td className="p-2.5 text-center">
@@ -233,9 +233,9 @@ export default function ClassSessionsClient({
                 <td className="p-2.5 text-center">
                   <Chip on={flagOf(s, 'isActive')} label="فعال" tone="border-emerald-300 bg-emerald-100 text-emerald-800" onClick={() => toggle(s, 'isActive')} />
                 </td>
-                <td className="p-2.5 text-center text-[10px] text-slate-500">{jdate(s.createdAt)}</td>
-                <td className="p-2.5 text-center text-[10px] text-slate-500">{jdate(s.professorViewedAt)}</td>
-                <td className="p-2.5 text-center text-[10px] text-slate-500">{jdate(s.updatedAt)}</td>
+                <td className="p-2.5 text-center text-3xs text-slate-500">{jdate(s.createdAt)}</td>
+                <td className="p-2.5 text-center text-3xs text-slate-500">{jdate(s.professorViewedAt)}</td>
+                <td className="p-2.5 text-center text-3xs text-slate-500">{jdate(s.updatedAt)}</td>
               </tr>
             ))}
             {sessions.length === 0 && (
@@ -258,7 +258,7 @@ export default function ClassSessionsClient({
               key: 'status',
               label: 'وضعیت',
               render: (s) => (
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-700">
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-3xs font-black text-slate-700">
                   {STATUS_FA[s.status] ?? s.status}
                 </span>
               ),
@@ -268,7 +268,7 @@ export default function ClassSessionsClient({
               label: 'جبرانی',
               render: (s) =>
                 Number(s.isMakeUp ?? 0) === 1 ? (
-                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800">جبرانی</span>
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-3xs font-black text-amber-800">جبرانی</span>
                 ) : (
                   '—'
                 ),

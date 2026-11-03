@@ -48,7 +48,7 @@ export default async function HelpLandingPage(props: { searchParams: Promise<{ t
               <Link key={g.role} href={`/help/${g.role}`} className={`block rounded-2xl border-2 p-4 shadow-sm transition hover:shadow ${GUIDE_CARD[g.role] ?? 'border-slate-300 bg-white'}`}>
                 <div className="text-2xl">{g.icon}</div>
                 <h3 className="mt-1 text-sm font-black text-slate-900">{g.title}</h3>
-                <p className="mt-0.5 text-[11px] text-slate-600">{g.audience}</p>
+                <p className="mt-0.5 text-2xs text-slate-600">{g.audience}</p>
               </Link>
             ))}
           </div>
@@ -61,7 +61,7 @@ export default async function HelpLandingPage(props: { searchParams: Promise<{ t
               <Link key={`${q.role}:${q.topicSlug ?? q.href}`} href={`/help/${q.role}/${q.topicSlug ?? ''}`} className="flex items-center justify-between gap-2 rounded-xl border border-slate-200 px-3 py-2.5 hover:border-indigo-300 hover:bg-indigo-50/50">
                 <span>
                   <span className="block text-[13px] font-bold text-slate-800">{q.guideIcon} {q.title}</span>
-                  <span className="block text-[11px] text-slate-500">{q.hint} · {q.guideTitle}</span>
+                  <span className="block text-2xs text-slate-500">{q.hint} · {q.guideTitle}</span>
                 </span>
                 <span className="shrink-0 text-slate-300">←</span>
               </Link>
@@ -74,7 +74,7 @@ export default async function HelpLandingPage(props: { searchParams: Promise<{ t
             <div key={g.role} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
               <div className="flex items-center justify-between gap-2">
                 <h2 className="text-sm font-black text-slate-900">{g.icon} {g.title}</h2>
-                <Link href={`/help/${g.role}`} className="rounded-xl bg-slate-800 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-slate-700">ورود به راهنما ←</Link>
+                <Link href={`/help/${g.role}`} className="rounded-xl bg-slate-800 px-3 py-1.5 text-2xs font-bold text-white hover:bg-slate-700">ورود به راهنما ←</Link>
               </div>
               {g.sections.map(s => (
                 <div key={s.key} className="mt-3">
@@ -84,7 +84,7 @@ export default async function HelpLandingPage(props: { searchParams: Promise<{ t
                       <li key={t.slug}>
                         <Link href={`/help/${g.role}/${t.slug}`} className="block rounded-xl border border-slate-100 px-3 py-2 text-[13px] font-bold text-indigo-800 hover:border-indigo-300 hover:bg-indigo-50/50">
                           {t.title}
-                          <span className="block text-[11px] font-normal text-slate-500">{t.summary.slice(0, 70)}…</span>
+                          <span className="block text-2xs font-normal text-slate-500">{t.summary.slice(0, 70)}…</span>
                         </Link>
                       </li>
                     ))}
@@ -95,7 +95,7 @@ export default async function HelpLandingPage(props: { searchParams: Promise<{ t
           ))}
         </section>
 
-        <p className="pb-4 text-center text-[11px] text-slate-500">تعداد موضوعات نمایه‌شده: {index.length.toLocaleString('fa-IR')} · برای نسخهٔ چاپی هر نقش، وارد همان نقش شوید.</p>
+        <p className="pb-4 text-center text-2xs text-slate-500">تعداد موضوعات نمایه‌شده: {index.length.toLocaleString('fa-IR')} · برای نسخهٔ چاپی هر نقش، وارد همان نقش شوید.</p>
       </div>
     </div>
   );

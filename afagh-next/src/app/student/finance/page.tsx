@@ -207,7 +207,7 @@ export default async function StudentFinancePage({ searchParams }: { searchParam
               {r.degreeTitle ?? 'مقطع نامشخص'} · <span className="font-mono" dir="ltr">{r.studentCode}</span>
             </a>
           ))}
-          <span className="text-[10px] text-slate-400">مانده و ریز ترم‌به‌ترم هر مقطع جداست.</span>
+          <span className="text-3xs text-slate-400">مانده و ریز ترم‌به‌ترم هر مقطع جداست.</span>
         </div>
       )}
       <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
@@ -240,7 +240,7 @@ export default async function StudentFinancePage({ searchParams }: { searchParam
         {approval ? (
           <p className="font-bold leading-6">
             ✅ این کارنامه <b>تأیید کارشناس امور مالی</b> را دارد و نسخهٔ دارای رمز استعلام (QR) در چاپ شما درج می‌شود.
-            {approval.trackingCode ? <span className="font-mono text-[11px]"> (کد رهگیری: {approval.trackingCode})</span> : null}
+            {approval.trackingCode ? <span className="font-mono text-2xs"> (کد رهگیری: {approval.trackingCode})</span> : null}
           </p>
         ) : (
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -249,7 +249,7 @@ export default async function StudentFinancePage({ searchParams }: { searchParam
             </p>
             <a
               href="/student/requests?process=FINANCE_STATEMENT"
-              className="shrink-0 rounded-lg bg-amber-700 px-3 py-1.5 text-[11px] font-bold text-white transition hover:bg-amber-800"
+              className="shrink-0 rounded-lg bg-amber-700 px-3 py-1.5 text-2xs font-bold text-white transition hover:bg-amber-800"
             >
               ثبت درخواست تأیید
             </a>
@@ -274,7 +274,7 @@ export default async function StudentFinancePage({ searchParams }: { searchParam
               </li>
             ))}
           </ul>
-          <p className="mt-1.5 text-[11px] text-amber-800">
+          <p className="mt-1.5 text-2xs text-amber-800">
             لطفاً پیش از سررسید نسبت به تأمین موجودی اقدام کنید تا چک برگشت نخورد.
           </p>
         </div>
@@ -291,7 +291,7 @@ export default async function StudentFinancePage({ searchParams }: { searchParam
               return (
                 <li key={n.id} className="flex flex-wrap items-start justify-between gap-2 text-xs">
                   <span className="text-slate-700">{text || n.eventCode}</span>
-                  <span className="text-[11px] text-slate-400">{jdate(n.createdAt)}</span>
+                  <span className="text-2xs text-slate-400">{jdate(n.createdAt)}</span>
                 </li>
               );
             })}

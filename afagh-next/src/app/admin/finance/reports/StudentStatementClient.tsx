@@ -96,8 +96,8 @@ function SumBox({ icon, label, value, tone, sub }: { icon: string; label: string
   return (
     <div className={`relative rounded-xl border bg-gradient-to-b p-3 pt-4 text-center shadow-sm ${tone}`}>
       <p className="text-lg font-black leading-tight">{value}</p>
-      <p className="mt-0.5 text-[11px] font-medium opacity-75">{label}</p>
-      {sub && <p className="mt-0.5 text-[10px] font-bold opacity-90">{sub}</p>}
+      <p className="mt-0.5 text-2xs font-medium opacity-75">{label}</p>
+      {sub && <p className="mt-0.5 text-3xs font-bold opacity-90">{sub}</p>}
       <span className="absolute -top-2.5 right-2 text-sm">{icon}</span>
     </div>
   );
@@ -214,7 +214,7 @@ export default function StudentStatementClient({ studentId, studentName, student
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-base font-black sm:text-lg">📄 صورت‌حساب مالی — {studentName}</h1>
-            <p className="mt-1 text-[11px] text-indigo-100/90">
+            <p className="mt-1 text-2xs text-indigo-100/90">
               شمارهٔ دانشجویی: <span dir="ltr" className="font-mono">{studentCode}</span> — ۹ مشخصهٔ سما (ثابت/متغیر/پرداختی/تخفیف ثابت/متغیر/موضوعی + و − /بنیاد/وام)
             </p>
           </div>

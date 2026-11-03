@@ -39,7 +39,7 @@ export default async function AdminFinanceReportsPage() {
               شهریه، تعرفه، صورت‌حساب، کارتابل مالی، حق‌التدریس و BI مالی — همه صفحه‌بندی‌شده با خروجی Excel
             </p>
             {currentUniversity && (
-              <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-bold">
+              <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-0.5 text-2xs font-bold">
                 🏛️ {currentUniversity.title}
               </p>
             )}
@@ -67,7 +67,7 @@ export default async function AdminFinanceReportsPage() {
               <span className="text-xl">{d.icon}</span>
               <span className="text-[12px] font-black text-slate-800 group-hover:text-slate-950">{d.title}</span>
             </div>
-            <p className="mt-1 text-[10px] leading-4 text-slate-500">{d.desc}</p>
+            <p className="mt-1 text-3xs leading-4 text-slate-500">{d.desc}</p>
           </Link>
         ))}
       </div>

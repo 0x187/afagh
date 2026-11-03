@@ -127,7 +127,7 @@ export default async function SanjeshFieldsPage({
       <header className="mb-3 flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="text-base font-bold text-slate-800">{file.title}</h1>
-          <p className="text-[11px] text-slate-500" dir="ltr">
+          <p className="text-2xs text-slate-500" dir="ltr">
             {file.fileName} · {file.encoding} · {file.columnCount} col · {file.rowCount} rows
           </p>
         </div>
@@ -143,7 +143,7 @@ export default async function SanjeshFieldsPage({
       <Flash msg={sp.msg} err={sp.err} />
 
       {warnings.length > 0 && (
-        <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+        <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-2xs text-amber-800">
           {warnings.map((w, i) => (
             <div key={i}>• {w}</div>
           ))}
@@ -155,7 +155,7 @@ export default async function SanjeshFieldsPage({
           <input type="hidden" name="fileId" value={fileId} />
           <button className="btn-ghost !py-1 text-xs">اعمال نگاشت قالب روی همهٔ ستون‌ها</button>
         </form>
-        <span className="text-[11px] text-slate-500">
+        <span className="text-2xs text-slate-500">
           {mapped} از {fields.length} ستون نگاشت شده است.
         </span>
       </div>
@@ -213,7 +213,7 @@ export default async function SanjeshFieldsPage({
         </div>
       </form>
 
-      <p className="mt-2 text-[10px] text-slate-400">
+      <p className="mt-2 text-3xs text-slate-400">
         ستون‌های نگاشت‌نشده حذف نمی‌شوند؛ مقدار خامشان در همان ردیف ذخیره باقی می‌ماند. با تغییر نگاشت، داده‌ها از روی
         ستون‌های ذخیره‌شده بازسازی می‌شوند و نیازی به بارگذاری دوبارهٔ فایل نیست.
       </p>

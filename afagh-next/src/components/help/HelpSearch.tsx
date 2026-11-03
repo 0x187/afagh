@@ -52,7 +52,7 @@ export default function HelpSearch({ index, role = null, placeholder, id = 'help
           <button
             type="button"
             onClick={() => setQ('')}
-            className="rounded-lg bg-slate-100 px-2 py-1 text-[11px] font-bold text-slate-500 hover:bg-slate-200"
+            className="rounded-lg bg-slate-100 px-2 py-1 text-2xs font-bold text-slate-500 hover:bg-slate-200"
             aria-label="پاک کردن جست‌وجو"
           >
             ✕
@@ -73,7 +73,7 @@ export default function HelpSearch({ index, role = null, placeholder, id = 'help
                   >
                     <span>
                       <span className="block text-[13px] font-bold text-slate-800">{r.title}</span>
-                      <span className="block text-[11px] text-slate-500">
+                      <span className="block text-2xs text-slate-500">
                         {r.roleIcon} {r.roleLabel} · {r.section}
                       </span>
                     </span>
@@ -86,7 +86,7 @@ export default function HelpSearch({ index, role = null, placeholder, id = 'help
         </div>
       )}
       {!showList && q.trim().length === 0 && (
-        <p className="mt-1.5 px-1 text-[11px] text-slate-400">
+        <p className="mt-1.5 px-1 text-2xs text-slate-400">
           {index.length.toLocaleString('fa-IR')} موضوع نمایه شده · جست‌وجو «ی/ك» عربی، نیم‌فاصله و ارقام فارسی را هم می‌فهمد
         </p>
       )}

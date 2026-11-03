@@ -24,7 +24,7 @@ export function HandoverConfirmButton({ token, stepLabel, userName }: { token: s
       <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-4 text-center">
         <div className="text-2xl">✓</div>
         <p className="mt-1 text-sm font-black text-emerald-800">{result.text}</p>
-        <p className="mt-1 text-[11px] text-emerald-700">تحویلگیرنده: {userName}</p>
+        <p className="mt-1 text-2xs text-emerald-700">تحویلگیرنده: {userName}</p>
       </div>
     );
   }

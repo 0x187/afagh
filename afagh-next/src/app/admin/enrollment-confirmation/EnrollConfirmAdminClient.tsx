@@ -146,7 +146,7 @@ export default function EnrollConfirmAdminClient() {
           >
             باز کردن برگهٔ قابل چاپ ←
           </a>
-          <div className="text-[11px] text-slate-500 break-all" dir="ltr">{result.verifyUrl}</div>
+          <div className="text-2xs text-slate-500 break-all" dir="ltr">{result.verifyUrl}</div>
         </div>
       )}
     </div>

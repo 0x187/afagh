@@ -288,7 +288,7 @@ export default async function StudentFinancePage({
           )}
         </form>
 
-        <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-[11px] font-bold leading-5 text-amber-900">
+        <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-2xs font-bold leading-5 text-amber-900">
           ⚠️ این تفکیک از متنِ شرحِ ردیف‌های منتقل‌شده از سیستم قدیمی استخراج شده است
           («پرداخت از سیستم قدیمی — فیش N (نوع واریز)»). <b>تاریخ واریز واقعی در مهاجرت حفظ نشده</b>
           و جداول جزئیاتِ چک و پرداخت آنلاین خالی‌اند؛ برای گزارشِ تاریخ‌دار باید داده از سیستم قدیمی دوباره وارد شود.
@@ -327,7 +327,7 @@ export default async function StudentFinancePage({
                           style={{ width: `${Math.min(100, Math.abs(pct(r.total_amount)))}%` }}
                         />
                       </div>
-                      <span className="text-[11px] font-bold text-slate-500" dir="ltr">
+                      <span className="text-2xs font-bold text-slate-500" dir="ltr">
                         {pct(r.total_amount).toFixed(1)}%
                       </span>
                     </div>
@@ -380,7 +380,7 @@ export default async function StudentFinancePage({
                   </td>
                   <td className="p-2 text-slate-800">
                     {t.firstName} {t.lastName}
-                    <span className="text-[10px] font-mono text-slate-400 mr-1" dir="ltr">{t.studentCode}</span>
+                    <span className="text-3xs font-mono text-slate-400 mr-1" dir="ltr">{t.studentCode}</span>
                   </td>
                   <td className="p-2 text-xs">{txFa(t.transactionType)}</td>
                   <td className="p-2 text-xs text-slate-600">{t.depositType ?? '—'}</td>

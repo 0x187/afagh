@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { groupedModules, navModules } from '@/lib/admin-modules';
 import { normalizeFa, faIncludes } from '@/lib/persian-search';
 import type { UniTheme } from '@/lib/university-theme';
+import Icon from '@/components/ui/Icon';
 
 /**
  * منوی کشویی سمت راست کارتابل مدیریت — جایگزین نوار افقی قبلی.
@@ -33,6 +34,14 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [open ]);
+  // اسکرول بدنه قفل شود تا کشو روی محتوایِ در حال اسکرول شناور نماند
+  // (پیش‌تر با باز بودن کشو، صفحهٔ پشت آن هم اسکرول می‌شد).
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = prev; };
+  }, [open]);
 
   const modules = useMemo(() => navModules(roles, permissions), [roles, permissions]);
   const grouped = useMemo(() => groupedModules(roles, permissions), [roles, permissions]);
@@ -49,31 +58,47 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
       <button
         onClick={() => setOpen(true)}
         aria-label="باز کردن منوی مدیریت"
-        className={`fixed top-3 right-3 z-40 flex items-center gap-1.5 rounded-xl ${th.badge} px-3 py-2 text-xs font-bold text-white shadow-lg backdrop-blur transition-colors`}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        className={`lg:hidden fixed top-3 right-3 z-40 flex items-center gap-1.5 rounded-xl ${th.badge} px-3 py-2 text-xs font-bold text-white shadow-lg transition-colors`}
       >
-        <span className="text-base leading-none">☰</span>
+        <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round">
+          <path d="M4 7h16M4 12h16M4 17h16" />
+        </svg>
         منو
       </button>
 
-      {open && (
-        <div className="fixed inset-0 z-50" role="dialog" aria-modal="true" aria-label="منوی مدیریت">
+      {/* ── پوستهٔ ناوبری ──
+          موبایل: کشوی تمام‌قد که فقط با `open` باز می‌شود.
+          دسکتاپ (`lg+`): همان محتوا به سایدبارِ دائمیِ چسبان تبدیل می‌شود
+          (`lg:static` + `lg:sticky` روی aside) تا کاربر بدون دو کلیک به
+          همهٔ ماژول‌ها دسترسی داشته باشد — پیش‌تر حتی روی مانیتور بزرگ هم
+          فقط کشو وجود داشت. */}
+      <div
+        className={`${open ? 'fixed inset-0 z-50' : 'hidden'} lg:static lg:inset-auto lg:z-auto lg:block lg:shrink-0 print:hidden`}
+        {...(open ? { role: 'dialog', 'aria-modal': true as const, 'aria-label': 'منوی مدیریت' } : {})}
+      >
           {/* پس‌زمینه */}
-          <div className="absolute inset-0 bg-slate-950/60" onClick={() => setOpen(false)} />
-          {/* پنل سمت راست */}
-          <aside className={`absolute top-0 right-0 h-full w-80 max-w-[85vw] ${th.navPanel} text-white shadow-2xl flex flex-col border-l`}>
+          <div className="absolute inset-0 bg-slate-950/60 lg:hidden" onClick={() => setOpen(false)} aria-hidden />
+          {/* پنل سمت راست (موبایل: کشو / دسکتاپ: سایدبار) */}
+          <aside
+            className={`absolute top-0 right-0 h-full w-80 max-w-[85vw] ${th.navPanel} text-white shadow-2xl flex flex-col border-s
+              lg:static lg:top-auto lg:right-auto lg:h-[calc(100dvh-8rem)] lg:w-64 xl:w-72 lg:max-w-none lg:sticky lg:top-[6.5rem]
+              lg:rounded-2xl lg:border lg:shadow-sm`}
+          >
             <div className={`flex items-center justify-between p-3 border-b ${th.navBorder}`}>
-              <p className="font-extrabold text-sm">🧭 منوی مدیریت</p>
+              <p className="flex items-center gap-2 font-extrabold text-sm"><Icon emoji="🧭" className="h-4 w-4" /> منوی مدیریت</p>
               <button
                 onClick={() => setOpen(false)}
                 aria-label="بستن منو"
-                className={`rounded-lg px-2 py-1 text-lg leading-none ${th.navHover}`}
+                className={`lg:hidden rounded-lg p-1.5 ${th.navHover}`}
               >
-                ×
+                <svg aria-hidden viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
               </button>
             </div>
             <div className={`p-3 border-b ${th.navBorder}`}>
               <input
-                autoFocus
+                autoFocus={open}
                 value={q}
                 onChange={e => setQ(e.target.value)}
                 placeholder="جست‌وجوی ماژول…"
@@ -85,18 +110,19 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
                 href="/admin"
                 className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-colors ${pathname === '/admin' ? th.navActive : th.navHover}`}
               >
-                <span>🏠</span> داشبورد
+                <Icon emoji="🏠" className="h-4 w-4" /> داشبورد
               </Link>
               {filtered.length > 0 && q.trim() === '' ? (
                 grouped.map(g => (
                   <div key={g.group.key} className="mt-1">
                     <button
                       onClick={() => setCollapsed(p => ({ ...p, [g.group.key]: !p[g.group.key] }))}
+                      aria-expanded={!collapsed[g.group.key]}
                       className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 font-extrabold transition-colors ${th.navHover}`}
                     >
-                      <span>{g.group.icon}</span>
-                      <span className="flex-1 text-right">{g.group.title}</span>
-                      <span className={`text-[10px] ${th.navMuted}`}>{collapsed[g.group.key] ? '◀' : '▼'}</span>
+                      <Icon emoji={g.group.icon} className="h-4 w-4" />
+                      <span className="flex-1 text-start">{g.group.title}</span>
+                      <span aria-hidden className={`text-3xs ${th.navMuted}`}>{collapsed[g.group.key] ? '◀' : '▼'}</span>
                     </button>
                     {!collapsed[g.group.key] && g.modules.map(m => {
                       const active = pathname === m.href || pathname.startsWith(m.href + '/');
@@ -105,9 +131,9 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
                           key={m.href}
                           href={m.href}
                           title={m.desc}
-                          className={`mr-3 flex items-center gap-2 rounded-lg px-3 py-1.5 transition-colors ${active ? th.navActive : th.navHover}`}
+                          className={`ms-3 flex items-center gap-2 rounded-lg px-3 py-1.5 transition-colors ${active ? th.navActive : th.navHover}`}
                         >
-                          <span>{m.icon}</span>
+                          <Icon emoji={m.icon} className="h-4 w-4" />
                           <span className="flex-1">{m.title}</span>
                         </Link>
                       );
@@ -123,7 +149,7 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
                     title={m.desc}
                     className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-colors ${active ? th.navActive : th.navHover}`}
                   >
-                    <span>{m.icon}</span>
+                    <Icon emoji={m.icon} className="h-4 w-4" />
                     <span className="flex-1">{m.title}</span>
                   </Link>
                 );
@@ -137,12 +163,11 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
                 href="/help/admin"
                 className="flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] bg-emerald-700/70 hover:bg-emerald-700 border border-emerald-500/40 font-bold transition-colors"
               >
-                <span>📖</span> راهنمای کاربری و PDF
+                <Icon emoji="📖" className="h-4 w-4" /> راهنمای کاربری و PDF
               </Link>
             </div>
           </aside>
-        </div>
-      )}
+      </div>
     </>
   );
 }

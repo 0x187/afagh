@@ -7,6 +7,7 @@ import {
   syncVirtualClassStatusAction,
   type ProfOfferingRow,
 } from './actions';
+import { askConfirm } from '@/lib/ui-feedback';
 
 const fmtDate = (s: string | null) => (s ? new Date(s).toLocaleString('fa-IR') : '—');
 
@@ -27,8 +28,9 @@ export default function ProfVirtualClassesClient({ rows: initial }: { rows: Prof
     });
   };
 
-  const remove = (id: number) => {
-    if (!confirm('کلاس آنلاین حذف شود؟ (جلسه در سرور BBB باقی می‌ماند.)')) return;
+  const remove = async (id: number) => {
+    const ok = await askConfirm({ title: 'حذف کلاس آنلاین', body: 'کلاس آنلاین حذف شود؟ (جلسه در سرور BBB باقی می‌ماند.)', confirmText: 'حذف کن', danger: true });
+    if (!ok) return;
     startTransition(async () => {
       const r = await deleteVirtualClassroomAction(id);
       if (r.ok) { setMsg('✓ حذف شد.'); refresh(); }
@@ -64,9 +66,9 @@ export default function ProfVirtualClassesClient({ rows: initial }: { rows: Prof
             {rows.map(r => (
               <tr key={r.offeringId} className="text-center border-t border-slate-200">
                 <td className="p-2.5 text-right font-extrabold text-slate-900">
-                  <span className="font-mono text-[11px] text-indigo-900 ml-1">{r.courseCode}</span>
+                  <span className="font-mono text-2xs text-indigo-900 ml-1">{r.courseCode}</span>
                   {r.courseTitle}
-                  <span className="text-[10px] text-slate-500 mr-1">
+                  <span className="text-3xs text-slate-500 mr-1">
                     {r.mergedGroupNumbers ? `— کلاس ادغامی (گروه‌های ${r.mergedGroupNumbers.map(faNum).join('، ')})` : `— گروه ${faNum(r.groupNumber)}`}
                   </span>
                 </td>
@@ -75,11 +77,11 @@ export default function ProfVirtualClassesClient({ rows: initial }: { rows: Prof
                   {r.classroom ? (
                     <div className="space-y-0.5">
                       <div className="font-bold text-slate-800">{r.classroom.name}</div>
-                      <div className="text-[10px] text-slate-500">
+                      <div className="text-3xs text-slate-500">
                         {r.classroom.isRunning ? <span className="text-rose-600 font-black animate-pulse">● در حال برگزاری ({faNum(r.classroom.participantCount)} نفر)</span> : 'برگزار نشده'}
                         {r.classroom.recordingsCount > 0 && <span className="mr-1">· {faNum(r.classroom.recordingsCount)} ضبط</span>}
                       </div>
-                      <div className="text-[10px] text-slate-400">
+                      <div className="text-3xs text-slate-400">
                         آخرین همگام‌سازی: {fmtDate(r.classroom.lastSyncedAt)}
                       </div>
                     </div>
@@ -95,28 +97,28 @@ export default function ProfVirtualClassesClient({ rows: initial }: { rows: Prof
                           value={editName}
                           onChange={e => setEditName(e.target.value)}
                           placeholder={r.courseCode + ' — ' + r.courseTitle}
-                          className="border border-slate-300 rounded-lg px-2 py-1 text-[11px] font-bold w-44"
+                          className="border border-slate-300 rounded-lg px-2 py-1 text-2xs font-bold w-44"
                         />
-                        <button disabled={pending} onClick={() => save(r.offeringId)} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-extrabold text-[11px] disabled:opacity-50">
+                        <button disabled={pending} onClick={() => save(r.offeringId)} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-extrabold text-2xs disabled:opacity-50">
                           {pending ? '…' : '💾 ذخیره'}
                         </button>
-                        <button disabled={pending} onClick={() => setEditId(null)} className="px-2 py-1.5 rounded-lg bg-slate-100 text-slate-700 font-bold text-[11px]">✕</button>
+                        <button disabled={pending} onClick={() => setEditId(null)} className="px-2 py-1.5 rounded-lg bg-slate-100 text-slate-700 font-bold text-2xs">✕</button>
                       </>
                     ) : (
                       <>
                         <button
                           disabled={pending}
                           onClick={() => { setEditId(r.offeringId); setEditName(r.classroom?.name ?? `${r.courseCode} — ${r.courseTitle}`); }}
-                          className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-extrabold text-[11px] disabled:opacity-50"
+                          className="px-3 py-1.5 rounded-lg bg-indigo-600 text-white font-extrabold text-2xs disabled:opacity-50"
                         >
                           {r.classroom ? '✏️ ویرایش' : '➕ تعریف کلاس آنلاین'}
                         </button>
                         {r.classroom && (
                           <>
-                            <button disabled={pending} onClick={() => syncOne(r.classroom!.id)} className="px-2.5 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-extrabold text-[11px] disabled:opacity-50" title="خواندن وضعیت از سرور BBB">
+                            <button disabled={pending} onClick={() => syncOne(r.classroom!.id)} className="px-2.5 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-extrabold text-2xs disabled:opacity-50" title="خواندن وضعیت از سرور BBB">
                               🔄 همگام‌سازی
                             </button>
-                            <button disabled={pending} onClick={() => remove(r.classroom!.id)} className="px-2.5 py-1.5 rounded-lg bg-rose-600 text-white font-extrabold text-[11px] disabled:opacity-50">
+                            <button disabled={pending} onClick={() => remove(r.classroom!.id)} className="px-2.5 py-1.5 rounded-lg bg-rose-600 text-white font-extrabold text-2xs disabled:opacity-50">
                               🗑 حذف
                             </button>
                           </>
@@ -130,7 +132,7 @@ export default function ProfVirtualClassesClient({ rows: initial }: { rows: Prof
           </tbody>
         </table>
       </div>
-      <p className="text-[11px] text-slate-500 leading-6">
+      <p className="text-2xs text-slate-500 leading-6">
         رمزهای Moderator/Attendee از «پنل مدیر ← پیکربندی سامانه ← کلاس مجازی» خوانده می‌شوند. بعد از تعریف، دانشجویان
         کلاس را در داشبورد خود (ویجت کلاس‌های آنلاین) می‌بینند و با یک کلیک وارد می‌شوند؛ استاد با «شروع جلسه»
         اتاق فرمان را باز می‌کند.

@@ -75,7 +75,7 @@ export default async function ExamHandoverPage({ params }: { params: Promise<{ t
           </div>
         )}
 
-        <p className="text-center text-[10px] text-slate-500">
+        <p className="text-center text-3xs text-slate-500">
           هر تحویل با هویت تحویلگیرنده و در زنجیرهٔ ممیزی سامانه ثبت میشود — کد یکبارمصرف و کوتاه‌مدت است ({faNum(3)} ساعت).
         </p>
       </div>

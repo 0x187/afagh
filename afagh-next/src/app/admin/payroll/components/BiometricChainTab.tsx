@@ -27,7 +27,7 @@ export default function BiometricChainTab({ state, api }: Props) {
                 <h2 className="font-black text-slate-900 text-base">
                   🧬 موتور تطبیق هوشمند اثر انگشت گیت ورودی و پیوستگی کلاس‌ها (Chain Matching)
                 </h2>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-900 border border-emerald-200">
+                <span className="px-2.5 py-0.5 rounded-full text-3xs font-black bg-emerald-100 text-emerald-900 border border-emerald-200">
                   اتصال به گیت‌های سخت‌افزاری ZKTeco / Suprema
                 </span>
               </div>
@@ -46,25 +46,25 @@ export default function BiometricChainTab({ state, api }: Props) {
           {/* KPI Cards for Biometric Attendance */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="p-3 bg-indigo-50 rounded-2xl border border-indigo-200">
-              <span className="text-indigo-800 text-[11px] block font-bold">تطبیق با گیت ورودی (۰۷:۴۵):</span>
+              <span className="text-indigo-800 text-2xs block font-bold">تطبیق با گیت ورودی (۰۷:۴۵):</span>
               <span className="text-base font-black text-indigo-950 font-mono">
                 {biometricLogs.filter(l => l.verificationMethod === 'GATE_FINGERPRINT').length} جلسه (کلاس اول) 🧬
               </span>
             </div>
             <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-200 dark:border-emerald-800 dark:bg-emerald-950">
-              <span className="text-emerald-800 text-[11px] block font-bold dark:text-emerald-200">پیوستگی زنجیره‌ای (Chain Match):</span>
+              <span className="text-emerald-800 text-2xs block font-bold dark:text-emerald-200">پیوستگی زنجیره‌ای (Chain Match):</span>
               <span className="text-base font-black text-emerald-950 font-mono">
                 {biometricLogs.filter(l => l.verificationMethod === 'CHAIN_MATCHING_CONTINUOUS').length} جلسه (کلاس‌های متوالی) 🔗
               </span>
             </div>
             <div className="p-3 bg-blue-50 rounded-2xl border border-blue-200">
-              <span className="text-blue-800 text-[11px] block font-bold">لاگین سیستم تریبون کلاس (SSO):</span>
+              <span className="text-blue-800 text-2xs block font-bold">لاگین سیستم تریبون کلاس (SSO):</span>
               <span className="text-base font-black text-blue-950 font-mono">
                 {biometricLogs.filter(l => l.verificationMethod === 'CLASS_PC_LOGIN').length} جلسه تاییدشده 🖥️
               </span>
             </div>
             <div className="p-3 bg-rose-50 rounded-2xl border border-rose-200">
-              <span className="text-rose-800 text-[11px] block font-bold">غیبت غیرموجه قطعی (کسر از حقوق):</span>
+              <span className="text-rose-800 text-2xs block font-bold">غیبت غیرموجه قطعی (کسر از حقوق):</span>
               <span className="text-base font-black text-rose-950 font-mono">
                 {biometricLogs.filter(l => l.verificationMethod === 'UNJUSTIFIED_ABSENCE').length} جلسه ⚠️
               </span>
@@ -125,29 +125,29 @@ export default function BiometricChainTab({ state, api }: Props) {
                     </td>
                     <td className="p-2.5 text-center">
                       {log.verificationMethod === 'GATE_FINGERPRINT' && (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-900">
+                        <span className="px-2.5 py-0.5 rounded-full text-3xs font-black bg-indigo-100 text-indigo-900">
                           🧬 اثر انگشت گیت
                         </span>
                       )}
                       {log.verificationMethod === 'CHAIN_MATCHING_CONTINUOUS' && (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-900">
+                        <span className="px-2.5 py-0.5 rounded-full text-3xs font-black bg-emerald-100 text-emerald-900">
                           🔗 پیوستگی زنجیره‌ای (پشت‌سرهم)
                         </span>
                       )}
                       {log.verificationMethod === 'CLASS_PC_LOGIN' && (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-100 text-blue-900">
+                        <span className="px-2.5 py-0.5 rounded-full text-3xs font-black bg-blue-100 text-blue-900">
                           🖥️ ورود به سیستم کلاس
                         </span>
                       )}
                       {log.verificationMethod === 'UNJUSTIFIED_ABSENCE' && (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white">
+                        <span className="px-2.5 py-0.5 rounded-full text-3xs font-black bg-rose-600 text-white">
                           ⚠️ غیبت غیرموجه قطعی
                         </span>
                       )}
                     </td>
-                    <td className="p-2.5 text-[11px] text-slate-600">
+                    <td className="p-2.5 text-2xs text-slate-600">
                       <div>{log.verificationDetail}</div>
-                      <div className="font-mono text-[10px] text-slate-400" dir="ltr">{log.ipAddress}</div>
+                      <div className="font-mono text-3xs text-slate-400" dir="ltr">{log.ipAddress}</div>
                     </td>
                     <td className="p-2.5 text-center">
                       {log.payrollPenaltyAmount > 0 ? (

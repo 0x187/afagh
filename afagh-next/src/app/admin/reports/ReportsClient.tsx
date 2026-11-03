@@ -271,7 +271,7 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
                     : 'bg-gradient-to-b from-white to-slate-100 border-slate-300 text-slate-700 hover:border-indigo-300 hover:shadow'}`}
             >
               <span className="text-2xl">{c.icon}</span>
-              <span>{c.title}{c.soon && <span className="block text-[10px] font-normal">به‌زودی</span>}</span>
+              <span>{c.title}{c.soon && <span className="block text-3xs font-normal">به‌زودی</span>}</span>
             </button>
           ))}
         </div>
@@ -442,7 +442,7 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
                     <option value="PROF">کد استاد و ساعت درس</option>
                   </select>
                 </label>
-                <label className="flex items-center gap-1 pb-2 text-[11px] font-bold text-slate-700">
+                <label className="flex items-center gap-1 pb-2 text-2xs font-bold text-slate-700">
                   <input type="checkbox" checked={extra.showFinance === '1'} onChange={e => setExtra({ ...extra, showFinance: e.target.checked ? '1' : '' })} />
                   نمایش وضعیت مالی
                 </label>

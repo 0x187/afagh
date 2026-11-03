@@ -39,7 +39,7 @@ export default async function ProctorLayout({ children }: { children: React.Reac
             <div>
               <div className="flex items-center gap-2">
                 <p className="font-extrabold text-sm tracking-wide">سامانه هوشمند مراقبین آزمون دانشگاه آفاق</p>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-500/80 text-white">
+                <span className="px-2 py-0.5 rounded-full text-3xs font-black bg-indigo-500/80 text-white">
                   پرتال مراقب
                 </span>
               </div>
@@ -74,7 +74,7 @@ export default async function ProctorLayout({ children }: { children: React.Reac
           </Link>
         </nav>
       </header>
-      <main className="mx-auto max-w-6xl p-3 sm:p-5 pb-16">{children}</main>
+      <main id="main" className="mx-auto max-w-6xl p-3 sm:p-5 pb-16">{children}</main>
       <SessionLock name={user.name} timeoutMin={lockMin} initialLocked={lockOn} />
     </div>
   );

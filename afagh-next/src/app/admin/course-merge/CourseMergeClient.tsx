@@ -167,7 +167,7 @@ export default function CourseMergeClient() {
               className={`rounded-xl border p-3 space-y-2 ${g.merged ? 'border-violet-500/40 bg-violet-950/20' : 'border-slate-200 dark:border-slate-700'}`}
             >
               <div className="flex items-center gap-2">
-                <span className={`text-[11px] border rounded-full px-2 py-0.5 ${badge.cls}`}>{badge.label}</span>
+                <span className={`text-2xs border rounded-full px-2 py-0.5 ${badge.cls}`}>{badge.label}</span>
                 {g.merged && (
                   <span className="text-xs text-slate-500">
                     {g.members.length} کلاس • {g.totalEnrolled} دانشجو
@@ -178,7 +178,7 @@ export default function CourseMergeClient() {
                     <button
                       disabled={busy}
                       onClick={() => mutate(g.members.map(m => m.offeringId), 'auto', 'به تشخیص خودکار برگردد؟')}
-                      className="text-[11px] rounded border px-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
+                      className="text-2xs rounded border px-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
                     >
                       خودکار
                     </button>
@@ -201,7 +201,7 @@ export default function CourseMergeClient() {
                       <div className="font-medium truncate">
                         {m.courseTitle} <span className="text-slate-500">({m.courseCode} • گروه {m.groupNumber})</span>
                       </div>
-                      <div className="text-[11px] text-slate-500">
+                      <div className="text-2xs text-slate-500">
                         {m.professorName ?? '—'} • {m.enrolledCount} نفر • {m.slots}
                       </div>
                     </div>
@@ -209,7 +209,7 @@ export default function CourseMergeClient() {
                       disabled={busy}
                       title="جدا کردن این کلاس از ادغام"
                       onClick={() => mutate([m.offeringId], 'split')}
-                      className="text-[11px] rounded border px-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
+                      className="text-2xs rounded border px-2 py-1 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
                     >
                       جدا
                     </button>
@@ -223,7 +223,7 @@ export default function CourseMergeClient() {
 
       {visible.length === 0 && <div className="text-sm text-slate-500">کلاسی یافت نشد.</div>}
 
-      <p className="text-[11px] text-slate-500">
+      <p className="text-2xs text-slate-500">
         منطق موتور بدون تغییر مانده: کلید دستی بر حدس خودکار (روز/ساعت) اولویت دارد. «جدا» یعنی این کلاس هرگز با کلاس دیگر ادغام نمی‌شود؛ «خودکار» یعنی تشخیص از روی برنامهٔ هفتگی.
       </p>
     </div>

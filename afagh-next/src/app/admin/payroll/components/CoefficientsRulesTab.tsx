@@ -145,7 +145,7 @@ function ExpressionEditor({
       <div className="space-y-2">
         {VAR_GROUPS.map(g => (
           <div key={g.title} className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] font-bold text-slate-500 w-16">{g.title}:</span>
+            <span className="text-2xs font-bold text-slate-500 w-16">{g.title}:</span>
             {g.vars.map(code => {
               const h = faVarHelp(code);
               return (
@@ -154,7 +154,7 @@ function ExpressionEditor({
                   type="button"
                   onClick={() => pickVar(code)}
                   title={`${h?.fa ?? code}${h?.old ? ` (قدیمی: ${h.old})` : ''} — کلیک برای درج`}
-                  className="px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-[11px] font-mono font-bold text-emerald-800 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
+                  className="px-2 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-2xs font-mono font-bold text-emerald-800 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200"
                 >
                   {code} <span className="font-sans font-normal text-emerald-700 dark:text-emerald-300">· {h?.fa}</span>
                 </button>
@@ -162,7 +162,7 @@ function ExpressionEditor({
             })}
           </div>
         ))}
-        <details className="text-[11px] text-slate-500">
+        <details className="text-2xs text-slate-500">
           <summary className="cursor-pointer hover:text-slate-700">متغیرهای قدیمی (سازگار با سما)</summary>
           <div className="flex flex-wrap gap-1.5 mt-1.5">
             {FORMULA_VAR_HELP.map(h => (
@@ -192,7 +192,7 @@ function ExpressionEditor({
         <summary className="cursor-pointer text-xs font-bold text-slate-700 dark:text-slate-200">🧪 آزمون زندهٔ فرمول</summary>
         <div className="grid grid-cols-3 md:grid-cols-5 gap-2 mt-3">
           {FORMULA_VAR_HELP.map(h => (
-            <label key={h.v} className="text-[10px] text-slate-600">
+            <label key={h.v} className="text-3xs text-slate-600">
               <span className="font-mono font-bold">{h.v}</span> · {h.fa}
               <input
                 type="number"
@@ -541,7 +541,7 @@ export default function CoefficientsRulesTab({ state, api }: Props) {
                     />
                   </td>
                   <td className="p-2.5 text-center">
-                    {saving === coef.ruleName && <span className="text-amber-600 text-[10px]">⟳ ذخیره...</span>}
+                    {saving === coef.ruleName && <span className="text-amber-600 text-3xs">⟳ ذخیره...</span>}
                   </td>
                 </tr>
               ))}
@@ -572,7 +572,7 @@ export default function CoefficientsRulesTab({ state, api }: Props) {
 
         {/* فرم افزودن قانون جدید */}
         <form onSubmit={handleCreateRule} className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3">
-          <h3 className="font-bold text-slate-800">➕ افزودن قانون جدید <span className="text-[11px] font-normal text-slate-500">(هر بُعد خالی = همهٔ موارد)</span></h3>
+          <h3 className="font-bold text-slate-800">➕ افزودن قانون جدید <span className="text-2xs font-normal text-slate-500">(هر بُعد خالی = همهٔ موارد)</span></h3>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <select
               value={newRule.offeringType}
@@ -692,20 +692,20 @@ export default function CoefficientsRulesTab({ state, api }: Props) {
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="font-mono text-[11px] text-slate-400">#{faNum(rule.id)}</span>
+                        <span className="font-mono text-2xs text-slate-400">#{faNum(rule.id)}</span>
                         <h4 className="font-bold text-slate-900 dark:text-slate-100 text-sm">{rule.title || '(بدون عنوان)'}</h4>
                         {rule.isActive !== 1 && (
-                          <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300 text-[10px] font-bold">غیرفعال</span>
+                          <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 dark:bg-slate-700 dark:text-slate-300 text-3xs font-bold">غیرفعال</span>
                         )}
                       </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">{getRuleDescription(rule)}</p>
+                      <p className="text-2xs text-slate-500 dark:text-slate-400 mt-1">{getRuleDescription(rule)}</p>
                       <div className="mt-2 text-xs text-slate-700 dark:text-slate-200">
-                        <span className="text-[10px] text-slate-400 ml-1">فرمول:</span>
+                        <span className="text-3xs text-slate-400 ml-1">فرمول:</span>
                         {renderExpression(rule.expression)}
                       </div>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
-                      <label className="flex items-center gap-1 text-[10px] text-slate-500 cursor-pointer" title="فعال/غیرفعال">
+                      <label className="flex items-center gap-1 text-3xs text-slate-500 cursor-pointer" title="فعال/غیرفعال">
                         <input
                           type="checkbox"
                           checked={rule.isActive === 1}
@@ -718,19 +718,19 @@ export default function CoefficientsRulesTab({ state, api }: Props) {
                         فعال
                       </label>
                       {saving === `rule-${rule.id}` ? (
-                        <span className="text-amber-600 text-[10px]">⟳</span>
+                        <span className="text-amber-600 text-3xs">⟳</span>
                       ) : (
                         <>
                           <button
                             onClick={() => (isEditing ? setEditingId(null) : openEdit(rule))}
-                            className="px-2 py-1 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded text-[11px] font-bold"
+                            className="px-2 py-1 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950 rounded text-2xs font-bold"
                             title="ویرایش قانون"
                           >
                             {isEditing ? 'بستن ✕' : '✏️ ویرایش'}
                           </button>
                           <button
                             onClick={() => handleRuleDelete(rule.id)}
-                            className="px-2 py-1 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950 rounded text-[11px] font-bold"
+                            className="px-2 py-1 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950 rounded text-2xs font-bold"
                             title="حذف قانون"
                           >
                             🗑️

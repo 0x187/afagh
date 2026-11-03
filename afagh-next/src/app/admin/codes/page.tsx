@@ -90,7 +90,7 @@ export default async function CodesPage() {
             <span className="rounded-lg bg-emerald-100 px-2.5 py-1 font-bold text-emerald-700">✓ همهٔ کدها سالم‌اند</span>
           )}
         </div>
-        <p className="mt-2 text-[11px] leading-6 text-slate-400">
+        <p className="mt-2 text-2xs leading-6 text-slate-400">
           پیش از هر انتقال داده، این صفحه را بررسی کنید. رکوردهای بی‌کد فقط با نام تطبیق می‌خورند و اگر نام تکراری
           باشد، سامانه به‌جای حدس‌زدن خطا می‌دهد و آن ردیف وصل نمی‌شود.
         </p>

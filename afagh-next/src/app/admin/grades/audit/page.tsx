@@ -105,10 +105,10 @@ export default async function GradeAuditPage({ searchParams }: { searchParams: P
       <div className="border border-amber-300 rounded-lg bg-amber-50 p-3 space-y-2">
         <h2 className="font-black text-sm text-amber-900">🔓 درخواست‌های بازگشایی نمرات نهایی‌شده ({openUnfinalize.length.toLocaleString('fa-IR')})</h2>
         {openUnfinalize.length === 0 ? (
-          <p className="text-[11px] text-amber-800 font-bold">درخواست بازی وجود ندارد.</p>
+          <p className="text-2xs text-amber-800 font-bold">درخواست بازی وجود ندارد.</p>
         ) : (
           <div className="overflow-x-auto bg-white rounded-lg border border-amber-200">
-            <table className="w-full text-right text-[11px] rt">
+            <table className="w-full text-right text-2xs rt">
               <thead className="bg-amber-100 border-b border-amber-300 font-bold">
                 <tr>
                   <th className="p-2">#</th>
@@ -125,12 +125,12 @@ export default async function GradeAuditPage({ searchParams }: { searchParams: P
                 {openUnfinalize.map((r) => (
                   <tr key={r.id} className="border-b border-amber-100 hover:bg-amber-50">
                     <td className="p-2 font-mono text-slate-500">#{r.id}</td>
-                    <td className="p-2"><span className="font-mono font-bold">{r.courseCode ?? '—'}</span><span className="block text-[10px] text-slate-600 truncate max-w-[180px]">{r.courseTitle ?? `ارائهٔ ${r.offeringId}`}</span></td>
+                    <td className="p-2"><span className="font-mono font-bold">{r.courseCode ?? '—'}</span><span className="block text-3xs text-slate-600 truncate max-w-[180px]">{r.courseTitle ?? `ارائهٔ ${r.offeringId}`}</span></td>
                     <td className="p-2 font-mono">{r.termCode ?? '—'}</td>
                     <td className="p-2 font-bold">{r.requesterFirstName || r.requesterLastName ? `${r.requesterFirstName ?? ''} ${r.requesterLastName ?? ''}`.trim() : '—'}</td>
                     <td className="p-2 max-w-xs truncate" title={r.reason}>{r.reason}</td>
                     <td className="p-2 font-mono" dir="ltr">{r.createdAt ? new Date(r.createdAt as unknown as string).toLocaleString('fa-IR') : '—'}</td>
-                    <td className="p-2">{r.status === 'PENDING' ? <span className="px-2 py-0.5 rounded bg-amber-200 text-amber-900 font-bold text-[10px]">مرحلهٔ ۱ ⏳</span> : <span className="px-2 py-0.5 rounded bg-indigo-200 text-indigo-900 font-bold text-[10px]">در انتظار معاون آموزشی</span>}</td>
+                    <td className="p-2">{r.status === 'PENDING' ? <span className="px-2 py-0.5 rounded bg-amber-200 text-amber-900 font-bold text-3xs">مرحلهٔ ۱ ⏳</span> : <span className="px-2 py-0.5 rounded bg-indigo-200 text-indigo-900 font-bold text-3xs">در انتظار معاون آموزشی</span>}</td>
                     <td className="p-2"><UnfinalizeReviewClient requestId={r.id} currentStage={r.status as 'PENDING' | 'REVIEWED'} canFinalApprove={canFinalApprove} /></td>
                   </tr>
                 ))}
@@ -145,7 +145,7 @@ export default async function GradeAuditPage({ searchParams }: { searchParams: P
         {q && <Link href="/admin/grades/audit" className="px-3 py-1.5 bg-slate-100 border border-slate-300 text-xs rounded">پاک‌سازی</Link>}
       </form>
       <div className="border border-slate-300 rounded-lg overflow-x-auto bg-white">
-        <table className="w-full text-right text-[11px] rt">
+        <table className="w-full text-right text-2xs rt">
           <thead className="bg-slate-100 border-b border-slate-300 font-bold">
             <tr>
               <th className="p-2">#</th>
@@ -167,11 +167,11 @@ export default async function GradeAuditPage({ searchParams }: { searchParams: P
                 <td className="p-2 font-mono text-slate-500">{offset + i + 1}</td>
                 <td className="p-2 font-mono" dir="ltr">{r.createdAt ? new Date(r.createdAt as unknown as string).toLocaleString('fa-IR') : '—'}</td>
                 <td className="p-2 font-mono">{r.studentCode ?? `#${r.studentId}`}</td>
-                <td className="p-2"><span className="font-mono font-bold">{r.courseCode ?? '—'}</span><span className="block text-[10px] text-slate-600 truncate max-w-[180px]">{r.courseTitle ?? '—'}</span></td>
+                <td className="p-2"><span className="font-mono font-bold">{r.courseCode ?? '—'}</span><span className="block text-3xs text-slate-600 truncate max-w-[180px]">{r.courseTitle ?? '—'}</span></td>
                 <td className="p-2 font-mono">{r.termCode ?? '—'}</td>
-                <td className="p-2"><span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-slate-200">{r.action}</span></td>
+                <td className="p-2"><span className="px-2 py-0.5 rounded font-mono text-3xs font-bold bg-slate-200">{r.action}</span></td>
                 <td className="p-2 text-center font-mono"><span className="text-slate-500">{r.oldGradeValue ?? '—'}</span> <span className="text-slate-400">←</span> <span className="text-indigo-700 font-bold">{r.newGradeValue ?? '—'}</span></td>
-                <td className="p-2"><span className="font-bold">{r.actorFirstName || r.actorLastName ? `${r.actorFirstName ?? ''} ${r.actorLastName ?? ''}`.trim() : `#${r.actorUserId ?? '—'}`}</span><span className="block text-[10px] text-slate-500 font-mono">[{r.actorRole ?? '—'}]</span></td>
+                <td className="p-2"><span className="font-bold">{r.actorFirstName || r.actorLastName ? `${r.actorFirstName ?? ''} ${r.actorLastName ?? ''}`.trim() : `#${r.actorUserId ?? '—'}`}</span><span className="block text-3xs text-slate-500 font-mono">[{r.actorRole ?? '—'}]</span></td>
                 <td className="p-2 max-w-xs truncate" title={r.reason ?? undefined}>{r.reason ?? '—'}</td>
               </tr>
             ))}

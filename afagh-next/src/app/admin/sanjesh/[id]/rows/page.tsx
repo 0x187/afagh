@@ -91,7 +91,7 @@ export default async function SanjeshRowsPage({
       <header className="mb-3 flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="text-base font-bold text-slate-800">لیست سنجش — {file.title}</h1>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-2xs text-slate-500">
             همهٔ ستون‌های خام هر ردیف در دیتابیس ذخیره شده است؛ برای دیدن جزئیات روی «مشاهده» بزنید.
           </p>
         </div>
@@ -154,7 +154,7 @@ export default async function SanjeshRowsPage({
                   <td className="p-2 text-slate-700">{r.fullName ?? '—'}</td>
                   <td className="p-2 tabular-nums text-slate-600" dir="ltr">
                     {r.nationalCode ?? '—'}
-                    {!r.nationalCodeValid && r.nationalCode && <span className="ms-1 text-[10px] text-red-600">(نامعتبر)</span>}
+                    {!r.nationalCodeValid && r.nationalCode && <span className="ms-1 text-3xs text-red-600">(نامعتبر)</span>}
                   </td>
                   <td className="p-2 tabular-nums text-slate-600" dir="ltr">
                     {r.applicantNo ?? '—'}
@@ -166,18 +166,18 @@ export default async function SanjeshRowsPage({
                     <span className={`badge ${STATUS_BADGE[r.matchStatus] ?? 'bg-slate-100 text-slate-600'}`}>
                       {STATUS_LABEL[r.matchStatus] ?? r.matchStatus}
                     </span>
-                    {r.matchNote && <div className="mt-0.5 text-[10px] text-slate-400">{r.matchNote}</div>}
+                    {r.matchNote && <div className="mt-0.5 text-3xs text-slate-400">{r.matchNote}</div>}
                   </td>
                   <td className="p-2">
                     <div className="flex items-center gap-2">
-                      <Link href={`/admin/sanjesh/${fileId}/rows/${r.id}`} className="text-[11px] text-teal-700 hover:underline">
+                      <Link href={`/admin/sanjesh/${fileId}/rows/${r.id}`} className="text-2xs text-teal-700 hover:underline">
                         مشاهده
                       </Link>
                       <form action={setRowStatusAction}>
                         <input type="hidden" name="fileId" value={fileId} />
                         <input type="hidden" name="rowId" value={r.id} />
                         <input type="hidden" name="status" value={r.matchStatus === 'IGNORED' ? 'PENDING' : 'IGNORED'} />
-                        <button className="text-[11px] text-slate-500 hover:underline">
+                        <button className="text-2xs text-slate-500 hover:underline">
                           {r.matchStatus === 'IGNORED' ? 'بازگردانی' : 'نادیده'}
                         </button>
                       </form>

@@ -61,7 +61,7 @@ export default function ProfessorNav() {
                 }`}
               >
                 <span className="text-lg leading-none">{n.icon}</span>
-                <span className="text-[11px] leading-tight text-center">{t.label}</span>
+                <span className="text-2xs leading-tight text-center">{t.label}</span>
               </Link>
             );
           })}
@@ -72,7 +72,7 @@ export default function ProfessorNav() {
             className="flex flex-1 flex-col items-center gap-0.5 rounded-xl px-1 py-1.5 text-slate-500 active:bg-slate-100 active:scale-95 transition"
           >
             <span className="text-lg leading-none">☰</span>
-            <span className="text-[11px] leading-tight">منو</span>
+            <span className="text-2xs leading-tight">منو</span>
           </button>
         </div>
       </nav>
@@ -120,7 +120,7 @@ export default function ProfessorNav() {
                   <span>📖</span>
                   <span>راهنمای استاد</span>
                 </div>
-                <span className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded">راهنما</span>
+                <span className="text-3xs bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded">راهنما</span>
               </Link>
             </div>
           </aside>

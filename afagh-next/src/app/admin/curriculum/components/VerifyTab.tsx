@@ -34,12 +34,12 @@ export default function VerifyTab() {
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h3 className="font-extrabold text-slate-900 text-base">📄 {selectedVersion.title}</h3>
-              <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${(STATUS_UI[selectedVersion.status] ?? { cls: 'bg-slate-200 text-slate-800' }).cls}`}>
+              <span className={`px-2.5 py-0.5 rounded-full text-3xs font-black ${(STATUS_UI[selectedVersion.status] ?? { cls: 'bg-slate-200 text-slate-800' }).cls}`}>
                 {(STATUS_UI[selectedVersion.status] ?? { label: selectedVersion.status }).label}
               </span>
-              {isDraft && <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800">✏️ قابل ویرایش</span>}
+              {isDraft && <span className="px-2 py-0.5 rounded-full text-3xs font-black bg-emerald-100 text-emerald-800">✏️ قابل ویرایش</span>}
             </div>
-            <p className="text-[11px] text-slate-500 mt-1">
+            <p className="text-2xs text-slate-500 mt-1">
               کد {selectedVersion.versionCode} · ورودی {faNum(selectedVersion.entryYearFrom)}{selectedVersion.entryYearTo ? ` تا ${faNum(selectedVersion.entryYearTo)}` : ' به بعد'}
               {' '}· واحد الزامی {faNum(selectedVersion.totalRequiredUnits)}
               {' '}· سقف ترم {isDraft ? (
@@ -51,46 +51,46 @@ export default function VerifyTab() {
                     onBlur={e => { const v = Number(e.target.value); if (v && v !== detail?.version.maxUnitsPerTerm) handleUpdateMaxUnits(v); }}
                     className="w-16 border border-slate-300 rounded px-1.5 py-0.5 font-bold text-center"
                   />
-                  <span className="text-[10px] text-slate-400">واحد (Enter/Blur برای ذخیره)</span>
+                  <span className="text-3xs text-slate-400">واحد (Enter/Blur برای ذخیره)</span>
                 </span>
               ) : `${faNum(detail?.version.maxUnitsPerTerm ?? '—')} واحد`}
             </p>
           </div>
           <div className="flex flex-wrap items-center gap-1.5">
-            <button onClick={handleValidate} disabled={busy} className="px-3 py-2 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-extrabold text-[11px] disabled:opacity-50">
+            <button onClick={handleValidate} disabled={busy} className="px-3 py-2 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-extrabold text-2xs disabled:opacity-50">
               🔍 اعتبارسنجی کامل
             </button>
             {selectedVersion.status === 'DRAFT' && (
               <button
                 onClick={() => handleSubmit('')}
                 disabled={busy}
-                className="px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-[11px] disabled:opacity-50"
+                className="px-3 py-2 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-2xs disabled:opacity-50"
               >
                 📤 ارجاع به بازبینی (REVIEW)
               </button>
             )}
             {selectedVersion.status === 'REVIEW' && (
               <>
-                <button onClick={() => handleApprove('')} disabled={busy} className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] disabled:opacity-50">
+                <button onClick={() => handleApprove('')} disabled={busy} className="px-3 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-2xs disabled:opacity-50">
                   ✓ تأیید (APPROVED)
                 </button>
-                <button onClick={() => setModal('REJECT')} disabled={busy} className="px-3 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-[11px] disabled:opacity-50">
+                <button onClick={() => setModal('REJECT')} disabled={busy} className="px-3 py-2 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-2xs disabled:opacity-50">
                   ✕ رد و بازگشت به پیش‌نویس
                 </button>
               </>
             )}
             {selectedVersion.status === 'APPROVED' && (
-              <button onClick={handlePublish} disabled={busy} className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-[11px] disabled:opacity-50">
+              <button onClick={handlePublish} disabled={busy} className="px-3 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-2xs disabled:opacity-50">
                 🚀 انتشار (PUBLISHED)
               </button>
             )}
             {selectedVersion.status === 'PUBLISHED' && (
-              <button onClick={handleArchive} disabled={busy} className="px-3 py-2 rounded-lg bg-slate-600 hover:bg-slate-700 text-white font-extrabold text-[11px] disabled:opacity-50">
+              <button onClick={handleArchive} disabled={busy} className="px-3 py-2 rounded-lg bg-slate-600 hover:bg-slate-700 text-white font-extrabold text-2xs disabled:opacity-50">
                 🗃️ بایگانی (ARCHIVED)
               </button>
             )}
             {(selectedVersion.status === 'APPROVED' || selectedVersion.status === 'PUBLISHED' || selectedVersion.status === 'ARCHIVED') && (
-              <button onClick={handleCreateRevision} disabled={busy} className="px-3 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-[11px] disabled:opacity-50">
+              <button onClick={handleCreateRevision} disabled={busy} className="px-3 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-2xs disabled:opacity-50">
                 🔁 ایجاد نسخهٔ جدید (R+1)
               </button>
             )}
@@ -124,7 +124,7 @@ export default function VerifyTab() {
                   <span className="font-black text-slate-900">
                     {c.severity === 'ERROR' ? '⛔' : '⚠️'} {c.check}
                   </span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black shrink-0 ${
+                  <span className={`px-2 py-0.5 rounded-full text-3xs font-black shrink-0 ${
                     c.severity === 'ERROR' ? 'bg-rose-200 text-rose-900' : 'bg-amber-200 text-amber-900'
                   }`}>
                     {c.severity === 'ERROR' ? 'مانع تأیید' : 'هشدار'}
@@ -132,7 +132,7 @@ export default function VerifyTab() {
                 </div>
                 <p className="text-slate-700 leading-relaxed font-bold">{c.message}</p>
                 {c.affected.length > 0 && (
-                  <p className="text-[10px] text-slate-500 font-mono">{c.affected.map(a => faNum(a)).join('، ')}</p>
+                  <p className="text-3xs text-slate-500 font-mono">{c.affected.map(a => faNum(a)).join('، ')}</p>
                 )}
               </div>
             ))}

@@ -62,7 +62,7 @@ export default function UniversitiesClient({ universities, connections }: { univ
                   <td className="px-2 py-2">{u.title}</td>
                   <td className="px-2 py-2"><LogoCell uni={u} onMsg={setMsg} /></td>
                   <td className="px-2 py-2">{u.kind === 'OWN' ? 'خودمان' : 'منحل‌شده'}</td>
-                  <td className="px-2 py-2 font-mono text-[11px]">{u.saminCode || '—'}</td>
+                  <td className="px-2 py-2 font-mono text-2xs">{u.saminCode || '—'}</td>
                   <td className="px-2 py-2">
                     {c ? (
                       <span className={c.hasSecret ? 'text-emerald-600' : 'text-amber-600'}>
@@ -121,18 +121,18 @@ function BrandEditor({ uni, onClose, onMsg }: { uni: Uni; onClose: () => void; o
         <h3 className="font-bold text-sm">برندینگ {uni.title} ({uni.code})</h3>
         <button onClick={onClose} className="border px-2 py-0.5 rounded text-xs">×</button>
       </div>
-      <p className="text-[11px] leading-5 text-slate-500">
+      <p className="text-2xs leading-5 text-slate-500">
         تم‌های دانشگاه از پیش‌فرضِ سخت‌کد شروع می‌شوند. برای تغییر، یک تم را انتخاب کنید یا مقادیر کلاس‌های Tailwind را مستقیماً ویرایش کنید.
         مقدار خالی → استفاده از پیش‌فرض.
       </p>
       <div className="flex flex-wrap gap-2">
         {Object.entries(UNI_THEMES).map(([code, th]) => (
-          <button key={code} type="button" onClick={() => setDraft(th)} className={`text-[11px] px-2 py-1 rounded border ${th.badge}`}>{code}</button>
+          <button key={code} type="button" onClick={() => setDraft(th)} className={`text-2xs px-2 py-1 rounded border ${th.badge}`}>{code}</button>
         ))}
       </div>
       <div className={`rounded-xl p-3 ${draft.header}`}>
         <p className="text-white text-xs">پیش‌نمایش هدر (header)</p>
-        <p className={`mt-1 text-[11px] ${draft.soft}`}>متن نرم (soft)</p>
+        <p className={`mt-1 text-2xs ${draft.soft}`}>متن نرم (soft)</p>
       </div>
       <form action={async (fd) => {
         fd.set('universityId', String(uni.id));
@@ -143,7 +143,7 @@ function BrandEditor({ uni, onClose, onMsg }: { uni: Uni; onClose: () => void; o
         {BRAND_FIELDS.map(f => (
           <label key={f.key} className="flex items-center gap-2">
             <span className="w-44 shrink-0 text-slate-600">{f.label}</span>
-            <input value={draft[f.key]} onChange={e => setDraft(d => ({ ...d, [f.key]: e.target.value }))} className="border rounded px-2 py-1 flex-1 font-mono text-[11px]" />
+            <input value={draft[f.key]} onChange={e => setDraft(d => ({ ...d, [f.key]: e.target.value }))} className="border rounded px-2 py-1 flex-1 font-mono text-2xs" />
           </label>
         ))}
         <div className="flex gap-2">
@@ -171,13 +171,13 @@ function LogoCell({ uni, onMsg }: { uni: Uni; onMsg: (s: string) => void }) {
     <span className="flex flex-wrap gap-1 items-center">
       <form action={async (fd) => { try { await uploadUniversityLogoAction(fd); onMsg(`ارم ${uni.code} ذخیره شد`); setOpen(false); } catch (e: any) { onMsg(e.message); } }} className="flex gap-1 items-center">
         <input type="hidden" name="universityId" value={uni.id} />
-        <input type="file" name="logo" accept="image/png,image/jpeg,image/webp" className="text-[11px] max-w-40" required />
-        <button type="submit" className="bg-indigo-600 text-white px-2 py-0.5 rounded text-[11px]">ذخیره</button>
+        <input type="file" name="logo" accept="image/png,image/jpeg,image/webp" className="text-2xs max-w-40" required />
+        <button type="submit" className="bg-indigo-600 text-white px-2 py-0.5 rounded text-2xs">ذخیره</button>
       </form>
       {uni.logoUrl && (
-        <button onClick={async () => { try { await deleteUniversityLogoAction(uni.id); onMsg(`ارم ${uni.code} حذف شد (بازگشت به ارم سراسری)`); } catch (e: any) { onMsg(e.message); } }} className="text-red-600 hover:underline text-[11px]">حذف</button>
+        <button onClick={async () => { try { await deleteUniversityLogoAction(uni.id); onMsg(`ارم ${uni.code} حذف شد (بازگشت به ارم سراسری)`); } catch (e: any) { onMsg(e.message); } }} className="text-red-600 hover:underline text-2xs">حذف</button>
       )}
-      <button type="button" onClick={() => setOpen(false)} className="border px-2 py-0.5 rounded text-[11px]">×</button>
+      <button type="button" onClick={() => setOpen(false)} className="border px-2 py-0.5 rounded text-2xs">×</button>
     </span>
   );
 }
@@ -192,8 +192,8 @@ function ConnButton({ uni, conn, onMsg }: { uni: Uni; conn: Conn | undefined; on
       <input name="clientSecret" placeholder="client_secret (خالی=بدون تغییر)" type="password" className="border rounded px-1 py-0.5 w-24" />
       <input name="username" placeholder="username" defaultValue={conn?.username || ''} className="border rounded px-1 py-0.5 w-20" />
       <input name="password" placeholder="password (خالی=بدون تغییر)" type="password" className="border rounded px-1 py-0.5 w-24" />
-      <button type="submit" className="bg-emerald-600 text-white px-2 py-0.5 rounded text-[11px]">ذخیره</button>
-      <button type="button" onClick={() => setOpen(false)} className="border px-2 py-0.5 rounded text-[11px]">×</button>
+      <button type="submit" className="bg-emerald-600 text-white px-2 py-0.5 rounded text-2xs">ذخیره</button>
+      <button type="button" onClick={() => setOpen(false)} className="border px-2 py-0.5 rounded text-2xs">×</button>
     </form>
   );
 }

@@ -57,11 +57,11 @@ export default function PlanningHeader() {
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-400 text-slate-950">
+                <span className="px-2.5 py-0.5 rounded-full text-2xs font-bold bg-amber-400 text-slate-950">
                   {isDeptScope ? 'کارتابل برنامه‌ریزی دپارتمان' : 'سامانه جامع چیدمان متمرکز دانشگاهی'}
                 </span>
                 <span className="text-xs text-indigo-200">{currentTerm?.title ?? 'نیمسال تعریف‌نشده'}</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-700/60 text-indigo-100 font-bold mr-2">
+                <span className="text-3xs px-2 py-0.5 rounded-full bg-indigo-700/60 text-indigo-100 font-bold mr-2">
                   فاز: {PHASE_LABELS[currentPhase] ?? currentPhase}{isLoadingWorkspace ? ' — در حال بارگذاری…' : ''}
                 </span>
               </div>
@@ -69,7 +69,7 @@ export default function PlanningHeader() {
                 🗓️ {isDeptScope ? 'برنامه‌ریزی درسی هوشمند دپارتمان' : 'کارتابل یکپارچه برنامه‌ریزی درسی و چیدمان متمرکز مدیر گروه'}
               </h1>
               {isDeptScope && (
-                <p className="mt-1 text-[11px] sm:text-xs text-indigo-200 font-bold">
+                <p className="mt-1 text-2xs sm:text-xs text-indigo-200 font-bold">
                   داده‌ها فقط دپارتمان‌های تحت مدیریت شما را نشان می‌دهد — گذار فاز و تولید جلسات ترم در اختیار مدیر آموزش است.
                 </p>
               )}
@@ -149,12 +149,12 @@ export default function PlanningHeader() {
                 ))}
               </select>
               {cohortOrdinal != null && (
-                <p className="mt-1 text-[10px] font-black text-amber-300">
+                <p className="mt-1 text-3xs font-black text-amber-300">
                   این ورودی الان در ترم {faNum(cohortOrdinal)} است — چارت به همان ترم محدود شد
                 </p>
               )}
               {cohortOrdinal == null && selectedCohortId !== 'ALL' && effectiveSemester !== 'ALL' && (
-                <p className="mt-1 text-[10px] font-bold text-indigo-200">
+                <p className="mt-1 text-3xs font-bold text-indigo-200">
                   نمایش ترم {faNum(effectiveSemester === 'NONE' ? 0 : Number(effectiveSemester))} چارت
                 </p>
               )}
@@ -175,7 +175,7 @@ export default function PlanningHeader() {
                 <option value="MORNING" className="bg-slate-900 text-white">☀️ شیفت صبح (دانشجویان تمام‌وقت)</option>
                 <option value="FLEXIBLE" className="bg-slate-900 text-white">⚡ شناور و متوازن</option>
               </select>
-              <p className="mt-1 text-[10px] font-bold text-amber-200/80">
+              <p className="mt-1 text-3xs font-bold text-amber-200/80">
                 {faNum(SHIFT_MODELS.length)} مدل چیدمان — همین تعداد در گام ۴
               </p>
             </div>
@@ -185,7 +185,7 @@ export default function PlanningHeader() {
               <div className="grid grid-cols-3 gap-1 bg-slate-900/90 p-1 rounded-lg border border-indigo-400/50">
                 <button
                   onClick={() => setSelectedWeekFilter('ALL_VIEW')}
-                  className={`py-1 rounded font-bold text-[10px] transition ${
+                  className={`py-1 rounded font-bold text-3xs transition ${
                     selectedWeekFilter === 'ALL_VIEW' ? 'bg-indigo-600 text-white' : 'text-slate-300 hover:text-white'
                   }`}
                 >
@@ -193,7 +193,7 @@ export default function PlanningHeader() {
                 </button>
                 <button
                   onClick={() => setSelectedWeekFilter('EVEN')}
-                  className={`py-1 rounded font-bold text-[10px] transition ${
+                  className={`py-1 rounded font-bold text-3xs transition ${
                     selectedWeekFilter === 'EVEN' ? 'bg-cyan-600 text-white' : 'text-cyan-300 hover:text-white'
                   }`}
                 >
@@ -201,7 +201,7 @@ export default function PlanningHeader() {
                 </button>
                 <button
                   onClick={() => setSelectedWeekFilter('ODD')}
-                  className={`py-1 rounded font-bold text-[10px] transition ${
+                  className={`py-1 rounded font-bold text-3xs transition ${
                     selectedWeekFilter === 'ODD' ? 'bg-amber-600 text-white' : 'text-amber-300 hover:text-white'
                   }`}
                 >

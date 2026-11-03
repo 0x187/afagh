@@ -196,7 +196,7 @@ export default function GroupTransferClient({ terms }: { terms: { id: number; ti
                   <button key={c.courseId} type="button" onClick={() => onPickCourse(c)}
                     className="w-full text-right px-3 py-2 text-xs hover:bg-indigo-50">
                     <span className="font-black text-slate-800">{c.code} {c.title}</span>
-                    <span className="text-slate-400 text-[10px]"> · {c.units ?? ''} واحد · {c.offerings.length} گروه · {c.departmentName}</span>
+                    <span className="text-slate-400 text-3xs"> · {c.units ?? ''} واحد · {c.offerings.length} گروه · {c.departmentName}</span>
                   </button>
                 ))}
               </div>
@@ -220,7 +220,7 @@ export default function GroupTransferClient({ terms }: { terms: { id: number; ti
             </select>
           </label>
         </div>
-        {q && !filteredCourses.length && <p className="text-[11px] text-slate-400">درسی با این کد/عنوان در این ترم (در محدودهٔ دسترسی شما) پیدا نشد.</p>}
+        {q && !filteredCourses.length && <p className="text-2xs text-slate-400">درسی با این کد/عنوان در این ترم (در محدودهٔ دسترسی شما) پیدا نشد.</p>}
       </div>
 
       {/* ── دو پنجره: فهرست مبدأ (چپ) | مقصد + انتقال (راست) ── */}
@@ -232,7 +232,7 @@ export default function GroupTransferClient({ terms }: { terms: { id: number; ti
               👥 دانشجویان گروه مبدأ {offer ? `· ${offer.courseCode} ${offer.courseTitle} (گ${offer.groupNumber})` : ''}
             </p>
             {offer && (
-              <span className="text-[10px] text-indigo-700 font-bold">
+              <span className="text-3xs text-indigo-700 font-bold">
                 ثبت‌شده {fa(offer.enrolledCount)}/{fa(offer.capacity)} · {offer.professorName}
               </span>
             )}
@@ -240,7 +240,7 @@ export default function GroupTransferClient({ terms }: { terms: { id: number; ti
 
           {roster.length > 0 && (
             <div className="p-2 border-b border-slate-100 flex items-center gap-2">
-              <label className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
+              <label className="flex items-center gap-1.5 text-2xs font-bold text-slate-600">
                 <input
                   type="checkbox"
                   className="w-4 h-4"
@@ -249,7 +249,7 @@ export default function GroupTransferClient({ terms }: { terms: { id: number; ti
                 />
                 انتخاب همهٔ قابل‌انتقال ({fa(roster.filter(canTransfer).length)})
               </label>
-              <span className="text-[10px] text-slate-400 mr-auto">فقط وضعیت «ثبت‌شده» قابل انتقال است.</span>
+              <span className="text-3xs text-slate-400 mr-auto">فقط وضعیت «ثبت‌شده» قابل انتقال است.</span>
             </div>
           )}
 
@@ -265,15 +265,15 @@ export default function GroupTransferClient({ terms }: { terms: { id: number; ti
                 />
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-black text-slate-800 truncate">{row.firstName} {row.lastName}</p>
-                  <p className="text-[10px] text-slate-400">{row.studentCode}</p>
+                  <p className="text-3xs text-slate-400">{row.studentCode}</p>
                 </div>
-                <span className={'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black ' + (STATUS_CHIP[row.status] ?? 'bg-slate-200 text-slate-600')}>
+                <span className={'shrink-0 rounded-full px-2 py-0.5 text-3xs font-black ' + (STATUS_CHIP[row.status] ?? 'bg-slate-200 text-slate-600')}>
                   {STATUS_LABEL[row.status] ?? row.status}
                 </span>
                 <button
                   disabled={!canTransfer(row) || busy || !toOfferingId}
                   onClick={() => doOne(row.enrollmentId)}
-                  className="shrink-0 rounded-lg bg-cyan-700 px-2.5 py-1 text-[11px] font-black text-white disabled:opacity-40 hover:bg-cyan-800"
+                  className="shrink-0 rounded-lg bg-cyan-700 px-2.5 py-1 text-2xs font-black text-white disabled:opacity-40 hover:bg-cyan-800"
                 >
                   🔀 انتقال
                 </button>
@@ -317,9 +317,9 @@ export default function GroupTransferClient({ terms }: { terms: { id: number; ti
               </div>
             </div>
           )}
-          {!target && targets.length > 0 && <p className="text-[11px] text-slate-400">هیچ گروه دیگری برای این درس انتخاب نشده است.</p>}
+          {!target && targets.length > 0 && <p className="text-2xs text-slate-400">هیچ گروه دیگری برای این درس انتخاب نشده است.</p>}
           {targets.length === 0 && srcOfferingId && !busy && (
-            <p className="text-[11px] text-slate-400">درس دیگری از این درس در ترم ارائه نشده است (گروه مقصدی برای انتقال نیست).</p>
+            <p className="text-2xs text-slate-400">درس دیگری از این درس در ترم ارائه نشده است (گروه مقصدی برای انتقال نیست).</p>
           )}
 
           <button
@@ -329,7 +329,7 @@ export default function GroupTransferClient({ terms }: { terms: { id: number; ti
           >
             {busy ? '…در حال انتقال' : `🔀 انتقال ${fa(selected.length)} دانشجوی انتخاب‌شده`}
           </button>
-          <p className="text-[10px] text-slate-400 leading-5">
+          <p className="text-3xs text-slate-400 leading-5">
             انتقال، همان ردیف ثبت‌نام را از گروه مبدأ به گروه مقصد می‌برد (offeringId عوض می‌شود)؛
             همهٔ گیت‌ها پیش از انتقال دوباره اجرا می‌شوند. برای تخطی از گیت سخت، «انتقال با دلیل» (دلیل ≥۵ نویسه) در پایین.
           </p>
@@ -347,16 +347,16 @@ export default function GroupTransferClient({ terms }: { terms: { id: number; ti
                 <div key={res.enrollmentId} className={'p-3 space-y-2 ' + (res.ok ? 'bg-emerald-50/50' : 'bg-rose-50/50')}>
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-black text-xs text-slate-800">{res.name}</span>
-                    <span className="text-[10px] text-slate-400">{res.code}</span>
+                    <span className="text-3xs text-slate-400">{res.code}</span>
                     {res.ok
-                      ? <span className="rounded-full bg-emerald-200 text-emerald-900 px-2 py-0.5 text-[10px] font-black">✅ منتقل شد</span>
-                      : <span className="rounded-full bg-rose-200 text-rose-900 px-2 py-0.5 text-[10px] font-black">⛔ انتقال نشد</span>}
+                      ? <span className="rounded-full bg-emerald-200 text-emerald-900 px-2 py-0.5 text-3xs font-black">✅ منتقل شد</span>
+                      : <span className="rounded-full bg-rose-200 text-rose-900 px-2 py-0.5 text-3xs font-black">⛔ انتقال نشد</span>}
                   </div>
 
                   {res.ok && res.warnings.length > 0 && (
                     <ul className="space-y-1">
                       {res.warnings.map((w, i) => (
-                        <li key={i} className="text-[11px] font-bold text-amber-800">⚠️ {w}</li>
+                        <li key={i} className="text-2xs font-bold text-amber-800">⚠️ {w}</li>
                       ))}
                     </ul>
                   )}
@@ -366,15 +366,15 @@ export default function GroupTransferClient({ terms }: { terms: { id: number; ti
                       {res.blocks.length > 0 ? (
                         <ul className="space-y-1">
                           {res.blocks.map((b, i) => (
-                            <li key={i} className="text-[11px] font-bold text-rose-800">❌ {b}</li>
+                            <li key={i} className="text-2xs font-bold text-rose-800">❌ {b}</li>
                           ))}
                         </ul>
                       ) : res.error ? (
-                        <p className="text-[11px] font-bold text-rose-800">❌ {res.error}</p>
+                        <p className="text-2xs font-bold text-rose-800">❌ {res.error}</p>
                       ) : null}
                       {res.blocks.length > 0 && (
                         <div className="rounded-xl border border-rose-200 bg-white p-2 space-y-2">
-                          <p className="text-[10px] font-black text-rose-800">🔓 انتقال با دلیل (نادیده‌گرفتن آیین‌نامه):</p>
+                          <p className="text-3xs font-black text-rose-800">🔓 انتقال با دلیل (نادیده‌گرفتن آیین‌نامه):</p>
                           <textarea
                             value={reason}
                             onChange={e => setReasonBy(p => ({ ...p, [res.enrollmentId]: e.target.value }))}

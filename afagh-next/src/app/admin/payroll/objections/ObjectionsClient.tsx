@@ -127,7 +127,7 @@ export default function ObjectionsClient(props: {
                   <td className="p-2 text-xs text-slate-500 whitespace-nowrap">{h.termTitle ?? '—'} · #{faNum(h.statementId)}</td>
                   <td className="p-2 text-xs max-w-64 truncate" title={h.text}>{h.text}</td>
                   <td className="p-2 text-center">
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${h.status === 'OPEN' ? 'bg-amber-100 text-amber-900' : h.status === 'RESOLVED' ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-200 text-slate-600'}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-3xs font-black ${h.status === 'OPEN' ? 'bg-amber-100 text-amber-900' : h.status === 'RESOLVED' ? 'bg-emerald-100 text-emerald-900' : 'bg-slate-200 text-slate-600'}`}>
                       {statusFa[h.status] ?? h.status}
                     </span>
                   </td>

@@ -18,6 +18,7 @@ import {
   DEMO_MAKEUP_FORM_DEFAULTS,
   demoMakeupSessionNo,
 } from '@/lib/demo-professor-data';
+import { notify } from '@/lib/ui-feedback';
 
 export interface StudentInfo {
   id: number;
@@ -594,22 +595,22 @@ export default function ProfessorAttendanceClient({
   // Professor Creates Make-up Session
   const handleCreateMakeupSession = async () => {
     if (!makeupForm.sessionDate.trim() || !makeupForm.sessionTime.trim()) {
-      alert('تاریخ و ساعت برگزاری جلسهٔ جبرانی را وارد کنید.');
+      notify('تاریخ و ساعت برگزاری جلسهٔ جبرانی را وارد کنید.', 'error');
       return;
     }
     if (!makeupForm.topic.trim()) {
-      alert('سرفصل جلسهٔ جبرانی را وارد کنید.');
+      notify('سرفصل جلسهٔ جبرانی را وارد کنید.', 'error');
       return;
     }
     if (makeupForm.sessionDate < todayJalali) {
-      alert(`خطا: تاریخ جلسه جبرانی نمی‌تواند قبل از تاریخ جاری سامانه (${todayJalali}) باشد.`);
+      notify(`خطا: تاریخ جلسه جبرانی نمی‌تواند قبل از تاریخ جاری سامانه (${todayJalali}) باشد.`, 'error');
       return;
     }
 
     const isDirect = selectedRoomOptionId !== 0;
     const selectedRoom = realRooms.find(r => r.id === selectedRoomOptionId);
     if (isDirect && !selectedRoom) {
-      alert('کلاس انتخابی معتبر نیست.');
+      notify('کلاس انتخابی معتبر نیست.', 'error');
       return;
     }
     const roomName = isDirect ? selectedRoom!.name : 'در انتظار تخصیص کلاس توسط آموزش';
@@ -676,7 +677,7 @@ export default function ProfessorAttendanceClient({
     const startTime = toAscii(sTimes[0] ?? '').match(/\d{1,2}:\d{2}/)?.[0]?.padStart(5, '0') ?? '';
     const endTime = toAscii(sTimes[1] ?? '').match(/\d{1,2}:\d{2}/)?.[0]?.padStart(5, '0') ?? '';
     if (!startTime || !endTime) {
-      alert('ساعت برگزاری را به شکل «HH:MM الی HH:MM» وارد کنید.');
+      notify('ساعت برگزاری را به شکل «HH:MM الی HH:MM» وارد کنید.', 'error');
       return;
     }
     setSavingMakeup(true);
@@ -850,7 +851,7 @@ export default function ProfessorAttendanceClient({
         <div className="rounded-2xl border border-slate-200 bg-white overflow-hidden">
           <div className="p-3 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between">
             <h3 className="text-sm font-black text-slate-900">📅 همهٔ جلسات کلاس‌های شما — به تفکیک درس</h3>
-            <span className="text-[11px] text-slate-500 font-bold">برای ورود به هر جلسه، روی ردیف کلیک کنید</span>
+            <span className="text-2xs text-slate-500 font-bold">برای ورود به هر جلسه، روی ردیف کلیک کنید</span>
           </div>
           <div className="max-h-[30rem] overflow-y-auto divide-y divide-slate-200">
             {offerings
@@ -868,17 +869,17 @@ export default function ProfessorAttendanceClient({
                       {o.merged ? (
                         <span
                           title={`این کلاس از ${faNum(o.memberCount ?? 2)} عرضه تشکیل شده؛ ثبت حضور روی همهٔ آن‌ها اعمال می‌شود.`}
-                          className="text-[10px] rounded-full px-2 py-0.5 font-black bg-violet-100 text-violet-800 border border-violet-200"
+                          className="text-3xs rounded-full px-2 py-0.5 font-black bg-violet-100 text-violet-800 border border-violet-200"
                         >
                           🔗 {faNum(o.memberCount ?? 2)} عرضه
                         </span>
                       ) : null}
-                      <span className="text-[10px] font-mono text-slate-500">({o.code})</span>
-                      <span className="text-[10px] rounded-full px-2 py-0.5 font-black bg-white text-slate-600 border border-slate-200">گروه {faNum(o.groupNumber)}</span>
-                      <span className="text-[10px] rounded-full px-2 py-0.5 font-black bg-white text-indigo-700 border border-indigo-200">
+                      <span className="text-3xs font-mono text-slate-500">({o.code})</span>
+                      <span className="text-3xs rounded-full px-2 py-0.5 font-black bg-white text-slate-600 border border-slate-200">گروه {faNum(o.groupNumber)}</span>
+                      <span className="text-3xs rounded-full px-2 py-0.5 font-black bg-white text-indigo-700 border border-indigo-200">
                         {faNum(rows.length)} جلسه
                       </span>
-                      <span className="text-[10px] text-slate-500 font-bold">{o.scheduleTime || ''}</span>
+                      <span className="text-3xs text-slate-500 font-bold">{o.scheduleTime || ''}</span>
                       <span className="mr-auto text-slate-500 font-black text-xs">{openCourses.has(o.id) ? '▾ بستن' : '▴ باز'}</span>
                     </button>
                     {openCourses.has(o.id) && (
@@ -907,13 +908,13 @@ export default function ProfessorAttendanceClient({
                               <td className="p-1.5 text-slate-600">{r.roomName || '—'}</td>
                               <td className="p-1.5 text-center">
                                 {r.isMakeUp
-                                  ? <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-200 text-amber-900">جبرانی</span>
+                                  ? <span className="px-2 py-0.5 rounded-full text-3xs font-black bg-amber-200 text-amber-900">جبرانی</span>
                                   : r.isHeld
-                                    ? <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-200 text-emerald-900">برگزار شده</span>
-                                    : <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-200 text-slate-600">//</span>}
+                                    ? <span className="px-2 py-0.5 rounded-full text-3xs font-black bg-emerald-200 text-emerald-900">برگزار شده</span>
+                                    : <span className="px-2 py-0.5 rounded-full text-3xs font-black bg-slate-200 text-slate-600">//</span>}
                               </td>
                               <td className="p-1.5 text-center">
-                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-700 text-white text-[10px] font-black hover:bg-indigo-800">ورود ←</span>
+                                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-indigo-700 text-white text-3xs font-black hover:bg-indigo-800">ورود ←</span>
                               </td>
                             </tr>
                           ))}
@@ -945,7 +946,7 @@ export default function ProfessorAttendanceClient({
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-400 text-slate-950">
+              <span className="px-2.5 py-0.5 rounded-full text-2xs font-bold bg-amber-400 text-slate-950">
                 سامانه هوشمند حضور و غیاب و اثر انگشت
               </span>
               <span className="text-xs text-indigo-200">
@@ -1042,25 +1043,25 @@ export default function ProfessorAttendanceClient({
                 <>
                   <div className="flex items-center gap-2">
                     <span className="font-extrabold text-white text-xs">{DEMO_BIOMETRIC_BANNER.title}</span>
-                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-500 text-white">
+                    <span className="px-2 py-0.5 rounded-full text-3xs font-black bg-emerald-500 text-white">
                       {DEMO_BIOMETRIC_BANNER.statusLabel}
                     </span>
                   </div>
-                  <p className="text-indigo-200 text-[11px] leading-4">{DEMO_BIOMETRIC_BANNER.detail}</p>
+                  <p className="text-indigo-200 text-2xs leading-4">{DEMO_BIOMETRIC_BANNER.detail}</p>
                 </>
               ) : (
                 <>
                   <div className="flex items-center gap-2">
                     <span className="font-extrabold text-white text-xs">تأیید حضور استاد در این جلسه:</span>
                     <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                      className={`px-2 py-0.5 rounded-full text-3xs font-black ${
                         currentSession.professorCheck ? 'bg-emerald-500 text-white' : 'bg-slate-600 text-slate-200'
                       }`}
                     >
                       {currentSession.professorCheck ? '✓ ثبت شده' : 'ثبت نشده'}
                     </span>
                   </div>
-                  <p className="text-indigo-200 text-[11px] leading-4">
+                  <p className="text-indigo-200 text-2xs leading-4">
                     {currentSession.professorCheck
                       ? `روش تأیید: ${currentSession.professorCheck.verificationMethod} · زمان ثبت: ${
                           currentSession.professorCheck.recordedAt ?? 'ثبت نشده'
@@ -1074,13 +1075,13 @@ export default function ProfessorAttendanceClient({
 
           {demo ? (
             <div className="flex items-center gap-2 shrink-0">
-              <span className="px-2.5 py-1 rounded-lg bg-white/10 text-emerald-300 font-mono text-[11px] border border-white/10">
+              <span className="px-2.5 py-1 rounded-lg bg-white/10 text-emerald-300 font-mono text-2xs border border-white/10">
                 {DEMO_BIOMETRIC_BANNER.ipLabel}
               </span>
             </div>
           ) : currentSession.professorCheck?.ipAddress ? (
             <div className="flex items-center gap-2 shrink-0">
-              <span className="px-2.5 py-1 rounded-lg bg-white/10 text-emerald-300 font-mono text-[11px] border border-white/10" dir="ltr">
+              <span className="px-2.5 py-1 rounded-lg bg-white/10 text-emerald-300 font-mono text-2xs border border-white/10" dir="ltr">
                 IP: {currentSession.professorCheck.ipAddress}
               </span>
             </div>
@@ -1323,10 +1324,10 @@ export default function ProfessorAttendanceClient({
                   <div className="flex flex-col items-center gap-1.5">
                     <span>وضعیت حضور در این جلسه</span>
                     <span className="flex items-center justify-center gap-1">
-                      <button type="button" title="ثبت «حاضر» برای همهٔ دانشجویان" onClick={() => markAll('PRESENT')} className="px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] font-bold transition">همه حاضر</button>
-                      <button type="button" title="ثبت «غایب» برای همهٔ دانشجویان" onClick={() => markAll('ABSENT')} className="px-2 py-0.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[10px] font-bold transition">همه غایب</button>
-                      <button type="button" title="ثبت «موجه» برای همهٔ دانشجویان" onClick={() => markAll('EXCUSED')} className="px-2 py-0.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-[10px] font-bold transition">همه موجه</button>
-                      <button type="button" title="ثبت «تأخیر» برای همهٔ دانشجویان" onClick={() => markAll('LATE')} className="px-2 py-0.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-[10px] font-bold transition">همه تأخیر</button>
+                      <button type="button" title="ثبت «حاضر» برای همهٔ دانشجویان" onClick={() => markAll('PRESENT')} className="px-2 py-0.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-3xs font-bold transition">همه حاضر</button>
+                      <button type="button" title="ثبت «غایب» برای همهٔ دانشجویان" onClick={() => markAll('ABSENT')} className="px-2 py-0.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-3xs font-bold transition">همه غایب</button>
+                      <button type="button" title="ثبت «موجه» برای همهٔ دانشجویان" onClick={() => markAll('EXCUSED')} className="px-2 py-0.5 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 text-3xs font-bold transition">همه موجه</button>
+                      <button type="button" title="ثبت «تأخیر» برای همهٔ دانشجویان" onClick={() => markAll('LATE')} className="px-2 py-0.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white text-3xs font-bold transition">همه تأخیر</button>
                     </span>
                   </div>
                 </th>
@@ -1354,7 +1355,7 @@ export default function ProfessorAttendanceClient({
                       <div className="flex items-center justify-between gap-2">
                         <span>{st.fullName}</span>
                         {is3AbsencesWarning && (
-                          <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-[10px] border border-rose-300">
+                          <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-3xs border border-rose-300">
                             ⚠️ ماده ۳/۱۶ (غیبت: {faNum(totalAbsentsWithCurrent)})
                           </span>
                         )}
@@ -1370,7 +1371,7 @@ export default function ProfessorAttendanceClient({
                         <button
                           type="button"
                           onClick={() => setStudentStatus(st.id, 'PRESENT')}
-                          className={`px-2.5 py-1.5 rounded-xl font-bold text-[11px] transition ${
+                          className={`px-2.5 py-1.5 rounded-xl font-bold text-2xs transition ${
                             recorded?.status === 'PRESENT'
                               ? 'bg-emerald-600 text-white shadow-xs'
                               : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -1381,7 +1382,7 @@ export default function ProfessorAttendanceClient({
                         <button
                           type="button"
                           onClick={() => setStudentStatus(st.id, 'ABSENT')}
-                          className={`px-2.5 py-1.5 rounded-xl font-bold text-[11px] transition ${
+                          className={`px-2.5 py-1.5 rounded-xl font-bold text-2xs transition ${
                             recorded?.status === 'ABSENT'
                               ? 'bg-rose-600 text-white shadow-xs'
                               : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -1392,7 +1393,7 @@ export default function ProfessorAttendanceClient({
                         <button
                           type="button"
                           onClick={() => setStudentStatus(st.id, 'EXCUSED')}
-                          className={`px-2.5 py-1.5 rounded-xl font-bold text-[11px] transition ${
+                          className={`px-2.5 py-1.5 rounded-xl font-bold text-2xs transition ${
                             recorded?.status === 'EXCUSED'
                               ? 'bg-amber-500 text-slate-950 shadow-xs'
                               : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -1403,7 +1404,7 @@ export default function ProfessorAttendanceClient({
                         <button
                           type="button"
                           onClick={() => setStudentStatus(st.id, 'LATE')}
-                          className={`px-2.5 py-1.5 rounded-xl font-bold text-[11px] transition ${
+                          className={`px-2.5 py-1.5 rounded-xl font-bold text-2xs transition ${
                             recorded?.status === 'LATE'
                               ? 'bg-sky-600 text-white shadow-xs'
                               : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
@@ -1422,7 +1423,7 @@ export default function ProfessorAttendanceClient({
                               onChange={e => setStudentLateMinutes(st.id, Number(e.target.value))}
                               className="w-12 border border-slate-300 rounded-lg p-1 text-center font-bold text-xs"
                             />
-                            <span className="text-[10px] text-slate-500">دقیقه</span>
+                            <span className="text-3xs text-slate-500">دقیقه</span>
                           </div>
                         )}
                       </div>
@@ -1476,7 +1477,7 @@ export default function ProfessorAttendanceClient({
                   <div className="flex items-center gap-2">
                     <span className="font-extrabold text-slate-900 text-sm">{req.courseTitle} (گروه {faNum(req.groupNumber)})</span>
                     <span className="text-xs text-slate-600 font-bold">مدرس: {req.professorName}</span>
-                    <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-900 font-bold text-[10px]">
+                    <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-900 font-bold text-3xs">
                       جبران جلسه {faNum(req.replacedSessionNo)}
                     </span>
                   </div>

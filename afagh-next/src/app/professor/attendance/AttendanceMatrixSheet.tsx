@@ -38,14 +38,14 @@ export default function AttendanceMatrixSheet({
             <td className="tr-doc-cell">
               {/* سربرگ سند */}
               <div className="border-b-2 border-slate-800 px-3 pb-2 pt-3 text-center">
-                <p className="text-[10px] font-bold text-slate-600">باسمه تعالی</p>
+                <p className="text-3xs font-bold text-slate-600">باسمه تعالی</p>
                 <h2 className="text-sm font-black text-slate-900">برگهٔ حضور و غیاب کل جلسات درس</h2>
-                <div className="mt-1 grid grid-cols-3 gap-1 text-[10px] font-bold text-slate-600">
+                <div className="mt-1 grid grid-cols-3 gap-1 text-3xs font-bold text-slate-600">
                   <span className="text-right">درس: {offering.code} — {offering.title}</span>
                   <span className="text-center">استاد: {professor.name}{professor.staffCode ? ` (${professor.staffCode})` : ''}</span>
                   <span className="text-left">نیمسال: {termTitle || '—'} · گروه {faNum(offering.groupNumber)}</span>
                 </div>
-                <p className="mt-0.5 text-[10px] text-slate-500">
+                <p className="mt-0.5 text-3xs text-slate-500">
                   محل و زمان: {offering.roomName || '—'} · {offering.scheduleTime || '—'} · تعداد جلسات: {faNum(sessions.length)} · تعداد دانشجو: {faNum(students.length)}
                 </p>
               </div>
@@ -58,7 +58,7 @@ export default function AttendanceMatrixSheet({
               {/* ماتریس دانشجو × جلسه */}
               <table className="tr-term-table w-full border-collapse text-center rt">
                 <thead>
-                  <tr className="bg-slate-100 text-[10px] text-slate-700">
+                  <tr className="bg-slate-100 text-3xs text-slate-700">
                     <th className="border border-slate-300 px-1 py-1">ردیف</th>
                     <th className="border border-slate-300 px-1 py-1">شمارهٔ دانشجویی</th>
                     <th className="border border-slate-300 px-1 py-1 text-right">نام و نام خانوادگی</th>
@@ -102,7 +102,7 @@ export default function AttendanceMatrixSheet({
                 </tbody>
               </table>
 
-              <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-2 text-[10px] text-slate-600">
+              <div className="flex flex-wrap items-center justify-between gap-2 px-1 pt-2 text-3xs text-slate-600">
                 <span>راهنما: <b>✓</b> حاضر · <b>✗</b> غایب · <b>م</b> غیبت موجه · <b>ت</b> تأخیر · <b>·</b> ثبت‌نشده</span>
                 <span>تاریخ چاپ: {faNum(todayJalali)}</span>
               </div>
@@ -112,7 +112,7 @@ export default function AttendanceMatrixSheet({
         <tfoot>
           <tr>
             <td className="tr-doc-cell tr-signatures">
-              <div className="grid grid-cols-3 gap-2 px-3 pb-3 pt-3 text-center text-[10px] text-slate-600">
+              <div className="grid grid-cols-3 gap-2 px-3 pb-3 pt-3 text-center text-3xs text-slate-600">
                 <div>
                   <p className="mb-6 font-medium">امضای استاد</p>
                   <div className="border-t border-slate-400 pt-1">نام و امضا</div>

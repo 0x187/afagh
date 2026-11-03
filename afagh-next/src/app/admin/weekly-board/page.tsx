@@ -94,7 +94,7 @@ function BoardHeader({ logoUrl, title, meta }: {
         {logoUrl && <img src={logoUrl} alt="ارم دانشگاه" className="h-8 w-8 shrink-0 object-contain" />}
         <h2 className="text-sm font-black text-slate-900 truncate shrink-0 max-w-[46%]">{title}</h2>
         <span className="text-slate-300 shrink-0">|</span>
-        <p className="text-[11px] font-bold text-slate-500 truncate">{meta}</p>
+        <p className="text-2xs font-bold text-slate-500 truncate">{meta}</p>
       </div>
     </>
   );
@@ -848,7 +848,7 @@ export default async function WeeklyBoardPage({ searchParams }: {
             <ProfessorCalendarGrid entries={boardEntries} placeMode="professor" showCode={showCode} printCount={printCount} />
           )}
           {boardSkipped > 0 && boardEntries.length > 0 && (
-            <p className="print:hidden text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+            <p className="print:hidden text-2xs font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
               ⏰ {faDigits(boardSkipped)} سانس بدون روز/ساعت معتبر در جدول نمایش داده نمی‌شود.
             </p>
           )}
@@ -890,7 +890,7 @@ export default async function WeeklyBoardPage({ searchParams }: {
             <ProfessorCalendarGrid entries={personEntries} />
           )}
           {personSkipped > 0 && personEntries.length > 0 && (
-            <p className="print:hidden text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+            <p className="print:hidden text-2xs font-bold text-amber-800 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
               ⏰ {faDigits(personSkipped)} سانس بدون روز/ساعت معتبر در جدول نمایش داده نمی‌شود.
             </p>
           )}

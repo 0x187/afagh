@@ -61,7 +61,7 @@ export default async function SanjeshMatchedPage({
       <header className="mb-3 flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="text-base font-bold text-slate-800">تطبیق داده شده — {file.title}</h1>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-2xs text-slate-500">
             ردیف‌های معتبر این فایل که آمادهٔ ورود به صف پذیرش‌اند. ردیف‌های «نامعتبر»، «تکراری» و «نادیده‌گرفته‌شده» منتقل
             نمی‌شوند. ستون «دانشجوی موجود» فقط نشان می‌دهد داوطلب از قبل در سامانه هست یا نه؛ مانع انتقال نیست.
           </p>
@@ -85,7 +85,7 @@ export default async function SanjeshMatchedPage({
         </form>
         <Link
           href="/admin/admissions"
-          className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-[11px] font-bold text-indigo-800 hover:bg-indigo-100"
+          className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-2xs font-bold text-indigo-800 hover:bg-indigo-100"
         >
           ادامه: صف پذیرش و نگاشت رشته ←
         </Link>
@@ -119,7 +119,7 @@ export default async function SanjeshMatchedPage({
                   <td className="p-2 tabular-nums text-slate-600" dir="ltr">
                     {r.nationalCode ?? '—'}
                   </td>
-                  <td className="p-2 text-[11px]">
+                  <td className="p-2 text-2xs">
                     {r.matchStatus === 'MATCHED' ? (
                       <span className="rounded bg-sky-100 px-1.5 py-0.5 font-medium text-sky-800">
                         بله · شناسه {r.studentId}
@@ -128,7 +128,7 @@ export default async function SanjeshMatchedPage({
                       <span className="text-slate-400">داوطلب جدید</span>
                     )}
                   </td>
-                  <td className="p-2 text-[10px] text-slate-400">
+                  <td className="p-2 text-3xs text-slate-400">
                     {r.matchedAt ? new Date(r.matchedAt).toLocaleString('fa-IR') : '—'}
                   </td>
                 </tr>
@@ -138,7 +138,7 @@ export default async function SanjeshMatchedPage({
         </table>
       </div>
       {readyRows.length === 300 && (
-        <p className="mt-2 text-[10px] text-slate-400">فقط ۳۰۰ ردیف اول نمایش داده شده است.</p>
+        <p className="mt-2 text-3xs text-slate-400">فقط ۳۰۰ ردیف اول نمایش داده شده است.</p>
       )}
     </div>
   );

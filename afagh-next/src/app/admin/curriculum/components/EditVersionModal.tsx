@@ -50,7 +50,7 @@ export default function EditVersionModal() {
               {entryOnly ? '🗓️ پنجرهٔ ورودی نسخه' : '✏️ ویرایش مشخصات نسخه (فقط پیش‌نویس)'}
             </h3>
             {entryOnly && (
-              <p className="text-[11px] font-bold text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-2 leading-relaxed">
+              <p className="text-2xs font-bold text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-2 leading-relaxed">
                 این نسخه «{(STATUS_UI[editingVersion?.status ?? ''] ?? { label: editingVersion?.status ?? '' }).label}» است؛
                 فقط «ورودی از/تا» قابل تغییر است. علتش این است که اگر «ورودی تا» نامشخص بماند و بعد چارت جدید بیاید،
                 دو نسخه روی یک ورودی منطبق می‌شوند و نیم‌سال‌ها تداخل می‌کنند. برای تغییر کد/عنوان/واحدها یا دروس،
@@ -100,7 +100,7 @@ export default function EditVersionModal() {
               {courses && courses.length > 0 && (
                 <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-200 divide-y divide-slate-100">
                   {courses.map(c => (
-                    <div key={c.courseId} className="flex items-center gap-2 px-2.5 py-1.5 text-[11px] font-bold hover:bg-slate-50">
+                    <div key={c.courseId} className="flex items-center gap-2 px-2.5 py-1.5 text-2xs font-bold hover:bg-slate-50">
                       <span className="font-mono text-indigo-900 shrink-0">{c.code}</span>
                       <span className="truncate flex-1">{c.title}</span>
                       <span className="text-slate-400 shrink-0">({faNum(c.units)} واحد)</span>
@@ -109,7 +109,7 @@ export default function EditVersionModal() {
                           onClick={() => handleRemoveCourse(c.courseId)}
                           disabled={busy}
                           title="برداشتن تخصیص این درس از نسخه"
-                          className="rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-800 px-2 py-0.5 font-extrabold text-[10px] disabled:opacity-50 shrink-0"
+                          className="rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-800 px-2 py-0.5 font-extrabold text-3xs disabled:opacity-50 shrink-0"
                         >
                           ❌ برداشتن
                         </button>
@@ -119,12 +119,12 @@ export default function EditVersionModal() {
                 </div>
               )}
               {courses && courses.length === 0 && (
-                <p className="text-[11px] text-slate-400 font-bold">هنوز درسی به این نسخه تخصیص نیافته است.</p>
+                <p className="text-2xs text-slate-400 font-bold">هنوز درسی به این نسخه تخصیص نیافته است.</p>
               )}
 
               {isDraft && (
                 <div className="space-y-2 rounded-xl bg-emerald-50/60 border border-emerald-100 p-2.5">
-                  <div className="font-extrabold text-emerald-900 text-[11px]">➕ افزودن درس از بانک</div>
+                  <div className="font-extrabold text-emerald-900 text-2xs">➕ افزودن درس از بانک</div>
                   <div className="grid grid-cols-2 gap-2">
                     <input
                       value={bankQuery}
@@ -143,7 +143,7 @@ export default function EditVersionModal() {
                       <button
                         type="button"
                         onClick={() => { setBank([]); }}
-                        className="px-3 rounded-lg bg-indigo-100 text-indigo-900 font-extrabold text-[10px] shrink-0"
+                        className="px-3 rounded-lg bg-indigo-100 text-indigo-900 font-extrabold text-3xs shrink-0"
                       >
                         {bankLoading ? '…' : 'به‌روزرسانی'}
                       </button>
@@ -151,7 +151,7 @@ export default function EditVersionModal() {
                   </div>
                   <div className="max-h-44 overflow-y-auto rounded-lg border border-slate-200 divide-y divide-slate-100 bg-white">
                     {bankVisible.map(b => (
-                      <div key={b.id} className="flex items-center gap-2 px-2.5 py-1.5 text-[11px] font-bold hover:bg-emerald-50">
+                      <div key={b.id} className="flex items-center gap-2 px-2.5 py-1.5 text-2xs font-bold hover:bg-emerald-50">
                         <input
                           type="checkbox"
                           className="accent-emerald-700 w-3.5 h-3.5 shrink-0"
@@ -174,14 +174,14 @@ export default function EditVersionModal() {
                         <select
                           value={roleForBank(b)}
                           onChange={e => setBankRoles(prev => ({ ...prev, [b.id]: e.target.value }))}
-                          className="border border-slate-300 rounded px-1 py-0.5 font-bold text-[10px] bg-white shrink-0"
+                          className="border border-slate-300 rounded px-1 py-0.5 font-bold text-3xs bg-white shrink-0"
                         >
                           {Object.entries(ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                         </select>
                       </div>
                     ))}
                     {bankFiltered.length > bankVisible.length && (
-                      <div className="px-2.5 py-1.5 text-[10px] text-slate-400 font-bold text-center">
+                      <div className="px-2.5 py-1.5 text-3xs text-slate-400 font-bold text-center">
                         … و {faNum(bankFiltered.length - bankVisible.length)} مورد دیگر — فیلتر را دقیق‌تر کنید
                       </div>
                     )}
@@ -199,7 +199,7 @@ export default function EditVersionModal() {
               )}
             </div>
 
-            <p className="text-[10px] text-slate-400 font-bold">
+            <p className="text-3xs text-slate-400 font-bold">
               سهم واحد هر نقش از تب «بررسی و خاتمه» تنظیم می‌شود؛ پس از ذخیره، اعتبارسنجی را دوباره اجرا کنید.
             </p>
             <div className="flex justify-end gap-2 pt-1">

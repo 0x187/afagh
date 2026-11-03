@@ -26,12 +26,12 @@ export default function RoleTargetsCard({ showHint = true }: { showHint?: boolea
     <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h4 className="font-extrabold text-slate-900 text-sm">🎯 سهم واحد هر نوع درس (مقرر این نسخه)</h4>
-        <span className="text-[10px] font-bold text-slate-400">
+        <span className="text-3xs font-bold text-slate-400">
           {Object.keys(roleTargets ?? {}).length} نوع تعیین‌شده
         </span>
       </div>
       {showHint && (
-        <p className="text-[11px] text-slate-500 font-bold leading-relaxed">
+        <p className="text-2xs text-slate-500 font-bold leading-relaxed">
           برای هر نوع درسی که این رشته دارد، یک ردیف باز کنید: اول نوع درس را انتخاب کنید، بعد تعداد واحد لازم را بنویسید.
           انواعی که اضافه نکنید «مقرر» محسوب نمی‌شوند؛ مثلاً رشته‌ای که درس عمومی یا جبرانی ندارد، لازم نیست ردیف آن را بسازد.
           جمع سهم‌ها معمولاً باید با «واحد الزامی» نسخه ({faNum(detail.version.totalRequiredUnits)} واحد) بخواند.

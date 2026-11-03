@@ -21,7 +21,7 @@ export default function DropButton({ enrollmentId }: { enrollmentId: number }) {
   return (
     <div className="text-left">
       <button className="text-xs text-red-600 underline" disabled={busy} onClick={drop}>{busy ? '…' : 'حذف'}</button>
-      {note && <p className="text-[10px] text-slate-500">{note}</p>}
+      {note && <p className="text-3xs text-slate-500">{note}</p>}
     </div>
   );
 }

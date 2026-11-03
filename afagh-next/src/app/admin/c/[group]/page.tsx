@@ -40,7 +40,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ group
           {g.group.icon} {g.group.title}
         </h1>
       </div>
-      <p className="text-[11px] sm:text-xs text-slate-500">{g.group.desc} — {g.modules.length} ماژول</p>
+      <p className="text-2xs sm:text-xs text-slate-500">{g.group.desc} — {g.modules.length} ماژول</p>
 
       {/* کاشی‌های ماژول — همان الگوی «آیکن + عنوان کوتاه» کارتابل استاد/دانشجو.
           پیش‌تر هر کاشی یک پاراگراف توضیح داشت؛ در موبایل با ۳ ستون، کاشی‌ها
@@ -56,7 +56,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ group
             <div className={`w-10 h-10 shrink-0 rounded-2xl ${m.iconBg} border flex items-center justify-center text-lg shadow-inner group-hover:scale-110 transition-transform`}>
               {m.icon}
             </div>
-            <h3 className="line-clamp-3 font-extrabold text-[11px] sm:text-xs leading-tight">
+            <h3 className="line-clamp-3 font-extrabold text-2xs sm:text-xs leading-tight">
               {m.title}
             </h3>
           </Link>

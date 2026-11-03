@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { loadAvailabilityAction, saveAvailabilityAction, type AvailabilityCell } from './actions';
 import { DEMO_AVAILABILITY_SUMMARY } from '@/lib/demo-professor-data';
 import { buildTimeSlots, DEFAULT_SLOT_CONFIG, type TimeSlot } from '@/lib/time-slots';
+import { useToast } from '@/components/ui/Toast';
 
 export type SlotStatus = 'PREF' | 'AVAIL' | 'UNAVAIL';
 
@@ -38,6 +39,8 @@ const DAY_NAMES = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه'
 const FALLBACK_SLOTS: TimeSlot[] = buildTimeSlots(DEFAULT_SLOT_CONFIG);
 
 export default function ProfessorAvailabilityClient({ demo = false, professor, terms, initialTermId, timeSlots }: Props) {
+  /* پیام‌ها از توستِ سراسری (نه alert بومی) تا صفحهٔ ماتریس قفل نشود. */
+  const toast = useToast();
   // زنگ‌ها از تنظیمات دانشگاه می‌آیند (۲ ساعته/۱٫۵ ساعته، ۰۷:۰۰ تا ۲۰:۰۰ و …)
   const slots: TimeSlot[] = timeSlots && timeSlots.length > 0 ? timeSlots : FALLBACK_SLOTS;
   const teachingSlots = slots.filter(s => !s.isBreak);
@@ -139,7 +142,7 @@ export default function ProfessorAvailabilityClient({ demo = false, professor, t
     try {
       const res = await saveAvailabilityAction(selectedTermId, cells, notes);
       if (!res.ok) {
-        alert(res.error || 'خطا در ذخیرهٔ ماتریس.');
+        toast(res.error || 'خطا در ذخیرهٔ ماتریس.', 'error');
         return;
       }
       setIsSubmitted(true);
@@ -147,7 +150,7 @@ export default function ProfessorAvailabilityClient({ demo = false, professor, t
       setToastMessage('✅ ماتریس ساعات حضور شما در پایگاه داده ثبت شد و مبنای زمان‌بندی گروه است.');
       setTimeout(() => setToastMessage(null), 6000);
     } catch {
-      alert('خطا در ارتباط با سرور.');
+      toast('خطا در ارتباط با سرور.', 'error');
     } finally {
       setSaving(false);
     }
@@ -188,7 +191,7 @@ export default function ProfessorAvailabilityClient({ demo = false, professor, t
       <div className="p-4 bg-gradient-to-r from-sky-900 via-indigo-900 to-blue-900 text-white rounded-2xl shadow-lg border border-sky-600/60 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="px-2 py-0.5 rounded-full bg-emerald-400 text-slate-950 font-extrabold text-[11px]">
+            <span className="px-2 py-0.5 rounded-full bg-emerald-400 text-slate-950 font-extrabold text-2xs">
               زمان‌بندی کلاس‌ها
             </span>
             <span className="text-xs font-bold text-sky-200">مبنای برنامهٔ هفتگی ترم</span>
@@ -214,7 +217,7 @@ export default function ProfessorAvailabilityClient({ demo = false, professor, t
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-400 text-slate-950">
+              <span className="px-2.5 py-0.5 rounded-full text-2xs font-bold bg-amber-400 text-slate-950">
                 کارتابل اعضای هیئت علمی و اساتید
               </span>
               <span className="text-xs text-indigo-200">فرم اعلام آمادگی تدریس</span>
@@ -255,7 +258,7 @@ export default function ProfessorAvailabilityClient({ demo = false, professor, t
                 : ''}
             </div>
             {professor.departmentName && (
-              <div className="text-[11px] text-indigo-200 mt-0.5">گروه آموزشی: {professor.departmentName}</div>
+              <div className="text-2xs text-indigo-200 mt-0.5">گروه آموزشی: {professor.departmentName}</div>
             )}
           </div>
 
@@ -284,11 +287,11 @@ export default function ProfessorAvailabilityClient({ demo = false, professor, t
 
           {/* Presets */}
           <div className="flex flex-wrap items-center gap-1.5">
-            <button onClick={() => applyPreset('ALL_PREF')} className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-900 font-bold text-[11px] hover:bg-emerald-200 transition">🟢 حضور کامل</button>
-            <button onClick={() => applyPreset('MORNING_ONLY')} className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 font-bold text-[11px] hover:bg-amber-200 transition">☀️ فقط صبح‌ها</button>
-            <button onClick={() => applyPreset('AFTERNOON_ONLY')} className="px-2.5 py-1 rounded-lg bg-blue-100 text-blue-900 font-bold text-[11px] hover:bg-blue-200 transition">🌆 فقط بعدازظهرها</button>
-            <button onClick={() => applyPreset('EVEN_DAYS')} className="px-2.5 py-1 rounded-lg bg-purple-100 text-purple-900 font-bold text-[11px] hover:bg-purple-200 transition">📅 روزهای زوج</button>
-            <button onClick={() => applyPreset('CLEAR')} className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-900 font-bold text-[11px] hover:bg-rose-200 transition">🔴 مسدودسازی</button>
+            <button onClick={() => applyPreset('ALL_PREF')} className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-900 font-bold text-2xs hover:bg-emerald-200 transition">🟢 حضور کامل</button>
+            <button onClick={() => applyPreset('MORNING_ONLY')} className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 font-bold text-2xs hover:bg-amber-200 transition">☀️ فقط صبح‌ها</button>
+            <button onClick={() => applyPreset('AFTERNOON_ONLY')} className="px-2.5 py-1 rounded-lg bg-blue-100 text-blue-900 font-bold text-2xs hover:bg-blue-200 transition">🌆 فقط بعدازظهرها</button>
+            <button onClick={() => applyPreset('EVEN_DAYS')} className="px-2.5 py-1 rounded-lg bg-purple-100 text-purple-900 font-bold text-2xs hover:bg-purple-200 transition">📅 روزهای زوج</button>
+            <button onClick={() => applyPreset('CLEAR')} className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-900 font-bold text-2xs hover:bg-rose-200 transition">🔴 مسدودسازی</button>
           </div>
         </div>
 
@@ -301,7 +304,7 @@ export default function ProfessorAvailabilityClient({ demo = false, professor, t
                 {slots.map(slot => (
                   <th key={slot.id} className="p-3 border border-slate-800 font-extrabold">
                     <div>{slot.label}</div>
-                    <div className="text-[10px] text-slate-300 font-normal mt-0.5">{slot.startTime} الی {slot.endTime}</div>
+                    <div className="text-3xs text-slate-300 font-normal mt-0.5">{slot.startTime} الی {slot.endTime}</div>
                   </th>
                 ))}
               </tr>
@@ -315,7 +318,7 @@ export default function ProfessorAvailabilityClient({ demo = false, professor, t
                   {slots.map(slot => {
                     if (slot.isBreak) {
                       return (
-                        <td key={slot.id} className="p-2 border border-slate-200 bg-slate-100 text-slate-400 text-center font-bold text-[10px]">
+                        <td key={slot.id} className="p-2 border border-slate-200 bg-slate-100 text-slate-400 text-center font-bold text-3xs">
                           نماز و استراحت
                         </td>
                       );
@@ -366,7 +369,7 @@ export default function ProfessorAvailabilityClient({ demo = false, professor, t
 
         {/* Submit Bar */}
         <div className="pt-3 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3">
-          {loadingAvail && <span className="text-[11px] text-slate-400 font-bold">در حال بارگذاری ماتریس از سرور…</span>}
+          {loadingAvail && <span className="text-2xs text-slate-400 font-bold">در حال بارگذاری ماتریس از سرور…</span>}
           <div className="flex items-center gap-3 text-xs text-slate-600 font-bold">
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-emerald-600"></span> اولویت اصلی</span>
             <span className="flex items-center gap-1"><span className="w-3 h-3 rounded bg-amber-200 border border-amber-400"></span> قابل حضور</span>

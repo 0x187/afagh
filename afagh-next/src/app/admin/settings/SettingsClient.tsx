@@ -4,6 +4,7 @@ import React, { useMemo, useState, useTransition } from 'react';
 import { resetSettingAction, saveSettingsAction, uploadLogoAction } from '@/lib/settings-actions';
 import { backupDatabaseAction, listMinioObjectsAction, downloadMinioObjectAction, restoreDatabaseAction, restoreMinioObjectAction, getBackupStatsAction } from './backup-actions';
 import { SECRET_MASK, type SettingView } from '@/lib/settings-shared';
+import { askConfirm } from '@/lib/ui-feedback';
 
 interface Props {
   settings: SettingView[];
@@ -80,7 +81,8 @@ function BackupRestorePanel({ flash }: { flash: (ok: boolean, text: string) => v
       const file = input.files?.[0];
       if (!file) return;
       const text = await file.text();
-      if (!confirm('آیا از بازیابی دیتابیس مطمئنید؟ تمام داده‌های فعلی جایگزین می‌شوند.')) return;
+      const ok = await askConfirm({ title: 'بازیابی دیتابیس', body: 'آیا از بازیابی دیتابیس مطمئنید؟ تمام داده‌های فعلی جایگزین می‌شوند.', confirmText: 'بازیابی کن', danger: true });
+      if (!ok) return;
       startTransition(async () => {
         const r = await restoreDatabaseAction(text);
         if (r.ok) flash(true, `بازیابی انجام شد (${r.statements} دستور اجرا شد)`);
@@ -111,7 +113,7 @@ function BackupRestorePanel({ flash }: { flash: (ok: boolean, text: string) => v
             ].map(s => (
               <div key={s.label} className="bg-slate-50 rounded-lg p-3 border border-slate-200">
                 <div className="text-lg font-black text-indigo-700">{s.value}</div>
-                <div className="text-[11px] text-slate-500 mt-1">{s.label}</div>
+                <div className="text-2xs text-slate-500 mt-1">{s.label}</div>
               </div>
             ))}
           </div>
@@ -194,7 +196,7 @@ function LogoUploader({ current, pending, flash }: { current: string; pending: b
   return (
     <div className="flex items-center gap-3 w-full">
       <div className="w-16 h-16 shrink-0 rounded-lg border border-slate-300 bg-slate-50 flex items-center justify-center overflow-hidden">
-        {current ? <img src={current} alt="ارم فعلی" className="max-w-full max-h-full object-contain" /> : <span className="text-[10px] text-slate-400">بدون ارم</span>}
+        {current ? <img src={current} alt="ارم فعلی" className="max-w-full max-h-full object-contain" /> : <span className="text-3xs text-slate-400">بدون ارم</span>}
       </div>
       <form
         className="flex items-center gap-2"
@@ -355,14 +357,14 @@ export default function SettingsClient({ settings, groups, baseData }: Props) {
                 <div className="md:w-1/3 mb-2 md:mb-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-bold text-slate-800">{s.label}</span>
-                    <span className={`text-[11px] px-2 py-0.5 rounded-full border ${badge.cls}`}>{badge.text}</span>
+                    <span className={`text-2xs px-2 py-0.5 rounded-full border ${badge.cls}`}>{badge.text}</span>
                     {s.envOnly && (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full border bg-amber-100 text-amber-800 border-amber-300">
+                      <span className="text-2xs px-2 py-0.5 rounded-full border bg-amber-100 text-amber-800 border-amber-300">
                         فقط ENV
                       </span>
                     )}
                   </div>
-                  <div className="text-[11px] text-slate-500 font-mono mt-1 ltr:text-left" dir="ltr">
+                  <div className="text-2xs text-slate-500 font-mono mt-1 ltr:text-left" dir="ltr">
                     {s.key} · ENV: {s.env}
                   </div>
                   {s.help && <p className="text-xs text-slate-500 mt-1 leading-6">{s.help}</p>}

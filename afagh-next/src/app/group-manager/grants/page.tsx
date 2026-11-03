@@ -264,7 +264,7 @@ export default async function GrantsPage({
                                 <input type="hidden" name="courseId" value={c.id} />
                                 <input
                                   name="reason" placeholder="دلیل (اختیاری)"
-                                  className="w-28 rounded-lg border border-slate-300 px-1.5 py-1 text-[11px]"
+                                  className="w-28 rounded-lg border border-slate-300 px-1.5 py-1 text-2xs"
                                 />
                                 <button className="rounded-lg bg-teal-700 px-2 py-1 font-bold text-white hover:bg-teal-800">
                                   تخصیص

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { askConfirm } from '@/lib/ui-feedback';
 
 type Version = {
   id: number; code: string; title: string; year: number | null;
@@ -56,8 +57,9 @@ export default function RegulationsClient(props: {
     });
   }
 
-  function doDelete(id: number) {
-    if (!confirm('این نسخه حذف شود؟')) return;
+  async function doDelete(id: number) {
+    const ok = await askConfirm({ title: 'حذف نسخهٔ آیین‌نامه', body: 'این نسخه حذف شود؟', confirmText: 'حذف کن', danger: true });
+    if (!ok) return;
     start(async () => {
       const res = await actions.deleteAction(id);
       if (!res.ok) { setMsg(res.error ?? 'خطا در حذف.'); return; }
@@ -124,13 +126,13 @@ export default function RegulationsClient(props: {
                   <td className="p-2 font-mono text-xs" dir="ltr">{r.code}</td>
                   <td className="p-2 font-bold">
                     {r.title}
-                    {r.description ? <div className="text-[11px] font-normal text-slate-500">{r.description}</div> : null}
+                    {r.description ? <div className="text-2xs font-normal text-slate-500">{r.description}</div> : null}
                   </td>
                   <td className="p-2 text-center">{r.year == null ? '—' : faNum(r.year)}</td>
                   <td className="p-2 text-center">
                     {r.isActive === 1
-                      ? <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white">فعال</span>
-                      : <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-slate-200 text-slate-600">بایگانی</span>}
+                      ? <span className="px-2 py-0.5 rounded-full text-3xs font-black bg-emerald-600 text-white">فعال</span>
+                      : <span className="px-2 py-0.5 rounded-full text-3xs font-black bg-slate-200 text-slate-600">بایگانی</span>}
                   </td>
                   <td className="p-2 text-center whitespace-nowrap">
                     {r.isActive !== 1 ? (

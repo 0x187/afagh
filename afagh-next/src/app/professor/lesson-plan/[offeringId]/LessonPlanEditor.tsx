@@ -173,7 +173,7 @@ export default function LessonPlanEditor({
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-400 text-slate-950">
+              <span className="px-2.5 py-0.5 rounded-full text-2xs font-bold bg-amber-400 text-slate-950">
                 طرح درس
               </span>
               <span className="text-xs text-indigo-200">{initial.courseTitle || `ارائه ${faNum(offeringId)}`}</span>
@@ -241,7 +241,7 @@ export default function LessonPlanEditor({
                 </button>
               ))}
             </div>
-            <p className="text-[11px] text-slate-500 mt-1.5 leading-5">
+            <p className="text-2xs text-slate-500 mt-1.5 leading-5">
               در حالت تئوری/عملی همه جلسات یکدست می‌شوند؛ در حالت ترکیبی نوع هر جلسه جداگانه قابل انتخاب است.
             </p>
           </div>
@@ -266,7 +266,7 @@ export default function LessonPlanEditor({
                 ＋
               </button>
             </div>
-            <p className="text-[11px] text-slate-500 mt-1.5 leading-5">
+            <p className="text-2xs text-slate-500 mt-1.5 leading-5">
               با تغییر تعداد، ردیف‌های مشترک حفظ می‌شوند و فقط ابتدا/انتهای جدول بازسازی می‌شود.
             </p>
           </div>
@@ -314,7 +314,7 @@ export default function LessonPlanEditor({
                       type="button"
                       disabled={disabled}
                       onClick={() => updateSession(s.sessionNo, { sessionKind: 'THEORY' })}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition disabled:opacity-50 ${
+                      className={`px-2.5 py-1 rounded-lg text-2xs font-bold transition disabled:opacity-50 ${
                         s.sessionKind === 'THEORY' ? 'bg-blue-700 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
                     >
@@ -324,7 +324,7 @@ export default function LessonPlanEditor({
                       type="button"
                       disabled={disabled}
                       onClick={() => updateSession(s.sessionNo, { sessionKind: 'PRACTICAL' })}
-                      className={`px-2.5 py-1 rounded-lg text-[11px] font-bold transition disabled:opacity-50 ${
+                      className={`px-2.5 py-1 rounded-lg text-2xs font-bold transition disabled:opacity-50 ${
                         s.sessionKind === 'PRACTICAL' ? 'bg-amber-600 text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
                       }`}
                     >
@@ -333,7 +333,7 @@ export default function LessonPlanEditor({
                   </div>
                 ) : (
                   <span
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold ${
+                    className={`px-2.5 py-1 rounded-lg text-2xs font-bold ${
                       s.sessionKind === 'THEORY' ? 'bg-blue-100 text-blue-900' : 'bg-amber-100 text-amber-900'
                     }`}
                   >
@@ -374,7 +374,7 @@ export default function LessonPlanEditor({
           </span>
         </div>
         {!weightsValid && (
-          <p className="text-[11px] font-bold text-rose-700 leading-5">
+          <p className="text-2xs font-bold text-rose-700 leading-5">
             جمع درصدها باید دقیقاً ۱۰۰ شود؛ تا آن زمان دکمه «ثبت نهایی» غیرفعال است.
           </p>
         )}

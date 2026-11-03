@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useToast } from '@/components/ui/Toast';
 import {
   createShortCourseAction, issueCertificateAction, updateRegistrationAction,
   confirmPaymentAction, createDiscountCodeAction, listDiscountCodesAction, toggleDiscountCodeAction,
@@ -70,6 +71,8 @@ export default function AdminShortCoursesClient({
   initialDiscounts: AdminDiscountRow[];
 }) {
   const router = useRouter();
+  /* خطای اعتبارسنجی از توستِ سراسری می‌آید (نه alert بومی). */
+  const toast = useToast();
   const [courses, setCourses] = useState<AdminCourseItem[]>(initialCourses);
   const [selectedCourseId, setSelectedCourseId] = useState<number>(initialCourses[0]?.id || 0);
   const [busyId, setBusyId] = useState<number | null>(null);
@@ -178,7 +181,7 @@ export default function AdminShortCoursesClient({
   const handleCreateCourse = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle || !newCode || !newInstructor) {
-      alert('لطفاً تمامی فیلدهای الزامی دوره را تکمیل فرمایید.');
+      toast('لطفاً تمامی فیلدهای الزامی دوره را تکمیل فرمایید.', 'error');
       return;
     }
     const res = await createShortCourseAction({
@@ -259,7 +262,7 @@ export default function AdminShortCoursesClient({
       <div className="bg-gradient-to-l from-indigo-950 via-slate-900 to-indigo-900 text-white rounded-3xl p-6 shadow-xl border border-indigo-800/50 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-400 text-slate-950">
+            <span className="px-2.5 py-0.5 rounded-full text-2xs font-black bg-amber-400 text-slate-950">
               آموزش‌های آزاد و بوت‌کمپ‌ها
             </span>
             <span className="text-xs text-indigo-300">مدیریت دوره‌های تخصصی و گواهینامه‌ها</span>
@@ -296,25 +299,25 @@ export default function AdminShortCoursesClient({
         <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm space-y-1">
           <span className="text-xs text-slate-500 font-bold">📚 دوره‌های فعال</span>
           <div className="text-2xl font-black text-indigo-950 font-mono">{faNum(stats.activeCourses)} دوره</div>
-          <span className="text-[10px] text-emerald-600 font-bold">ترم پاییز و زمستان ۱۴۰۵</span>
+          <span className="text-3xs text-emerald-600 font-bold">ترم پاییز و زمستان ۱۴۰۵</span>
         </div>
 
         <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm space-y-1">
           <span className="text-xs text-slate-500 font-bold">👥 کل فراگیران ثبت‌نامی</span>
           <div className="text-2xl font-black text-slate-900 font-mono">{faNum(stats.totalLearners)} نفر</div>
-          <span className="text-[10px] text-indigo-600 font-bold">از سراسر کشور</span>
+          <span className="text-3xs text-indigo-600 font-bold">از سراسر کشور</span>
         </div>
 
         <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm space-y-1">
           <span className="text-xs text-slate-500 font-bold">💰 درآمد وصول‌شده شهریه</span>
           <div className="text-2xl font-black text-emerald-700 font-mono">{formatPrice(stats.totalIncome)}</div>
-          <span className="text-[10px] text-slate-400">تراکنش‌های قطعی شاپرک</span>
+          <span className="text-3xs text-slate-400">تراکنش‌های قطعی شاپرک</span>
         </div>
 
         <div className="bg-white p-4 rounded-3xl border border-slate-200 shadow-sm space-y-1">
           <span className="text-xs text-slate-500 font-bold">🎓 گواهینامه‌های صادرشده</span>
           <div className="text-2xl font-black text-amber-600 font-mono">{faNum(stats.totalCerts)} فقره</div>
-          <span className="text-[10px] text-amber-700 font-bold">دارای بارکد QR و استعلام معتبر</span>
+          <span className="text-3xs text-amber-700 font-bold">دارای بارکد QR و استعلام معتبر</span>
         </div>
       </div>
 
@@ -414,7 +417,7 @@ export default function AdminShortCoursesClient({
                       <td className="p-3 text-slate-500 font-bold">{faNum(idx + 1)}</td>
                       <td className="p-3 font-black text-slate-900">
                         {learner.fullName}
-                        <span className="block text-[10px] text-slate-400 font-mono" dir="ltr">
+                        <span className="block text-3xs text-slate-400 font-mono" dir="ltr">
                           {learner.fullNameEn}
                         </span>
                       </td>
@@ -429,11 +432,11 @@ export default function AdminShortCoursesClient({
                       </td>
                       <td className="p-3 text-center">
                         {(learner.paymentStatus ?? 'PAID') === 'PAID' ? (
-                          <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-black text-[10px]">✓ پرداخت</span>
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-black text-3xs">✓ پرداخت</span>
                         ) : (
                           <button
                             onClick={() => handleConfirmPayment(learner.registrationId, 0)}
-                            className="px-2.5 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 font-black text-[10px] transition"
+                            className="px-2.5 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 font-black text-3xs transition"
                           >
                             💳 تأیید واریز
                           </button>
@@ -481,16 +484,16 @@ export default function AdminShortCoursesClient({
                       <td className="p-3 text-center">
                         {learner.finalGrade !== undefined ? (
                           learner.isPassed ? (
-                            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-black text-[10px]">
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-black text-3xs">
                               ✓ قبول
                             </span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-black text-[10px]">
+                            <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-black text-3xs">
                               مردود
                             </span>
                           )
                         ) : (
-                          <span className="text-[10px] text-slate-400 font-bold">درحال ارزیابی</span>
+                          <span className="text-3xs text-slate-400 font-bold">درحال ارزیابی</span>
                         )}
                       </td>
 
@@ -498,13 +501,13 @@ export default function AdminShortCoursesClient({
                       <td className="p-3 text-left">
                         {learner.certificateIssued ? (
                           <div className="flex items-center gap-2">
-                            <span className="px-2.5 py-1 rounded-xl bg-amber-100 text-amber-900 font-mono font-black text-[10px]">
+                            <span className="px-2.5 py-1 rounded-xl bg-amber-100 text-amber-900 font-mono font-black text-3xs">
                               {learner.certificateNumber}
                             </span>
                             <Link
                               href={`/verify-certificate/${learner.certificateNumber}`}
                               target="_blank"
-                              className="px-2.5 py-1 rounded-xl bg-indigo-50 text-indigo-900 border border-indigo-200 font-bold text-[10px] hover:bg-indigo-100 transition"
+                              className="px-2.5 py-1 rounded-xl bg-indigo-50 text-indigo-900 border border-indigo-200 font-bold text-3xs hover:bg-indigo-100 transition"
                             >
                               مشاهده گواهی ↗
                             </Link>
@@ -513,7 +516,7 @@ export default function AdminShortCoursesClient({
                           <button
                             onClick={() => handleIssueCertificate(learner.registrationId)}
                             disabled={!learner.isPassed || busyId === learner.registrationId}
-                            className="px-3 py-1.5 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-black text-[11px] shadow-xs transition disabled:opacity-40 disabled:cursor-not-allowed"
+                            className="px-3 py-1.5 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-black text-2xs shadow-xs transition disabled:opacity-40 disabled:cursor-not-allowed"
                           >
                             🎓 صدور گواهینامه دیجیتال
                           </button>
@@ -721,7 +724,7 @@ export default function AdminShortCoursesClient({
 
                 <button
                   onClick={() => handleToggleDiscount(d.id, !d.isActive)}
-                  className={`px-3 py-1.5 rounded-xl text-[11px] font-black transition ${
+                  className={`px-3 py-1.5 rounded-xl text-2xs font-black transition ${
                     d.isActive ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200' : 'bg-slate-200 text-slate-500 hover:bg-slate-300'
                   }`}
                 >

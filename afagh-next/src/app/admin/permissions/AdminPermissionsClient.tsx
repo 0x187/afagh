@@ -8,6 +8,7 @@ import {
   saveRolePermissionsAction,
   type PermissionsWorkspace,
 } from './actions';
+import { askConfirm } from '@/lib/ui-feedback';
 
 const faNum = (n: any) =>
   n === null || n === undefined ? '—' : String(n).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]);
@@ -88,9 +89,22 @@ export default function AdminPermissionsClient({ initial }: { initial: Permissio
   };
 
   /** تیک/برداشتن کلِ ماتریس برای یک نقش (مستقل از فیلتر بخش) — همان «همهٔ دسترسی‌ها» */
-  const toggleAllMatrix = (role: { id: number; code: string; title: string }, on: boolean) => {
-    if (on && !confirm(`همهٔ ${faNum(permissions.length)} مجوز ماتریس به نقش «${role.title}» داده شود؟`)) return;
-    if (!on && !confirm(`تمامی مجوزهای نقش «${role.title}» برداشته شود؟ (شامل مجوزهای سیستمی — ممکن است همین صفحه هم برای این نقش غیرفعال شود)`)) return;
+  const toggleAllMatrix = async (role: { id: number; code: string; title: string }, on: boolean) => {
+    const okAll = await askConfirm(
+      on
+        ? {
+            title: 'دادن همهٔ مجوزها',
+            body: `همهٔ ${faNum(permissions.length)} مجوز ماتریس به نقش «${role.title}» داده شود؟`,
+            confirmText: 'بده',
+          }
+        : {
+            title: 'برداشتن همهٔ مجوزها',
+            body: `تمامی مجوزهای نقش «${role.title}» برداشته شود؟ (شامل مجوزهای سیستمی — ممکن است همین صفحه هم برای این نقش غیرفعال شود)`,
+            confirmText: 'بردار',
+            danger: true,
+          },
+    );
+    if (!okAll) return;
     setDraft(prev => {
       const cur = new Set(prev[role.id] ?? []);
       for (const p of permissions) {
@@ -179,8 +193,8 @@ export default function AdminPermissionsClient({ initial }: { initial: Permissio
     });
   };
 
-  const handleDeleteRole = (roleId: number, title: string) => {
-    if (!confirm(`نقش «${title}» حذف شود؟ این کار برگشت‌پذیر نیست.`)) return;
+  const handleDeleteRole = async (roleId: number, title: string) => {
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: `نقش «${title}» حذف شود؟ این کار برگشت‌پذیر نیست.`, confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
     startTransition(async () => {
       const res = await deleteRoleAction({ roleId });
       if (!res.ok) return showToast('err', res.error);
@@ -220,7 +234,7 @@ export default function AdminPermissionsClient({ initial }: { initial: Permissio
       <div className="bg-gradient-to-l from-indigo-950 via-slate-900 to-indigo-900 text-white rounded-3xl p-6 shadow-xl border border-indigo-800/50 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-400 text-slate-950">
+            <span className="px-2.5 py-0.5 rounded-full text-2xs font-black bg-amber-400 text-slate-950">
               امنیت و کنترل دسترسی (Dynamic RBAC)
             </span>
             <span className="text-xs text-indigo-300">
@@ -270,7 +284,7 @@ export default function AdminPermissionsClient({ initial }: { initial: Permissio
                   {dirtyRoleIds.map(id => roles.find(r => r.id === id)?.title).filter(Boolean).join('، ')}
                 </span>
               </div>
-              <div className="text-[11px] font-normal text-amber-800">
+              <div className="text-2xs font-normal text-amber-800">
                 تیک زدن به‌تنهایی ذخیره نمی‌شود — برای ثبت در دیتابیس دکمهٔ «ذخیره» را بزنید.
               </div>
             </>
@@ -439,10 +453,10 @@ export default function AdminPermissionsClient({ initial }: { initial: Permissio
                   return (
                     <th key={r.id} className={`sticky top-0 z-30 p-3 text-center min-w-[120px] ${changed ? 'bg-amber-700' : 'bg-slate-900'}`}>
                       <div className="font-black">{r.title}</div>
-                      <div className="text-[10px] text-indigo-300 font-mono" dir="ltr">
+                      <div className="text-3xs text-indigo-300 font-mono" dir="ltr">
                         {r.code}
                       </div>
-                      <div className="text-[10px] text-indigo-200 mt-0.5">
+                      <div className="text-3xs text-indigo-200 mt-0.5">
                         👤 {faNum(r.userCount)} کاربر
                         {r.isSystem ? <span className="ms-1 text-amber-300">· سیستمی</span> : null}
                       </div>
@@ -459,7 +473,7 @@ export default function AdminPermissionsClient({ initial }: { initial: Permissio
                         <button
                           onClick={() => toggleColumn(r.id, r.code, !allOn)}
                           title={`فقط مجوزهای فیلترِ «${selectedCategory}» — نه کل ماتریس`}
-                          className="mt-1 block w-full text-[10px] underline text-indigo-200 hover:text-white"
+                          className="mt-1 block w-full text-3xs underline text-indigo-200 hover:text-white"
                         >
                           {allOn ? 'برداشتن' : 'انتخاب'} {faNum(filteredPermissions.length)} مجوزِ «{selectedCategory}»
                         </button>
@@ -467,14 +481,14 @@ export default function AdminPermissionsClient({ initial }: { initial: Permissio
                       <button
                         onClick={() => toggleAllMatrix(r, !roleAllOn(r.id))}
                         title={`همهٔ ${faNum(permissions.length)} مجوزِ کل ماتریس، مستقل از فیلتر بخش‌ها`}
-                        className={`mt-1 block w-full border rounded px-1 text-[10px] font-bold ${roleAllOn(r.id) ? 'bg-amber-400 text-slate-950 hover:bg-amber-300' : 'bg-transparent text-amber-300 border-amber-400/60 hover:bg-amber-400/20'}`}
+                        className={`mt-1 block w-full border rounded px-1 text-3xs font-bold ${roleAllOn(r.id) ? 'bg-amber-400 text-slate-950 hover:bg-amber-300' : 'bg-transparent text-amber-300 border-amber-400/60 hover:bg-amber-400/20'}`}
                       >
                         {roleAllOn(r.id) ? `✔ همهٔ ${faNum(permissions.length)} مجوز (گرفتن!)` : `☑ همهٔ ${faNum(permissions.length)} مجوز`}
                       </button>
                       {!r.isSystem && r.userCount === 0 && (
                         <button
                           onClick={() => handleDeleteRole(r.id, r.title)}
-                          className="block w-full mt-1 text-[10px] text-rose-300 hover:text-rose-100"
+                          className="block w-full mt-1 text-3xs text-rose-300 hover:text-rose-100"
                         >
                           حذف نقش
                         </button>
@@ -494,13 +508,13 @@ export default function AdminPermissionsClient({ initial }: { initial: Permissio
                   <td className="sticky right-0 z-20 bg-inherit p-3 shadow-[-2px_0_0_0_#e2e8f0]">
                     <div className="font-black text-slate-900">{perm.title}</div>
                     <div className="text-slate-500 leading-4">{perm.description}</div>
-                    <div className="font-mono text-[10px] text-slate-400" dir="ltr">
+                    <div className="font-mono text-3xs text-slate-400" dir="ltr">
                       {perm.code}
                     </div>
                   </td>
 
                   <td className="p-3">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">{perm.category}</span>
+                    <span className="px-2 py-0.5 rounded text-3xs font-bold bg-slate-100 text-slate-700">{perm.category}</span>
                   </td>
 
                   {roles.map(role => {
@@ -537,7 +551,7 @@ export default function AdminPermissionsClient({ initial }: { initial: Permissio
           </table>
         </div>
 
-        <div className="text-[11px] text-slate-500 pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+        <div className="text-2xs text-slate-500 pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
           <span>
             خانه‌های زردرنگ = تغییر ذخیره‌نشده. تیک زدن <b>خودکار ذخیره نمی‌شود</b>؛ تا زدن دکمهٔ «ذخیره»
             (نوار پایین صفحه) هیچ چیزی در دیتابیس نوشته نمی‌شود. پس از ذخیره، دکمهٔ «بازگردانی» برای

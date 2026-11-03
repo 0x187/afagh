@@ -129,10 +129,10 @@ export default async function StudentDashboardPage() {
               </div>
             </div>
             <div className="mt-3">
-              <h3 className="font-black text-slate-900 text-[11px] sm:text-sm leading-tight group-hover:text-emerald-900 transition">
+              <h3 className="font-black text-slate-900 text-2xs sm:text-sm leading-tight group-hover:text-emerald-900 transition">
                 انتخاب واحد
               </h3>
-              <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+              <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 line-clamp-1">
                 کنترل هم‌نیازی، پیش‌نیازی و تداخل
               </p>
             </div>
@@ -148,10 +148,10 @@ export default async function StudentDashboardPage() {
               </div>
             </div>
             <div className="mt-3">
-              <h3 className="font-black text-slate-900 text-[11px] sm:text-sm leading-tight group-hover:text-teal-900 transition">
+              <h3 className="font-black text-slate-900 text-2xs sm:text-sm leading-tight group-hover:text-teal-900 transition">
                 کارت آزمون
               </h3>
-              <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+              <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 line-clamp-1">
                 ارزشیابی استاد و چاپ برگه A4
               </p>
             </div>
@@ -167,10 +167,10 @@ export default async function StudentDashboardPage() {
               </div>
             </div>
             <div className="mt-3">
-              <h3 className="font-black text-slate-900 text-[11px] sm:text-sm leading-tight group-hover:text-lime-900 transition">
+              <h3 className="font-black text-slate-900 text-2xs sm:text-sm leading-tight group-hover:text-lime-900 transition">
                 تأییدیه
               </h3>
-              <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+              <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 line-clamp-1">
                 چاپ برگه با QR استعلام اصالت
               </p>
             </div>
@@ -184,15 +184,15 @@ export default async function StudentDashboardPage() {
               <div className="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-800 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
                 📜
               </div>
-              <span className="hidden sm:inline-flex text-[10px] bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full font-bold">
+              <span className="hidden sm:inline-flex text-3xs bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full font-bold">
                 رسمی
               </span>
             </div>
             <div className="mt-3">
-              <h3 className="font-black text-slate-900 text-[11px] sm:text-sm leading-tight group-hover:text-indigo-900 transition">
+              <h3 className="font-black text-slate-900 text-2xs sm:text-sm leading-tight group-hover:text-indigo-900 transition">
                 کارنامه
               </h3>
-              <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+              <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 line-clamp-1">
                 محاسبه آیین‌نامه‌ای و حذف مردودی
               </p>
             </div>
@@ -206,15 +206,15 @@ export default async function StudentDashboardPage() {
               <div className="w-10 h-10 rounded-2xl bg-sky-100 text-sky-800 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
                 💻
               </div>
-              <span className="hidden sm:inline-flex text-[10px] bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full font-bold animate-pulse">
+              <span className="hidden sm:inline-flex text-3xs bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full font-bold animate-pulse">
                 BBB زنده
               </span>
             </div>
             <div className="mt-3">
-              <h3 className="font-black text-slate-900 text-[11px] sm:text-sm leading-tight group-hover:text-sky-900 transition">
+              <h3 className="font-black text-slate-900 text-2xs sm:text-sm leading-tight group-hover:text-sky-900 transition">
                 کلاس آنلاین
               </h3>
-              <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+              <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 line-clamp-1">
                 ورود مستقیم به جلسات مجازی LMS
               </p>
             </div>
@@ -228,15 +228,15 @@ export default async function StudentDashboardPage() {
               <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
                 📅
               </div>
-              <span className="hidden sm:inline-flex text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">
+              <span className="hidden sm:inline-flex text-3xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">
                 تقویم شمسی
               </span>
             </div>
             <div className="mt-3">
-              <h3 className="font-black text-slate-900 text-[11px] sm:text-sm leading-tight group-hover:text-amber-900 transition">
+              <h3 className="font-black text-slate-900 text-2xs sm:text-sm leading-tight group-hover:text-amber-900 transition">
                 برنامه و آزمون
               </h3>
-              <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+              <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 line-clamp-1">
                 شماره کلاس، ساختمان و ساعت آزمون
               </p>
             </div>
@@ -250,15 +250,15 @@ export default async function StudentDashboardPage() {
               <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-800 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
                 📋
               </div>
-              <span className="hidden sm:inline-flex text-[10px] bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full font-bold">
+              <span className="hidden sm:inline-flex text-3xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full font-bold">
                 سجاد BPM
               </span>
             </div>
             <div className="mt-3">
-              <h3 className="font-black text-slate-900 text-[11px] sm:text-sm leading-tight group-hover:text-purple-900 transition">
+              <h3 className="font-black text-slate-900 text-2xs sm:text-sm leading-tight group-hover:text-purple-900 transition">
                 میز خدمات
               </h3>
-              <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+              <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 line-clamp-1">
                 درخواست مرخصی، حذف ترم و کمیسیون
               </p>
             </div>
@@ -272,15 +272,15 @@ export default async function StudentDashboardPage() {
               <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-800 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
                 🗺️
               </div>
-              <span className="hidden sm:inline-flex text-[10px] bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full font-bold">
+              <span className="hidden sm:inline-flex text-3xs bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full font-bold">
                 سرفصل‌ها
               </span>
             </div>
             <div className="mt-3">
-              <h3 className="font-black text-slate-900 text-[11px] sm:text-sm leading-tight group-hover:text-rose-900 transition">
+              <h3 className="font-black text-slate-900 text-2xs sm:text-sm leading-tight group-hover:text-rose-900 transition">
                 چارت درسی
               </h3>
-              <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+              <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 line-clamp-1">
                 دروس پایه، اصلی، تخصصی و عمومی
               </p>
             </div>
@@ -294,15 +294,15 @@ export default async function StudentDashboardPage() {
               <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-800 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
                 📁
               </div>
-              <span className="hidden sm:inline-flex text-[10px] bg-slate-100 text-slate-800 px-2 py-0.5 rounded-full font-bold">
+              <span className="hidden sm:inline-flex text-3xs bg-slate-100 text-slate-800 px-2 py-0.5 rounded-full font-bold">
                 بایگانی
               </span>
             </div>
             <div className="mt-3">
-              <h3 className="font-black text-slate-900 text-[11px] sm:text-sm leading-tight group-hover:text-slate-900 transition">
+              <h3 className="font-black text-slate-900 text-2xs sm:text-sm leading-tight group-hover:text-slate-900 transition">
                 مدارک
               </h3>
-              <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+              <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 line-clamp-1">
                 مدرک دیپلم، کارت ملی و تعهدنامه
               </p>
             </div>
@@ -324,7 +324,7 @@ export default async function StudentDashboardPage() {
                 <h3 className="font-black text-slate-900 text-sm">
                   کلاس‌های آنلاین و جلسات وبینار LMS (امروز)
                 </h3>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-2xs text-slate-500">
                   اتصال مستقیم به سرور BigBlueButton دانشگاه با پروتکل امن SSO
                 </p>
               </div>
@@ -357,12 +357,12 @@ export default async function StudentDashboardPage() {
                       <span className={`w-2 h-2 rounded-full ${vc.isRunning ? 'bg-emerald-500 animate-ping' : 'bg-amber-400'}`}></span>
                       <strong className="text-xs font-black text-slate-900">{vc.courseTitle}</strong>
                       {vc.isRunning && (
-                        <span className="hidden sm:inline-flex text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">
+                        <span className="hidden sm:inline-flex text-3xs bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">
                           در حال برگزاری
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] text-slate-600">
+                    <p className="text-2xs text-slate-600">
                       استاد: {vc.professorId ? profMap.get(vc.professorId) || 'نامشخص' : 'نامشخص'} · اتاق مجازی: {vc.meetingId}
                       {vc.isRunning && (vc.currentAttendanceCount ?? 0) > 0
                         ? ` · ${Number(vc.currentAttendanceCount).toLocaleString('fa-IR')} شرکت‌کننده فعال`

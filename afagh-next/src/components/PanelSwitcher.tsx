@@ -100,7 +100,7 @@ export default function PanelSwitcher({
         {/* در موبایل برچسب کوتاه — تا با سوییچر نیمسال در یک ردیف جا شود */}
         <span className="hidden sm:inline">کارتابل‌ها و حساب‌ها</span>
         <span className="sm:hidden">کارتابل</span>
-        <span className="rounded-full bg-white/25 px-1.5 text-[10px] font-black leading-5">{total.toLocaleString('fa-IR')}</span>
+        <span className="rounded-full bg-white/25 px-1.5 text-3xs font-black leading-5">{total.toLocaleString('fa-IR')}</span>
       </button>
 
       {open && (
@@ -111,7 +111,7 @@ export default function PanelSwitcher({
         >
           {panels.length > 0 && (
             <div className="p-2">
-              <p className="px-2 pb-1 pt-1 text-[11px] font-black text-slate-400">کارتابل‌های من</p>
+              <p className="px-2 pb-1 pt-1 text-2xs font-black text-slate-400">کارتابل‌های من</p>
               {panels.map(l => {
                 const hint = l.key === 'group-manager' && groupTitle ? `مدیر گروه: ${groupTitle}` : panelRoleHint(l.key, roles);
                 const isCurrent = l.key === current;
@@ -123,10 +123,10 @@ export default function PanelSwitcher({
                         {l.label}
                         {l.key === 'group-manager' && groupTitle ? <span className="font-normal text-slate-500"> ({groupTitle})</span> : null}
                       </span>
-                      {hint && <span className="block text-[11px] text-slate-500">{hint}</span>}
+                      {hint && <span className="block text-2xs text-slate-500">{hint}</span>}
                     </span>
                     {isCurrent && (
-                      <span className="shrink-0 rounded-full bg-indigo-100 px-1.5 py-0.5 text-[10px] font-black text-indigo-700">
+                      <span className="shrink-0 rounded-full bg-indigo-100 px-1.5 py-0.5 text-3xs font-black text-indigo-700">
                         اینجا هستید
                       </span>
                     )}
@@ -157,7 +157,7 @@ export default function PanelSwitcher({
 
           {siblings.length > 0 && (
             <div className={`p-2 ${panels.length > 0 ? 'border-t border-slate-200' : ''} bg-amber-50/70`}>
-              <p className="px-2 pb-1 pt-1 text-[11px] font-black text-amber-700">
+              <p className="px-2 pb-1 pt-1 text-2xs font-black text-amber-700">
                 حساب‌های دیگر با همین کدملی
               </p>
               {siblings.map(s => {
@@ -169,7 +169,7 @@ export default function PanelSwitcher({
                         <p className="text-xs font-bold text-slate-800">
                           {s.kind === 'staff' ? '👨‍🏫 کد پرسنلی' : '🎓 شماره دانشجویی'} {s.code}
                         </p>
-                        <p className="truncate text-[11px] text-slate-500">
+                        <p className="truncate text-2xs text-slate-500">
                           {s.name}{s.universityTitle ? ` · ${s.universityTitle}` : ''}
                         </p>
                       </div>
@@ -177,7 +177,7 @@ export default function PanelSwitcher({
                         <button
                           type="button"
                           onClick={() => { setOpenFor(key); setPw(''); setErr(''); }}
-                          className="shrink-0 rounded-lg bg-indigo-700 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-indigo-800"
+                          className="shrink-0 rounded-lg bg-indigo-700 px-2.5 py-1 text-2xs font-bold text-white hover:bg-indigo-800"
                         >
                           ورود با این کد ←
                         </button>
@@ -199,7 +199,7 @@ export default function PanelSwitcher({
                           type="button"
                           disabled={busy}
                           onClick={() => go(s)}
-                          className="rounded-lg bg-emerald-700 px-2.5 py-1 text-[11px] font-bold text-white hover:bg-emerald-800 disabled:opacity-60"
+                          className="rounded-lg bg-emerald-700 px-2.5 py-1 text-2xs font-bold text-white hover:bg-emerald-800 disabled:opacity-60"
                         >
                           {busy ? '…' : 'ورود'}
                         </button>
@@ -207,7 +207,7 @@ export default function PanelSwitcher({
                           type="button"
                           disabled={busy}
                           onClick={() => { setOpenFor(null); setPw(''); setErr(''); }}
-                          className="rounded-lg bg-white px-1.5 py-1 text-[11px] text-slate-500 hover:underline"
+                          className="rounded-lg bg-white px-1.5 py-1 text-2xs text-slate-500 hover:underline"
                         >
                           انصراف
                         </button>
@@ -216,7 +216,7 @@ export default function PanelSwitcher({
                   </div>
                 );
               })}
-              {err && <p className="mt-1 rounded-lg bg-red-50 p-1.5 text-center text-[11px] font-bold text-red-700">{err}</p>}
+              {err && <p className="mt-1 rounded-lg bg-red-50 p-1.5 text-center text-2xs font-bold text-red-700">{err}</p>}
             </div>
           )}
         </div>

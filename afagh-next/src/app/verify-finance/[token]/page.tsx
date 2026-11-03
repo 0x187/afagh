@@ -39,7 +39,7 @@ export default async function VerifyFinancePage({ params }: { params: Promise<{ 
               </h2>
               <p className="mx-auto mt-2 max-w-md text-xs leading-6 text-slate-300">{res.message}</p>
             </div>
-            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-3 text-[11px] leading-5 text-slate-400">
+            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-3 text-2xs leading-5 text-slate-400">
               دانشجو باید از مسیر <span className="font-mono text-slate-200">پنل دانشجو ← امور مالی و شهریه</span> توکن تازه
               دریافت کند.
             </div>
@@ -67,10 +67,10 @@ export default async function VerifyFinancePage({ params }: { params: Promise<{ 
             )}
             <div>
               <h1 className="text-sm font-black text-white">کارنامهٔ مالی دانشجو — دانشگاه آفاق</h1>
-              <p className="text-[11px] text-emerald-300">استعلام برخط · جمع کل دوره</p>
+              <p className="text-2xs text-emerald-300">استعلام برخط · جمع کل دوره</p>
             </div>
           </div>
-          <span className="rounded-full border border-emerald-600/50 bg-emerald-950 px-2.5 py-1 text-[10px] font-black text-emerald-300">
+          <span className="rounded-full border border-emerald-600/50 bg-emerald-950 px-2.5 py-1 text-3xs font-black text-emerald-300">
             ✓ معتبر
           </span>
         </div>
@@ -112,21 +112,21 @@ export default async function VerifyFinancePage({ params }: { params: Promise<{ 
         <div className="grid grid-cols-2 gap-2 text-center text-xs sm:grid-cols-4">
           <div className="rounded-2xl border border-slate-800 bg-slate-950 p-3">
             <p className="text-base font-black text-white">{faMoney(res.totals.charges)}</p>
-            <p className="mt-1 text-[10px] text-slate-400">جمع شهریه (ریال)</p>
+            <p className="mt-1 text-3xs text-slate-400">جمع شهریه (ریال)</p>
           </div>
           <div className="rounded-2xl border border-slate-800 bg-slate-950 p-3">
             <p className="text-base font-black text-violet-300">{faMoney(res.totals.discounts)}</p>
-            <p className="mt-1 text-[10px] text-slate-400">تخفیف‌ها</p>
+            <p className="mt-1 text-3xs text-slate-400">تخفیف‌ها</p>
           </div>
           <div className="rounded-2xl border border-slate-800 bg-slate-950 p-3">
             <p className="text-base font-black text-indigo-300">{faMoney(res.totals.payments)}</p>
-            <p className="mt-1 text-[10px] text-slate-400">پرداخت‌ها</p>
+            <p className="mt-1 text-3xs text-slate-400">پرداخت‌ها</p>
           </div>
           <div className="rounded-2xl border border-slate-800 bg-slate-950 p-3">
             <p className={`text-base font-black ${res.totals.balance > 0 ? 'text-rose-400' : 'text-emerald-300'}`}>
               {faMoney(Math.abs(res.totals.balance))}
             </p>
-            <p className="mt-1 text-[10px] text-slate-400">
+            <p className="mt-1 text-3xs text-slate-400">
               {res.totals.balance > 0 ? 'ماندهٔ بدهی' : res.totals.balance < 0 ? 'بستانکاری' : 'تسویه'}
             </p>
           </div>
@@ -165,12 +165,12 @@ export default async function VerifyFinancePage({ params }: { params: Promise<{ 
         </div>
 
         {res.totals.chequesPending > 0 && (
-          <p className="text-center text-[11px] text-amber-300">
+          <p className="text-center text-2xs text-amber-300">
             ⚠️ {faNum(res.totals.chequesPending)} ریال چک وصول‌نشده — در مانده لحاظ نشده است
           </p>
         )}
 
-        <div className="text-center font-mono text-[10px] text-slate-500">
+        <div className="text-center font-mono text-3xs text-slate-500">
           استعلام زنده در {new Date(res.checkedAt).toLocaleString('fa-IR')}
         </div>
 

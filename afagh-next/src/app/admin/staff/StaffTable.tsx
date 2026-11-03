@@ -140,15 +140,15 @@ export default function StaffTable({
         >
           ＋ کارشناس / کارمند جدید
         </button>
-        <span className="text-[10px] text-slate-500">هویت در users + ردیف کارکنان؛ رمز اولیه = کد ملی و مجبور به تغییر در اولین ورود</span>
-        <span className="text-[10px] font-bold text-emerald-700">
+        <span className="text-3xs text-slate-500">هویت در users + ردیف کارکنان؛ رمز اولیه = کد ملی و مجبور به تغییر در اولین ورود</span>
+        <span className="text-3xs font-bold text-emerald-700">
           {activeCount.toLocaleString('fa-IR')} فعال از {rows.length.toLocaleString('fa-IR')}
         </span>
       </div>
 
       {/* ── ابزار گروهی فعال/غیرفعال ── */}
       {selectedIds.length > 0 && (
-        <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-[11px]">
+        <div className="mb-2 flex flex-wrap items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-2xs">
           <span className="font-black text-amber-900">
             {selectedIds.length.toLocaleString('fa-IR')} نفر انتخاب شده:
           </span>
@@ -217,7 +217,7 @@ export default function StaffTable({
                     <input type="hidden" name="next" value={r.active === 1 ? '0' : '1'} />
                     <button
                       title={r.active === 1 ? 'پرونده فعال است — برای خارج‌کردن از فهرست‌های عملیاتی کلیک کنید' : 'پرونده غیرفعال است — برای فعال‌سازی کلیک کنید'}
-                      className={'px-2 py-0.5 rounded border text-[11px] font-bold whitespace-nowrap ' +
+                      className={'px-2 py-0.5 rounded border text-2xs font-bold whitespace-nowrap ' +
                         (r.active === 1
                           ? 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100'
                           : 'bg-slate-100 border-slate-300 text-slate-500 hover:bg-slate-200')}
@@ -238,7 +238,7 @@ export default function StaffTable({
                 <td className="p-2">
                   <button
                     onClick={() => openModal(r)}
-                    className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 border border-slate-300 text-[11px]"
+                    className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 border border-slate-300 text-2xs"
                     title={`نقش‌های فعلی: ${myRoles.map(roleTitle).join('، ') || 'هیچ'}`}
                   >
                     {myRoles.length > 0 ? `⚙ ${myRoles.length} نقش` : '⚙ نقش‌ها'}
@@ -273,7 +273,7 @@ export default function StaffTable({
                 <input type="hidden" name="next" value={r.active === 1 ? '0' : '1'} />
                 <button
                   title={r.active === 1 ? 'پرونده فعال است — برای خارج‌کردن از فهرست‌های عملیاتی کلیک کنید' : 'پرونده غیرفعال است — برای فعال‌سازی کلیک کنید'}
-                  className={'px-2 py-0.5 rounded border text-[11px] font-bold whitespace-nowrap ' +
+                  className={'px-2 py-0.5 rounded border text-2xs font-bold whitespace-nowrap ' +
                     (r.active === 1
                       ? 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:bg-emerald-100'
                       : 'bg-slate-100 border-slate-300 text-slate-500 hover:bg-slate-200')}
@@ -290,7 +290,7 @@ export default function StaffTable({
               </form>
               <button
                 onClick={() => openModal(r)}
-                className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 border border-slate-300 text-[11px]"
+                className="px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 border border-slate-300 text-2xs"
                 title={`نقش‌های فعلی: ${myRoles.map(roleTitle).join('، ') || 'هیچ'}`}
               >
                 {myRoles.length > 0 ? `⚙ ${myRoles.length} نقش` : '⚙ نقش‌ها'}
@@ -322,12 +322,12 @@ export default function StaffTable({
                       onChange={e => setSel(prev => e.target.checked ? [...prev, r.id] : prev.filter(x => x !== r.id))}
                     />
                     <span className="font-bold">{r.title || r.code}</span>
-                    {!r.title && <span className="text-slate-400 text-[10px]">({r.code})</span>}
+                    {!r.title && <span className="text-slate-400 text-3xs">({r.code})</span>}
                     {r.code === 'ADMIN' && <span className="text-[9px] text-amber-700 mr-auto">مدیر ارشد</span>}
                   </label>
                 ))}
               </div>
-              {msg && <p className="text-[11px]" dir="auto">{msg}</p>}
+              {msg && <p className="text-2xs" dir="auto">{msg}</p>}
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
                 <button type="button" onClick={() => setRoleModalFor(null)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg">انصراف</button>
                 <button type="button" disabled={saving} onClick={save} className="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-400 text-white font-bold rounded-lg">
@@ -399,7 +399,7 @@ export default function StaffTable({
                   </select>
                 </label>
               </div>
-              {cmsg && <p className="text-[11px]" dir="auto">{cmsg}</p>}
+              {cmsg && <p className="text-2xs" dir="auto">{cmsg}</p>}
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
                 <button type="button" onClick={() => setCreateOpen(false)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg">انصراف</button>
                 <button type="submit" disabled={creating} className="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 disabled:bg-slate-400 text-white font-bold rounded-lg">

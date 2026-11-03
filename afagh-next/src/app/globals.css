@@ -47,6 +47,17 @@
   src: url('/fonts/vazirmatn-latin-700.woff2') format('woff2');
   unicode-range: U+0000-00FF, U+2000-206F;
 }
+/* وزن ۹۰۰ (تیترهای font-black): فایلِ آن از قبل در public/fonts بود ولی هیچ
+   @font-faceای نداشت، پس ۱٬۲۵۳ کاربردِ `font-black` در کد با وزن ۷۰۰ رندر
+   می‌شد و سلسله‌مراتب تیتر/متن عملاً یکسان بود. با این بلوک، تفاوت وزنیِ
+   کد به‌صورت بصری بازمی‌گردد. (preload آن در app/layout.tsx اضافه شده است.) */
+@font-face {
+  font-family: 'Vazirmatn';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 900;
+  src: url('/fonts/vazirmatn-900.woff2') format('woff2');
+}
 
 @tailwind base;
 @tailwind components;
@@ -437,7 +448,83 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-text); bo
    ───────────────────────────────────────────────────────────── */
 @layer components {
   .input { @apply w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500; }
+  /* نشانگرِ فوکوسِ عمومی (:focus-visible در بالای فایل) روی .input دوتایی
+     نشود؛ همین‌جا و **داخل** لایه، تا هیچ `.input`ای بیرون از
+     `@layer components` تعریف نشود (گارد: tests/input-width-precedence.test.ts). */
+  .input:focus-visible { outline: none; }
 }
+
+/* ─────────────────────────────────────────────────────────────
+    دسترسی‌پذیری پایه — فوکوس مرئی و «پرش به محتوا»
+    پیش از این `focus-visible` در کل پروژه صفر بود و ۵۱ ورودی با
+    `focus:outline-none` بدون جانشین، حلقهٔ فوکوس را کامل حذف می‌کردند؛
+    کاربر کیبورد (کارشناس مالی/آموزش که ساعت‌ها فرم پر می‌کند) مسیرش را
+    گم می‌کرد. این قاعده فقط با کیبورد فعال می‌شود و ماوس را دست نمی‌زند.
+   ───────────────────────────────────────────────────────────── */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+/* حلقهٔ فوکوسِ .input عمداً داخل @layer components تعریف شد (بالاتر). */
+
+.skip-link {
+  position: absolute;
+  inset-inline-start: 8px;
+  top: -48px;
+  z-index: 90;
+  background: #0f172a;
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  transition: top 0.15s ease;
+}
+.skip-link:focus { top: 8px; }
+
+/* ─────────────────────────────────────────────────────────────
+    انیمیشن ورود — جانشین پلاگین نصب‌نشدهٔ `tailwindcss-animate`
+    کد از قرارداد وِیژن ۴ استفاده می‌کند (`animate-in fade-in zoom-in-95`)
+    ولی پلاگینش نصب نیست، پس ۴۸ کلاس **بی‌صدا بی‌اثر** بودند. اینجا همان
+    قرارداد با متغیرهای CSS پیاده می‌شود تا بدون تغییرِ حتی یک خط JSX،
+    دیالوگ‌ها و توست‌ها با ورودِ نرم ظاهر شوند.
+   ───────────────────────────────────────────────────────────── */
+@layer utilities {
+  .animate-in { animation: ui-enter 0.2s ease-out both; }
+  .animate-in.duration-150 { animation-duration: 0.15s; }
+  .animate-in.duration-200 { animation-duration: 0.2s; }
+  .animate-in.duration-300 { animation-duration: 0.3s; }
+  .fade-in { --enter-opacity: 0; }
+  .zoom-in-95 { --enter-scale: 0.95; }
+  .zoom-in-90 { --enter-scale: 0.9; }
+  .slide-in-from-top-4 { --enter-y: -1rem; }
+  .slide-in-from-bottom-4 { --enter-y: 1rem; }
+
+  @keyframes ui-enter {
+    from {
+      opacity: var(--enter-opacity, 1);
+      transform: translate3d(0, var(--enter-y, 0), 0) scale(var(--enter-scale, 1));
+    }
+    to { opacity: 1; transform: none; }
+  }
+}
+
+/* احترام به «کاهش حرکت» سیستم‌عامل (پیش از این صفر مورد در پروژه بود،
+   در حالی که animate-ping/pulse و ۵۲۶ گذار داشتیم). */
+@media (prefers-reduced-motion: reduce) {
+  .animate-in,
+  .animate-in.duration-150,
+  .animate-in.duration-200,
+  .animate-in.duration-300 { animation: none !important; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 
 /* ─────────────────────────────────────────────────────────────
    چاپ «فقط فرم» — همان رفتار کارت ورود به جلسه، برای همهٔ فرم‌ها

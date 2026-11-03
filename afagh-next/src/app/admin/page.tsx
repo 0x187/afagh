@@ -212,8 +212,8 @@ export default async function AdminHome({
               <div className="min-w-0">
                 <h3 className="font-extrabold text-[12px] sm:text-sm leading-tight text-slate-800">{g.group.title}</h3>
                 {/* توضیح دسته فقط از sm به بالا — در موبایل کارت را بی‌دلیل بلند می‌کرد */}
-                <p className="hidden sm:block text-[11px] text-slate-500 mt-1 leading-5">{g.group.desc}</p>
-                <p className="text-[10px] text-indigo-600 mt-1 font-bold">{g.modules.length} ماژول ←</p>
+                <p className="hidden sm:block text-2xs text-slate-500 mt-1 leading-5">{g.group.desc}</p>
+                <p className="text-3xs text-indigo-600 mt-1 font-bold">{g.modules.length} ماژول ←</p>
               </div>
             </Link>
           ))}
@@ -327,20 +327,20 @@ export default async function AdminHome({
                         </td>
                         <td className="p-2.5">
                           <p className="font-semibold text-slate-800">{r.name} {r.family}</p>
-                          <p className="text-[11px] font-mono text-slate-400" dir="ltr">{r.code}</p>
+                          <p className="text-2xs font-mono text-slate-400" dir="ltr">{r.code}</p>
                         </td>
                         <td className="p-2.5">
                           <p className="text-xs font-medium text-slate-700">
                             {extra.offeringTitle ? `اخذ درس ${extra.offeringTitle}` : (r.procTitle || 'کمیسیون موارد خاص')}
                           </p>
                           {extra.reasons && (
-                            <p className="text-[10px] text-amber-700 mt-0.5 truncate max-w-[200px]" title={extra.reasons.join('، ')}>
+                            <p className="text-3xs text-amber-700 mt-0.5 truncate max-w-[200px]" title={extra.reasons.join('، ')}>
                               {extra.reasons.join('، ')}
                             </p>
                           )}
                         </td>
                         <td className="p-2.5">
-                          <span className={'inline-block text-[11px] px-2 py-0.5 rounded-full font-medium ' + (stColor[r.status] ?? '')}>
+                          <span className={'inline-block text-2xs px-2 py-0.5 rounded-full font-medium ' + (stColor[r.status] ?? '')}>
                             {stFa[r.status] ?? r.status}
                           </span>
                         </td>

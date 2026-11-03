@@ -112,7 +112,7 @@ export default function StudentPicker({
             <p className="mt-1 text-xs text-emerald-50/90">
               دانشجو را جستجو کنید؛ سند رسمی ترم‌به‌ترم با امکان چاپ A4 باز می‌شود
             </p>
-            <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-bold">
+            <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-0.5 text-2xs font-bold">
               🏛️ {universityTitle}
             </p>
           </div>
@@ -137,7 +137,7 @@ export default function StudentPicker({
       <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         {KPIS.map((k) => (
           <div key={k.label} className={`rounded-xl border bg-gradient-to-b p-3 shadow-sm ${k.tone}`}>
-            <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-500">
+            <div className="flex items-center gap-1.5 text-2xs font-bold text-slate-500">
               <span>{k.icon}</span>
               {k.label}
             </div>
@@ -177,7 +177,7 @@ export default function StudentPicker({
           <option value="balance">مرتب‌سازی: بیشترین بدهی</option>
           <option value="name">مرتب‌سازی: نام خانوادگی</option>
         </select>
-        <span className="rounded-lg bg-slate-100 px-2.5 py-2 text-[11px] font-bold text-slate-600">
+        <span className="rounded-lg bg-slate-100 px-2.5 py-2 text-2xs font-bold text-slate-600">
           {fa(rows.length)} از {fa(students.length)} نفر
         </span>
       </div>
@@ -205,13 +205,13 @@ export default function StudentPicker({
                     <td className="p-2.5">
                       <div className="flex items-center gap-2">
                         <span
-                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-[11px] font-black text-white ${tone}`}
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-2xs font-black text-white ${tone}`}
                         >
                           {(s.firstName?.[0] ?? '') + (s.lastName?.[0] ?? '') || '؟'}
                         </span>
                         <span>
                           <span className="block font-bold text-slate-800">{name}</span>
-                          <span className="block font-mono text-[10px] text-slate-500">
+                          <span className="block font-mono text-3xs text-slate-500">
                             {s.studentCode ?? '—'}
                             {s.nationalCode ? ` · ملی ${s.nationalCode}` : ''}
                           </span>
@@ -220,12 +220,12 @@ export default function StudentPicker({
                     </td>
                     <td className="p-2.5 text-slate-600">
                       <span className="block">{s.majorTitle ?? '—'}</span>
-                      <span className="block text-[10px] text-slate-400">{s.degreeTitle ?? ''}</span>
+                      <span className="block text-3xs text-slate-400">{s.degreeTitle ?? ''}</span>
                     </td>
                     <td className="p-2.5 text-slate-600">{s.entryYear ? fa(s.entryYear) : '—'}</td>
                     <td className="p-2.5">
                       <span
-                        className={`inline-block rounded-full border px-2 py-0.5 text-[11px] font-black ${
+                        className={`inline-block rounded-full border px-2 py-0.5 text-2xs font-black ${
                           s.balance > 0
                             ? 'border-rose-200 bg-rose-50 text-rose-700'
                             : 'border-emerald-200 bg-emerald-50 text-emerald-700'
@@ -238,7 +238,7 @@ export default function StudentPicker({
                     <td className="p-2.5 print:hidden">
                       <Link
                         href={`/admin/finance/reports/student-statement?studentId=${s.studentId}`}
-                        className="inline-block rounded-lg bg-gradient-to-l from-emerald-600 to-teal-700 px-3 py-1.5 text-[11px] font-black text-white shadow-sm transition hover:from-emerald-700 hover:to-teal-800"
+                        className="inline-block rounded-lg bg-gradient-to-l from-emerald-600 to-teal-700 px-3 py-1.5 text-2xs font-black text-white shadow-sm transition hover:from-emerald-700 hover:to-teal-800"
                       >
                         📄 صورت حساب
                       </Link>
@@ -259,7 +259,7 @@ export default function StudentPicker({
         </div>
       </div>
 
-      <p className="text-center text-[11px] text-slate-400">
+      <p className="text-center text-2xs text-slate-400">
         سند صادرشده، همان کارنامهٔ مالی رسمی سما است — با سربرگ دانشگاه، جمع‌کل، جدول ترم‌ها و محل امضای کارشناس
       </p>
     </div>

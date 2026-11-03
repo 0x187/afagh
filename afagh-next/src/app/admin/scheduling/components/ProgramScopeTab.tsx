@@ -94,19 +94,19 @@ export default function ProgramScopeTab() {
             <div className="flex items-start justify-between gap-2 mb-3">
               <div className="min-w-0">
                 <h4 className="font-extrabold text-slate-900 text-sm truncate" title={p.title}>🎓 {p.title}{p.code ? <span className="text-slate-500 font-mono text-xs"> ({p.code})</span> : null}</h4>
-                <p className="text-[11px] font-bold text-slate-500 mt-0.5">
+                <p className="text-2xs font-bold text-slate-500 mt-0.5">
                   {faNum(p.semesters.reduce((n, s) => n + s.total, 0))} درس در این نیمسال
                 </p>
               </div>
               {p.semesters.length > 0 && p.semesters.every(s => s.complete) && (
-                <span className="shrink-0 px-2 py-1 rounded-lg bg-emerald-600 text-white text-[10px] font-black">
+                <span className="shrink-0 px-2 py-1 rounded-lg bg-emerald-600 text-white text-3xs font-black">
                   ✅ برنامهٔ این رشته کامل است
                 </span>
               )}
             </div>
 
             {p.semesters.length === 0 ? (
-              <p className="text-[11px] font-bold text-slate-400 py-3 text-center">
+              <p className="text-2xs font-bold text-slate-400 py-3 text-center">
                 درسی برای این رشته در نیمسال جاری ثبت نشده است
               </p>
             ) : (
@@ -125,7 +125,7 @@ export default function ProgramScopeTab() {
                           ? 'همهٔ دروس استاد و جایگاه هفتگی دارند'
                           : `${faNum(s.missingProf)} درس بدون استاد · ${faNum(s.unscheduled)} درس بدون جایگاه در هفته`
                       }
-                      className={`px-3 py-2 rounded-xl border-2 text-[11px] font-black transition ${
+                      className={`px-3 py-2 rounded-xl border-2 text-2xs font-black transition ${
                         active
                           ? 'bg-indigo-900 text-white border-indigo-900'
                           : s.complete

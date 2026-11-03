@@ -97,7 +97,7 @@ export default async function AttendanceControlPage({ searchParams }: { searchPa
     <div className="space-y-4" dir="rtl">
       <div className="rounded-2xl border border-indigo-200 bg-indigo-50 px-4 py-3">
         <div className="text-sm font-black text-indigo-900">کنترل حضور و غیاب کلاس‌ها</div>
-        <div className="text-[11px] font-bold text-indigo-800/80 leading-6">
+        <div className="text-2xs font-bold text-indigo-800/80 leading-6">
           {fa(jalaliDate)} · {rooms.length} اتاق تحت مسئولیت شما · ثبت هر جلسه به نامِ استادِ همان درس
           انجام می‌شود و نام شما به‌عنوان ثبت‌کننده در سابقه می‌ماند.
         </div>

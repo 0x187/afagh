@@ -111,7 +111,7 @@ export default async function ProfessorEvaluationPage() {
             { label: 'آستانهٔ بحرانی', value: panel.threshold, tone: 'text-amber-300' },
           ].map(c => (
             <div key={c.label} className="rounded-2xl border border-white/10 bg-white/5 p-3">
-              <div className="text-[11px] text-indigo-200/80">{c.label}</div>
+              <div className="text-2xs text-indigo-200/80">{c.label}</div>
               <div className={`mt-1 text-2xl font-extrabold ${c.tone}`}>{c.value}</div>
             </div>
           ))}
@@ -164,7 +164,7 @@ export default async function ProfessorEvaluationPage() {
 
           <div className="rounded-2xl border border-slate-700 bg-slate-900/60 p-4">
             <h2 className="mb-2 font-bold text-white">💬 ابر کلمات نظرات دانشجویان</h2>
-            <p className="mb-3 text-[11px] text-slate-500">
+            <p className="mb-3 text-2xs text-slate-500">
               واژه‌ها داخل خود PostgreSQL استخراج می‌شوند (بدون نام دانشجو) و نتیجه کش می‌شود.
             </p>
             {panel.words.length === 0 ? (

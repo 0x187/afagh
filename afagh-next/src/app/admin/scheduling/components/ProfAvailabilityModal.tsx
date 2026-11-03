@@ -88,18 +88,18 @@ export default function ProfAvailabilityModal() {
         </div>
 
         <div className="p-4 overflow-auto space-y-3 text-xs">
-          <p className="text-[11px] text-slate-600 font-bold">
+          <p className="text-2xs text-slate-600 font-bold">
             مدیر گروه می‌تواند این ماتریس را به‌نام استاد اصلاح کند. روی هر خانه کلیک کنید:
             <b className="text-emerald-700"> 🟩 اولویت</b> · <b className="text-amber-700"> 🟨 در صورت نیاز</b> · <b className="text-rose-700"> 🟥 عدم حضور</b>
           </p>
 
           {/* انتخاب همه — یک کلیک برای کل ماتریس */}
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[10px] font-black text-slate-500">انتخاب همه:</span>
-            <button type="button" onClick={() => applyAll('PREF')} className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-900 font-bold text-[11px] hover:bg-emerald-200">🟩 همه اولویت</button>
-            <button type="button" onClick={() => applyAll('AVAIL')} className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 font-bold text-[11px] hover:bg-amber-200">🟨 همه در صورت نیاز</button>
-            <button type="button" onClick={() => applyAll('UNAVAIL')} className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-900 font-bold text-[11px] hover:bg-rose-200">🟥 همه عدم حضور</button>
-            <button type="button" onClick={() => setGrid({})} className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-bold text-[11px] hover:bg-slate-200">↺ بازگردانی</button>
+            <span className="text-3xs font-black text-slate-500">انتخاب همه:</span>
+            <button type="button" onClick={() => applyAll('PREF')} className="px-2.5 py-1 rounded-lg bg-emerald-100 text-emerald-900 font-bold text-2xs hover:bg-emerald-200">🟩 همه اولویت</button>
+            <button type="button" onClick={() => applyAll('AVAIL')} className="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 font-bold text-2xs hover:bg-amber-200">🟨 همه در صورت نیاز</button>
+            <button type="button" onClick={() => applyAll('UNAVAIL')} className="px-2.5 py-1 rounded-lg bg-rose-100 text-rose-900 font-bold text-2xs hover:bg-rose-200">🟥 همه عدم حضور</button>
+            <button type="button" onClick={() => setGrid({})} className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-bold text-2xs hover:bg-slate-200">↺ بازگردانی</button>
           </div>
 
           <div className="overflow-x-auto border border-slate-200 rounded-xl">
@@ -130,7 +130,7 @@ export default function ProfAvailabilityModal() {
                           <button
                             type="button"
                             onClick={() => toggle(d, s.id)}
-                            className={`w-full py-2 rounded-lg border font-extrabold text-[10px] ${cls}`}
+                            className={`w-full py-2 rounded-lg border font-extrabold text-3xs ${cls}`}
                           >
                             {st === 'PREF' ? '🟩 اولویت' : st === 'AVAIL' ? '🟨 در صورت نیاز' : '🟥 عدم حضور'}
                           </button>
@@ -143,14 +143,14 @@ export default function ProfAvailabilityModal() {
             </table>
           </div>
 
-          <div className="text-[10px] text-slate-500 font-bold">
+          <div className="text-3xs text-slate-500 font-bold">
             {faNum(teachingSlots.length)} زنگ در روز · ترتیب زنگ‌ها از تنظیمات دانشگاه می‌آید (ساعت کلاس و برنامه‌ریزی).
           </div>
           {msg && <div className="p-2 rounded-lg bg-slate-100 text-slate-800 font-bold">{msg}</div>}
         </div>
 
         <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between gap-2">
-          <span className="text-[10px] font-bold text-slate-500">
+          <span className="text-3xs font-bold text-slate-500">
             {selectedTermId ? `ترم فعال: ${faNum(selectedTermId)}` : 'ترمی انتخاب نشده'}
           </span>
           <div className="flex items-center gap-2">

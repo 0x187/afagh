@@ -124,7 +124,7 @@ export default async function OfferingsPage() {
           </label>
           <button className="btn-primary">ذخیرهٔ بازه</button>
         </form>
-        <p className="text-[11px] text-slate-400">باز بودن = پرچم باز + بودن زمان فعلی در بازهٔ شروع/پایان. خالی گذاشتن تاریخ = بدون محدودیت زمانی آن سمت.</p>
+        <p className="text-2xs text-slate-400">باز بودن = پرچم باز + بودن زمان فعلی در بازهٔ شروع/پایان. خالی گذاشتن تاریخ = بدون محدودیت زمانی آن سمت.</p>
       </div>
 
       <div className="card">

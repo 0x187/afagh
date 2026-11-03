@@ -62,7 +62,7 @@ export function Counter({ label, value, tone = 'slate' }: { label: string; value
   };
   return (
     <div className={`rounded-xl border px-3 py-1.5 text-center ${tones[tone]}`}>
-      <div className="text-[10px] opacity-70">{label}</div>
+      <div className="text-3xs opacity-70">{label}</div>
       <div className="text-sm font-semibold tabular-nums">{value.toLocaleString('fa-IR')}</div>
     </div>
   );

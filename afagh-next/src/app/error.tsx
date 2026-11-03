@@ -25,7 +25,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
             پردازش این صفحه ناتمام ماند. داده‌ای ثبت یا حذف نشده است؛ می‌توانید دوباره تلاش کنید.
           </p>
           {error.digest && (
-            <p className="text-[11px] text-slate-400 mt-3 font-mono" dir="ltr">
+            <p className="text-2xs text-slate-400 mt-3 font-mono" dir="ltr">
               کد پیگیری: {error.digest}
             </p>
           )}

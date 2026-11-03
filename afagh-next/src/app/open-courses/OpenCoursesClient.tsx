@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { registerOpenCourseAction, validateDiscountCodeAction } from './actions';
+import { notify } from '@/lib/ui-feedback';
 
 export interface PublicShortCourse {
   id: number;
@@ -90,7 +91,7 @@ export default function OpenCoursesClient({
     e.preventDefault();
     if (!checkoutCourse) return;
     if (!fullName || !mobile || !nationalId) {
-      alert('لطفاً تمامی فیلدهای الزامی (نام و نام‌خانوادگی، کدملی و شماره همراه) را تکمیل فرمایید.');
+      notify('لطفاً تمامی فیلدهای الزامی (نام و نام‌خانوادگی، کدملی و شماره همراه) را تکمیل فرمایید.', 'error');
       return;
     }
 
@@ -105,7 +106,7 @@ export default function OpenCoursesClient({
         discountCode: discountCode.trim() || undefined,
       });
       if (!res.ok) {
-        alert(res.error || 'ثبت‌نام ناموفق بود.');
+        notify(res.error || 'ثبت‌نام ناموفق بود.', 'error');
         return;
       }
       setPaymentSuccessData({
@@ -121,7 +122,7 @@ export default function OpenCoursesClient({
       setDiscountAmount(0);
       setDiscountAppliedCode('');
     } catch {
-      alert('خطا در ارتباط با سرور.');
+      notify('خطا در ارتباط با سرور.', 'error');
     } finally {
       setIsProcessingPayment(false);
     }
@@ -236,10 +237,10 @@ export default function OpenCoursesClient({
               >
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-900/80 text-indigo-300 border border-indigo-700/50">
+                    <span className="px-2.5 py-0.5 rounded-full text-3xs font-black bg-indigo-900/80 text-indigo-300 border border-indigo-700/50">
                       {course.category}
                     </span>
-                    <span className="text-[10px] font-mono text-slate-400" dir="ltr">
+                    <span className="text-3xs font-mono text-slate-400" dir="ltr">
                       {course.code}
                     </span>
                   </div>
@@ -267,13 +268,13 @@ export default function OpenCoursesClient({
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-slate-400">📅 زمان برگزاری:</span>
-                      <span className="text-slate-200 text-[11px]">{course.scheduleText}</span>
+                      <span className="text-slate-200 text-2xs">{course.scheduleText}</span>
                     </div>
                   </div>
 
                   {/* Capacity Bar */}
                   <div className="space-y-1">
-                    <div className="flex items-center justify-between text-[11px]">
+                    <div className="flex items-center justify-between text-2xs">
                       <span className="text-slate-400">ظرفیت تکمیل‌شده:</span>
                       <span className={`font-bold ${isFull ? 'text-rose-400' : 'text-emerald-400'}`}>
                         {isFull ? 'تکمیل ظرفیت' : `${faNum(remainingSeats)} صندلی خالی باقی‌مانده`}
@@ -293,7 +294,7 @@ export default function OpenCoursesClient({
                 {/* Price & Action Buttons */}
                 <div className="pt-5 border-t border-slate-800/80 mt-4 flex items-center justify-between gap-3">
                   <div>
-                    <span className="text-[10px] text-slate-400 block">شهریه مصوب دوره:</span>
+                    <span className="text-3xs text-slate-400 block">شهریه مصوب دوره:</span>
                     <span className="text-sm sm:text-base font-black text-emerald-400 font-mono">
                       {formatPrice(course.tuitionPrice)}
                     </span>
@@ -341,7 +342,7 @@ export default function OpenCoursesClient({
           <div className="bg-slate-900 rounded-3xl p-6 max-w-xl w-full border border-indigo-900/60 shadow-2xl space-y-4 my-8 text-slate-100">
             <div className="flex items-center justify-between pb-3 border-b border-slate-800">
               <div>
-                <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-900 text-indigo-300">
+                <span className="px-2 py-0.5 rounded text-3xs font-bold bg-indigo-900 text-indigo-300">
                   {selectedCourseForDetail.category}
                 </span>
                 <h3 className="font-black text-lg text-white mt-1">{selectedCourseForDetail.title}</h3>
@@ -448,7 +449,7 @@ export default function OpenCoursesClient({
                     className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-white font-mono focus:ring-2 focus:ring-indigo-500"
                     dir="ltr"
                   />
-                  <span className="text-[10px] text-slate-400 mt-0.5 block">جهت درج در گواهی بین‌المللی</span>
+                  <span className="text-3xs text-slate-400 mt-0.5 block">جهت درج در گواهی بین‌المللی</span>
                 </div>
 
                 <div>

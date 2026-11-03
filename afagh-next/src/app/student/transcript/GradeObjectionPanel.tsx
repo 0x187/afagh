@@ -76,7 +76,7 @@ export default function GradeObjectionPanel({
     <div className="rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden">
       <div className="bg-slate-800 text-white px-4 py-2.5 flex items-center justify-between">
         <h3 className="font-extrabold text-sm">📑 کارنامه نیمسال و اعتراض به نمره</h3>
-        <span className="text-[11px] font-bold">
+        <span className="text-2xs font-bold">
           {windowOpen ? (
             <span className="text-emerald-200">پنجره اعتراض باز تا {jdate(deadline)}</span>
           ) : (
@@ -91,7 +91,7 @@ export default function GradeObjectionPanel({
       </div>
 
       {!windowOpen && (
-        <div className="m-3 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-[11px] font-bold text-amber-900">
+        <div className="m-3 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-2xs font-bold text-amber-900">
           🔒 در حال حاضر پنجرهٔ اعتراض به نمره باز نیست (زمان‌بندی اعتراض توسط آموزش تعیین نشده یا به پایان رسیده). دکمه‌های اعتراض تا باز شدن پنجره قفل هستند.
         </div>
       )}
@@ -104,9 +104,9 @@ export default function GradeObjectionPanel({
           <div key={t.termCode} className="rounded-xl border border-slate-200 overflow-hidden">
             <div className="bg-slate-100 px-3 py-1.5 font-bold text-slate-800 text-[12px] flex items-center justify-between">
               <span>📚 {t.termTitle}{t.isCurrent ? ' · جاری' : ''}</span>
-              <span className="font-mono text-slate-500 text-[10px]" dir="ltr">{t.termCode}</span>
+              <span className="font-mono text-slate-500 text-3xs" dir="ltr">{t.termCode}</span>
             </div>
-            <table className="w-full text-right text-[11px] border-collapse">
+            <table className="w-full text-right text-2xs border-collapse">
               <thead>
                 <tr className="bg-slate-50 text-slate-600 border-b border-slate-200">
                   <th className="p-1.5 text-center w-16">کد درس</th>
@@ -121,24 +121,24 @@ export default function GradeObjectionPanel({
                   const badge = st ? statusBadge[st.status] : undefined;
                   return (
                     <tr key={r.enrollmentId} className="border-b border-slate-100 last:border-0">
-                      <td className="p-1.5 text-center font-mono text-[10px]" dir="ltr">{r.code}</td>
+                      <td className="p-1.5 text-center font-mono text-3xs" dir="ltr">{r.code}</td>
                       <td className="p-1.5 font-semibold text-slate-900">{r.title}</td>
                       <td className="p-1.5 text-center font-black font-mono">
                         {r.grade != null ? r.grade.toFixed(2) : '—'}
                       </td>
                       <td className="p-1.5 text-center">
                         {badge ? (
-                          <span className={`inline-block text-[10px] font-bold px-2 py-0.5 rounded-full border ${badge.cls}`}>
+                          <span className={`inline-block text-3xs font-bold px-2 py-0.5 rounded-full border ${badge.cls}`}>
                             {badge.label}
                           </span>
                         ) : !r.isFinalized ? (
-                          <span className="text-[10px] text-slate-400">نمره قطعی نشده</span>
+                          <span className="text-3xs text-slate-400">نمره قطعی نشده</span>
                         ) : !windowOpen ? (
-                          <span className="text-[10px] text-slate-400">🔒 قفل</span>
+                          <span className="text-3xs text-slate-400">🔒 قفل</span>
                         ) : (
                           <button
                             onClick={() => { setOpenId(r.enrollmentId); setDone(null); setError(null); setText(''); }}
-                            className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-[10px] font-extrabold shadow"
+                            className="px-2.5 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white text-3xs font-extrabold shadow"
                           >
                             اعتراض
                           </button>
@@ -158,7 +158,7 @@ export default function GradeObjectionPanel({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setOpenId(null)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-4 space-y-3" onClick={e => e.stopPropagation()}>
             <h4 className="font-extrabold text-slate-900 text-sm">
-              اعتراض به نمرهٔ {openRow.title} <span className="font-mono text-[11px] text-slate-500" dir="ltr">({openRow.code})</span>
+              اعتراض به نمرهٔ {openRow.title} <span className="font-mono text-2xs text-slate-500" dir="ltr">({openRow.code})</span>
             </h4>
             {openRow.grade != null && (
               <p className="text-xs text-slate-600">نمرهٔ فعلی: <b className="font-mono">{openRow.grade.toFixed(2)}</b></p>
@@ -170,7 +170,7 @@ export default function GradeObjectionPanel({
               placeholder="دلیل اعتراض خود را به‌طور دقیق بنویسید (حداقل ۵ کاراکتر)..."
               className="w-full border border-slate-300 rounded-xl p-2 text-xs"
             />
-            {error && <p className="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-2">{error}</p>}
+            {error && <p className="text-2xs font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-2">{error}</p>}
             <div className="flex items-center justify-end gap-2">
               <button onClick={() => setOpenId(null)} className="px-3 py-1.5 rounded-lg text-xs font-bold text-slate-600 hover:bg-slate-100">انصراف</button>
               <button
@@ -186,7 +186,7 @@ export default function GradeObjectionPanel({
       )}
 
       {done != null && (
-        <div className="m-3 rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-[11px] font-bold text-emerald-900">
+        <div className="m-3 rounded-xl border border-emerald-200 bg-emerald-50 p-2.5 text-2xs font-bold text-emerald-900">
           ✅ اعتراض شما ثبت شد و در حال بررسی توسط کارشناس آموزش است.
         </div>
       )}

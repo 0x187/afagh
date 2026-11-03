@@ -22,7 +22,7 @@ export function Stat({ label, value, tone = 'slate' }: { label: string; value: n
   return (
     <div className="rounded-xl bg-slate-50 p-2 text-center">
       <p className={'text-xl font-bold ' + color}>{typeof value === 'number' ? fmt(value) : value}</p>
-      <p className="text-[11px] text-slate-500">{label}</p>
+      <p className="text-2xs text-slate-500">{label}</p>
     </div>
   );
 }
@@ -130,7 +130,7 @@ export function Uploader({
       </div>
 
       {name && (
-        <p className="rounded-lg bg-emerald-50 px-2 py-1 text-[11px] text-emerald-800">
+        <p className="rounded-lg bg-emerald-50 px-2 py-1 text-2xs text-emerald-800">
           فایل انتخاب‌شده: <span dir="ltr" className="font-mono">{name}</span> — حالا یکی از دکمه‌های زیر را بزنید.
         </p>
       )}
@@ -164,22 +164,22 @@ export function Uploader({
                 {inspect!.sheets.map(s2 => <option key={s2.sheet} value={s2.sheet}>{s2.sheet} ({fmt(s2.rowCount)} ردیف)</option>)}
               </select>
             )}
-            <span className="text-[11px] text-slate-500">
+            <span className="text-2xs text-slate-500">
               {fmt(curSheet.rowCount)} ردیف · {fmt(curSheet.headers.length)} ستون
             </span>
-            <button className="btn-ghost py-1 text-[11px]" onClick={() => setInspect(null)}>بستن</button>
+            <button className="btn-ghost py-1 text-2xs" onClick={() => setInspect(null)}>بستن</button>
           </div>
           {curSheet.missingRequired.length > 0 && (
             <Msg kind="warn">ستون‌های الزامیِ تشخیص‌داده‌نشده: <b>{curSheet.missingRequired.join('، ')}</b> — از فهرست زیر ستون درست را انتخاب کنید.</Msg>
           )}
           <div className="grid gap-2 md:grid-cols-3">
             {curSheet.fields.map(f2 => (
-              <label key={f2.key} className="flex items-center gap-2 text-[11px]" title={f2.hint ?? ''}>
+              <label key={f2.key} className="flex items-center gap-2 text-2xs" title={f2.hint ?? ''}>
                 <span className={'w-28 shrink-0 ' + (f2.required ? 'font-bold text-slate-700' : 'text-slate-500')}>
                   {f2.title}{f2.required ? ' *' : ''}{f2.hint ? ' ⓘ' : ''}
                 </span>
                 <select
-                  className={'input flex-1 py-1 text-[11px] ' + ((map[f2.key] ?? -1) < 0 && f2.required ? 'border-red-300' : '')}
+                  className={'input flex-1 py-1 text-2xs ' + ((map[f2.key] ?? -1) < 0 && f2.required ? 'border-red-300' : '')}
                   value={String(map[f2.key] ?? -1)}
                   onChange={e => setMap(m => ({ ...m, [f2.key]: Number(e.target.value) }))}>
                   <option value="-1">— ندارد —</option>
@@ -190,7 +190,7 @@ export function Uploader({
           </div>
           {curSheet.sample.length > 0 && (
             <div className="overflow-x-auto">
-              <table className="w-full text-right text-[10px] rt">
+              <table className="w-full text-right text-3xs rt">
                 <thead><tr className="text-slate-500">{curSheet.headers.map((h, i) => <th key={i} className="p-1">{h || i + 1}</th>)}</tr></thead>
                 <tbody>
                   {curSheet.sample.map((r, i) => (
@@ -220,7 +220,7 @@ export function ReportBox({ report }: { report: (ImportReport & { error?: string
         <Stat label="نامعتبر" value={report.invalid} tone="red" />
         <Stat label="هشدار" value={report.warnings?.length ?? 0} tone="amber" />
       </div>
-      {report.sheets?.length ? <p className="text-[11px] text-slate-400">برگه‌های فایل: {report.sheets.join('، ')} — برگهٔ استفاده‌شده: <b>{report.sheet}</b></p> : null}
+      {report.sheets?.length ? <p className="text-2xs text-slate-400">برگه‌های فایل: {report.sheets.join('، ')} — برگهٔ استفاده‌شده: <b>{report.sheet}</b></p> : null}
       {report.errors?.length > 0 && (
         <Msg kind="err">
           <p className="mb-1 font-bold">خطاها:</p>

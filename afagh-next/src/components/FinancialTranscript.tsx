@@ -365,7 +365,7 @@ export default function FinancialTranscript({
             <p className="font-semibold text-slate-700">وزارت علوم، تحقیقات و فناوری</p>
             {/* نام دانشگاه فقط از تنظیمات/رکورد دانشگاه می‌آید — هیچ نامی هاردکد نیست */}
             {universityTitle ? <p className="font-extrabold text-slate-900 text-sm">{universityTitle}</p> : null}
-            <p className="text-[11px] text-slate-500">معاونت اداری و مالی — ادارهٔ امور مالی</p>
+            <p className="text-2xs text-slate-500">معاونت اداری و مالی — ادارهٔ امور مالی</p>
           </div>
           {/* ستون وسط (نشان و عنوان سند) */}
           <div className="flex flex-col items-center justify-center">
@@ -377,10 +377,10 @@ export default function FinancialTranscript({
               <span className="mb-1 rounded border border-dashed border-slate-300 px-1.5 py-1 text-[9px] text-slate-400">ارم دانشگاه</span>
             )}
             <h2 className="border-b border-slate-800 pb-0.5 px-4 text-base font-black tracking-wide text-slate-950">کارنامهٔ مالی دانشجو</h2>
-            <p className="mt-0.5 text-[10px] text-slate-600">صورت وضعیت بدهی، تخفیف، پوشش، پرداخت، چک و وام — ترم‌به‌ترم</p>
+            <p className="mt-0.5 text-3xs text-slate-600">صورت وضعیت بدهی، تخفیف، پوشش، پرداخت، چک و وام — ترم‌به‌ترم</p>
           </div>
           {/* ستون چپ (اطلاعات سند) */}
-          <div className="space-y-1 text-left font-mono text-[11px]">
+          <div className="space-y-1 text-left font-mono text-2xs">
             {student.documentNo ? <p><span className="font-sans text-slate-500">شماره سند: </span><b>{student.documentNo}</b></p> : null}
             <p><span className="font-sans text-slate-500">شماره پرونده: </span><b>{faDigits(student.studentCode || '—')}</b></p>
             {issuedAt ? <p><span className="font-sans text-slate-500">تاریخ صدور: </span><b>{issuedAt}</b></p> : null}
@@ -395,13 +395,13 @@ export default function FinancialTranscript({
           • تأییدشده (درخواست FINANCE_STATEMENT در وضعیت APPROVED): نوار سبز رسمیت.
           متن + کادر ضخیم (نه فقط پس‌زمینه) تا در چاپ سیاه‌وسفید هم خوانده شود. */}
       {!isFinance && !official && (
-        <div className="tr-unverified-band mx-4 mb-2 mt-1.5 flex flex-wrap items-center justify-between gap-2 border-2 border-amber-700 bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-950">
+        <div className="tr-unverified-band mx-4 mb-2 mt-1.5 flex flex-wrap items-center justify-between gap-2 border-2 border-amber-700 bg-amber-50 px-2 py-1 text-3xs font-black text-amber-950">
           <span>⚠️ این کارنامه تا تأیید و مهر کارشناس امور مالی <u>غیرقابل استناد</u> است.</span>
           <span className="shrink-0 font-mono text-[9px] text-amber-900">وضعیت: در انتظار تأیید</span>
         </div>
       )}
       {!isFinance && official && (
-        <div className="tr-official-band mx-4 mb-2 mt-1.5 flex flex-wrap items-center justify-between gap-2 border-2 border-emerald-700 bg-emerald-50 px-2 py-1 text-[10px] font-black text-emerald-950">
+        <div className="tr-official-band mx-4 mb-2 mt-1.5 flex flex-wrap items-center justify-between gap-2 border-2 border-emerald-700 bg-emerald-50 px-2 py-1 text-3xs font-black text-emerald-950">
           <span>✅ این کارنامه با تأیید کارشناس امور مالی، دارای <u>رمز استعلام اصالت (QR)</u> است.</span>
           <span className="shrink-0 font-mono text-[9px] text-emerald-900">وضعیت: تأییدشده</span>
         </div>
@@ -415,7 +415,7 @@ export default function FinancialTranscript({
       <div className="space-y-3 p-4">
         {/* ── مشخصات فشرده (۳ جفت در هر سطر) + عکس در سمت چپ (درخواست کاربر) ── */}
         <div className="flex items-stretch gap-1.5">
-          <table className="tr-fin-info w-full border-collapse border border-slate-700 text-[10px] rt">
+          <table className="tr-fin-info w-full border-collapse border border-slate-700 text-3xs rt">
           <tbody>
             <tr>
               <td className="border border-slate-300 bg-slate-100 px-1.5 py-1 font-bold text-slate-700">نام و نام خانوادگی</td>
@@ -488,7 +488,7 @@ export default function FinancialTranscript({
           <h3 className="border-b border-slate-700 bg-indigo-900 px-3 py-1.5 text-[12px] font-black text-white">
             {scopeLabel || 'جمع کل دوره'}
           </h3>
-          <table className="tr-fin-totals w-full border-collapse text-center text-[11px] rt">
+          <table className="tr-fin-totals w-full border-collapse text-center text-2xs rt">
             <thead>
               <tr className="bg-slate-100 text-slate-700">
                 <th className="border border-slate-300 px-1 py-1.5">جمع شهریه (ریال)</th>
@@ -533,7 +533,7 @@ export default function FinancialTranscript({
                 </td>
               </tr>
               <tr>
-                <td colSpan={5} className="border border-slate-300 bg-slate-50 px-2 py-1.5 text-[11px] font-bold text-slate-700">
+                <td colSpan={5} className="border border-slate-300 bg-slate-50 px-2 py-1.5 text-2xs font-bold text-slate-700">
                   {totals.balance > 0
                     ? `ماندهٔ بدهی دانشجو: ${fa(totals.balance)} ریال`
                     : totals.balance < 0
@@ -574,7 +574,7 @@ export default function FinancialTranscript({
                       <div key={t.termId} className="term-block break-inside-avoid overflow-hidden rounded-lg border border-slate-700">
                         <div className="flex items-center justify-between gap-1 border-b border-slate-700 bg-slate-100 px-2 py-1.5">
                           <div className="min-w-0">
-                            <h4 className="text-[11px] font-black text-slate-900"><TermTitle t={t} /></h4>
+                            <h4 className="text-2xs font-black text-slate-900"><TermTitle t={t} /></h4>
                             {t.statusTitle ? (
                               <p className="mt-px text-[9px] font-medium text-slate-600">
                                 وضعیت: <span className="font-bold text-slate-800">{t.statusTitle}</span>
@@ -719,7 +719,7 @@ export default function FinancialTranscript({
         {cheques.length > 0 && (
           <div className="tr-breakdown break-inside-avoid">
             <h3 className="mb-1 border-b-2 border-slate-800 pb-1 text-[12px] font-black text-slate-900">چک‌های دانشجو</h3>
-            <table className="tr-fin-list w-full border-collapse border border-slate-700 text-center text-[10px] rt">
+            <table className="tr-fin-list w-full border-collapse border border-slate-700 text-center text-3xs rt">
               <thead>
                 <tr className="bg-slate-100 text-slate-700">
                   <th className="border border-slate-300 px-1 py-1">شمارهٔ چک</th>
@@ -750,7 +750,7 @@ export default function FinancialTranscript({
         {loans.length > 0 && (
           <div className="tr-breakdown break-inside-avoid">
             <h3 className="mb-1 border-b-2 border-slate-800 pb-1 text-[12px] font-black text-slate-900">وام‌های دانشجو</h3>
-            <table className="tr-fin-list w-full border-collapse border border-slate-700 text-center text-[10px] rt">
+            <table className="tr-fin-list w-full border-collapse border border-slate-700 text-center text-3xs rt">
               <thead>
                 <tr className="bg-slate-100 text-slate-700">
                   <th className="border border-slate-300 px-1 py-1">نوع وام</th>
@@ -790,7 +790,7 @@ export default function FinancialTranscript({
           <tr>
             <td className="tr-doc-cell tr-signatures">
               {/* ── امضا و مهر (در پایین هر صفحهٔ چاپ تکرار می‌شود) ── */}
-              <div className="grid grid-cols-3 gap-2 px-4 pb-4 pt-3 text-center text-[10px] text-slate-600">
+              <div className="grid grid-cols-3 gap-2 px-4 pb-4 pt-3 text-center text-3xs text-slate-600">
                 <div>
                   <p className="mb-8 font-medium">کارشناس امور مالی</p>
                   <div className="border-t border-slate-400 pt-1">نام و امضا</div>

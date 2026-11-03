@@ -18,7 +18,7 @@ export default function OfferingsClient(props: {
         <tbody>
           {props.rows.map(r => (
             <tr key={r.id} className="border-t border-slate-100">
-              <td className="p-2"><span className="font-medium">{r.title}</span><span className="block font-mono text-[10px] text-slate-400" dir="ltr">{r.code} · اکنون: {r.label}</span></td>
+              <td className="p-2"><span className="font-medium">{r.title}</span><span className="block font-mono text-3xs text-slate-400" dir="ltr">{r.code} · اکنون: {r.label}</span></td>
               <td className="p-2">{r.group}</td>
               <td className="p-2">{r.enr}/{r.cap}</td>
               <td className="p-2">

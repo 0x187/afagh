@@ -110,7 +110,7 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
                     <td className="p-1">
                       <span
                         title="تغییر این مقدار با کارشناس آموزش / مدیر مالی است"
-                        className={`inline-block rounded-md px-1.5 py-0.5 text-[11px] ${c.legacyMaliType == null ? 'bg-rose-100 text-rose-800 font-bold' : 'bg-slate-100 text-slate-700'}`}
+                        className={`inline-block rounded-md px-1.5 py-0.5 text-2xs ${c.legacyMaliType == null ? 'bg-rose-100 text-rose-800 font-bold' : 'bg-slate-100 text-slate-700'}`}
                       >
                         {c.legacyMaliType == null ? 'تعیین‌نشده' : `${c.legacyMaliType} — ${maliTypeLabel(c.legacyMaliType)}`}
                       </span>

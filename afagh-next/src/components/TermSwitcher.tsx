@@ -35,12 +35,12 @@ export default function TermSwitcher({
         title="نیمسال فعال — همهٔ فهرست‌ها و کارنامه‌ها بر اساس این انتخاب فیلتر می‌شوند"
         className="list-none [&::-webkit-details-marker]:hidden bg-white/15 hover:bg-white/25 border-white/25 text-white border rounded-lg px-2 py-1.5 text-xs font-bold cursor-pointer flex items-center gap-1.5 select-none"
       >
-        <span className="text-[10px] opacity-70">🗓</span>
+        <span className="text-3xs opacity-70">🗓</span>
         {/* برچسب «نیمسال» فقط از sm به بالا — در موبایل جا را برای سوییچر
             کارتابل باز می‌کند تا هر دو در یک ردیف سربرگ جا شوند */}
-        <span className="hidden sm:inline text-[10px] opacity-80">نیمسال</span>
+        <span className="hidden sm:inline text-3xs opacity-80">نیمسال</span>
         <span className="max-w-24 sm:max-w-36 truncate">{current ? current.title : 'همهٔ نیمسال‌ها'}</span>
-        <span className="text-[10px] opacity-70">▾</span>
+        <span className="text-3xs opacity-70">▾</span>
       </summary>
       {/* در موبایل پنل «تمام‌عرضِ زیر ردیف سوییچرها» باز می‌شود: خودِ `details`
           تا md موقعیت‌دار نیست، پس پنل به نزدیک‌ترین والدِ `relative` (ردیف

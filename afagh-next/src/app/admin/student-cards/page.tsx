@@ -131,7 +131,7 @@ export default async function AdminStudentCardsPage({
         <p className="text-xs text-slate-500 mt-0.5">
           توکن امنیتی چاپ‌شده روی کارت، همان چیزی است که گیت حراست در <span className="font-mono">/id/[token]</span> استعلام می‌کند.
         </p>
-        <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-bold">
+        <div className="mt-2 flex flex-wrap gap-2 text-2xs font-bold">
           <span className="rounded-lg bg-indigo-50 px-2 py-1 text-indigo-900 border border-indigo-200">
             اعتبار پیش‌فرض کارت: {fa(validDays)} روز (از تنظیمات سامانه)
           </span>

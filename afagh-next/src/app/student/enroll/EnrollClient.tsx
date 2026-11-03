@@ -18,7 +18,9 @@ import {
 } from './actions';
 import type { SubmitResult } from '@/lib/enroll-engine';
 import { isSafeLinkUrl } from '@/lib/safe-url';
+import { useToast } from '@/components/ui/Toast';
 import { BYPASS_KIND_LABEL, BYPASS_STATUS_LABEL, type BypassRequestRow } from '@/lib/bypass-labels';
+import { askConfirm } from '@/lib/ui-feedback';
 
 export type ClassScheduleItem = {
   dayOfWeek: number;
@@ -104,22 +106,22 @@ function TempWeeklySchedule({ cart }: { cart: CartItem[] }) {
     <div className="card !p-4 bg-white border border-slate-200 shadow-sm rounded-2xl space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
         <h2 className="font-extrabold text-sm sm:text-base text-slate-900">🗓️ برنامه هفتگی موقت سبد شما</h2>
-        <span className={`text-[11px] font-bold px-2.5 py-1 rounded-lg ${anyConflict ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
+        <span className={`text-2xs font-bold px-2.5 py-1 rounded-lg ${anyConflict ? 'bg-rose-100 text-rose-800' : 'bg-emerald-100 text-emerald-800'}`}>
           {anyConflict ? '⚠️ دارای تداخل زمانی' : '✓ بدون تداخل زمانی'}
         </span>
       </div>
-      <p className="text-[11px] text-slate-500">
+      <p className="text-2xs text-slate-500">
         این چیدمان بر اساس دروس فعلی سبد است و با هر افزودن/حذف به‌روز می‌شود تا پیش از ثبت نهایی ببینید تایم‌ها چگونه پر می‌شوند.
       </p>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-2">
         {days.map((dn, di) => (
           <div key={dn} className="rounded-xl border border-slate-200 bg-slate-50 p-2 space-y-1.5 min-h-[110px]">
-            <p className="text-[11px] font-black text-slate-700 text-center border-b border-slate-200 pb-1">{dn}</p>
-            {byDay[di].length === 0 && <p className="text-[10px] text-slate-400 text-center pt-3">—</p>}
+            <p className="text-2xs font-black text-slate-700 text-center border-b border-slate-200 pb-1">{dn}</p>
+            {byDay[di].length === 0 && <p className="text-3xs text-slate-400 text-center pt-3">—</p>}
             {byDay[di].map((e, i) => (
               <div
                 key={i}
-                className={`rounded-lg p-1.5 text-[10px] font-bold border ${
+                className={`rounded-lg p-1.5 text-3xs font-bold border ${
                   e.conflict ? 'bg-rose-50 border-rose-300 text-rose-900' : 'bg-indigo-50 border-indigo-200 text-indigo-950'
                 }`}
               >
@@ -181,6 +183,10 @@ export default function EnrollClient(props: {
   const router = useRouter();
   const sajjadHref = isSafeLinkUrl(props.sajjadPortalUrl) ? props.sajjadPortalUrl : 'https://portal.saorg.ir';
   const [busy, setBusy] = useState(false);
+  /* پیام‌های عملیاتی از توستِ سراسری می‌آیند (نه alert بومی): دیالوگ بومی
+     جریان انتخاب واحد را قطع می‌کرد، در موبایل کل صفحه را بلاک می‌کرد و
+     امکان نمایش چند خطای هم‌زمان (سقف واحد + تداخل + ظرفیت) را نمی‌داد. */
+  const toast = useToast();
   const [msg, setMsg] = useState('');
   const [result, setResult] = useState<SubmitResult | null>(null);
   const [queuePos, setQueuePos] = useState<number | null>(null);
@@ -348,7 +354,7 @@ export default function EnrollClient(props: {
   }
 
   async function cancelBypass(id: number) {
-    if (!confirm('درخواست لغو شود؟ صندلی رزروشده آزاد می‌شود.')) return;
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: 'درخواست لغو شود؟ صندلی رزروشده آزاد می‌شود.', confirmText: 'تأیید', cancelText: 'انصراف', danger: false }))) return;
     setBusy(true);
     setMsg('');
     const res = await cancelBypassAction(id);
@@ -367,7 +373,7 @@ export default function EnrollClient(props: {
   }
 
   async function clearAll() {
-    if (!confirm('آیا از خالی کردن تمام دروس موجود در سبد انتخاب واحد مطمئن هستید؟')) return;
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: 'آیا از خالی کردن تمام دروس موجود در سبد انتخاب واحد مطمئن هستید؟', confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
     setBusy(true);
     setMsg('');
     await clearCartAction();
@@ -386,7 +392,7 @@ export default function EnrollClient(props: {
 
   async function submit() {
     if (totalUnits > effectiveMaxUnits) {
-      alert(`خطا: مجموع واحدهای انتخابی (${totalUnits} واحد) از سقف مجاز آیین‌نامه برای شما (${effectiveMaxUnits} واحد) بیشتر است.`);
+      toast(`مجموع واحدهای انتخابی (${totalUnits} واحد) از سقف مجاز آیین‌نامه برای شما (${effectiveMaxUnits} واحد) بیشتر است.`, 'error');
       return;
     }
     setBusy(true);
@@ -545,21 +551,21 @@ export default function EnrollClient(props: {
           {/* نوار وضعیت آیین‌نامه — هم‌راستا در قالب کارت‌های یک‌دست */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <div className="rounded-xl bg-slate-800/70 border border-slate-700 px-3 py-2">
-              <p className="text-[10px] text-indigo-300 font-bold mb-1">📜 مقطع تحصیلی</p>
+              <p className="text-3xs text-indigo-300 font-bold mb-1">📜 مقطع تحصیلی</p>
               <p className="text-sm font-black text-white">{props.degreeLevelTitle || '—'}</p>
             </div>
             <div className="rounded-xl bg-slate-800/70 border border-slate-700 px-3 py-2">
-              <p className="text-[10px] text-indigo-300 font-bold mb-1">🎯 سقف مجاز انتخاب واحد</p>
+              <p className="text-3xs text-indigo-300 font-bold mb-1">🎯 سقف مجاز انتخاب واحد</p>
               <p className="text-sm font-black text-emerald-300">{faNum(effectiveMaxUnits)} واحد</p>
             </div>
             {props.regulationStatus.minAllowedUnits > 0 && (
               <div className="rounded-xl bg-slate-800/70 border border-slate-700 px-3 py-2">
-                <p className="text-[10px] text-indigo-300 font-bold mb-1">⬇️ حداقل واحد این ترم</p>
+                <p className="text-3xs text-indigo-300 font-bold mb-1">⬇️ حداقل واحد این ترم</p>
                 <p className="text-sm font-black text-white">{faNum(props.regulationStatus.minAllowedUnits)} واحد</p>
               </div>
             )}
             <div className="rounded-xl bg-slate-800/70 border border-slate-700 px-3 py-2">
-              <p className="text-[10px] text-indigo-300 font-bold mb-1">📊 پیشرفت تحصیلی</p>
+              <p className="text-3xs text-indigo-300 font-bold mb-1">📊 پیشرفت تحصیلی</p>
               <p className="text-xs font-bold text-slate-200 font-mono leading-relaxed">
                 {faNum(props.regulationStatus.passedUnits)}/{faNum(props.regulationStatus.totalRequiredUnits)} واحد
                 <span className="text-slate-400"> · {faNum(props.regulationStatus.remainingUnits)} باقی</span>
@@ -588,7 +594,7 @@ export default function EnrollClient(props: {
               </span>
             )}
             {(props.regulationStatus.compensatoryUnits ?? 0) > 0 && (
-              <span className="text-[10px] text-emerald-400/90">شامل {faNum(props.regulationStatus.compensatoryUnits ?? 0)} واحد جبرانی در سقف مجاز</span>
+              <span className="text-3xs text-emerald-400/90">شامل {faNum(props.regulationStatus.compensatoryUnits ?? 0)} واحد جبرانی در سقف مجاز</span>
             )}
           </div>
         </div>
@@ -601,7 +607,7 @@ export default function EnrollClient(props: {
             <span>⏳</span>
             <span>درخواست‌های در انتظار تصمیم</span>
           </h3>
-          <p className="text-[11px] text-amber-800">
+          <p className="text-2xs text-amber-800">
             ظرفیت این دروس تا زمان تصمیم مدیر گروه / کارشناس آموزش برای شما رزرو شده است.
           </p>
           <div className="space-y-2">
@@ -612,7 +618,7 @@ export default function EnrollClient(props: {
               >
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-bold text-slate-900">{r.courseTitle}</span>
-                  <span className="font-mono text-[10px] text-slate-500" dir="ltr">{r.courseCode}</span>
+                  <span className="font-mono text-3xs text-slate-500" dir="ltr">{r.courseCode}</span>
                   <span className="bg-amber-100 text-amber-900 font-bold rounded px-1.5 py-0.5">
                     بدون رعایت {BYPASS_KIND_LABEL[r.kind]}
                   </span>
@@ -626,7 +632,7 @@ export default function EnrollClient(props: {
                 <button
                   onClick={() => cancelBypass(r.id)}
                   disabled={busy}
-                  className="text-[11px] font-bold text-rose-700 border border-rose-300 rounded-lg px-2 py-1 hover:bg-rose-50 disabled:opacity-50"
+                  className="text-2xs font-bold text-rose-700 border border-rose-300 rounded-lg px-2 py-1 hover:bg-rose-50 disabled:opacity-50"
                 >
                   لغو درخواست
                 </button>
@@ -711,7 +717,7 @@ export default function EnrollClient(props: {
                 onClick={() => {
                   setRemain(15 * 60);
                 }}
-                className="text-[11px] bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-1 rounded-lg"
+                className="text-2xs bg-rose-600 hover:bg-rose-700 text-white font-bold px-3 py-1 rounded-lg"
               >
                 🔄 تمدید مهلت
               </button>
@@ -932,7 +938,7 @@ export default function EnrollClient(props: {
               <div className="space-y-1.5">
                 <p className="text-xs font-black text-rose-700">⛔ تداخل قطعی (همان روز و همان ساعت) — امکان اخذ این درس‌ها وجود ندارد:</p>
                 {conflictModal.hard.map((c, i) => (
-                  <div key={i} className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-[11px] font-bold text-rose-900">
+                  <div key={i} className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-2xs font-bold text-rose-900">
                     {c.courseCode} — {c.title} در {c.examDate} ساعت {c.startTime} هم‌زمان با {c.withCourse}
                   </div>
                 ))}
@@ -942,7 +948,7 @@ export default function EnrollClient(props: {
               <div className="space-y-1.5">
                 <p className="text-xs font-black text-amber-700">🌗 تداخل نرم (همان روز، ساعت‌های متفاوت) — با تأییدیهٔ دیجیتال قابل ثبت است:</p>
                 {conflictModal.soft.map((c, i) => (
-                  <div key={i} className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-[11px] font-bold text-amber-900">
+                  <div key={i} className="p-2.5 rounded-xl bg-amber-50 border border-amber-200 text-2xs font-bold text-amber-900">
                     {c.courseCode} — {c.title} در {c.examDate} ساعت {c.startTime} (با {c.withCourse} هم‌روز است)
                   </div>
                 ))}
@@ -1045,7 +1051,7 @@ export default function EnrollClient(props: {
             <h2 className="font-extrabold text-sm sm:text-base text-slate-900">
               📚 دروس و گروه‌های ارائه‌شده در نیمسال جاری — {props.term.title}
             </h2>
-            <p className="text-[11px] text-slate-500 mt-0.5">
+            <p className="text-2xs text-slate-500 mt-0.5">
               نمایش گروه‌های درسی موازی با زمان‌بندی کلاس، تاریخ امتحان و کنترل زندهٔ ظرفیت.
             </p>
           </div>
@@ -1214,7 +1220,7 @@ export default function EnrollClient(props: {
                   )}
 
                   {openPrereqRequest && (
-                    <span className="text-[11px] font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
+                    <span className="text-2xs font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
                       ⏳ در انتظار تصمیم
                     </span>
                   )}

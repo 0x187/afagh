@@ -53,7 +53,7 @@ export default async function SanjeshEnrolledPage({
       <header className="mb-3 flex flex-wrap items-end justify-between gap-2">
         <div>
           <h1 className="text-base font-bold text-slate-800">ثبت‌نام‌شده — {file.title}</h1>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-2xs text-slate-500">
             ردیف‌هایی که به کارتابل پذیرش منتقل شده‌اند. ادامهٔ فرآیند (تخصیص شمارهٔ دانشجویی و ساخت کاربر) در کارتابل
             پذیرش انجام می‌شود.
           </p>
@@ -114,7 +114,7 @@ export default async function SanjeshEnrolledPage({
           </tbody>
         </table>
       </div>
-      {staged.length === 500 && <p className="mt-2 text-[10px] text-slate-400">فقط ۵۰۰ ردیف اول نمایش داده شده است.</p>}
+      {staged.length === 500 && <p className="mt-2 text-3xs text-slate-400">فقط ۵۰۰ ردیف اول نمایش داده شده است.</p>}
     </div>
   );
 }

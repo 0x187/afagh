@@ -10,6 +10,7 @@ import {
   borrowReleasedShiftAction,
   upsertRoomGrantAction,
 } from '../actions';
+import { askConfirm } from '@/lib/ui-feedback';
 
 const SHIFT_LABEL: Record<string, string> = { MORNING: 'صبح', EVENING: 'عصر' };
 
@@ -152,7 +153,8 @@ export default function DeptRoomsTab() {
                 type="button"
                 disabled={allocating || !selectedTermId || !roomGrants.some(g => g.status === 'ALLOCATED')}
                 onClick={async () => {
-                  if (!confirm('همهٔ سهمیه‌های تخصیص‌یافته لغو شوند؟')) return;
+                  const confirmed = await askConfirm({ title: 'لغو سهمیه‌ها', body: 'همهٔ سهمیه‌های تخصیص‌یافته لغو شوند؟', confirmText: 'لغو کن', danger: true });
+                  if (!confirmed) return;
                   setAllocating(true);
                   setMsg(null);
                   try {
@@ -275,7 +277,7 @@ export default function DeptRoomsTab() {
             <div key={room.id} className="p-4 rounded-2xl border-2 border-slate-200 bg-white shadow-sm space-y-3">
               <div className="flex items-center justify-between">
                 <h4 className="text-base font-extrabold text-slate-900">{room.name}</h4>
-                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-900">
+                <span className="text-3xs font-extrabold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-900">
                   {room.roomType === 'LAB' ? 'آزمایشگاه' : room.roomType === 'GYM' ? 'سالن ورزش' : 'کلاس'}
                 </span>
               </div>
@@ -283,7 +285,7 @@ export default function DeptRoomsTab() {
 
               {grants.length === 0 ? (
                 <div className="space-y-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-2.5">
-                  <p className="text-[11px] font-bold leading-5 text-slate-500">
+                  <p className="text-2xs font-bold leading-5 text-slate-500">
                     {noQuotaReason(room)}
                   </p>
                   <div className="flex flex-wrap items-center gap-2">
@@ -315,7 +317,7 @@ export default function DeptRoomsTab() {
                           '✅ سهمیهٔ سالن ثبت شد.',
                         );
                       }}
-                      className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] disabled:opacity-50"
+                      className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-2xs disabled:opacity-50"
                     >
                       {busyKey === `add-${room.id}` ? '⏳…' : '➕ ثبت سهمیه'}
                     </button>
@@ -332,7 +334,7 @@ export default function DeptRoomsTab() {
                           <span className="font-extrabold text-slate-900">
                             شیفت {SHIFT_LABEL[g.shift] ?? g.shift} — {deptName(g.ownerDepartmentId)}
                           </span>
-                          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isReleased ? 'bg-amber-200 text-amber-900' : 'bg-emerald-200 text-emerald-900'}`}>
+                          <span className={`text-3xs font-bold px-2 py-0.5 rounded-full ${isReleased ? 'bg-amber-200 text-amber-900' : 'bg-emerald-200 text-emerald-900'}`}>
                             {isReleased ? 'آزاد/لغو شده' : 'تخصیص یافته'}
                           </span>
                         </div>
@@ -354,7 +356,7 @@ export default function DeptRoomsTab() {
                                 const sel = (g as any)._target ?? g.ownerDepartmentId;
                                 run(key, () => borrowReleasedShiftAction({ termId: selectedTermId, classroomId: room.id, shift: g.shift as 'MORNING' | 'EVENING', departmentId: sel }), '✅ سهمیه واگذار شد.');
                               }}
-                              className="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-[11px] disabled:opacity-50"
+                              className="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-2xs disabled:opacity-50"
                             >
                               {busyKey === key ? '⏳…' : '🔄 واگذاری'}
                             </button>
@@ -364,7 +366,7 @@ export default function DeptRoomsTab() {
                             type="button"
                             disabled={busyKey === key}
                             onClick={() => run(key, () => releaseRoomShiftAction({ termId: selectedTermId, departmentId: g.ownerDepartmentId, classroomId: room.id, shift: g.shift as 'MORNING' | 'EVENING' }), '✅ سهمیه لغو شد (برای پر کردن جای خالی آزاد شد).')}
-                            className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-[11px] disabled:opacity-50"
+                            className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-2xs disabled:opacity-50"
                           >
                             {busyKey === key ? '⏳…' : '🗑️ لغو سهمیه'}
                           </button>

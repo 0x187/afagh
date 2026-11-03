@@ -44,7 +44,7 @@ export default function CurriculumHeader() {
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-400 text-slate-950">ماژول برنامهٔ درسی</span>
+              <span className="px-2.5 py-0.5 rounded-full text-2xs font-bold bg-amber-400 text-slate-950">ماژول برنامهٔ درسی</span>
               <span className="text-xs text-indigo-200">{faNum(majorVersions.length)} نسخه در {majors.find(m => m.id === selectedMajorId)?.name ?? '—'}</span>
             </div>
             <h1 className="text-2xl font-extrabold tracking-tight">📚 مدیریت نسخه‌های برنامهٔ درسی (چرخهٔ حیات مصوب)</h1>
@@ -94,7 +94,7 @@ export default function CurriculumHeader() {
               value={majorQuery}
               onChange={e => setMajorQuery(e.target.value)}
               placeholder="🔍 جستجوی رشته: کد، نام، دانشکده یا گروه…"
-              className="mb-1 w-full bg-slate-900/90 text-white placeholder:text-indigo-300/60 border border-indigo-400/50 rounded-lg px-2.5 py-1.5 text-[11px] font-bold"
+              className="mb-1 w-full bg-slate-900/90 text-white placeholder:text-indigo-300/60 border border-indigo-400/50 rounded-lg px-2.5 py-1.5 text-2xs font-bold"
             />
             <select
               value={selectedMajorId}
@@ -113,7 +113,7 @@ export default function CurriculumHeader() {
         <div className="mt-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
           <div>
             {(() => { const m = majors.find(x => x.id === selectedMajorId); if (!m) return null; return (
-              <p className="text-[10px] text-indigo-300 font-bold leading-relaxed">
+              <p className="text-3xs text-indigo-300 font-bold leading-relaxed">
                 کد {m.code} · {m.facultyName ?? '—'} · {m.departmentName ?? '—'} · {m.degreeTitle ?? '—'}
                 {m.degreeIsGraduate === 1 ? ' (تکمیلی)' : ''} · چارت {faNum(termCountForDegree({ termCount: m.degreeTermCount, code: m.degreeCode, title: m.degreeTitle }))} ترمه
                 {' '}· {faNum(m.minUnits ?? 0)} واحد الزامی
@@ -122,7 +122,7 @@ export default function CurriculumHeader() {
             ); })()}
           </div>
           <div className="sm:col-span-2 flex items-end">
-            <p className="text-[11px] text-indigo-200 leading-relaxed bg-white/5 rounded-xl p-3 border border-white/10">
+            <p className="text-2xs text-indigo-200 leading-relaxed bg-white/5 rounded-xl p-3 border border-white/10">
               هر تغییر پس از تأیید فقط با <b>نسخهٔ جدید (R1, R2,…)</b> انجام می‌شود؛ نسخهٔ تأییدشده هرگز درجا ویرایش نمی‌شود.
               وضعیت هر نسخه و «یافته‌های اعتبارسنجی» (CheckResult) مستقیماً از موتور واقعی خوانده می‌شود.
             </p>

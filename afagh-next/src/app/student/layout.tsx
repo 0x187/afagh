@@ -14,8 +14,7 @@ import TermSwitcher from '@/components/TermSwitcher';
 import { getTermScope, termOrdinalForEntry } from '@/lib/term-scope';
 import { isDemoStudentUser } from '@/lib/demo-accounts';
 import { DEMO_STUDENT } from '@/lib/demo-student-data';
-import ThemeToggle from '@/components/ThemeToggle';
-import { logoutAction } from '../login/actions';
+import HeaderActions from '@/components/HeaderActions';
 import StudentNav, { StudentSidebar } from './StudentNav';
 import UserAvatar from '@/components/UserAvatar';
 import BackToDashboard from '@/components/BackToDashboard';
@@ -143,41 +142,21 @@ export default async function StudentLayout({ children }: { children: React.Reac
                 خوش‌آمدی {firstName} عزیز 👋
               </p>
               {(levelTitle || me?.entryYear) && (
-                <p className="hidden sm:block truncate text-[10px] font-bold text-emerald-200 leading-tight">
+                <p className="hidden sm:block truncate text-3xs font-bold text-emerald-200 leading-tight">
                   {levelTitle || '—'} · ورودی {me?.entryYear ?? '—'}
                 </p>
               )}
             </div>
 
-            {/* دکمه‌های راهنما/تم/خروج */}
+            {/* دکمه‌های راهنما/تم/خروج — از کامپوننت مشترک `HeaderActions`
+                (هم‌اندازه و هم‌آیکون با کارتابل مدیریت و استاد). */}
             <div className="flex items-center gap-1.5 shrink-0">
-              <a
-                href="/help/student"
-                className="hidden md:inline-flex text-[11px] bg-emerald-700/80 hover:bg-emerald-700 text-emerald-100 border border-emerald-600 px-2.5 py-1.5 rounded-lg transition-colors font-medium items-center gap-1"
-              >
-                <span>📖</span>
-                <span>راهنمای سیستم</span>
-              </a>
-              <a
-                href="/help/pdfs/student.pdf"
-                download
-                className="hidden md:inline-flex text-[11px] bg-emerald-700/80 hover:bg-emerald-700 text-emerald-100 border border-emerald-600 px-2.5 py-1.5 rounded-lg transition-colors font-medium items-center gap-1"
-              >
-                <span>📕</span>
-                <span>PDF راهنما</span>
-              </a>
-              <ThemeToggle />
-              <form action={logoutAction}>
-                <button className="px-2.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-[11px] font-bold transition whitespace-nowrap">
-                  <span className="sm:hidden">خروج</span>
-                  <span className="hidden sm:inline">خروج از حساب</span>
-                </button>
-              </form>
+              <HeaderActions helpHref="/help/student" pdfHref="/help/pdfs/student.pdf" />
             </div>
           </div>
 
           {/* ردیف ۲ — چیپ‌های وضعیت + سوییچرها */}
-          <div className="flex flex-wrap items-center gap-1.5 text-[10px] sm:text-[11px] min-w-0">
+          <div className="flex flex-wrap items-center gap-1.5 text-3xs sm:text-2xs min-w-0">
             {/* چیپ مالی «کشسان» است: در موبایل فضای باقی‌مانده را پر می‌کند و متنش
                 کوتاه می‌شود تا سوییچر ترم همیشه در همین ردیف بماند (هدر سه‌ردیفه نشود). */}
             <span
@@ -226,7 +205,7 @@ export default async function StudentLayout({ children }: { children: React.Reac
         <StudentSidebar user={{ name: user.name, studentCode: sidebarStudentCode }} />
 
         {/* محتوای اصلی صفحه */}
-        <main className="flex-1 min-w-0 overflow-x-hidden print:!overflow-visible print:!px-0 print:!pb-2 p-3 sm:p-5 md:p-6 pb-24 md:pb-8">
+        <main id="main" className="flex-1 min-w-0 overflow-x-hidden print:!overflow-visible print:!px-0 print:!pb-2 p-3 sm:p-5 md:p-6 pb-24 md:pb-8">
           {/* دکمهٔ بازگشت به کارتابل دانشجو — روی همهٔ زیرصفحه‌ها (نه خودِ /student).
               در موبایل مفیدتر است: سایدبار پنهان است و تنها راه قبلی نوار پایین بود. */}
           <BackToDashboard href="/student" label="بازگشت به کارتابل دانشجو" />

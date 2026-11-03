@@ -53,11 +53,11 @@ const fa = (n: number) => Number(n || 0).toLocaleString('fa-IR');
 
 const inputCls =
   'w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500';
-const labelCls = 'flex flex-col gap-1 text-[11px] font-medium text-slate-600';
+const labelCls = 'flex flex-col gap-1 text-2xs font-medium text-slate-600';
 const btnCls =
   'rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50';
 const smBtn =
-  'rounded border px-1.5 py-0.5 text-[11px] font-medium transition-colors';
+  'rounded border px-1.5 py-0.5 text-2xs font-medium transition-colors';
 
 export default function FinanceStudentClient(props: {
   studentId: number;
@@ -201,7 +201,7 @@ export default function FinanceStudentClient(props: {
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs rt rt--scroll">
                 <thead>
-                  <tr className="border-b border-slate-200 text-[11px] text-slate-500">
+                  <tr className="border-b border-slate-200 text-2xs text-slate-500">
                     <th className="p-2">نوع</th><th className="p-2">ترم</th><th className="p-2">مقدار</th>
                     <th className="p-2">وضعیت</th><th className="p-2">دلیل</th><th className="p-2">عملیات</th>
                   </tr>
@@ -213,7 +213,7 @@ export default function FinanceStudentClient(props: {
                       <td className="p-2 text-slate-600">{termName(d.termId)}</td>
                       <td className="p-2">{d.kind === 'PERCENT' ? `${fa(d.percent)}٪` : fa(d.amount)}</td>
                       <td className="p-2">
-                        <span className={`rounded px-1.5 py-0.5 text-[10px] ${
+                        <span className={`rounded px-1.5 py-0.5 text-3xs ${
                           d.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-700' :
                           d.status === 'REJECTED' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>
                           {d.status === 'APPROVED' ? 'تأییدشده' : d.status === 'REJECTED' ? 'ردشده' : 'در انتظار تأیید'}
@@ -313,7 +313,7 @@ export default function FinanceStudentClient(props: {
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs rt rt--scroll">
                 <thead>
-                  <tr className="border-b border-slate-200 text-[11px] text-slate-500">
+                  <tr className="border-b border-slate-200 text-2xs text-slate-500">
                     <th className="p-2">بنیاد</th><th className="p-2">ترم</th><th className="p-2">پوشش</th>
                     <th className="p-2">شمارهٔ نامه</th><th className="p-2">وضعیت</th><th className="p-2">عملیات</th>
                   </tr>
@@ -326,7 +326,7 @@ export default function FinanceStudentClient(props: {
                       <td className="p-2">{s.coverageKind === 'PERCENT' ? `${fa(s.percent)}٪` : fa(s.amount)}</td>
                       <td className="p-2 text-slate-500">{s.referenceNo || '—'}</td>
                       <td className="p-2">
-                        <span className={`rounded px-1.5 py-0.5 text-[10px] ${
+                        <span className={`rounded px-1.5 py-0.5 text-3xs ${
                           s.status === 'PAID' ? 'bg-emerald-50 text-emerald-700' :
                           s.status === 'CONFIRMED' ? 'bg-sky-50 text-sky-700' :
                           s.status === 'REJECTED' ? 'bg-rose-50 text-rose-700' : 'bg-amber-50 text-amber-700'}`}>
@@ -392,7 +392,7 @@ export default function FinanceStudentClient(props: {
               </label>
               <label className={`${labelCls} sm:col-span-3`}>یادداشت<input name="note" className={inputCls} /></label>
             </div>
-            <p className="mt-2 text-[11px] text-slate-500">
+            <p className="mt-2 text-2xs text-slate-500">
               پیش از سررسید، پیام یادآوری خودکار به دانشجو فرستاده می‌شود (افق یادآوری در تنظیمات سامانه).
             </p>
             <button type="submit" disabled={pending} className={`${btnCls} mt-2`}>ثبت چک</button>
@@ -402,7 +402,7 @@ export default function FinanceStudentClient(props: {
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs rt rt--scroll">
                 <thead>
-                  <tr className="border-b border-slate-200 text-[11px] text-slate-500">
+                  <tr className="border-b border-slate-200 text-2xs text-slate-500">
                     <th className="p-2">شماره</th><th className="p-2">بانک</th><th className="p-2">مبلغ</th>
                     <th className="p-2">سررسید</th><th className="p-2">وضعیت</th><th className="p-2">عملیات</th>
                   </tr>
@@ -415,7 +415,7 @@ export default function FinanceStudentClient(props: {
                       <td className="p-2">{fa(c.amount)}</td>
                       <td className="p-2">{c.dueDate || '—'}</td>
                       <td className="p-2">
-                        <span className={`rounded px-1.5 py-0.5 text-[10px] ${
+                        <span className={`rounded px-1.5 py-0.5 text-3xs ${
                           c.status === 'CLEARED' ? 'bg-emerald-50 text-emerald-700' :
                           c.status === 'BOUNCED' ? 'bg-rose-50 text-rose-700' :
                           c.status === 'CANCELLED' ? 'bg-slate-100 text-slate-600' : 'bg-amber-50 text-amber-700'}`}>
@@ -492,7 +492,7 @@ export default function FinanceStudentClient(props: {
               </label>
             )}
             {props.loanProducts.length === 0 && (
-              <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+              <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-2xs text-amber-800">
                 هنوز نوع وامی در کاتالوگ تعریف نشده. از «⚙️ تعاریف موتور مالی ← وام‌ها» نوع وام بسازید.
               </p>
             )}
@@ -530,7 +530,7 @@ export default function FinanceStudentClient(props: {
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs rt rt--scroll">
                 <thead>
-                  <tr className="border-b border-slate-200 text-[11px] text-slate-500">
+                  <tr className="border-b border-slate-200 text-2xs text-slate-500">
                     <th className="p-2">نوع وام</th><th className="p-2">پرداخت‌کننده</th><th className="p-2">کد</th><th className="p-2">مبلغ</th>
                     <th className="p-2">اقساط</th><th className="p-2">وضعیت</th><th className="p-2">عملیات</th>
                   </tr>
@@ -544,7 +544,7 @@ export default function FinanceStudentClient(props: {
                       <td className="p-2">{fa(l.amount)}</td>
                       <td className="p-2">{fa(l.installments)}</td>
                       <td className="p-2">
-                        <span className={`rounded px-1.5 py-0.5 text-[10px] ${
+                        <span className={`rounded px-1.5 py-0.5 text-3xs ${
                           l.status === 'ACTIVE' ? 'bg-sky-50 text-sky-700' :
                           l.status === 'SETTLED' ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
                           {l.status === 'ACTIVE' ? 'فعال' : l.status === 'SETTLED' ? 'تسویه‌شده' : 'لغوشده'}
@@ -580,12 +580,12 @@ export default function FinanceStudentClient(props: {
               <h4 className="mb-2 text-xs font-bold text-amber-800">
                 شهریهٔ ترم جاری با ضریب افزایشی و مبالغ موضوعی
                 {props.enhancedTuition.overrideId !== null && (
-                  <span className="mr-2 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] text-violet-800">
+                  <span className="mr-2 rounded-full bg-violet-100 px-2 py-0.5 text-3xs text-violet-800">
                     🎯 فرمول ویژه{props.enhancedTuition.overrideReason ? ` — ${props.enhancedTuition.overrideReason}` : ''}
                   </span>
                 )}
               </h4>
-              <div className="grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-3">
+              <div className="grid grid-cols-2 gap-2 text-2xs sm:grid-cols-3">
                 <div><span className="text-slate-500">شهریه ثابت خام: </span><span className="font-medium">{fa(props.enhancedTuition.fixedTuition)}</span></div>
                 {props.enhancedTuition.fixedCoefficient !== 1 && (
                   <div><span className="text-slate-500">ضریب ثابت: </span><span className="font-medium text-amber-700">×{props.enhancedTuition.fixedCoefficient} = {fa(props.enhancedTuition.fixedTuitionAfterCoeff)}</span></div>
@@ -602,10 +602,10 @@ export default function FinanceStudentClient(props: {
               </div>
               {props.enhancedTuition.subjectFees.length > 0 && (
                 <div className="mt-2 border-t border-amber-200 pt-2">
-                  <p className="mb-1 text-[10px] font-bold text-amber-700">اقلام موضوعی:</p>
+                  <p className="mb-1 text-3xs font-bold text-amber-700">اقلام موضوعی:</p>
                   <div className="flex flex-wrap gap-2">
                     {props.enhancedTuition.subjectFees.map((sf, i) => (
-                      <span key={i} className={`rounded px-1.5 py-0.5 text-[10px] ${sf.kind === 'ADDITIVE' ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-800'}`}>
+                      <span key={i} className={`rounded px-1.5 py-0.5 text-3xs ${sf.kind === 'ADDITIVE' ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-800'}`}>
                         {sf.title}: {sf.amount > 0 ? '+' : ''}{fa(sf.amount)} ریال
                       </span>
                     ))}

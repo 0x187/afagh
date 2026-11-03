@@ -60,7 +60,7 @@ export default function AdminVirtualClassesClient({ terms, initialRows, initialE
 
       <div className="card flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-2">
-          <label className="text-[11px] font-bold text-slate-600">نیم‌سال:</label>
+          <label className="text-2xs font-bold text-slate-600">نیم‌سال:</label>
           <select
             value={String(termId)}
             onChange={e => { const v = e.target.value === '' ? '' : Number(e.target.value); setTermId(v); reload(v); }}
@@ -71,7 +71,7 @@ export default function AdminVirtualClassesClient({ terms, initialRows, initialE
           </select>
         </div>
         <div className="flex items-center gap-2">
-          <label className="text-[11px] font-bold text-slate-600">وضعیت:</label>
+          <label className="text-2xs font-bold text-slate-600">وضعیت:</label>
           <select value={statusFilter} onChange={e => setStatusFilter(e.target.value as any)} className="border border-slate-300 rounded-lg px-2 py-1.5 text-xs font-bold bg-white">
             <option value="ALL">همه</option>
             <option value="RUNNING">در حال برگزاری</option>
@@ -79,13 +79,13 @@ export default function AdminVirtualClassesClient({ terms, initialRows, initialE
             <option value="FUTURE">برگزار نشده</option>
           </select>
         </div>
-        <button disabled={pending} onClick={syncAll} className="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-extrabold text-[11px] disabled:opacity-50">
+        <button disabled={pending} onClick={syncAll} className="px-3 py-1.5 rounded-lg bg-amber-500 text-slate-950 font-extrabold text-2xs disabled:opacity-50">
           {pending ? '…' : '🔄 همگام‌سازی وضعیت از BBB'}
         </button>
-        <button disabled={pending} onClick={syncRecordings} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-extrabold text-[11px] disabled:opacity-50">
+        <button disabled={pending} onClick={syncRecordings} className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-extrabold text-2xs disabled:opacity-50">
           🎬 همگام‌سازی ضبط‌ها
         </button>
-        <span className="text-[11px] text-slate-500 mr-auto">{faNum(filtered.length)} کلاس</span>
+        <span className="text-2xs text-slate-500 mr-auto">{faNum(filtered.length)} کلاس</span>
       </div>
 
       <div className="card overflow-x-auto">
@@ -113,18 +113,18 @@ export default function AdminVirtualClassesClient({ terms, initialRows, initialE
               return (
                 <tr key={r.id} className="text-center border-t border-slate-200">
                   <td className="p-2.5 text-right font-extrabold text-slate-900">
-                    <span className="font-mono text-[11px] text-indigo-900 ml-1">{r.courseCode}</span>
+                    <span className="font-mono text-2xs text-indigo-900 ml-1">{r.courseCode}</span>
                     {r.courseTitle}
                   </td>
                   <td className="p-2.5 font-bold">{r.professorName || '—'}</td>
                   <td className="p-2.5">{r.termTitle || '—'}</td>
                   <td className="p-2.5">{faNum(r.groupNumber)}</td>
                   <td className="p-2.5">{faNum(r.enrolledCount)}</td>
-                  <td className="p-2.5"><span className={`px-2 py-0.5 rounded-full text-[10px] font-black border ${st.cls}`}>{st.text}</span></td>
+                  <td className="p-2.5"><span className={`px-2 py-0.5 rounded-full text-3xs font-black border ${st.cls}`}>{st.text}</span></td>
                   <td className="p-2.5">{faNum(r.participantCount)}</td>
                   <td className="p-2.5">{faNum(r.recordingsCount)}</td>
-                  <td className="p-2.5 text-[10px] text-slate-500">{fmtDate(r.lastSyncedAt)}</td>
-                  <td className="p-2.5 text-[10px] text-slate-500">{fmtDate(r.lastRunningAt)}</td>
+                  <td className="p-2.5 text-3xs text-slate-500">{fmtDate(r.lastSyncedAt)}</td>
+                  <td className="p-2.5 text-3xs text-slate-500">{fmtDate(r.lastRunningAt)}</td>
                 </tr>
               );
             })}

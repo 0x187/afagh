@@ -75,7 +75,7 @@ export default function EnrollConfirmClient(props: {
         <div className="flex items-start justify-between gap-3 border-b-2 border-slate-800 pb-3">
           <div>
             <h1 className="text-base font-black text-slate-900">تأییدیهٔ انتخاب واحد</h1>
-            <p className="mt-0.5 text-[11px] text-slate-500">دانشگاه آفاق — سامانهٔ جامع آموزشی · نیمسال {termTitle}</p>
+            <p className="mt-0.5 text-2xs text-slate-500">دانشگاه آفاق — سامانهٔ جامع آموزشی · نیمسال {termTitle}</p>
           </div>
           {qrSvg ? (
             <QrSvg svg={qrSvg} className="h-24 w-24 shrink-0" />
@@ -90,7 +90,7 @@ export default function EnrollConfirmClient(props: {
             ['رشتهٔ تحصیلی', data.majorName ?? '—'],
           ] as [string, string][]).map(([k, v]) => (
             <div key={k} className="rounded-lg border border-slate-200 bg-slate-50 p-2">
-              <div className="text-[10px] font-bold text-slate-500">{k}</div>
+              <div className="text-3xs font-bold text-slate-500">{k}</div>
               <div className="mt-0.5 text-[12px] font-black text-slate-800">{v}</div>
             </div>
           ))}
@@ -130,7 +130,7 @@ export default function EnrollConfirmClient(props: {
           </tfoot>
         </table>
 
-        <div className="mt-3 flex items-end justify-between gap-3 text-[10px] text-slate-500">
+        <div className="mt-3 flex items-end justify-between gap-3 text-3xs text-slate-500">
           <div className="break-all">
             استعلام اصالت: {verifyUrl}
             <br />

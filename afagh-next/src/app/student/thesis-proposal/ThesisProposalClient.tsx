@@ -193,7 +193,7 @@ export default function ThesisProposalClient({
     <div className="space-y-4" dir="rtl">
       <header className="card p-4 bg-gradient-to-l from-emerald-700 to-teal-800 text-white">
         <h1 className="text-base sm:text-lg font-black">پایان‌نامه و پروپوزال من</h1>
-        <p className="text-[11px] text-emerald-100 mt-1 leading-6">
+        <p className="text-2xs text-emerald-100 mt-1 leading-6">
           سه فاز پیش‌بینی شده است: فاز ۱ عنوان و استاد راهنما، فاز ۲ پروپوزال و تأیید همانندجویی،
           فاز ۳ درخواست دفاع، برگزاری و تحویل پایان‌نامهٔ نهایی. در هر لحظه فقط کاری که از شما مانده نمایش داده می‌شود.
         </p>
@@ -201,9 +201,9 @@ export default function ThesisProposalClient({
 
       <div className="card p-4 flex flex-wrap items-center justify-between gap-2">
         <div>
-          <div className="text-[10px] text-slate-500 font-bold">مرحلهٔ جاری شما — {student.name} · {student.studentCode}</div>
+          <div className="text-3xs text-slate-500 font-bold">مرحلهٔ جاری شما — {student.name} · {student.studentCode}</div>
           <div className="text-sm font-black text-slate-800">{PHASE_FA[phase]}</div>
-          <div className="text-[11px] text-slate-500 mt-0.5">
+          <div className="text-2xs text-slate-500 mt-0.5">
             وضعیت پروندهٔ فارغ‌التحصیلی: <span className="font-mono">{workflowStatus}</span>
           </div>
         </div>
@@ -242,7 +242,7 @@ export default function ThesisProposalClient({
           <Input label="کلیدواژه‌ها (اختیاری)" value={keywords} onChange={setKeywords}
             placeholder="کلیدواژه اول، کلیدواژه دوم" />
           <label className="block">
-            <span className="text-[11px] font-bold text-slate-700">چکیده (اختیاری)</span>
+            <span className="text-2xs font-bold text-slate-700">چکیده (اختیاری)</span>
             <textarea value={abstract} onChange={e => setAbstract(e.target.value)} rows={3}
               className="mt-1 w-full rounded-xl border border-emerald-200 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500" />
           </label>
@@ -265,13 +265,13 @@ export default function ThesisProposalClient({
             </div>
           )}
           {p.titleFa && (
-            <div className="text-[11px] text-slate-700 bg-white border border-sky-200 rounded-xl p-3">
+            <div className="text-2xs text-slate-700 bg-white border border-sky-200 rounded-xl p-3">
               <b>عنوان ثبت‌شده:</b> {p.titleFa}
               {p.supervisor && <span className="text-slate-500"> — راهنما: {p.supervisor}</span>}
             </div>
           )}
           <div className="flex flex-wrap items-center gap-2">
-            <input ref={proposalRef} type="file" accept="application/pdf" className="text-[11px]" />
+            <input ref={proposalRef} type="file" accept="application/pdf" className="text-2xs" />
             <button onClick={sendProposal} disabled={pending}
               className="px-3 py-2 rounded-lg bg-sky-800 text-white text-xs font-black disabled:opacity-50">بارگذاری و ارسال پروپوزال</button>
           </div>
@@ -285,7 +285,7 @@ export default function ThesisProposalClient({
             همانندجویی محاسبه شده و کارشناس آموزش پس از تأیید، کد رهگیری بارگذاری در ایرانداک را ثبت می‌کند.
             تا آن زمان اقدام دیگری از شما لازم نیست.
           </p>
-          <div className="text-[11px] text-slate-700">
+          <div className="text-2xs text-slate-700">
             درصد همانندجویی: <span className="font-black">{faNum(p.proposalSimilarity)}٪</span> — وضعیت:{' '}
             <span className="font-black">{PROPOSAL_FA[p.proposalStatus ?? 'NOT_STARTED'] ?? p.proposalStatus}</span>
           </div>
@@ -325,7 +325,7 @@ export default function ThesisProposalClient({
             {p.defenseRoom && <> — اتاق: <b>{p.defenseRoom}</b></>}
           </p>
           {p.nextProgressReportDue && (
-            <p className="text-[11px] text-slate-700">مهلت ارسال گزارش پیشرفت بعدی: {faDate(p.nextProgressReportDue)}</p>
+            <p className="text-2xs text-slate-700">مهلت ارسال گزارش پیشرفت بعدی: {faDate(p.nextProgressReportDue)}</p>
           )}
         </section>
       )}
@@ -337,7 +337,7 @@ export default function ThesisProposalClient({
             نسخهٔ نهایی و مصوب هیأت داوران را بارگذاری کنید (PDF، حداکثر ۱۰ مگابایت).
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <input ref={finalRef} type="file" accept="application/pdf" className="text-[11px]" />
+            <input ref={finalRef} type="file" accept="application/pdf" className="text-2xs" />
             <button onClick={sendFinalThesis} disabled={pending}
               className="px-3 py-2 rounded-lg bg-emerald-700 text-white text-xs font-black disabled:opacity-50">بارگذاری پایان‌نامهٔ نهایی</button>
           </div>
@@ -372,7 +372,7 @@ export default function ThesisProposalClient({
       <Timeline p={p} />
       <IrandocLogs logs={logs} />
 
-      <div className="card p-3 text-[11px] text-slate-500 leading-5">
+      <div className="card p-3 text-2xs text-slate-500 leading-5">
         فایل‌های بارگذاری‌شده در بایگانی الکترونیکی سامانه نگهداری می‌شوند و از بخش «مدارک و بایگانی» قابل مشاهده‌اند.
       </div>
     </div>
@@ -454,14 +454,14 @@ function Timeline({ p }: { p: Progress }) {
           <li key={it.key} className={`flex items-start justify-between gap-3 rounded-xl border p-2 ${it.tone}`}>
             <div>
               <div className="text-xs font-black text-slate-800">{it.title}</div>
-              <div className="text-[10px] text-slate-500">{it.status || '—'}</div>
+              <div className="text-3xs text-slate-500">{it.status || '—'}</div>
             </div>
-            <div className="text-[10px] text-slate-500 font-mono whitespace-nowrap">{faDate(it.at)}</div>
+            <div className="text-3xs text-slate-500 font-mono whitespace-nowrap">{faDate(it.at)}</div>
           </li>
         ))}
       </ol>
       {p.nextProgressReportDue && (
-        <p className="text-[11px] text-slate-500 mt-2">مهلت گزارش پیشرفت بعدی: {faDate(p.nextProgressReportDue)}</p>
+        <p className="text-2xs text-slate-500 mt-2">مهلت گزارش پیشرفت بعدی: {faDate(p.nextProgressReportDue)}</p>
       )}
     </section>
   );
@@ -477,10 +477,10 @@ function IrandocLogs({ logs }: { logs: Log[] }) {
           <div key={l.id} className="flex items-center justify-between gap-2 rounded-xl bg-slate-50 p-2 text-xs">
             <div>
               <span className="font-black text-slate-800">{CHECK_TYPE_FA[l.checkType] ?? l.checkType}</span>
-              {l.trackingCode && <span className="font-mono text-[10px] text-slate-500"> — {l.trackingCode}</span>}
-              <span className="text-[10px] text-slate-500"> — {l.decision ?? '—'}</span>
+              {l.trackingCode && <span className="font-mono text-3xs text-slate-500"> — {l.trackingCode}</span>}
+              <span className="text-3xs text-slate-500"> — {l.decision ?? '—'}</span>
             </div>
-            <div className="text-[10px] text-slate-600">
+            <div className="text-3xs text-slate-600">
               {faNum(l.similarityPercentage)}٪ · {faDate(l.checkedAt)}
             </div>
           </div>
@@ -501,7 +501,7 @@ function Select({
 }) {
   return (
     <label className="block">
-      <span className="text-[11px] font-bold text-slate-700">{label}</span>
+      <span className="text-2xs font-bold text-slate-700">{label}</span>
       <select value={value} onChange={e => onChange(e.target.value)}
         className="mt-1 w-full rounded-xl border border-emerald-200 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white">
         <option value="">{empty}</option>
@@ -524,7 +524,7 @@ function Input({
 }) {
   return (
     <label className="block">
-      <span className="text-[11px] font-bold text-slate-700">{label}</span>
+      <span className="text-2xs font-bold text-slate-700">{label}</span>
       <input value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder} dir={dir}
         className="mt-1 w-full rounded-xl border border-emerald-200 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-emerald-500" />
     </label>

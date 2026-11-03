@@ -71,15 +71,15 @@ export default function CertificateTab({ offering, termTitle, professorName, uni
       {/* مشخصات */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-300 text-xs">
         <div>
-          <span className="text-slate-500 block text-[11px]">عنوان و کد درس:</span>
+          <span className="text-slate-500 block text-2xs">عنوان و کد درس:</span>
           <strong className="text-slate-900 text-sm font-black">{offering.title} ({offering.code})</strong>
         </div>
         <div>
-          <span className="text-slate-500 block text-[11px]">گروه و تعداد واحد:</span>
+          <span className="text-slate-500 block text-2xs">گروه و تعداد واحد:</span>
           <strong className="text-slate-900 text-sm font-black">گروه {faNum(offering.groupNumber)} · {faNum(offering.units)} واحد</strong>
         </div>
         <div>
-          <span className="text-slate-500 block text-[11px]">استاد / اساتید درس:</span>
+          <span className="text-slate-500 block text-2xs">استاد / اساتید درس:</span>
           <strong className="text-slate-900 text-xs font-black">
             {offering.isCoTaught && offering.coTaughtDetails
               ? `${offering.coTaughtDetails.theoryProfName} و ${offering.coTaughtDetails.labProfName}`
@@ -87,7 +87,7 @@ export default function CertificateTab({ offering, termTitle, professorName, uni
           </strong>
         </div>
         <div>
-          <span className="text-slate-500 block text-[11px]">وضعیت صورت‌جلسه:</span>
+          <span className="text-slate-500 block text-2xs">وضعیت صورت‌جلسه:</span>
           <strong className="text-emerald-800 text-xs font-black">
             {offering.isFinalized ? 'قفل قطعی و نهایی‌شده ✓' : 'پیش‌نویس — قفل نهایی نشده'}
           </strong>
@@ -142,11 +142,11 @@ export default function CertificateTab({ offering, termTitle, professorName, uni
                   <td className="p-2 border border-slate-300 text-center font-black text-slate-950">{hasScore ? faNum(Number(finalScore.toFixed(2))) : '—'}</td>
                   <td className="p-2 border border-slate-300 text-center">
                     {!hasScore ? (
-                      <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-bold text-[10px]">ثبت نشده</span>
+                      <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-bold text-3xs">ثبت نشده</span>
                     ) : isPass(finalScore) ? (
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">قبول</span>
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-3xs">قبول</span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-[10px]">مردود</span>
+                      <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-3xs">مردود</span>
                     )}
                   </td>
                 </tr>
@@ -162,20 +162,20 @@ export default function CertificateTab({ offering, termTitle, professorName, uni
           {offering.isCoTaught && offering.coTaughtDetails ? (
             <>
               <div className="text-xs font-black text-slate-800">{offering.coTaughtDetails.theoryProfName}</div>
-              <div className="text-[10px] text-slate-500 font-bold">استاد بخش تئوری</div>
+              <div className="text-3xs text-slate-500 font-bold">استاد بخش تئوری</div>
             </>
           ) : (
             <>
               <div className="text-xs font-black text-slate-800">{professorName}</div>
-              <div className="text-[10px] text-slate-500 font-bold">استاد درس</div>
+              <div className="text-3xs text-slate-500 font-bold">استاد درس</div>
             </>
           )}
-          <div className="mt-6 border-t border-dashed border-slate-400 pt-1 text-[10px] text-slate-400 font-bold">امضا و مهر</div>
+          <div className="mt-6 border-t border-dashed border-slate-400 pt-1 text-3xs text-slate-400 font-bold">امضا و مهر</div>
         </div>
         <div className="text-center">
           <div className="text-xs font-black text-slate-800">معاونت آموزشی {universityTitle || 'دانشگاه'}</div>
-          <div className="text-[10px] text-slate-500 font-bold">اداره آموزش و امور دانشجویی</div>
-          <div className="mt-6 border-t border-dashed border-slate-400 pt-1 text-[10px] text-slate-400 font-bold">امضا و مهر</div>
+          <div className="text-3xs text-slate-500 font-bold">اداره آموزش و امور دانشجویی</div>
+          <div className="mt-6 border-t border-dashed border-slate-400 pt-1 text-3xs text-slate-400 font-bold">امضا و مهر</div>
         </div>
       </div>
     </div>

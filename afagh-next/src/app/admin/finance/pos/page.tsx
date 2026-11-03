@@ -74,7 +74,7 @@ export default async function PosPage() {
                   <td className="py-2 font-mono text-slate-600">{tx.rrn ?? '—'}</td>
                   <td className="py-2 font-bold text-slate-800">{fa(Number(tx.amount))} ریال</td>
                   <td className="py-2">
-                    <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                    <span className={`inline-block px-1.5 py-0.5 rounded text-3xs font-medium ${
                       tx.txnType === 'SALE' ? 'bg-emerald-50 text-emerald-700' :
                       tx.txnType === 'REFUND' ? 'bg-amber-50 text-amber-700' :
                       'bg-rose-50 text-rose-700'
@@ -82,7 +82,7 @@ export default async function PosPage() {
                   </td>
                   <td className="py-2 text-slate-600">{tx.entryMode}</td>
                   <td className="py-2">
-                    <span className={`inline-block px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                    <span className={`inline-block px-1.5 py-0.5 rounded text-3xs font-medium ${
                       tx.status === 'APPROVED' ? 'bg-emerald-50 text-emerald-700' :
                       tx.status === 'VOIDED' ? 'bg-rose-50 text-rose-700' :
                       'bg-slate-50 text-slate-700'
@@ -90,7 +90,7 @@ export default async function PosPage() {
                   </td>
                   <td className="py-2 text-slate-600">{tx.terminalTitle} ({tx.terminalCode})</td>
                   <td className="py-2 text-slate-600">{tx.studentCode} - {tx.studentName}</td>
-                  <td className="py-2 text-[11px] text-slate-500">{new Date(tx.createdAt ?? 0).toLocaleString('fa-IR')}</td>
+                  <td className="py-2 text-2xs text-slate-500">{new Date(tx.createdAt ?? 0).toLocaleString('fa-IR')}</td>
                 </tr>
               ))}
             </tbody>

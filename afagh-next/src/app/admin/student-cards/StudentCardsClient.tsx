@@ -118,7 +118,7 @@ export default function StudentCardsClient({
           ['باطل/منقضی/مفقود', stats.expired, 'bg-amber-50'],
         ].map(([label, value, tone]) => (
           <div key={String(label)} className={`card !p-3 ${tone} border-slate-300`}>
-            <div className="text-[11px] text-slate-500 font-bold">{label}</div>
+            <div className="text-2xs text-slate-500 font-bold">{label}</div>
             <div className="text-lg font-black text-slate-900">{fa(value)}</div>
           </div>
         ))}
@@ -132,11 +132,11 @@ export default function StudentCardsClient({
           className="flex-1 min-w-52 rounded-xl border border-slate-300 p-2 text-xs"
         />
         {query && (
-          <button onClick={() => setQuery('')} className="rounded-lg border border-slate-300 px-2 py-1 text-[10px] font-bold text-slate-600">
+          <button onClick={() => setQuery('')} className="rounded-lg border border-slate-300 px-2 py-1 text-3xs font-bold text-slate-600">
             پاک‌کردن
           </button>
         )}
-        <span className="text-[11px] text-slate-500 font-bold">
+        <span className="text-2xs text-slate-500 font-bold">
           {pending ? '… در حال جست‌وجو' : qProp ? `${fa(total)} نتیجه برای «${qProp}»` : `${fa(total)} دانشجو`}
         </span>
       </div>
@@ -155,28 +155,28 @@ export default function StudentCardsClient({
               <tr key={r.studentId} className="border-t border-slate-200 hover:bg-slate-50">
                 <td className="p-2.5">
                   <div className="font-bold text-slate-900">{r.fullName}</div>
-                  <div className="text-[10px] text-slate-500">{r.degreeLevel ?? '—'} · {r.majorName ?? 'بدون رشته'}</div>
+                  <div className="text-3xs text-slate-500">{r.degreeLevel ?? '—'} · {r.majorName ?? 'بدون رشته'}</div>
                 </td>
                 <td className="p-2.5 font-mono font-bold" dir="ltr">{r.studentCode}</td>
                 <td className="p-2.5">
-                  <span className={`rounded-lg border px-2 py-0.5 text-[10px] font-bold ${r.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-700 border-slate-300'}`}>
+                  <span className={`rounded-lg border px-2 py-0.5 text-3xs font-bold ${r.status === 'ACTIVE' ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-100 text-slate-700 border-slate-300'}`}>
                     {r.status}
                   </span>
                 </td>
                 <td className={`p-2.5 font-mono font-bold ${r.debt > 0 ? 'text-rose-700' : 'text-slate-500'}`}>{fa(r.debt)}</td>
                 <td className="p-2.5">
                   {r.card ? (
-                    <span className={`rounded-lg border px-2 py-0.5 text-[10px] font-bold ${STATUS_TONE[r.card.printStatus] ?? STATUS_TONE.PENDING}`}>
+                    <span className={`rounded-lg border px-2 py-0.5 text-3xs font-bold ${STATUS_TONE[r.card.printStatus] ?? STATUS_TONE.PENDING}`}>
                       {r.card.printStatus}
                     </span>
                   ) : (
-                    <span className="text-[10px] text-slate-400 font-bold">صادر نشده</span>
+                    <span className="text-3xs text-slate-400 font-bold">صادر نشده</span>
                   )}
                 </td>
-                <td className="p-2.5 font-mono text-[11px]">{r.card?.expiresAt ?? '—'}</td>
+                <td className="p-2.5 font-mono text-2xs">{r.card?.expiresAt ?? '—'}</td>
                 <td className="p-2.5">
                   {r.card ? (
-                    <span className="font-mono text-[10px] text-slate-600" dir="ltr" title={r.card.token}>
+                    <span className="font-mono text-3xs text-slate-600" dir="ltr" title={r.card.token}>
                       {r.card.token.slice(0, 12)}…
                     </span>
                   ) : '—'}
@@ -188,7 +188,7 @@ export default function StudentCardsClient({
                       onClick={() =>
                         run(r.studentId, () => issueCardAction(r.studentId, false), `کارت «${r.fullName}» صادر/تمدید شد.`)
                       }
-                      className="rounded-lg bg-indigo-700 px-2.5 py-1 text-[10px] font-bold text-white hover:bg-indigo-800 disabled:opacity-50"
+                      className="rounded-lg bg-indigo-700 px-2.5 py-1 text-3xs font-bold text-white hover:bg-indigo-800 disabled:opacity-50"
                     >
                       {r.card ? 'تمدید' : 'صدور کارت'}
                     </button>
@@ -199,35 +199,35 @@ export default function StudentCardsClient({
                           onClick={() =>
                             run(r.studentId, () => issueCardAction(r.studentId, true), 'توکن جدید ساخته شد؛ کارت قبلی از اعتبار افتاد.')
                           }
-                          className="rounded-lg border border-slate-300 px-2 py-1 text-[10px] font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+                          className="rounded-lg border border-slate-300 px-2 py-1 text-3xs font-bold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
                         >
                           تعویض توکن
                         </button>
                         <Link
                           href={`/admin/student-cards/card/${r.studentId}`}
                           target="_blank"
-                          className="rounded-lg border border-emerald-300 bg-emerald-50 px-2 py-1 text-[10px] font-bold text-emerald-800 hover:bg-emerald-100"
+                          className="rounded-lg border border-emerald-300 bg-emerald-50 px-2 py-1 text-3xs font-bold text-emerald-800 hover:bg-emerald-100"
                         >
                           🖨 چاپ کارت (QR)
                         </Link>
                         <Link
                           href={`/id/${r.card.token}`}
                           target="_blank"
-                          className="rounded-lg border border-indigo-300 bg-indigo-50 px-2 py-1 text-[10px] font-bold text-indigo-800 hover:bg-indigo-100"
+                          className="rounded-lg border border-indigo-300 bg-indigo-50 px-2 py-1 text-3xs font-bold text-indigo-800 hover:bg-indigo-100"
                         >
                           تست گیت ↗
                         </Link>
                         <button
                           disabled={busy === r.studentId}
                           onClick={() => run(r.studentId, () => revokeCardAction(r.studentId, 'LOST'), 'کارت مفقود اعلام شد.')}
-                          className="rounded-lg border border-amber-300 bg-amber-50 px-2 py-1 text-[10px] font-bold text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+                          className="rounded-lg border border-amber-300 bg-amber-50 px-2 py-1 text-3xs font-bold text-amber-800 hover:bg-amber-100 disabled:opacity-50"
                         >
                           مفقودی
                         </button>
                         <button
                           disabled={busy === r.studentId}
                           onClick={() => run(r.studentId, () => revokeCardAction(r.studentId, 'REVOKED'), 'کارت باطل شد.')}
-                          className="rounded-lg border border-rose-300 bg-rose-50 px-2 py-1 text-[10px] font-bold text-rose-800 hover:bg-rose-100 disabled:opacity-50"
+                          className="rounded-lg border border-rose-300 bg-rose-50 px-2 py-1 text-3xs font-bold text-rose-800 hover:bg-rose-100 disabled:opacity-50"
                         >
                           ابطال
                         </button>
@@ -249,7 +249,7 @@ export default function StudentCardsClient({
       </div>
 
       {totalPages > 1 && (
-        <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] font-bold text-slate-600">
+        <div className="flex flex-wrap items-center justify-between gap-2 text-2xs font-bold text-slate-600">
           <span>نمایش {fa(from)}–{fa(to)} از {fa(total)}</span>
           <div className="flex items-center gap-1.5">
             <Link
@@ -271,7 +271,7 @@ export default function StudentCardsClient({
         </div>
       )}
 
-      <p className="text-[11px] text-slate-500 leading-5">
+      <p className="text-2xs text-slate-500 leading-5">
         کارت با وضعیت «باطل/مفقود/منقضی»، دانشجوی غیرفعال و دانشجوی دارای بدهی در گیت حراست قرمز می‌شود و ورود
         مجاز نیست. کد ملی در این فهرست ماسک‌شده نمایش داده می‌شود: <span className="font-mono">{mask(rows[0]?.nationalCode ?? null)}</span>
       </p>

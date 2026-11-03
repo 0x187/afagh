@@ -35,7 +35,7 @@ export default async function VerifyTranscriptPage({ params }: { params: Promise
             {res.reason === 'EXPIRED' ? 'کارنامهٔ تحصیلی منقضی شده است' : res.reason === 'EMPTY' ? 'کارنامه‌ای برای استعلام وجود ندارد' : 'کارنامهٔ تحصیلی نامعتبر است'}
           </h2>
           <p className="mx-auto mt-2 max-w-md text-xs leading-6 text-slate-300">{res.message}</p>
-          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-3 text-[11px] leading-5 text-slate-400">
+          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-3 text-2xs leading-5 text-slate-400">
             این صفحه فقط اسناد صادرشدهٔ سامانهٔ آفاق را تأیید می‌کند. برای دریافت کارنامهٔ تازه، به سامانهٔ آموزشی مراجعه کنید.
           </div>
         </div>
@@ -89,7 +89,7 @@ export default async function VerifyTranscriptPage({ params }: { params: Promise
             ['سال ورود', res.entryYear ? faNum(res.entryYear) : '—'],
           ].map(([k, v]) => (
             <div key={String(k)} className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2">
-              <dt className="text-[10px] font-bold text-slate-500">{k}</dt>
+              <dt className="text-3xs font-bold text-slate-500">{k}</dt>
               <dd className="mt-0.5 font-black text-slate-800" dir={k === 'کد ملی' || k === 'شمارهٔ دانشجویی' ? 'ltr' : undefined}>{v}</dd>
             </div>
           ))}
@@ -97,32 +97,32 @@ export default async function VerifyTranscriptPage({ params }: { params: Promise
 
         <div className="grid grid-cols-2 gap-3 text-center sm:grid-cols-4">
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-3">
-            <p className="text-[10px] font-bold text-emerald-700">معدل کل</p>
+            <p className="text-3xs font-bold text-emerald-700">معدل کل</p>
             <p className="mt-1 text-lg font-black text-emerald-800">{faNum(res.gpa)}</p>
           </div>
           <div className="rounded-xl border border-sky-200 bg-sky-50 px-3 py-3">
-            <p className="text-[10px] font-bold text-sky-700">واحد گذرانده</p>
+            <p className="text-3xs font-bold text-sky-700">واحد گذرانده</p>
             <p className="mt-1 text-lg font-black text-sky-800">{faNum(res.passedUnits)}</p>
           </div>
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-            <p className="text-[10px] font-bold text-slate-600">واحد محاسبه‌شده</p>
+            <p className="text-3xs font-bold text-slate-600">واحد محاسبه‌شده</p>
             <p className="mt-1 text-lg font-black text-slate-800">{faNum(res.totalUnits)}</p>
           </div>
           <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-3">
-            <p className="text-[10px] font-bold text-indigo-700">وضعیت تحصیلی (کل)</p>
+            <p className="text-3xs font-bold text-indigo-700">وضعیت تحصیلی (کل)</p>
             <p className="mt-1 text-sm font-black text-indigo-800">{res.statusLabel}</p>
           </div>
         </div>
 
         {/* وضعیت ترم‌به‌ترم: معدل، واحد و مشروطی همان نیمسال */}
         <div className="overflow-hidden rounded-xl border border-slate-200">
-          <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-[11px] font-black text-slate-700">
+          <div className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-2xs font-black text-slate-700">
             وضعیت تحصیلی در هر نیمسال <span className="font-normal text-slate-500">(مرز مشروطی این مقطع: {faNum(res.probationThreshold)})</span>
           </div>
           {res.terms.length ? (
             <table className="w-full text-xs rt">
               <thead>
-                <tr className="bg-slate-100 text-[10px] text-slate-600">
+                <tr className="bg-slate-100 text-3xs text-slate-600">
                   <th className="p-2 text-right">نیمسال</th>
                   <th className="p-2">معدل ترم</th>
                   <th className="p-2">واحد محاسبه‌شده</th>
@@ -139,29 +139,29 @@ export default async function VerifyTranscriptPage({ params }: { params: Promise
                     <td className="p-2 text-center font-mono text-slate-600">{faNum(t.passedUnits)}</td>
                     <td className="p-2 text-center">
                       {t.isProbation
-                        ? <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[10px] font-black text-rose-800">مشروط</span>
-                        : <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">عادی</span>}
+                        ? <span className="rounded-full bg-rose-100 px-2 py-0.5 text-3xs font-black text-rose-800">مشروط</span>
+                        : <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-3xs font-black text-emerald-800">عادی</span>}
                     </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           ) : (
-            <p className="p-3 text-center text-[11px] text-slate-500">نمرهٔ نهایی‌شده‌ای برای محاسبهٔ وضعیت نیمسال‌ها ثبت نشده است.</p>
+            <p className="p-3 text-center text-2xs text-slate-500">نمرهٔ نهایی‌شده‌ای برای محاسبهٔ وضعیت نیمسال‌ها ثبت نشده است.</p>
           )}
         </div>
 
         <NationalIdCheck token={token} />
 
         {res.otherRecords.length > 0 && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] leading-5 text-amber-900">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-2xs leading-5 text-amber-900">
             <b>توجه — پروندهٔ چندمقطعی:</b> این شخص در پروندهٔ دیگری هم سابقه دارد:{' '}
             {res.otherRecords.map(r => `${r.degreeTitle ?? 'مقطع نامشخص'} (${r.studentCode}${r.isGraduated ? ' — فارغ‌التحصیل' : ''})`).join(' · ')}
             . این استعلام فقط مربوط به مقطع «{res.degreeTitle ?? '—'}» با شمارهٔ دانشجویی {res.studentCode} است.
           </div>
         )}
 
-        <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[10px] leading-5 text-slate-500">
+        <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-3xs leading-5 text-slate-500">
           اعداد این صفحه به‌صورت زنده از موتور قوانین آموزشی سامانه خوانده می‌شود (سیاست معدل: {res.policy || '—'}).
           زمان استعلام: {jdate(res.checkedAt)}.{' '}
           {res.pinned

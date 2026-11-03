@@ -50,7 +50,7 @@ export default async function CodeHubPage() {
               <span className="text-2xl">{m.icon}</span>
               <h3 className="font-black text-sm leading-5">{m.title}</h3>
             </div>
-            <p className="text-[11px] text-white/70 leading-4">{m.desc}</p>
+            <p className="text-2xs text-white/70 leading-4">{m.desc}</p>
           </Link>
         ))}
       </div>

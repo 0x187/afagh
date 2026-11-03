@@ -44,7 +44,10 @@
     border: 0;
     border-bottom: 1px solid var(--b-100);
     font-size: 13px;
-    text-align: left;
+    /* `start` نه `left`: در RTL مقدارِ فارسی باید از راست تراز شود؛
+       با left، نام/عنوان فارسی از سمت چپ می‌چسبید و در کنار برچسبِ
+       راست‌چین، ردیفِ کارت نامتقارن و ناخوانا می‌شد. */
+    text-align: start;
   }
   table.rt:not(.rt--scroll) tbody tr td:last-child {
     border-bottom: 0;
@@ -55,12 +58,12 @@
     font-weight: 600;
     color: var(--t-500);
     font-size: 12px;
-    margin-left: 8px;
+    margin-inline-start: 8px;
   }
   table.rt:not(.rt--scroll) td > * {
     flex: 1 1 auto;
     min-width: 0;
-    text-align: left;
+    text-align: start;
   }
 }
 
@@ -143,19 +146,19 @@
     justify-content: space-between;
     gap: 12px;
     font-size: 13px;
-    text-align: left;
+    text-align: start;
   }
   .mc-field__label {
     flex: 0 0 auto;
     font-weight: 600;
     color: var(--t-500);
     font-size: 12px;
-    margin-left: 8px;
+    margin-inline-start: 8px;
   }
   .mc-field__value {
     flex: 1 1 auto;
     min-width: 0;
-    text-align: left;
+    text-align: start;
     color: var(--t-900);
     word-break: break-word;
     overflow-wrap: anywhere;
@@ -176,6 +179,23 @@
     text-align: center;
     color: var(--t-500);
     font-size: 13px;
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   سرستونِ چسبانِ جدول‌ها (فقط دسکتاپ)
+   در ۱۹۶ جدولِ سامانه، ستون‌های بلند هنگام اسکرول بی‌سرستون می‌شدند و کاربر
+   «کدام ستون» را گم می‌کرد. فقط برای جدول‌های استانداردِ `rt` و فقط روی
+   صفحه اعمال می‌شود؛ در چاپ همان قاعدهٔ `table-header-group` تکرار سرستون
+   را انجام می‌دهد.
+   ───────────────────────────────────────────────────────────── */
+@media screen and (min-width: 769px) {
+  table.rt > thead > tr > th {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--bg-tertiary);
+    box-shadow: inset 0 -1px 0 var(--b-200);
   }
 }
 

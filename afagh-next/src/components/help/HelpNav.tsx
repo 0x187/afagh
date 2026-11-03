@@ -29,14 +29,14 @@ export function HelpTopBar({ role, title }: { role?: string; title?: string }) {
       <span className="flex items-center gap-2">
         <Link
           href="/help"
-          className="rounded-xl border border-slate-200 px-3 py-1.5 text-[11px] font-bold text-slate-600 hover:border-indigo-300 hover:text-indigo-700"
+          className="rounded-xl border border-slate-200 px-3 py-1.5 text-2xs font-bold text-slate-600 hover:border-indigo-300 hover:text-indigo-700"
         >
           مرکز راهنما
         </Link>
         {home && (
           <Link
             href={home.href}
-            className="rounded-xl bg-emerald-600 px-3 py-1.5 text-[11px] font-black text-white hover:bg-emerald-500"
+            className="rounded-xl bg-emerald-600 px-3 py-1.5 text-2xs font-black text-white hover:bg-emerald-500"
           >
             → بازگشت به {home.label}
           </Link>
@@ -48,7 +48,7 @@ export function HelpTopBar({ role, title }: { role?: string; title?: string }) {
 
 export function HelpBreadcrumbs({ trail }: { trail: Crumb[] }) {
   return (
-    <nav aria-label="مسیر راهنما" className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+    <nav aria-label="مسیر راهنما" className="flex flex-wrap items-center gap-1.5 text-2xs text-slate-500">
       {trail.map((c, i) => (
         <span key={i} className="flex items-center gap-1.5">
           {i > 0 && <span className="text-slate-300">‹</span>}
@@ -76,7 +76,7 @@ export function HelpPrevNext({ prev, next, listHref, listLabel }: { prev: PrevNe
             href={`/help/${next.role}/${next.slug}`}
             className="block rounded-2xl border border-slate-200 bg-white p-3 text-xs hover:border-indigo-300 hover:bg-indigo-50/50"
           >
-            <span className="block text-[10px] text-slate-400">موضوع بعدی</span>
+            <span className="block text-3xs text-slate-400">موضوع بعدی</span>
             <span className="mt-0.5 block font-black text-slate-800">→ {next.title}</span>
           </Link>
         )}
@@ -94,7 +94,7 @@ export function HelpPrevNext({ prev, next, listHref, listLabel }: { prev: PrevNe
             href={`/help/${prev.role}/${prev.slug}`}
             className="block rounded-2xl border border-slate-200 bg-white p-3 text-left text-xs hover:border-indigo-300 hover:bg-indigo-50/50"
           >
-            <span className="block text-[10px] text-slate-400">موضوع قبلی</span>
+            <span className="block text-3xs text-slate-400">موضوع قبلی</span>
             <span className="mt-0.5 block font-black text-slate-800">{prev.title} ←</span>
           </Link>
         )}

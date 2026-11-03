@@ -16,7 +16,7 @@ export default function TermFilterChip({
         <input type="hidden" name="termId" value="" />
         <button
           type="submit"
-          className="rounded-lg border border-indigo-300 bg-white px-2 py-0.5 text-[11px] font-bold text-indigo-800 hover:bg-indigo-100"
+          className="rounded-lg border border-indigo-300 bg-white px-2 py-0.5 text-2xs font-bold text-indigo-800 hover:bg-indigo-100"
         >
           پاک کردن فیلتر
         </button>

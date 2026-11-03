@@ -6,6 +6,7 @@ import { ADD_LABEL, CREATE_ELSEWHERE, EDIT_FIELDS, NEW_FIELDS, type CodeRow, typ
 import { jalaliDateOf, parseJalaliDate } from '@/lib/scheduling-core';
 import JalaliDateTimeInput from '@/components/JalaliDateTimeInput';
 import Link from 'next/link';
+import { askConfirm } from '@/lib/ui-feedback';
 
 type Res = { ok: boolean; error?: string };
 
@@ -219,7 +220,13 @@ setForm(Object.fromEntries(editFields.map(f => {
 
   const remove = (row: CodeRow) =>
     start(async () => {
-      if (!confirm(`«${row.title}» حذف شود؟ اگر جایی استفاده شده باشد، حذف نمی‌شود.`)) return;
+      const ok = await askConfirm({
+        title: 'حذف کد',
+        body: `«${row.title}» حذف شود؟ اگر جایی استفاده شده باشد، حذف نمی‌شود.`,
+        confirmText: 'حذف کن',
+        danger: true,
+      });
+      if (!ok) return;
       const fd = new FormData();
       fd.set('table', table);
       fd.set('id', String(row.id));
@@ -305,8 +312,8 @@ setForm(Object.fromEntries(editFields.map(f => {
                 <span className="text-sm font-bold text-slate-800">{s.title}</span>
                 <span className="text-xs tabular-nums text-slate-400">{s.total.toLocaleString('fa-IR')}</span>
               </div>
-              <p className="mt-0.5 text-[11px] leading-5 text-slate-500">{s.hint}</p>
-              <div className="mt-1 flex flex-wrap gap-1 text-[10px]">
+              <p className="mt-0.5 text-2xs leading-5 text-slate-500">{s.hint}</p>
+              <div className="mt-1 flex flex-wrap gap-1 text-3xs">
                 {s.missing > 0 && <span className="rounded bg-amber-100 px-1.5 py-0.5 text-amber-800">{s.missing.toLocaleString('fa-IR')} بدون کد</span>}
                 {s.duplicate > 0 && <span className="rounded bg-red-100 px-1.5 py-0.5 text-red-700">{s.duplicate.toLocaleString('fa-IR')} کد تکراری</span>}
                 {s.missing === 0 && s.duplicate === 0 && <span className="rounded bg-emerald-100 px-1.5 py-0.5 text-emerald-700">✓ همه کد دارند</span>}
@@ -337,7 +344,7 @@ setForm(Object.fromEntries(editFields.map(f => {
             placeholder="جستجوی کد، عنوان یا زمینه…"
             className="w-56 rounded-lg border border-slate-300 p-1.5 text-xs"
           />
-          <div className="flex gap-1 text-[11px]">
+          <div className="flex gap-1 text-2xs">
             {([['ALL', 'همه'], ['MISSING', 'بدون کد'], ['DUP', 'کد تکراری']] as const).map(([k, lbl]) => (
               <button
                 key={k}
@@ -348,7 +355,7 @@ setForm(Object.fromEntries(editFields.map(f => {
               </button>
             ))}
           </div>
-          <span className="mr-auto text-[11px] text-slate-400">
+          <span className="mr-auto text-2xs text-slate-400">
             {filtered.length.toLocaleString('fa-IR')} ردیف
             {pending && ' · در حال بارگذاری…'}
           </span>
@@ -377,14 +384,14 @@ setForm(Object.fromEntries(editFields.map(f => {
             className="my-6 w-full max-w-4xl rounded-2xl border border-slate-200 bg-white p-4 shadow-2xl"
             onClick={e => e.stopPropagation()}
           >
-            <div className={'mb-2 rounded-lg px-3 py-2 text-[11px] font-bold text-slate-700 ' + (editingId != null ? 'bg-indigo-50 text-indigo-700' : 'bg-emerald-50 text-emerald-700')}>
+            <div className={'mb-2 rounded-lg px-3 py-2 text-2xs font-bold text-slate-700 ' + (editingId != null ? 'bg-indigo-50 text-indigo-700' : 'bg-emerald-50 text-emerald-700')}>
               {editingId != null ? `✏️ ویرایش ${cur?.title}` : `➕ ${ADD_LABEL[table] ?? 'افزودن'} جدید`}
-              <button onClick={closeForm} className="float-left rounded-lg border border-slate-300 bg-white px-2 py-0.5 text-[11px] text-slate-600">بستن</button>
+              <button onClick={closeForm} className="float-left rounded-lg border border-slate-300 bg-white px-2 py-0.5 text-2xs text-slate-600">بستن</button>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {formFields.map(f => (
                 <label key={f.name} className="block">
-                  <span className="mb-1 block text-[11px] font-bold text-slate-700">
+                  <span className="mb-1 block text-2xs font-bold text-slate-700">
                     {f.label}{f.required && <span className="text-red-600"> *</span>}
                   </span>
                   {f.kind === 'select' ? (
@@ -419,7 +426,7 @@ setForm(Object.fromEntries(editFields.map(f => {
                       className={'w-full rounded-lg border border-slate-300 p-1.5 text-xs ' + (f.kind === 'text' ? '' : 'text-center font-mono')}
                     />
                   )}
-                  {f.hint && <span className="mt-0.5 block text-[10px] leading-4 text-slate-500">{f.hint}</span>}
+                  {f.hint && <span className="mt-0.5 block text-3xs leading-4 text-slate-500">{f.hint}</span>}
                 </label>
               ))}
             </div>
@@ -432,7 +439,7 @@ setForm(Object.fromEntries(editFields.map(f => {
                 {editingId != null ? 'ذخیرهٔ تغییرات' : 'ثبت'}
               </button>
               <button onClick={closeForm} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-600">انصراف</button>
-              <span className="text-[11px] text-slate-500">
+              <span className="text-2xs text-slate-500">
                 {table === 'term'
                   ? 'تاریخ‌ها را وارد کنید؛ «ترم جاری» و «انتخاب واحد باز» در هر دانشگاه فقط برای یک ترم فعال می‌شود.'
                   : 'کد را همان‌طور بنویسید که در فایل‌های اکسل مبدأ آمده — تطبیق انتقال داده اول با کد انجام می‌شود.'}
@@ -488,9 +495,9 @@ setForm(Object.fromEntries(editFields.map(f => {
                     </td>
                     <td className="p-2 font-medium text-slate-800">
                       {r.title}
-                      {r.duplicate && <span className="mr-1 rounded bg-red-100 px-1 text-[10px] text-red-700">کد تکراری</span>}
+                      {r.duplicate && <span className="mr-1 rounded bg-red-100 px-1 text-3xs text-red-700">کد تکراری</span>}
                       {(r.standardCode || r.ministryCode) && (
-                        <span className="mt-0.5 block text-[10px] font-normal text-slate-400">
+                        <span className="mt-0.5 block text-3xs font-normal text-slate-400">
                           {[r.standardCode ? `استاندارد ${r.standardCode}` : null, r.ministryCode ? `وزارت ${r.ministryCode}` : null]
                             .filter(Boolean).join(' · ')}
                         </span>
@@ -498,12 +505,12 @@ setForm(Object.fromEntries(editFields.map(f => {
                     </td>
                     <td className="p-2 text-slate-500">{r.context ?? '—'}</td>
                     {isTerm && (
-                      <td className="p-2 font-mono text-[11px] text-slate-600" dir="ltr" title={r.startDate ?? 'بدون تاریخ'}>
+                      <td className="p-2 font-mono text-2xs text-slate-600" dir="ltr" title={r.startDate ?? 'بدون تاریخ'}>
                         {fmtDateFa(r.startDate)}
                       </td>
                     )}
                     {isTerm && (
-                      <td className="p-2 font-mono text-[11px] text-slate-600" dir="ltr" title={r.endDate ?? 'بدون تاریخ'}>
+                      <td className="p-2 font-mono text-2xs text-slate-600" dir="ltr" title={r.endDate ?? 'بدون تاریخ'}>
                         {fmtDateFa(r.endDate)}
                       </td>
                     )}
@@ -513,7 +520,7 @@ setForm(Object.fromEntries(editFields.map(f => {
                           <button
                             disabled={pending}
                             onClick={() => save(r, val.trim())}
-                            className="rounded bg-indigo-600 px-2 py-1 text-[11px] font-bold text-white disabled:opacity-50"
+                            className="rounded bg-indigo-600 px-2 py-1 text-2xs font-bold text-white disabled:opacity-50"
                           >
                             ذخیره
                           </button>
@@ -523,7 +530,7 @@ setForm(Object.fromEntries(editFields.map(f => {
                             disabled={pending}
                             onClick={() => startEditDegree(r)}
                             title="ویرایش همهٔ فیلدهای مقطع (نمره‌ها، سقف واحد، تعداد ترم، تکمیلی)"
-                            className="rounded border border-indigo-200 px-2 py-1 text-[11px] font-bold text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+                            className="rounded border border-indigo-200 px-2 py-1 text-2xs font-bold text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
                           >
                             ویرایش
                           </button>
@@ -533,7 +540,7 @@ setForm(Object.fromEntries(editFields.map(f => {
                             disabled={pending}
                             onClick={() => startEditTerm(r)}
                             title="ویرایش زمان‌بندی ترم: شروع/پایان، انتخاب واحد، حذف و اضافه، امتحانات، اعتراضات"
-                            className="rounded border border-indigo-200 px-2 py-1 text-[11px] font-bold text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+                            className="rounded border border-indigo-200 px-2 py-1 text-2xs font-bold text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
                           >
                             ویرایش
                           </button>
@@ -543,7 +550,7 @@ setForm(Object.fromEntries(editFields.map(f => {
                             disabled={pending}
                             onClick={() => startEditRow(r)}
                             title="ویرایش مشخصات و کد استاندارد"
-                            className="rounded border border-indigo-200 px-2 py-1 text-[11px] font-bold text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
+                            className="rounded border border-indigo-200 px-2 py-1 text-2xs font-bold text-indigo-700 hover:bg-indigo-50 disabled:opacity-50"
                           >
                             ویرایش
                           </button>
@@ -553,7 +560,7 @@ setForm(Object.fromEntries(editFields.map(f => {
                             disabled={pending}
                             onClick={() => remove(r)}
                             title="حذف — فقط اگر هیچ‌جا استفاده نشده باشد"
-                            className="rounded border border-red-200 px-2 py-1 text-[11px] text-red-600 hover:bg-red-50 disabled:opacity-50"
+                            className="rounded border border-red-200 px-2 py-1 text-2xs text-red-600 hover:bg-red-50 disabled:opacity-50"
                           >
                             حذف
                           </button>

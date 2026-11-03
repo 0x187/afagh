@@ -35,11 +35,11 @@ export default function VerifyQrBlock({ title, url, qr, expiresAt, hint }: Props
             className="h-32 w-32 shrink-0 overflow-hidden rounded border border-slate-300 bg-white p-1 [&>svg]:block [&>svg]:h-full [&>svg]:w-full"
           />
         ) : null}
-        <div className="min-w-0 flex-1 text-[11px] leading-6 text-slate-600">
+        <div className="min-w-0 flex-1 text-2xs leading-6 text-slate-600">
           <p className="font-bold text-slate-800">{title}</p>
-          <p className="break-all font-mono text-[10px] text-slate-500" dir="ltr">{url}</p>
+          <p className="break-all font-mono text-3xs text-slate-500" dir="ltr">{url}</p>
           {expiresAt && <p>اعتبار استعلام تا {jdate(new Date(expiresAt))}</p>}
-          <p className="mt-0.5 text-[10px] text-slate-500">
+          <p className="mt-0.5 text-3xs text-slate-500">
             {hint ?? 'QR را با دوربین گوشی اسکن کنید یا نشانی بالا را در مرورگر باز کنید.'}
           </p>
         </div>

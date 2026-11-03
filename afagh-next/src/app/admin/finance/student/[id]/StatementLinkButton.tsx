@@ -41,7 +41,7 @@ export default function StatementLinkButton({ studentId }: { studentId: number }
           باز کردن برگهٔ رسمی (چاپ با QR) ↗
         </a>
       )}
-      {error && <span className="text-[11px] text-rose-600">خطا: {error}</span>}
+      {error && <span className="text-2xs text-rose-600">خطا: {error}</span>}
     </span>
   );
 }

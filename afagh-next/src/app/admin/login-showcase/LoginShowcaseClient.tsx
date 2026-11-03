@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { askConfirm } from '@/lib/ui-feedback';
 import { useState } from 'react';
 import {
   deleteNoticeAction, deleteShowcaseLogoAction, deleteSlideAction,
@@ -119,15 +120,19 @@ export default function LoginShowcaseClient({ universities, notices, slides }: {
               <div className="min-w-0">
                 <p className="text-sm font-extrabold text-slate-900 flex flex-wrap items-center gap-2">
                   {n.title}
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${KINDS[n.kind]?.cls ?? KINDS.info.cls}`}>{KINDS[n.kind]?.label ?? n.kind}</span>
-                  {!n.isActive && <span className="text-[10px] px-2 py-0.5 rounded-full font-black bg-slate-200 text-slate-600">غیرفعال</span>}
+                  <span className={`text-3xs px-2 py-0.5 rounded-full font-black ${KINDS[n.kind]?.cls ?? KINDS.info.cls}`}>{KINDS[n.kind]?.label ?? n.kind}</span>
+                  {!n.isActive && <span className="text-3xs px-2 py-0.5 rounded-full font-black bg-slate-200 text-slate-600">غیرفعال</span>}
                 </p>
                 <p className="text-xs text-slate-500 mt-1 leading-6">{n.body || '—'}</p>
-                <p className="text-[11px] text-slate-400 mt-1">{uniName(universities, n.universityId)} · ترتیب {n.sortOrder}</p>
+                <p className="text-2xs text-slate-400 mt-1">{uniName(universities, n.universityId)} · ترتیب {n.sortOrder}</p>
               </div>
               <div className="flex gap-2 shrink-0">
                 <button disabled={busy} className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-bold" onClick={() => setEditN({ ...n })}>ویرایش</button>
-                <button disabled={busy} className="px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold" onClick={() => confirm('حذف شود؟') && run(() => deleteNoticeAction(n.id), 'حذف شد.')}>حذف</button>
+                <button disabled={busy} className="px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold" onClick={async () => {
+                  if (await askConfirm({ title: 'حذف اطلاعیه', body: 'این اطلاعیه حذف شود؟', confirmText: 'حذف کن', danger: true })) {
+                    await run(() => deleteNoticeAction(n.id), 'حذف شد.');
+                  }
+                }}>حذف</button>
               </div>
             </div>
           ))}
@@ -199,12 +204,16 @@ export default function LoginShowcaseClient({ universities, notices, slides }: {
                 <div className="min-w-0">
                   <p className="text-sm font-extrabold text-slate-900 truncate">{s.title}</p>
                   <p className="text-xs text-slate-500 truncate">{s.subtitle || '—'}</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">{uniName(universities, s.universityId)} · ترتیب {s.sortOrder} {!s.isActive && '· غیرفعال'}</p>
+                  <p className="text-2xs text-slate-400 mt-0.5">{uniName(universities, s.universityId)} · ترتیب {s.sortOrder} {!s.isActive && '· غیرفعال'}</p>
                 </div>
               </div>
               <div className="flex gap-2 shrink-0">
                 <button disabled={busy} className="px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-xs font-bold" onClick={() => setEditS({ ...s })}>ویرایش</button>
-                <button disabled={busy} className="px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold" onClick={() => confirm('حذف شود؟') && run(() => deleteSlideAction(s.id), 'حذف شد.')}>حذف</button>
+                <button disabled={busy} className="px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold" onClick={async () => {
+                  if (await askConfirm({ title: 'حذف اسلاید', body: 'این اسلاید حذف شود؟', confirmText: 'حذف کن', danger: true })) {
+                    await run(() => deleteSlideAction(s.id), 'حذف شد.');
+                  }
+                }}>حذف</button>
               </div>
             </div>
           ))}
@@ -228,13 +237,17 @@ export default function LoginShowcaseClient({ universities, notices, slides }: {
                   : <div className="h-12 w-12 rounded-xl bg-emerald-700 text-white flex items-center justify-center font-black text-lg">آ</div>}
                 <div>
                   <p className="text-sm font-extrabold text-slate-900">{u.title}</p>
-                  <p className="text-[11px] text-slate-400 font-mono" dir="ltr">{u.code}</p>
+                  <p className="text-2xs text-slate-400 font-mono" dir="ltr">{u.code}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2">
                 {u.logoUrl && (
                   <button disabled={busy} className="px-3 py-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-700 text-xs font-bold"
-                    onClick={() => confirm('ارم حذف شود؟') && run(() => deleteShowcaseLogoAction(u.id), 'ارم حذف شد.')}>حذف ارم</button>
+                    onClick={async () => {
+                      if (await askConfirm({ title: 'حذف ارم', body: 'ارم این دانشگاه حذف شود؟', confirmText: 'حذف کن', danger: true })) {
+                        await run(() => deleteShowcaseLogoAction(u.id), 'ارم حذف شد.');
+                      }
+                    }}>حذف ارم</button>
                 )}
                 <form action={async fd => { await run(async () => { await uploadShowcaseLogoAction(fd); }, `ارم ${u.code} ذخیره شد.`); }} className="flex items-center gap-2">
                   <input type="hidden" name="universityId" value={u.id} />

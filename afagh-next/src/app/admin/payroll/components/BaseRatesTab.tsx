@@ -41,16 +41,16 @@ export default function BaseRatesTab({ state, api }: Props) {
                   </span>
                   <div className="flex items-center gap-1.5">
                     {rate.academicBase && (
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-violet-50 text-violet-900 font-bold">
+                      <span className="text-3xs px-2 py-0.5 rounded bg-violet-50 text-violet-900 font-bold">
                         پایه {rate.academicBase}
                       </span>
                     )}
                     {rate.academicBase == null && (
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-bold">
+                      <span className="text-3xs px-2 py-0.5 rounded bg-slate-100 text-slate-600 font-bold">
                         همهٔ پایه‌ها
                       </span>
                     )}
-                    <span className="text-[10px] px-2 py-0.5 rounded bg-indigo-50 text-indigo-900 font-bold">
+                    <span className="text-3xs px-2 py-0.5 rounded bg-indigo-50 text-indigo-900 font-bold">
                       سال {faNum(rate.effectiveYear)}
                     </span>
                   </div>
@@ -58,7 +58,7 @@ export default function BaseRatesTab({ state, api }: Props) {
 
                 <div className="grid grid-cols-2 gap-3 text-xs">
                   <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
-                    <span className="text-slate-500 block text-[11px]">نرخ مصوب هر واحد معادل (ريال):</span>
+                    <span className="text-slate-500 block text-2xs">نرخ مصوب هر واحد معادل (ريال):</span>
                     <input
                       type="number"
                       value={rate.ratePerUnit}
@@ -67,7 +67,7 @@ export default function BaseRatesTab({ state, api }: Props) {
                     />
                   </div>
                   <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-100">
-                    <span className="text-slate-500 block text-[11px]">معادل هر ساعت تدریس (ريال):</span>
+                    <span className="text-slate-500 block text-2xs">معادل هر ساعت تدریس (ريال):</span>
                     <span className="block mt-2 font-mono font-black text-indigo-900 text-sm">
                       {rate.ratePerHour.toLocaleString('fa-IR')}
                     </span>

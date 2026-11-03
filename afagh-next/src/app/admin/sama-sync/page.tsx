@@ -38,7 +38,7 @@ export default async function SamaSyncPage() {
           <b className="text-rose-700"> حذف واحد یا بازنویسی نمرهٔ موجود هرگز انجام نمی‌شود</b> —
           این‌ها به‌عنوان اختلاف گزارش می‌شوند تا کارشناس تصمیم بگیرد.
         </p>
-        <p className="mt-1 text-[11px] text-slate-500">
+        <p className="mt-1 text-2xs text-slate-500">
           دانشگاه فعال: <b>{uni.title}</b> · ترم جاری: <b>{current ? current.termCode : '—'}</b>
         </p>
       </div>

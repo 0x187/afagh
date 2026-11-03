@@ -20,7 +20,7 @@ const hm = (t: string | null) => (t ? String(t).slice(0, 5) : '');
  * ثابت را می‌گیرد و `min-w-0` جلوی سرریزِ متنِ گزینه‌های بلند را می‌گیرد.
  */
 const F = ({ label, span, children }: { label: string; span: string; children: ReactNode }) => (
-  <label className={`flex min-w-0 flex-col gap-0.5 text-[10px] leading-4 text-slate-500 ${span}`}>
+  <label className={`flex min-w-0 flex-col gap-0.5 text-3xs leading-4 text-slate-500 ${span}`}>
     <span className="truncate">{label}</span>
     {children}
   </label>
@@ -121,10 +121,10 @@ export default async function OfferingsPage({ searchParams }: { searchParams: Pr
       <div className="card space-y-2 !p-3">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-sm font-bold">ارائهٔ جدید</h2>
-          <p className="text-[11px] text-slate-500">ترم جاری: {term?.title ?? '—'}</p>
+          <p className="text-2xs text-slate-500">ترم جاری: {term?.title ?? '—'}</p>
         </div>
         {!requireChart && (
-          <p className="text-[11px] text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-2 py-1">
+          <p className="text-2xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-2 py-1">
             چون چارت تحصیلی در انتخاب واحد الزامی نیست، تعیین «رشته مجاز» و «ورودی مجاز از» برای هر ارائه الزامی است.
           </p>
         )}
@@ -164,10 +164,10 @@ export default async function OfferingsPage({ searchParams }: { searchParams: Pr
             <div key={o.id} className="card space-y-2 !p-3">
               <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                 <p className="text-sm font-bold">
-                  {c.title} <span className="font-mono text-[11px] text-slate-400" dir="ltr">{c.code}</span>
-                  <span className="ms-1 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-normal text-slate-600">گروه {o.groupNumber}</span>
+                  {c.title} <span className="font-mono text-2xs text-slate-400" dir="ltr">{c.code}</span>
+                  <span className="ms-1 rounded-md bg-slate-100 px-1.5 py-0.5 text-3xs font-normal text-slate-600">گروه {o.groupNumber}</span>
                 </p>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-2xs text-slate-500">
                   ثبت‌نام: <b className={o.enrolledCount >= o.capacity ? 'text-rose-600' : 'text-slate-700'}>{o.enrolledCount}/{o.capacity}</b>
                   {' · '}استاد: {o.professorId ? profName.get(o.professorId) ?? '—' : '—'}
                   {' · '}هدف: {targetingLabel(o, degTitle, majorTitle)}
@@ -191,7 +191,7 @@ export default async function OfferingsPage({ searchParams }: { searchParams: Pr
                 <button className="btn-ghost col-span-2 !py-1.5 text-xs md:col-span-3">ذخیره</button>
               </form>
 
-              <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-2 text-[11px]">
+              <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-100 pt-2 text-2xs">
                 <span className="text-slate-500">برنامهٔ هفتگی:</span>
                 {sch.length === 0 && <span className="text-slate-400">— ثبت نشده —</span>}
                 {sch.map(s => (
@@ -214,7 +214,7 @@ export default async function OfferingsPage({ searchParams }: { searchParams: Pr
                 </form>
                 <form action={deactivateOfferingAction} className="ms-auto">
                   <input type="hidden" name="id" value={o.id} />
-                  <button className="text-red-600 text-[11px] hover:underline">{o.enrolledCount > 0 ? 'غیرفعال‌سازی' : 'حذف ارائه'}</button>
+                  <button className="text-red-600 text-2xs hover:underline">{o.enrolledCount > 0 ? 'غیرفعال‌سازی' : 'حذف ارائه'}</button>
                 </form>
               </div>
             </div>

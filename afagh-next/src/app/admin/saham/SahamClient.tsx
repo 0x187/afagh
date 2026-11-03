@@ -175,7 +175,7 @@ export default function SahamClient({ stats, lookups }: { stats: SahamStat[]; lo
         {/* فیلترها */}
         <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-6">
           {kind === 'students' && (
-            <label className="text-[11px] text-slate-600">وضعیت تحصیلی
+            <label className="text-2xs text-slate-600">وضعیت تحصیلی
               <select value={status} onChange={(e) => { setStatus(e.target.value); reset(); }} className="mt-1 w-full rounded border px-2 py-1.5 text-xs">
                 <option value="">همهٔ وضعیت‌ها</option>
                 {[...new Set(lookups.statuses.map((s) => s.status))].map((st) => (
@@ -186,45 +186,45 @@ export default function SahamClient({ stats, lookups }: { stats: SahamStat[]; lo
           )}
           {kind !== 'instructors' && (
             <>
-              <label className="text-[11px] text-slate-600">رشته
+              <label className="text-2xs text-slate-600">رشته
                 <select value={majorId} onChange={(e) => { setMajorId(e.target.value); reset(); }} className="mt-1 w-full rounded border px-2 py-1.5 text-xs">
                   <option value="">همهٔ رشته‌ها</option>
                   {majors.slice(0, 500).map((mj) => <option key={mj.id} value={mj.id}>{mj.name}</option>)}
                 </select>
               </label>
-              <label className="text-[11px] text-slate-600">دانشکده
+              <label className="text-2xs text-slate-600">دانشکده
                 <select value={facultyId} onChange={(e) => { setFacultyId(e.target.value); reset(); }} className="mt-1 w-full rounded border px-2 py-1.5 text-xs">
                   <option value="">همهٔ دانشکده‌ها</option>
                   {faculties.map((f) => <option key={f.id} value={f.id}>{f.name}</option>)}
                 </select>
               </label>
-              <label className="text-[11px] text-slate-600">ورودی از (سال)
+              <label className="text-2xs text-slate-600">ورودی از (سال)
                 <input value={entryFrom} onChange={(e) => { setEntryFrom(e.target.value); reset(); }} placeholder="1400" inputMode="numeric" className="mt-1 w-full rounded border px-2 py-1.5 text-xs" />
               </label>
-              <label className="text-[11px] text-slate-600">ورودی تا (سال)
+              <label className="text-2xs text-slate-600">ورودی تا (سال)
                 <input value={entryTo} onChange={(e) => { setEntryTo(e.target.value); reset(); }} placeholder="1404" inputMode="numeric" className="mt-1 w-full rounded border px-2 py-1.5 text-xs" />
               </label>
             </>
           )}
           {kind === 'graduates' && (
             <>
-              <label className="text-[11px] text-slate-600">فراغت از (۱۴۰۳/۰۱/۰۱)
+              <label className="text-2xs text-slate-600">فراغت از (۱۴۰۳/۰۱/۰۱)
                 <input value={gradFrom} onChange={(e) => { setGradFrom(e.target.value); reset(); }} placeholder="1403/01/01" className="mt-1 w-full rounded border px-2 py-1.5 text-xs font-mono" dir="ltr" />
               </label>
-              <label className="text-[11px] text-slate-600">فراغت تا (۱۴۰۴/۱۲/۲۹)
+              <label className="text-2xs text-slate-600">فراغت تا (۱۴۰۴/۱۲/۲۹)
                 <input value={gradTo} onChange={(e) => { setGradTo(e.target.value); reset(); }} placeholder="1404/12/29" className="mt-1 w-full rounded border px-2 py-1.5 text-xs font-mono" dir="ltr" />
               </label>
             </>
           )}
           {kind === 'instructors' && (
-            <label className="text-[11px] text-slate-600 col-span-2">نیمسال (فقط اساتید دارای ارائه) — اجباری
+            <label className="text-2xs text-slate-600 col-span-2">نیمسال (فقط اساتید دارای ارائه) — اجباری
               <select value={termId} onChange={(e) => { setTermId(e.target.value); reset(); }} className="mt-1 w-full rounded border px-2 py-1.5 text-xs">
                 <option value="">— انتخاب نیمسال —</option>
                 {terms.map((t) => <option key={t.id} value={t.id}>{t.title}{t.isCurrent ? ' (جاری)' : ''}</option>)}
               </select>
             </label>
           )}
-          <label className="text-[11px] text-slate-600">سقف ردیف (هر فایل)
+          <label className="text-2xs text-slate-600">سقف ردیف (هر فایل)
             <select value={limit} onChange={(e) => { setLimit(e.target.value); reset(); }} className="mt-1 w-full rounded border px-2 py-1.5 text-xs font-mono" dir="ltr">
               <option value="1000">1,000</option>
               <option value="5000">5,000</option>
@@ -254,17 +254,17 @@ export default function SahamClient({ stats, lookups }: { stats: SahamStat[]; lo
           <button onClick={reset} className="rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100">
             ↺ پاک‌کردن فیلترها
           </button>
-          {progress && <span className="text-[11px] font-bold text-slate-500">{progress}</span>}
+          {progress && <span className="text-2xs font-bold text-slate-500">{progress}</span>}
         </div>
 
         {/* خلاصهٔ وضعیت محاسبه */}
         {applied && (
           fresh ? (
-            <div className="mt-2 rounded-xl border border-emerald-300 bg-emerald-50/70 p-2 text-[11px] font-bold text-emerald-800">
+            <div className="mt-2 rounded-xl border border-emerald-300 bg-emerald-50/70 p-2 text-2xs font-bold text-emerald-800">
               ✅ فیلتر اعمال شد — جمع: {fa(applied.total)} رکورد در {fa(rows.length)} مؤسسه
             </div>
           ) : (
-            <div className="mt-2 rounded-xl border border-amber-300 bg-amber-50/70 p-2 text-[11px] font-bold text-amber-800">
+            <div className="mt-2 rounded-xl border border-amber-300 bg-amber-50/70 p-2 text-2xs font-bold text-amber-800">
               ⚠️ فیلترها تغییر کرده‌اند؛ برای اعداد به‌روز دوباره «اعمال فیلتر و محاسبهٔ تعداد» را بزنید.
             </div>
           )
@@ -273,13 +273,13 @@ export default function SahamClient({ stats, lookups }: { stats: SahamStat[]; lo
         {/* انتخاب چندگانهٔ مؤسسه‌ها */}
         <div className="mt-3 rounded-xl border border-slate-200 p-2">
           <div className="mb-1.5 flex items-center gap-2">
-            <span className="text-[11px] font-bold text-slate-600">مؤسسه‌ها (چندتایی انتخاب کنید — یک فایل می‌گیرید):</span>
-            <button onClick={() => { setSelected(stats.map((s) => s.universityId)); reset(); }} className="text-[11px] font-bold text-indigo-700 underline">همه</button>
-            <button onClick={() => { setSelected([]); reset(); }} className="text-[11px] font-bold text-slate-500 underline">هیچ‌کدام</button>
+            <span className="text-2xs font-bold text-slate-600">مؤسسه‌ها (چندتایی انتخاب کنید — یک فایل می‌گیرید):</span>
+            <button onClick={() => { setSelected(stats.map((s) => s.universityId)); reset(); }} className="text-2xs font-bold text-indigo-700 underline">همه</button>
+            <button onClick={() => { setSelected([]); reset(); }} className="text-2xs font-bold text-slate-500 underline">هیچ‌کدام</button>
           </div>
           <div className="flex flex-wrap gap-x-4 gap-y-1">
             {stats.map((s) => (
-              <label key={s.universityId} className="flex items-center gap-1.5 text-[11px] text-slate-700">
+              <label key={s.universityId} className="flex items-center gap-1.5 text-2xs text-slate-700">
                 <input type="checkbox" checked={selected.includes(s.universityId)} onChange={() => { toggle(s.universityId); reset(); }} className="h-3.5 w-3.5 accent-indigo-700" />
                 <span className={s.sahamCodeCount === 0 ? 'text-amber-700' : ''}>{s.title}</span>
                 {s.isDissolved && <span className="rounded bg-slate-200 px-1 text-[9px]">منحل</span>}
@@ -308,15 +308,15 @@ export default function SahamClient({ stats, lookups }: { stats: SahamStat[]; lo
                 <tr key={s.universityId} className="border-t border-slate-200">
                   <td className="p-2.5">
                     <div className="font-bold text-[13px]">{s.title}</div>
-                    <div className="text-[10px] text-slate-500">
+                    <div className="text-3xs text-slate-500">
                       {s.code}
                       {s.isDissolved && <span className="mr-1.5 rounded bg-slate-200 px-1.5 py-0.5 text-[9px]">منحل</span>}
                     </div>
                   </td>
                   <td className="p-2.5">
                     {noCode
-                      ? <span className="rounded bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">بدون کد</span>
-                      : <span className="font-mono text-[11px]">{fa(s.sahamCodeCount)} واحد</span>}
+                      ? <span className="rounded bg-amber-100 px-2 py-0.5 text-3xs font-bold text-amber-800">بدون کد</span>
+                      : <span className="font-mono text-2xs">{fa(s.sahamCodeCount)} واحد</span>}
                   </td>
                   <td className="p-2.5">
                     {filtered != null ? (
@@ -324,7 +324,7 @@ export default function SahamClient({ stats, lookups }: { stats: SahamStat[]; lo
                     ) : (
                       <div className="font-bold text-slate-700">
                         {fa(kindCount(s))}
-                        <span className="mr-1 text-[10px] font-normal text-slate-400">(کل)</span>
+                        <span className="mr-1 text-3xs font-normal text-slate-400">(کل)</span>
                       </div>
                     )}
                   </td>
@@ -340,7 +340,7 @@ export default function SahamClient({ stats, lookups }: { stats: SahamStat[]; lo
                               style={{ width: `${pct}%` }}
                             />
                           </div>
-                          <span className="font-mono text-[10px] text-slate-600">{fa(pct)}٪</span>
+                          <span className="font-mono text-3xs text-slate-600">{fa(pct)}٪</span>
                         </div>
                       </td>
                     );
@@ -350,7 +350,7 @@ export default function SahamClient({ stats, lookups }: { stats: SahamStat[]; lo
                       onClick={() => download(s.universityId)}
                       disabled={busy !== null || needTerm}
                       title={needTerm ? 'اول نیمسال را انتخاب کنید' : 'خروجی این مؤسسه'}
-                      className="rounded bg-indigo-700 px-3 py-1.5 text-[11px] font-bold text-white hover:bg-indigo-800 disabled:opacity-40"
+                      className="rounded bg-indigo-700 px-3 py-1.5 text-2xs font-bold text-white hover:bg-indigo-800 disabled:opacity-40"
                     >
                       {busy === s.universityId ? '⏳…' : '⬇️ اکسل'}
                     </button>
@@ -362,7 +362,7 @@ export default function SahamClient({ stats, lookups }: { stats: SahamStat[]; lo
         </table>
       </div>
 
-      <div className="card !p-3 text-[11px] leading-6 text-slate-600">
+      <div className="card !p-3 text-2xs leading-6 text-slate-600">
         <b>قبل از ارسال به سهام این‌ها را چک کنید:</b>
         <ul className="mr-4 mt-1 list-disc space-y-0.5">
           <li>ستون «کد دانشکده/واحد» ۱۲ رقمی و با فرمت <span className="font-mono">Text</span> باشد — صفرهای اول نباید حذف شود.</li>

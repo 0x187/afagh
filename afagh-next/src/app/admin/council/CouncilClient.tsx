@@ -6,6 +6,7 @@ import {
   decisionTypeBadgeClass, implementationStatusBadgeClass,
   splitLines,
 } from '@/lib/council';
+import { askConfirm } from '@/lib/ui-feedback';
 
 type Msg = { text: string; kind: 'ok' | 'error' } | null;
 
@@ -181,8 +182,8 @@ export default function CouncilClient() {
                   </td>
                   <td className="p-2 whitespace-nowrap">
                     <button onClick={() => setShowMeetingForm(m)} className="text-blue-600 hover:underline text-xs ml-2">ویرایش</button>
-                    <button onClick={() => {
-                      if (!confirm(`جلسه «${m.title}» و همهٔ مصوباتش حذف شود؟`)) return;
+                    <button onClick={async () => {
+                      if (!(await askConfirm({ title: 'تأیید عملیات', body: `جلسه «${m.title}» و همهٔ مصوباتش حذف شود؟`, confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
                       startTransition(async () => {
                         try {
                           await api(`/api/admin/council?id=${m.id}`, { method: 'DELETE' });
@@ -257,8 +258,8 @@ export default function CouncilClient() {
                     <td className="p-2 text-xs">{toJalali(d.deadline)}</td>
                     <td className="p-2 whitespace-nowrap">
                       <button onClick={() => setShowDecisionForm(d)} className="text-blue-600 hover:underline text-xs ml-2">ویرایش</button>
-                      <button onClick={() => {
-                        if (!confirm('این مصوبه حذف شود؟')) return;
+                      <button onClick={async () => {
+                        if (!(await askConfirm({ title: 'تأیید عملیات', body: 'این مصوبه حذف شود؟', confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
                         startTransition(async () => {
                           try {
                             await api(`/api/admin/council/decisions?id=${d.id}`, { method: 'DELETE' });

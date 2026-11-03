@@ -103,10 +103,10 @@ export default function SecurityGuardScannerPage() {
               {busy ? '⏳' : 'استعلام'}
             </button>
           </div>
-          {message && <p className="text-[11px] font-bold text-amber-300">{message}</p>}
+          {message && <p className="text-2xs font-bold text-amber-300">{message}</p>}
         </form>
 
-        <div className="border-t border-slate-800 pt-3 text-[11px] leading-5 text-slate-500">
+        <div className="border-t border-slate-800 pt-3 text-2xs leading-5 text-slate-500">
           کارت‌ها از مسیر «امور دانشجویی ← صدور کارت» صادر می‌شوند. کارت باطل/مفقود/منقضی و دانشجوی دارای بدهی مالی
           به‌صورت سیستمی قرمز می‌شوند.
         </div>

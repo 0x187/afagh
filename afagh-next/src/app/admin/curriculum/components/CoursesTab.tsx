@@ -111,7 +111,7 @@ export default function CoursesTab() {
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => setModal('NEW_COURSE')}
-                className="px-3 py-2 rounded-lg bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-[11px]"
+                className="px-3 py-2 rounded-lg bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-2xs"
               >
                 ✨ تعریف درس جدید
               </button>
@@ -119,7 +119,7 @@ export default function CoursesTab() {
                 <>
                   <button
                     onClick={() => setModal('ADD_COURSE')}
-                    className="px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-[11px]"
+                    className="px-3 py-2 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-2xs"
                   >
                     ➕ افزودن درس از بانک
                   </button>
@@ -128,7 +128,7 @@ export default function CoursesTab() {
                       onClick={handleSyncRoles}
                       disabled={busy}
                       title="نقش همهٔ دروس نسخه از روی ستون «نوع درس» بانک بازخوانی می‌شود (تغییرات دستی بازنویسی می‌شود)"
-                      className="px-3 py-2 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 font-extrabold text-[11px] disabled:opacity-50"
+                      className="px-3 py-2 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 font-extrabold text-2xs disabled:opacity-50"
                     >
                       🔄 همگام‌سازی نقش از بانک
                     </button>
@@ -138,7 +138,7 @@ export default function CoursesTab() {
                       onClick={handleMarkGradReq}
                       disabled={busy}
                       title="همهٔ دروس الزامی (تیک «الزامی در ترم») و نقش‌های تخصصی/پایه به‌عنوان «شرط فارغ‌التحصیلی» علامت می‌خورند؛ مواردی که قبلاً علامت خورده‌اند دست‌نخورده می‌مانند"
-                      className="px-3 py-2 rounded-lg bg-teal-100 hover:bg-teal-200 text-teal-900 font-extrabold text-[11px] disabled:opacity-50"
+                      className="px-3 py-2 rounded-lg bg-teal-100 hover:bg-teal-200 text-teal-900 font-extrabold text-2xs disabled:opacity-50"
                     >
                       🎓 شرط فارغ‌التحصیلی برای دروس الزامی
                     </button>
@@ -159,12 +159,12 @@ export default function CoursesTab() {
                 value={query}
                 onChange={e => setQuery(e.target.value)}
                 placeholder="🔍 جست‌وجوی کد یا نام درس…"
-                className="flex-1 min-w-[180px] rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-[11px] font-bold outline-none focus:border-indigo-500"
+                className="flex-1 min-w-[180px] rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-2xs font-bold outline-none focus:border-indigo-500"
               />
               <select
                 value={roleFilter}
                 onChange={e => setRoleFilter(e.target.value)}
-                className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-[11px] font-bold"
+                className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-2xs font-bold"
                 title="فیلتر نقش درس"
               >
                 <option value="">همهٔ نقش‌ها</option>
@@ -173,7 +173,7 @@ export default function CoursesTab() {
               <select
                 value={semFilter}
                 onChange={e => setSemFilter(e.target.value)}
-                className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-[11px] font-bold"
+                className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-2xs font-bold"
                 title="فیلتر ترم پیشنهادی"
               >
                 <option value="">همهٔ ترم‌ها</option>
@@ -184,12 +184,12 @@ export default function CoursesTab() {
               {filtersActive && (
                 <button
                   onClick={() => { setQuery(''); setRoleFilter(''); setSemFilter(''); }}
-                  className="rounded-lg bg-slate-200 hover:bg-slate-300 px-2.5 py-1.5 text-[11px] font-extrabold text-slate-700"
+                  className="rounded-lg bg-slate-200 hover:bg-slate-300 px-2.5 py-1.5 text-2xs font-extrabold text-slate-700"
                 >
                   ✕ پاک‌کردن فیلتر
                 </button>
               )}
-              <span className={`text-[10px] font-black ${visibleCourses.length === detail.courses.length ? 'text-slate-500' : 'text-indigo-800'}`}>
+              <span className={`text-3xs font-black ${visibleCourses.length === detail.courses.length ? 'text-slate-500' : 'text-indigo-800'}`}>
                 {faNum(visibleCourses.length)} از {faNum(detail.courses.length)} درس
               </span>
             </div>
@@ -285,7 +285,7 @@ export default function CoursesTab() {
                         <select
                           value={c.passGradeStatusCode ?? ''}
                           onChange={e => handleUpdateGradeStatusCodes(c.courseId, e.target.value || null, c.failGradeStatusCode)}
-                          className="border border-slate-300 rounded px-1 py-0.5 text-[10px] font-bold bg-white max-w-[140px]"
+                          className="border border-slate-300 rounded px-1 py-0.5 text-3xs font-bold bg-white max-w-[140px]"
                           title={gradeStatusTitleOf(c.passGradeStatusCode) ?? 'پیش‌فرض: 1 (قبول عادی)'}
                         >
                           <option value="">پیش‌فرض (1)</option>
@@ -294,7 +294,7 @@ export default function CoursesTab() {
                           ))}
                         </select>
                       ) : (
-                        <span className="font-mono font-bold text-[11px]" title={gradeStatusTitleOf(c.passGradeStatusCode) ?? undefined}>
+                        <span className="font-mono font-bold text-2xs" title={gradeStatusTitleOf(c.passGradeStatusCode) ?? undefined}>
                           {c.passGradeStatusCode || '1'}
                         </span>
                       )}
@@ -304,7 +304,7 @@ export default function CoursesTab() {
                         <select
                           value={c.failGradeStatusCode ?? ''}
                           onChange={e => handleUpdateGradeStatusCodes(c.courseId, c.passGradeStatusCode, e.target.value || null)}
-                          className="border border-slate-300 rounded px-1 py-0.5 text-[10px] font-bold bg-white max-w-[140px]"
+                          className="border border-slate-300 rounded px-1 py-0.5 text-3xs font-bold bg-white max-w-[140px]"
                           title={gradeStatusTitleOf(c.failGradeStatusCode) ?? 'پیش‌فرض: 2 (مردود عادی)'}
                         >
                           <option value="">پیش‌فرض (2)</option>
@@ -313,13 +313,13 @@ export default function CoursesTab() {
                           ))}
                         </select>
                       ) : (
-                        <span className="font-mono font-bold text-[11px]" title={gradeStatusTitleOf(c.failGradeStatusCode) ?? undefined}>
+                        <span className="font-mono font-bold text-2xs" title={gradeStatusTitleOf(c.failGradeStatusCode) ?? undefined}>
                           {c.failGradeStatusCode || '2'}
                         </span>
                       )}
                     </td>
                     <td className="p-2 border border-slate-200 text-right align-top">
-                      <div className="text-[10px] font-bold text-slate-600 leading-snug">
+                      <div className="text-3xs font-bold text-slate-600 leading-snug">
                         {(() => {
                           const pre = ruleText(c.courseId, 'PREREQ');
                           const co = ruleText(c.courseId, 'COREQ');
@@ -338,7 +338,7 @@ export default function CoursesTab() {
                       {isDraft && (
                         <button
                           onClick={() => openRules(c.courseId)}
-                          className="mt-1 px-2 py-1 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-extrabold text-[10px]"
+                          className="mt-1 px-2 py-1 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-extrabold text-3xs"
                         >
                           🔗 ویرایش
                         </button>
@@ -348,7 +348,7 @@ export default function CoursesTab() {
                       {isDraft && (
                         <button
                           onClick={() => handleRemoveCourse(c.courseId)}
-                          className="px-2 py-1 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-800 font-extrabold text-[10px]"
+                          className="px-2 py-1 rounded-lg bg-rose-100 hover:bg-rose-200 text-rose-800 font-extrabold text-3xs"
                         >
                           حذف
                         </button>
@@ -402,7 +402,7 @@ export default function CoursesTab() {
                   </tbody>
                 </table>
               </div>
-              <p className="text-[10px] text-slate-400 font-bold">حداقل تعداد هر نقش (COURSE_TYPES_COMPLETE) و سهم واحد هر نقش (ROLE_UNITS_COVERAGE) در تب «بررسی و خاتمه» کنترل می‌شود.</p>
+              <p className="text-3xs text-slate-400 font-bold">حداقل تعداد هر نقش (COURSE_TYPES_COMPLETE) و سهم واحد هر نقش (ROLE_UNITS_COVERAGE) در تب «بررسی و خاتمه» کنترل می‌شود.</p>
             </div>
           )}
 
@@ -412,7 +412,7 @@ export default function CoursesTab() {
               <h5 className="font-extrabold text-slate-900 text-xs">🔗 قواعد پیش‌نیاز / هم‌نیاز / نمرهٔ قبولی (از course_rules — درخت منطقی)</h5>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                 {detail.rules.map((r, i) => (
-                  <div key={i} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-[11px]">
+                  <div key={i} className="p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-2xs">
                     <span className="font-black text-indigo-900">{courseCodeOf.get(r.courseId) ?? r.courseId}</span>
                     <span className="text-slate-400 mx-1">·</span>
                     <span className="font-bold text-slate-600">
@@ -430,7 +430,7 @@ export default function CoursesTab() {
             <div className="pt-3 border-t border-slate-200 space-y-1.5">
               <h5 className="font-extrabold text-slate-900 text-xs">📜 تاریخچهٔ تأیید (append-only)</h5>
               {detail.approvals.map((a, i) => (
-                <div key={a.id ?? i} className="flex items-center justify-between gap-2 bg-indigo-50/60 rounded-lg p-2 text-[11px]">
+                <div key={a.id ?? i} className="flex items-center justify-between gap-2 bg-indigo-50/60 rounded-lg p-2 text-2xs">
                   <span className="font-bold text-slate-700">
                     {a.fromStatus} ← {a.toStatus} <span className="text-slate-400">({a.approvalType})</span>
                   </span>

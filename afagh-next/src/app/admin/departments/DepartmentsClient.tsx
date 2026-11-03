@@ -191,18 +191,18 @@ export default function DepartmentsClient({
                 <td className="p-2.5" dir="ltr">
                   {d.code
                     ? <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono font-bold text-slate-700">{d.code}</span>
-                    : <span className="text-[10px] text-amber-600">بدون کد</span>}
+                    : <span className="text-3xs text-amber-600">بدون کد</span>}
                 </td>
                 <td className="p-2.5">
                   <span className="font-bold text-slate-800">{d.name}</span>
-                  {!d.isActive && <span className="mr-1 rounded bg-slate-200 px-1 text-[10px]">غیرفعال</span>}
+                  {!d.isActive && <span className="mr-1 rounded bg-slate-200 px-1 text-3xs">غیرفعال</span>}
                 </td>
                 <td className="p-2.5 text-slate-600">
                   {d.facultyName}
-                  {d.facultyCode && <span className="mr-1 font-mono text-[10px] text-slate-400" dir="ltr">#{d.facultyCode}</span>}
+                  {d.facultyCode && <span className="mr-1 font-mono text-3xs text-slate-400" dir="ltr">#{d.facultyCode}</span>}
                 </td>
                 <td className="p-2.5">
-                  <span className={'rounded-md border px-1.5 py-0.5 text-[10px] ' + KINDS[d.kind].chip}>{KINDS[d.kind].label}</span>
+                  <span className={'rounded-md border px-1.5 py-0.5 text-3xs ' + KINDS[d.kind].chip}>{KINDS[d.kind].label}</span>
                 </td>
                 <td className="p-2.5">
                   <HeadPicker
@@ -302,7 +302,7 @@ function DeptForm({
       <label className="text-xs">
         <span className="mb-1 block font-bold text-slate-600">کد گروه 🔑</span>
         <input name="code" defaultValue={dept?.code ?? ''} dir="ltr" className="w-full rounded-lg border border-slate-300 p-2 font-mono" placeholder="مثلاً ۱۲" />
-        <span className="mt-0.5 block text-[10px] leading-4 text-slate-400">
+        <span className="mt-0.5 block text-3xs leading-4 text-slate-400">
           یکتا در کل سامانه. انتقال داده اول با همین کد تطبیق می‌دهد.
         </span>
       </label>
@@ -372,12 +372,12 @@ function HeadPicker({
         {dept.headName ? (
           <>
             <span className="font-medium text-slate-700">{dept.headName}</span>
-            {n > 1 && <span className="rounded bg-teal-100 px-1 text-[10px] text-teal-800">مدیر {n.toLocaleString('fa-IR')} گروه</span>}
+            {n > 1 && <span className="rounded bg-teal-100 px-1 text-3xs text-teal-800">مدیر {n.toLocaleString('fa-IR')} گروه</span>}
           </>
         ) : (
           <span className="text-amber-700">— تعیین نشده —</span>
         )}
-        <button onClick={() => setOpen(true)} className="text-[11px] text-indigo-600 hover:underline">{dept.headName ? 'تغییر' : 'انتخاب'}</button>
+        <button onClick={() => setOpen(true)} className="text-2xs text-indigo-600 hover:underline">{dept.headName ? 'تغییر' : 'انتخاب'}</button>
       </div>
     );
   }
@@ -394,18 +394,18 @@ function HeadPicker({
             className="block w-full rounded p-1.5 text-right hover:bg-indigo-50 disabled:opacity-50"
           >
             <span className="font-medium">{s.name}</span>
-            <span className="mr-1 text-[10px] text-slate-400">
+            <span className="mr-1 text-3xs text-slate-400">
               {s.deptName ?? 'بدون گروه'}{s.deptId && s.deptId !== dept.id ? ' · از گروه دیگر' : ''}
             </span>
           </button>
         ))}
-        {list.length === 0 && <p className="p-2 text-center text-[11px] text-slate-400">موردی نیست.</p>}
+        {list.length === 0 && <p className="p-2 text-center text-2xs text-slate-400">موردی نیست.</p>}
       </div>
       <div className="mt-1 flex justify-between border-t border-slate-100 pt-1.5">
         {dept.headStaffId && (
-          <button disabled={pending} onClick={() => { onPick(null); setOpen(false); }} className="text-[11px] text-red-600 hover:underline">برداشتن مدیر</button>
+          <button disabled={pending} onClick={() => { onPick(null); setOpen(false); }} className="text-2xs text-red-600 hover:underline">برداشتن مدیر</button>
         )}
-        <button onClick={() => setOpen(false)} className="mr-auto text-[11px] text-slate-500 hover:underline">بستن</button>
+        <button onClick={() => setOpen(false)} className="mr-auto text-2xs text-slate-500 hover:underline">بستن</button>
       </div>
     </div>
   );
@@ -439,7 +439,7 @@ function MembersPanel({
         <button onClick={onClose} className="text-xs text-slate-500 hover:underline">بستن</button>
       </div>
       {dept.kind === 'GENERAL' && (
-        <p className="mb-2 rounded-lg bg-amber-50 p-2 text-[11px] leading-5 text-amber-800">
+        <p className="mb-2 rounded-lg bg-amber-50 p-2 text-2xs leading-5 text-amber-800">
           گروه دروس عمومی معمولاً عضو ثابت ندارد؛ مدیرش کافی است. استادانی که درس عمومی می‌دهند می‌توانند عضو گروه
           تخصصی خودشان بمانند.
         </p>
@@ -465,7 +465,7 @@ function MembersPanel({
             onClick={() => { onMove(c.id, dept.id); setQ(''); }}
             className="rounded-lg border border-indigo-200 bg-indigo-50 px-2 py-1 text-xs text-indigo-800 hover:bg-indigo-100 disabled:opacity-50"
           >
-            + {c.name} <span className="text-[10px] text-slate-400">({c.deptName ?? 'بدون گروه'})</span>
+            + {c.name} <span className="text-3xs text-slate-400">({c.deptName ?? 'بدون گروه'})</span>
           </button>
         ))}
       </div>
@@ -520,7 +520,7 @@ function FacultyCodes({
               placeholder="کد"
               className={'w-20 rounded border p-1 text-center font-mono text-xs ' + (f.code ? 'border-slate-300' : 'border-amber-400 bg-amber-50')}
             />
-            <button disabled={pending} className="rounded bg-slate-700 px-2 py-1 text-[11px] text-white disabled:opacity-50">ثبت</button>
+            <button disabled={pending} className="rounded bg-slate-700 px-2 py-1 text-2xs text-white disabled:opacity-50">ثبت</button>
           </form>
         ))}
       </div>

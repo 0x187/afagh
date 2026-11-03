@@ -40,7 +40,7 @@ export default function CurriculumAssignTab() {
                 <p className="text-xs text-slate-500 mt-0.5">
                   برای هر درس چارت، نام استاد مدرس و تعداد گروه‌ها را مشخص فرمایید. کنترل سقف واحد مجاز اساتید به صورت زنده انجام می‌شود.
                 </p>
-                <p className={`mt-1 text-[11px] font-black ${chartRange ? 'text-emerald-700' : 'text-amber-700'}`}>
+                <p className={`mt-1 text-2xs font-black ${chartRange ? 'text-emerald-700' : 'text-amber-700'}`}>
                   {chartRange
                     ? `📗 چارت معتبر برای ورودی‌های ${faNum(chartRange.from)} تا ${chartRange.to ? faNum(chartRange.to) : 'به بعد'}`
                     : '📙 برای این رشته چارت مصوبی تعریف نشده است — دروس از فهرست ارائه‌های گروه نمایش داده می‌شود'}
@@ -107,7 +107,7 @@ export default function CurriculumAssignTab() {
                         <td className="p-2 border border-slate-200 font-mono text-center font-bold text-indigo-900">{demand.code}</td>
                         <td className="p-2 border border-slate-200 font-extrabold text-slate-900">{demand.title}</td>
                         <td className="p-2 border border-slate-200 text-center">
-                          <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-900 font-bold text-[10px]">
+                          <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-900 font-bold text-3xs">
                             {demand.cohortTitle.split('(')[1]?.replace(')', '') || demand.cohortTitle}
                           </span>
                           {/* ورودی بهمنِ کم‌جمعیت: کلاس جدا لازم نیست — با مهر یکی شود */}
@@ -130,7 +130,7 @@ export default function CurriculumAssignTab() {
                         </td>
                         <td className="p-2 border border-slate-200 text-center font-extrabold text-slate-900">{faNum(demand.units)}</td>
                         <td className="p-2 border border-slate-200 text-center">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${typeTone}`}>
+                          <span className={`px-2 py-0.5 rounded text-3xs font-bold ${typeTone}`}>
                             {demand.courseType}
                           </span>
                         </td>
@@ -197,7 +197,7 @@ export default function CurriculumAssignTab() {
                                     type="button"
                                     onClick={() => handleToggleCoTeaching(demand.id)}
                                     title="تخصیص دو استاد مشترک (تئوری + عملی)"
-                                    className="px-2 py-1 rounded bg-purple-100 hover:bg-purple-200 text-purple-900 font-bold text-[10px] whitespace-nowrap transition"
+                                    className="px-2 py-1 rounded bg-purple-100 hover:bg-purple-200 text-purple-900 font-bold text-3xs whitespace-nowrap transition"
                                   >
                                     👥 مشترک
                                   </button>
@@ -205,7 +205,7 @@ export default function CurriculumAssignTab() {
                               </div>
                             ) : (
                               <div className="space-y-2 p-2 bg-slate-50 rounded-xl border border-slate-200">
-                                <div className="flex items-center justify-between pb-1 border-b border-slate-200 text-[10px] font-bold text-slate-600">
+                                <div className="flex items-center justify-between pb-1 border-b border-slate-200 text-3xs font-bold text-slate-600">
                                   <span>انتساب اساتید به گروه‌های مجزا:</span>
                                   <button
                                     type="button"
@@ -219,8 +219,8 @@ export default function CurriculumAssignTab() {
                                   const gNo = gIdx + 1;
                                   const curProfId = demand.groupProfessors?.[gNo] || demand.preferredProfId;
                                   return (
-                                    <div key={gNo} className="flex items-center gap-1 text-[11px]">
-                                      <span className="px-1.5 py-0.5 rounded bg-indigo-900 text-white font-bold text-[10px] whitespace-nowrap">
+                                    <div key={gNo} className="flex items-center gap-1 text-2xs">
+                                      <span className="px-1.5 py-0.5 rounded bg-indigo-900 text-white font-bold text-3xs whitespace-nowrap">
                                         گروه {faNum(gNo)}:
                                       </span>
                                       <ProfessorSelect
@@ -237,11 +237,11 @@ export default function CurriculumAssignTab() {
                           ) : (
                             <div className="p-2 rounded-xl bg-purple-50 border border-purple-200 space-y-2">
                               <div className="flex items-center justify-between pb-1 border-b border-purple-200/60">
-                                <span className="font-extrabold text-[10px] text-purple-950">👥 درس مشترک با دو استاد:</span>
+                                <span className="font-extrabold text-3xs text-purple-950">👥 درس مشترک با دو استاد:</span>
                                 <button
                                   type="button"
                                   onClick={() => handleToggleCoTeaching(demand.id)}
-                                  className="text-[10px] text-purple-700 hover:underline font-bold"
+                                  className="text-3xs text-purple-700 hover:underline font-bold"
                                 >
                                   لغو (تک‌استاد)
                                 </button>
@@ -249,7 +249,7 @@ export default function CurriculumAssignTab() {
 
                               {/* Theory Professor */}
                               <div className="space-y-0.5">
-                                <div className="flex items-center justify-between text-[10px] font-bold text-slate-700">
+                                <div className="flex items-center justify-between text-3xs font-bold text-slate-700">
                                   <span>📖 استاد بخش تئوری:</span>
                                   <span className="text-indigo-900">سهم: {faNum((demand.theoryWeightRatio || 0.7) * 100)}٪ ({faNum((demand.theoryWeightRatio || 0.7) * 20)} نمره)</span>
                                 </div>
@@ -263,7 +263,7 @@ export default function CurriculumAssignTab() {
 
                               {/* Lab / Practical Professor */}
                               <div className="space-y-0.5">
-                                <div className="flex items-center justify-between text-[10px] font-bold text-slate-700">
+                                <div className="flex items-center justify-between text-3xs font-bold text-slate-700">
                                   <span>🔬 استاد بخش عملی:</span>
                                   <span className="text-purple-900">سهم: {faNum((demand.labWeightRatio || 0.3) * 100)}٪ ({faNum((demand.labWeightRatio || 0.3) * 20)} نمره)</span>
                                 </div>
@@ -297,14 +297,14 @@ export default function CurriculumAssignTab() {
 
                         <td className="p-2 border border-slate-200 text-center">
                           {!demand.isCoTaught ? (
-                            <div className={`p-1.5 rounded-lg text-[11px] font-bold ${
+                            <div className={`p-1.5 rounded-lg text-2xs font-bold ${
                               isOverQuota ? 'bg-rose-100 text-rose-900 border border-rose-300' : 'bg-emerald-100 text-emerald-900'
                             }`}>
                               <span>{faNum(profLoad)} از {faNum(assignedProf.maxWeeklyUnits)} واحد</span>
                               {isOverQuota && <span className="block text-[9px] font-black text-rose-700 mt-0.5">⚠️ تجاوز از سقف مجاز!</span>}
                             </div>
                           ) : (
-                            <div className="space-y-1 text-[10px] font-bold">
+                            <div className="space-y-1 text-3xs font-bold">
                               <div className={`p-1 rounded ${profLoad > assignedProf.maxWeeklyUnits ? 'bg-rose-100 text-rose-900' : 'bg-indigo-100 text-indigo-900'}`}>
                                 <span>تئوری ({assignedProf.name}): {faNum(profLoad)}/{faNum(assignedProf.maxWeeklyUnits)} واحد</span>
                               </div>
@@ -322,7 +322,7 @@ export default function CurriculumAssignTab() {
                             <button
                               type="button"
                               onClick={() => handleToggleDemandExamMode(demand.id)}
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-black transition ${
+                              className={`px-2 py-0.5 rounded-full text-3xs font-black transition ${
                                 demand.examSchedulingMode === 'MANUAL'
                                   ? 'bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200'
                                   : 'bg-emerald-100 text-emerald-900 border border-emerald-300 hover:bg-emerald-200'
@@ -335,7 +335,7 @@ export default function CurriculumAssignTab() {
                               type="text"
                               value={demand.examDate}
                               onChange={e => handleUpdateDemandExamDate(demand.id, e.target.value)}
-                              className="w-full border border-slate-300 rounded p-1 font-mono font-bold text-center text-[11px] bg-white text-slate-800"
+                              className="w-full border border-slate-300 rounded p-1 font-mono font-bold text-center text-2xs bg-white text-slate-800"
                             />
                           </div>
                         </td>

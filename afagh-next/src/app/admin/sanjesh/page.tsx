@@ -63,7 +63,7 @@ export default async function SanjeshFilesPage({
         {/* ادامهٔ جریان: صف پذیرش در همین ماژول است، نه کارت جداگانه در «آموزش» */}
         <Link
           href="/admin/admissions"
-          className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-[11px] font-bold text-indigo-800 hover:bg-indigo-100"
+          className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-2xs font-bold text-indigo-800 hover:bg-indigo-100"
         >
           📥 صف پذیرش و ثبت‌نام نهایی ←
         </Link>
@@ -75,15 +75,15 @@ export default async function SanjeshFilesPage({
       <section className="card mb-5">
         <h2 className="mb-3 text-sm font-semibold text-slate-700">بارگذاری فایل جدید</h2>
         <form action={uploadSanjeshFileAction} className="grid grid-cols-2 items-end gap-2 md:grid-cols-12">
-          <label className="col-span-2 flex min-w-0 flex-col gap-0.5 text-[10px] text-slate-500 md:col-span-4">
+          <label className="col-span-2 flex min-w-0 flex-col gap-0.5 text-3xs text-slate-500 md:col-span-4">
             <span>فایل سنجش (UTF-16LE / UTF-8 / Windows-1256)</span>
             <input type="file" name="file" accept=".txt,.dat,.csv,text/plain" required className="input !py-1 text-xs" />
           </label>
-          <label className="col-span-2 flex min-w-0 flex-col gap-0.5 text-[10px] text-slate-500 md:col-span-3">
+          <label className="col-span-2 flex min-w-0 flex-col gap-0.5 text-3xs text-slate-500 md:col-span-3">
             <span>عنوان فایل</span>
             <input name="title" className="input !py-1 !px-2 text-xs" placeholder="مثلاً کاردانی فنی ۱۴۰۵" />
           </label>
-          <label className="col-span-2 flex min-w-0 flex-col gap-0.5 text-[10px] text-slate-500 md:col-span-3">
+          <label className="col-span-2 flex min-w-0 flex-col gap-0.5 text-3xs text-slate-500 md:col-span-3">
             <span>قالب</span>
             <select name="templateKey" className="input !py-1 !px-2 text-xs">
               <option value="">تشخیص خودکار از تعداد ستون</option>
@@ -94,11 +94,11 @@ export default async function SanjeshFilesPage({
               ))}
             </select>
           </label>
-          <label className="col-span-1 flex min-w-0 flex-col gap-0.5 text-[10px] text-slate-500 md:col-span-1">
+          <label className="col-span-1 flex min-w-0 flex-col gap-0.5 text-3xs text-slate-500 md:col-span-1">
             <span>سال</span>
             <input name="examYear" defaultValue={1405} inputMode="numeric" className="input !py-1 !px-2 text-xs" dir="ltr" />
           </label>
-          <label className="col-span-1 flex min-w-0 flex-col gap-0.5 text-[10px] text-slate-500 md:col-span-1">
+          <label className="col-span-1 flex min-w-0 flex-col gap-0.5 text-3xs text-slate-500 md:col-span-1">
             <span>ترم مقصد</span>
             <select name="termId" className="input !py-1 !px-2 text-xs">
               <option value="">—</option>
@@ -109,7 +109,7 @@ export default async function SanjeshFilesPage({
               ))}
             </select>
           </label>
-          <label className="col-span-1 flex min-w-0 flex-col gap-0.5 text-[10px] text-slate-500 md:col-span-2">
+          <label className="col-span-1 flex min-w-0 flex-col gap-0.5 text-3xs text-slate-500 md:col-span-2">
             <span>جداکننده</span>
             <select name="separator" defaultValue="" className="input !py-1 !px-2 text-xs">
               <option value="">خودکار ($)</option>
@@ -120,7 +120,7 @@ export default async function SanjeshFilesPage({
               <option value="\\t">تب</option>
             </select>
           </label>
-          <label className="col-span-1 flex min-w-0 flex-col gap-0.5 text-[10px] text-slate-500 md:col-span-2">
+          <label className="col-span-1 flex min-w-0 flex-col gap-0.5 text-3xs text-slate-500 md:col-span-2">
             <span>شیوهٔ کدینگ</span>
             <select name="encoding" defaultValue="" className="input !py-1 !px-2 text-xs">
               <option value="">تشخیص خودکار</option>
@@ -131,7 +131,7 @@ export default async function SanjeshFilesPage({
           </label>
           <button className="btn-primary col-span-2 !py-1.5 text-xs md:col-span-2">بارگذاری و پارس</button>
         </form>
-        <p className="mt-2 text-[10px] text-slate-400">
+        <p className="mt-2 text-3xs text-slate-400">
           تعداد ستون از خودِ فایل خوانده می‌شود (نه از قالب) و بعد با قالب‌های شناخته‌شده مقایسه می‌شود؛
           چهار نوع فایل داریم: کاردانی ۵۷، ارشد ۷۴، کاردانی‌به‌کارشناسی ۶۹، سراسری ۸۵ ستون. اگر قالب را
           انتخاب نکنید و تعداد ستون دقیقاً برابر نباشد، نزدیک‌ترین قالب (حداکثر ۵ ستون اختلاف) انتخاب و
@@ -175,7 +175,7 @@ export default async function SanjeshFilesPage({
                         <Link href={`/admin/sanjesh/${f.id}/fields`} className="font-medium text-teal-700 hover:underline">
                           {f.title}
                         </Link>
-                        <div className="text-[10px] text-slate-400" dir="ltr">
+                        <div className="text-3xs text-slate-400" dir="ltr">
                           {f.fileName}
                         </div>
                       </td>
@@ -195,7 +195,7 @@ export default async function SanjeshFilesPage({
                       <td className="p-2">
                         <form action={deleteSanjeshFileAction}>
                           <input type="hidden" name="id" value={f.id} />
-                          <button className="text-[11px] text-red-600 hover:underline">حذف</button>
+                          <button className="text-2xs text-red-600 hover:underline">حذف</button>
                         </form>
                       </td>
                     </tr>

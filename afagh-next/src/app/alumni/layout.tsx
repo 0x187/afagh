@@ -45,8 +45,8 @@ export default async function AlumniLayout({ children }: { children: React.React
       <div className="mx-auto w-full max-w-6xl px-4 pt-3 print:hidden">
         <MessengerOnboardBanner />
       </div>
-      <main className="flex-1 max-w-6xl w-full mx-auto p-4">{children}</main>
-      <footer className="text-center text-[11px] text-slate-400 py-4">
+      <main id="main" className="flex-1 max-w-6xl w-full mx-auto p-4">{children}</main>
+      <footer className="text-center text-2xs text-slate-400 py-4">
         ارتباط شما با دانشگاه پس از فراغت از تحصیل قطع نمی‌شود.
       </footer>
     </div>

@@ -17,7 +17,7 @@ export default function ProfessorTermFilterBanner({
     <div className="space-y-2 print:hidden">
       <TermFilterChip title={selectedTerm.title} universityId={universityId} />
       {demo && (
-        <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
+        <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-2xs text-slate-600">
           {demoProfessorTermFilterNotice(selectedTerm.title)}
         </p>
       )}

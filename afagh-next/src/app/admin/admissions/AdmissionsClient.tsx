@@ -20,6 +20,7 @@ import {
   testIrandocCheckAction,
 } from './actions';
 import { revertImportedToResolvedAction, revertResolvedToPendingAction, revertNumberAssignedToResolvedAction, revertStagedToFieldsReadyAction, deleteSanjeshFileAction, cancelAdmissionAction, revokeAssignedNumbersAction } from './revert';
+import { askConfirm } from '@/lib/ui-feedback';
 interface StagingItem {
   id: number;
   fileId: number | null;
@@ -256,7 +257,7 @@ export default function AdmissionsClient({
 
   const [reverting, setReverting] = useState(false);
   const handleRevertImported = async (ids: number[]) => {
-    if (!confirm(`برگشت ${ids.length} ردیف از IMPORTED به RESOLVED؟ (پرونده دانشجویی و ثبت‌نام‌ها دست‌نخورده می‌مانند)`)) return;
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: `برگشت ${ids.length} ردیف از IMPORTED به RESOLVED؟ (پرونده دانشجویی و ثبت‌نام‌ها دست‌نخورده می‌مانند)`, confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
     setReverting(true);
     const res = await revertImportedToResolvedAction(ids);
     setReverting(false);
@@ -264,7 +265,7 @@ export default function AdmissionsClient({
     if (res.ok) { await loadExisting(); router.refresh(); }
   };
   const handleRevertNumberAssigned = async (ids: number[]) => {
-    if (!confirm(`برگشت ${ids.length} ردیف از NUMBER_ASSIGNED به RESOLVED؟ (شمارهٔ صادرشده حفظ می‌شود)`)) return;
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: `برگشت ${ids.length} ردیف از NUMBER_ASSIGNED به RESOLVED؟ (شمارهٔ صادرشده حفظ می‌شود)`, confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
     setReverting(true);
     const res = await revertNumberAssignedToResolvedAction(ids);
     setReverting(false);
@@ -277,7 +278,7 @@ export default function AdmissionsClient({
     const label = mode === 'purge'
       ? `حذف کامل و غیرقابل بازگشتِ ${ids.length} دانشجوی ثبت‌شده؟ (فقط دانشجوی بدون سابقه حذف می‌شود)`
       : `کنسل (غیرفعال‌سازی) ${ids.length} دانشجوی ثبت‌شده؟ (رکورد برای حسابرسی می‌ماند)`;
-    if (!confirm(label)) return;
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: label, confirmText: 'تأیید', cancelText: 'انصراف', danger: false }))) return;
     setReverting(true);
     const res = await cancelAdmissionAction(ids, mode);
     setReverting(false);
@@ -292,7 +293,7 @@ export default function AdmissionsClient({
    */
   const handleRevokeNumbers = async (ids: number[]) => {
     if (ids.length === 0) return;
-    if (!confirm(`حذف شمارهٔ ${ids.length} دانشجو؟ پروندهٔ ساخته‌شده هم حذف می‌شود و می‌توانید شمارهٔ تازه صادر کنید.`)) return;
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: `حذف شمارهٔ ${ids.length} دانشجو؟ پروندهٔ ساخته‌شده هم حذف می‌شود و می‌توانید شمارهٔ تازه صادر کنید.`, confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
     setReverting(true);
     const res = await revokeAssignedNumbersAction(ids);
     setReverting(false);
@@ -301,7 +302,7 @@ export default function AdmissionsClient({
     if (res.ok) { await loadExisting(); router.refresh(); }
   };
   const handleRevertResolved = async (ids: number[]) => {
-    if (!confirm(`برگشت ${ids.length} ردیف از RESOLVED به PENDING_MAPPING؟ (نگاشت رشته و تصمیم پاک می‌شود)`)) return;
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: `برگشت ${ids.length} ردیف از RESOLVED به PENDING_MAPPING؟ (نگاشت رشته و تصمیم پاک می‌شود)`, confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
     setReverting(true);
     const res = await revertResolvedToPendingAction(ids);
     setReverting(false);
@@ -309,7 +310,7 @@ export default function AdmissionsClient({
     if (res.ok) { await loadExisting(); router.refresh(); }
   };
   const handleRevertStaged = async (fileId: number) => {
-    if (!confirm(`برگشت فایل ${fileId} از STAGED به FIELDS_READY؟ (ردیف‌های پذیرش این فایل حذف می‌شوند)`)) return;
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: `برگشت فایل ${fileId} از STAGED به FIELDS_READY؟ (ردیف‌های پذیرش این فایل حذف می‌شوند)`, confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
     setReverting(true);
     const res = await revertStagedToFieldsReadyAction(fileId);
     setReverting(false);
@@ -317,7 +318,7 @@ export default function AdmissionsClient({
     if (res.ok) { await loadExisting(); router.refresh(); }
   };
   const handleDeleteFile = async (fileId: number) => {
-    if (!confirm(`حذف کامل فایل ${fileId} و تمام ردیف‌های آن؟ (غیرقابل بازگشت)`)) return;
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: `حذف کامل فایل ${fileId} و تمام ردیف‌های آن؟ (غیرقابل بازگشت)`, confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
     setReverting(true);
     const res = await deleteSanjeshFileAction(fileId);
     setReverting(false);
@@ -434,7 +435,7 @@ export default function AdmissionsClient({
   };
 
   const handleDeleteModel = async (id: number, title: string) => {
-    if (!confirm(`مدل «${title}» حذف شود؟\n(فرمول فعالِ مقاطع دست‌نخورده می‌ماند)`)) return;
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: `مدل «${title}» حذف شود؟\n(فرمول فعالِ مقاطع دست‌نخورده می‌ماند)`, confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
     const res = await deleteFormulaModelAction(id);
     if (!res.ok) {
       setFeedback({ text: res.error || 'حذف انجام نشد.', type: 'error' });
@@ -822,13 +823,13 @@ export default function AdmissionsClient({
               {autoLinked.length > 0 && (
                 <div className="rounded-xl border border-emerald-300 bg-white dark:bg-slate-900 dark:border-emerald-800">
                   <div className="px-3 py-2 border-b border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
-                    <span className="text-[11px] font-black text-emerald-800 dark:text-emerald-300">
+                    <span className="text-2xs font-black text-emerald-800 dark:text-emerald-300">
                       ✓ قبلاً ثبت شده — خودکار وصل می‌شود ({autoLinked.length.toLocaleString('fa-IR')} نفر)
                     </span>
-                    <span className="text-[10px] text-slate-500">شمارهٔ جدید ساخته نمی‌شود</span>
+                    <span className="text-3xs text-slate-500">شمارهٔ جدید ساخته نمی‌شود</span>
                   </div>
                   <div className="max-h-64 overflow-auto">
-                    <table className="w-full text-right text-[11px]">
+                    <table className="w-full text-right text-2xs">
                       <thead className="text-slate-500 sticky top-0 bg-white dark:bg-slate-900">
                         <tr>
                           <th className="p-1.5 font-medium">نام</th>
@@ -852,7 +853,7 @@ export default function AdmissionsClient({
                                 onClick={() => decide(it.stagingId, 'ALLOW_DUPLICATE')}
                                 disabled={decisionBusy === it.stagingId}
                                 title="اگر واقعاً پذیرش دومی است، پروندهٔ تازه بساز"
-                                className="px-1.5 py-0.5 rounded border border-slate-300 bg-white text-[10px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600"
+                                className="px-1.5 py-0.5 rounded border border-slate-300 bg-white text-3xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600"
                               >
                                 ثبت پروندهٔ جدید
                               </button>
@@ -875,31 +876,31 @@ export default function AdmissionsClient({
                         <span className="font-black text-slate-900">{it.fullName}</span>
                         <span className="text-slate-500 mr-2 tabular-nums" dir="ltr">{it.nationalCode}</span>
                         {it.sameMajorYearActive && (
-                          <span className="mr-2 px-1.5 py-0.5 rounded bg-red-100 text-red-800 font-bold text-[10px]">احتمال تکرار: پرونده فعال با همین رشته و ورودی</span>
+                          <span className="mr-2 px-1.5 py-0.5 rounded bg-red-100 text-red-800 font-bold text-3xs">احتمال تکرار: پرونده فعال با همین رشته و ورودی</span>
                         )}
                       </div>
                       <div className="flex items-center gap-1.5">
                         {it.decision === 'REJECT' && (
-                          <span className="px-2 py-1 rounded-lg bg-rose-100 text-rose-800 text-[11px] font-bold">✗ رد شد</span>
+                          <span className="px-2 py-1 rounded-lg bg-rose-100 text-rose-800 text-2xs font-bold">✗ رد شد</span>
                         )}
                         {it.decision === 'ALLOW_DUPLICATE' ? (
-                          <span className="px-2 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-[11px] font-bold">✓ ثبت پرونده جدید</span>
+                          <span className="px-2 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-2xs font-bold">✓ ثبت پرونده جدید</span>
                         ) : (
                           <button
                             onClick={() => decide(it.stagingId, 'ALLOW_DUPLICATE')}
                             disabled={decisionBusy === it.stagingId}
-                            className="px-2 py-1 rounded-lg border border-emerald-300 bg-white text-[11px] font-bold text-emerald-800 hover:bg-emerald-50 disabled:opacity-50"
+                            className="px-2 py-1 rounded-lg border border-emerald-300 bg-white text-2xs font-bold text-emerald-800 hover:bg-emerald-50 disabled:opacity-50"
                           >
                             ثبت پرونده جدید
                           </button>
                         )}
                         {it.decision === 'REPLACED' ? (
-                          <span className="px-2 py-1 rounded-lg bg-violet-100 text-violet-800 text-[11px] font-bold">↻ جایگزین شد</span>
+                          <span className="px-2 py-1 rounded-lg bg-violet-100 text-violet-800 text-2xs font-bold">↻ جایگزین شد</span>
                         ) : (
                           <button
                             onClick={() => decide(it.stagingId, 'REPLACE')}
                             disabled={decisionBusy === it.stagingId}
-                            className="px-2 py-1 rounded-lg border border-violet-300 bg-white text-[11px] font-bold text-violet-800 hover:bg-violet-50 disabled:opacity-50"
+                            className="px-2 py-1 rounded-lg border border-violet-300 bg-white text-2xs font-bold text-violet-800 hover:bg-violet-50 disabled:opacity-50"
                           >
                             جایگزین (قدیمی غیرفعال)
                           </button>
@@ -908,7 +909,7 @@ export default function AdmissionsClient({
                           <button
                             onClick={() => decide(it.stagingId, 'REJECT')}
                             disabled={decisionBusy === it.stagingId}
-                            className="px-2 py-1 rounded-lg border border-rose-300 bg-white text-[11px] font-bold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                            className="px-2 py-1 rounded-lg border border-rose-300 bg-white text-2xs font-bold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
                           >
                             رد
                           </button>
@@ -917,19 +918,19 @@ export default function AdmissionsClient({
                           <button
                             onClick={() => decide(it.stagingId, 'CLEAR')}
                             disabled={decisionBusy === it.stagingId}
-                            className="px-2 py-1 rounded-lg border border-slate-300 bg-white text-[11px] font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                            className="px-2 py-1 rounded-lg border border-slate-300 bg-white text-2xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
                           >
                             لغو تصمیم
                           </button>
                         )}
                       </div>
                     </div>
-                    <div className="mt-2 text-[11px] text-slate-600 dark:text-slate-300">
+                    <div className="mt-2 text-2xs text-slate-600 dark:text-slate-300">
                       <span className="font-bold">پذیرش جدید:</span> ورودی {it.newEntryYear}
                       <span className="mx-2 text-slate-400">|</span>
                       <span className="font-bold">پرونده‌های موجود:</span>
                     </div>
-                    <table className="w-full mt-1 text-right text-[11px]">
+                    <table className="w-full mt-1 text-right text-2xs">
                       <thead className="text-slate-500">
                         <tr>
                           <th className="p-1 font-medium">شماره</th>
@@ -974,35 +975,35 @@ export default function AdmissionsClient({
               <button
                 onClick={() => handleRevertImported(stagingList.filter(s => s.status === 'IMPORTED').map(s => s.id))}
                 disabled={reverting || stagingList.filter(s => s.status === 'IMPORTED').length === 0}
-                className="px-3 py-1.5 rounded-xl border border-sky-300 bg-sky-50 text-sky-800 font-bold text-[11px] hover:bg-sky-100 disabled:opacity-50"
+                className="px-3 py-1.5 rounded-xl border border-sky-300 bg-sky-50 text-sky-800 font-bold text-2xs hover:bg-sky-100 disabled:opacity-50"
               >
                 ↩ IMPORTED → RESOLVED
               </button>
               <button
                 onClick={() => handleRevertNumberAssigned(stagingList.filter(s => s.status === 'NUMBER_ASSIGNED').map(s => s.id))}
                 disabled={reverting || stagingList.filter(s => s.status === 'NUMBER_ASSIGNED').length === 0}
-                className="px-3 py-1.5 rounded-xl border border-cyan-300 bg-cyan-50 text-cyan-800 font-bold text-[11px] hover:bg-cyan-100 disabled:opacity-50"
+                className="px-3 py-1.5 rounded-xl border border-cyan-300 bg-cyan-50 text-cyan-800 font-bold text-2xs hover:bg-cyan-100 disabled:opacity-50"
               >
                 ↩ NUMBER_ASSIGNED → RESOLVED
               </button>
               <button
                 onClick={() => handleRevertResolved(stagingList.filter(s => s.status === 'RESOLVED').map(s => s.id))}
                 disabled={reverting || stagingList.filter(s => s.status === 'RESOLVED').length === 0}
-                className="px-3 py-1.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-800 font-bold text-[11px] hover:bg-amber-100 disabled:opacity-50"
+                className="px-3 py-1.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-800 font-bold text-2xs hover:bg-amber-100 disabled:opacity-50"
               >
                 ↩ RESOLVED → PENDING_MAPPING
               </button>
               <button
                 onClick={() => handleRevertStaged(stagingList[0]?.fileId || 5)}
                 disabled={reverting || stagingList.length === 0}
-                className="px-3 py-1.5 rounded-xl border border-rose-300 bg-rose-50 text-rose-800 font-bold text-[11px] hover:bg-rose-100 disabled:opacity-50"
+                className="px-3 py-1.5 rounded-xl border border-rose-300 bg-rose-50 text-rose-800 font-bold text-2xs hover:bg-rose-100 disabled:opacity-50"
               >
                 ↩ STAGED → FIELDS_READY
               </button>
               <button
                 onClick={() => handleDeleteFile(stagingList[0]?.fileId || 5)}
                 disabled={reverting || stagingList.length === 0}
-                className="px-3 py-1.5 rounded-xl border border-red-300 bg-red-50 text-red-800 font-bold text-[11px] hover:bg-red-100 disabled:opacity-50"
+                className="px-3 py-1.5 rounded-xl border border-red-300 bg-red-50 text-red-800 font-bold text-2xs hover:bg-red-100 disabled:opacity-50"
               >
                 🗑 حذف کامل فایل
               </button>
@@ -1012,7 +1013,7 @@ export default function AdmissionsClient({
                   stagingList.filter(s => s.status === 'IMPORTED' || s.status === 'NUMBER_ASSIGNED').map(s => s.id),
                   'cancel')}
                 disabled={reverting || stagingList.filter(s => s.status === 'IMPORTED' || s.status === 'NUMBER_ASSIGNED').length === 0}
-                className="px-3 py-1.5 rounded-xl border border-orange-300 bg-orange-50 text-orange-800 font-bold text-[11px] hover:bg-orange-100 disabled:opacity-50"
+                className="px-3 py-1.5 rounded-xl border border-orange-300 bg-orange-50 text-orange-800 font-bold text-2xs hover:bg-orange-100 disabled:opacity-50"
               >
                 ⛔ کنسل ثبت‌شده‌ها (غیرفعال)
               </button>
@@ -1021,7 +1022,7 @@ export default function AdmissionsClient({
                   stagingList.filter(s => s.status === 'IMPORTED' || s.status === 'NUMBER_ASSIGNED').map(s => s.id),
                   'purge')}
                 disabled={reverting || stagingList.filter(s => s.status === 'IMPORTED' || s.status === 'NUMBER_ASSIGNED').length === 0}
-                className="px-3 py-1.5 rounded-xl border border-red-400 bg-red-50 text-red-800 font-bold text-[11px] hover:bg-red-100 disabled:opacity-50"
+                className="px-3 py-1.5 rounded-xl border border-red-400 bg-red-50 text-red-800 font-bold text-2xs hover:bg-red-100 disabled:opacity-50"
               >
                 🗑 حذف کامل دانشجویان
               </button>
@@ -1111,14 +1112,14 @@ export default function AdmissionsClient({
               return (
                 <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 space-y-2">
                   <div className="text-xs font-black text-amber-900">🔢 شمارهٔ شروع هر رشته (اختیاری)</div>
-                  <p className="text-[11px] leading-5 text-amber-800">
+                  <p className="text-2xs leading-5 text-amber-800">
                     برای هر رشته شمارهٔ شروع سریال را وارد کن (مثلاً <b>1</b> یا <b>601</b>).
                     خالی بگذاری = ادامه از بیشینهٔ موجودِ همان رشته.
                   </p>
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {[...byMajor.entries()].map(([mid, info]) => (
                       <div key={mid} className="flex items-center gap-2 rounded-lg border border-amber-200 bg-white px-2 py-1.5">
-                        <span className="flex-1 truncate text-[11px] font-bold text-slate-700" title={info.name}>
+                        <span className="flex-1 truncate text-2xs font-bold text-slate-700" title={info.name}>
                           {info.name} <span className="text-slate-400">({info.count})</span>
                         </span>
                         <input
@@ -1164,7 +1165,7 @@ export default function AdmissionsClient({
               return (
                 <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 space-y-2">
                   <div className="text-xs font-black text-indigo-900">🔢 فرمول شمارهٔ دانشجوییِ این انتقال</div>
-                  <p className="text-[11px] leading-5 text-indigo-800">
+                  <p className="text-2xs leading-5 text-indigo-800">
                     الگویی که هنگام «صدور شماره دانشجویی» استفاده می‌شود. یک فرمول برای هر <b>مقطع</b> ذخیره می‌شود،
                     پس همهٔ رشته‌های هم‌مقطع از همین الگو شماره می‌گیرند. پس از ذخیره، دکمهٔ «صدور شماره دانشجویی» را بزنید.
                   </p>
@@ -1181,8 +1182,8 @@ export default function AdmissionsClient({
                       return (
                         <div key={did} className="rounded-lg border border-indigo-200 bg-white p-2 space-y-1.5">
                           <div className="flex flex-wrap items-center gap-2">
-                            <span className="text-[11px] font-black text-slate-800">{info.title}</span>
-                            <span className="text-[10px] text-slate-500">
+                            <span className="text-2xs font-black text-slate-800">{info.title}</span>
+                            <span className="text-3xs text-slate-500">
                               {info.count} ردیف · {info.majors.slice(0, 3).join('، ')}
                               {info.majors.length > 3 ? ` +${info.majors.length - 3}` : ''}
                             </span>
@@ -1194,7 +1195,7 @@ export default function AdmissionsClient({
                                 const picked = models.find(x => String(x.id) === e.target.value);
                                 if (picked) setFormulaDraft(prev => ({ ...prev, [did]: picked.formula }));
                               }}
-                              className="min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-[11px] font-bold"
+                              className="min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-2xs font-bold"
                             >
                               <option value="">— انتخاب از کتابخانهٔ مدل‌ها —</option>
                               {models.map(m => (
@@ -1214,12 +1215,12 @@ export default function AdmissionsClient({
                               type="button"
                               onClick={() => handleSaveTransferFormula(did)}
                               disabled={formulaBusy === did}
-                              className="rounded-lg bg-indigo-700 px-3 py-1 text-[11px] font-extrabold text-white hover:bg-indigo-800 disabled:opacity-50"
+                              className="rounded-lg bg-indigo-700 px-3 py-1 text-2xs font-extrabold text-white hover:bg-indigo-800 disabled:opacity-50"
                             >
                               {formulaBusy === did ? 'در حال ذخیره…' : '💾 ذخیره برای این مقطع'}
                             </button>
                           </div>
-                          <div className="text-[10px] leading-4">
+                          <div className="text-3xs leading-4">
                             {errs.length > 0 ? (
                               <span className="text-rose-700">⚠️ {errs[0]}</span>
                             ) : (
@@ -1244,9 +1245,9 @@ export default function AdmissionsClient({
               className="w-full p-3 font-mono text-xs rounded-xl border border-slate-300 bg-slate-50 focus:bg-white"
               placeholder="کدملی, نام, نام‌خانوادگی, کد_سنجش, سهمیه, موبایل, رتبه, نوع_آزمون, مقطع, گروه_رشته, کد_دانشگاه"
             />
-            <details className="text-[11px] text-slate-500">
+            <details className="text-2xs text-slate-500">
               <summary className="cursor-pointer font-bold text-indigo-800">مشاهدهٔ قالب نمونهٔ فایل (ساختار ستون‌ها)</summary>
-              <pre className="mt-2 p-3 bg-slate-100 rounded-xl font-mono text-[10px] leading-5 overflow-x-auto whitespace-pre">{SAMPLE_SANJESH_RAW}</pre>
+              <pre className="mt-2 p-3 bg-slate-100 rounded-xl font-mono text-3xs leading-5 overflow-x-auto whitespace-pre">{SAMPLE_SANJESH_RAW}</pre>
             </details>
           </div>
 
@@ -1262,7 +1263,7 @@ export default function AdmissionsClient({
                   «آماده ثبت‌نام» می‌کند. بعد از نگاشت، دکمهٔ «🚀 صدور شماره دانشجویی و ثبت قطعی» را بزنید.
                 </p>
               </div>
-              <span className="text-[11px] text-slate-500">
+              <span className="text-2xs text-slate-500">
                 {sanjeshCodeGroups.filter(g => !mappingsList.some(m => m.sanjeshCode === g.code)).length} کد بدون نگاشت
               </span>
               {(() => {
@@ -1279,10 +1280,10 @@ export default function AdmissionsClient({
                   <button
                     type="button"
                     onClick={async () => {
-                      if (!confirm(`نگاشت ${withSug.length} کد رشته با پیشنهاد هوشمند ثبت شود؟\n\n${withSug.map(x => `• ${x.code} ← ${x.majorName}`).join('\n')}`)) return;
+                      if (!(await askConfirm({ title: 'تأیید عملیات', body: `نگاشت ${withSug.length} کد رشته با پیشنهاد هوشمند ثبت شود؟\n\n${withSug.map(x => `• ${x.code} ← ${x.majorName}`).join('\n')}`, confirmText: 'تأیید', cancelText: 'انصراف', danger: false }))) return;
                       for (const x of withSug) await handleMapMajor(x.code, String(x.majorId));
                     }}
-                    className="px-3 py-1.5 rounded-xl border border-amber-400 bg-amber-50 text-amber-900 font-bold text-[11px] hover:bg-amber-100"
+                    className="px-3 py-1.5 rounded-xl border border-amber-400 bg-amber-50 text-amber-900 font-bold text-2xs hover:bg-amber-100"
                   >
                     🪄 تأیید {withSug.length} پیشنهاد
                   </button>
@@ -1328,7 +1329,7 @@ export default function AdmissionsClient({
                                         setMapSel(p => ({ ...p, [g.code]: String(sug.major.id) }));
                                         void handleMapMajor(g.code, String(sug.major.id));
                                       }}
-                                      className="text-right text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 rounded-lg px-1.5 py-0.5 hover:bg-amber-100 w-full"
+                                      className="text-right text-3xs font-bold text-amber-800 bg-amber-50 border border-amber-300 rounded-lg px-1.5 py-0.5 hover:bg-amber-100 w-full"
                                     >
                                       🪄 پیشنهاد: {sug.major.name} ({sug.percent.toLocaleString('fa-IR')}٪)
                                     </button>
@@ -1340,7 +1341,7 @@ export default function AdmissionsClient({
                                       setMapSel(p => ({ ...p, [g.code]: v }));
                                       if (v) void handleMapMajor(g.code, v);
                                     }}
-                                    className="w-full rounded-lg border border-slate-300 px-2 py-1 text-[11px] min-w-0"
+                                    className="w-full rounded-lg border border-slate-300 px-2 py-1 text-2xs min-w-0"
                                   >
                                     <option value="">— انتخاب رشتهٔ دانشگاه —</option>
                                     {options.map(m => (
@@ -1398,12 +1399,12 @@ export default function AdmissionsClient({
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className={`text-[11px] font-bold ${unreviewed.length ? 'text-amber-700' : 'text-emerald-700'}`}>
+                    <span className={`text-2xs font-bold ${unreviewed.length ? 'text-amber-700' : 'text-emerald-700'}`}>
                       {reviewedCount.toLocaleString('fa-IR')} از {ready.length.toLocaleString('fa-IR')} تأیید شده
                       {unreviewed.length ? ` — ${unreviewed.length.toLocaleString('fa-IR')} باقی مانده` : ' ✓'}
                     </span>
                     {reviewTable.visible.length !== ready.length && (
-                      <span className="text-[11px] font-bold text-indigo-700">
+                      <span className="text-2xs font-bold text-indigo-700">
                         {reviewTable.visible.length.toLocaleString('fa-IR')} از {ready.length.toLocaleString('fa-IR')} ردیف (فیلتر فعال)
                       </span>
                     )}
@@ -1412,7 +1413,7 @@ export default function AdmissionsClient({
                       onClick={() => setReviewed(new Set(ready.map(s => s.id)))}
                       disabled={ready.length === 0 || unreviewed.length === 0}
                       title={ready.length === 0 ? 'ردیفی آمادهٔ بازبینی نیست.' : undefined}
-                      className="px-2.5 py-1 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 text-[11px] font-bold hover:bg-emerald-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="px-2.5 py-1 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 text-2xs font-bold hover:bg-emerald-100 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       تأیید همه
                     </button>
@@ -1421,7 +1422,7 @@ export default function AdmissionsClient({
                       onClick={() => setReviewed(new Set())}
                       disabled={reviewedCount === 0}
                       title={reviewedCount === 0 ? 'هیچ ردیفی تأیید نشده که لغو شود.' : undefined}
-                      className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-600 text-[11px] font-bold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                      className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-600 text-2xs font-bold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
                     >
                       لغو همه
                     </button>
@@ -1441,7 +1442,7 @@ export default function AdmissionsClient({
                         ? `همهٔ ${issuedCount.toLocaleString('fa-IR')} ردیف این صف شمارهٔ دانشجویی گرفته‌اند — چیزی برای بازبینی نمانده.`
                         : 'هیچ ردیفی آمادهٔ بازبینی نیست.'}
                     </div>
-                    <p className="text-[11px] leading-5 text-emerald-800">
+                    <p className="text-2xs leading-5 text-emerald-800">
                       {issuedCount > 0
                         ? 'برای بازبینی مجدد، ابتدا شماره‌ها را حذف کنید تا ردیف‌ها به «آماده ثبت‌نام» برگردند.'
                         : 'ردیف‌ها پس از نگاشت رشته به وضعیت «آماده» می‌رسند و این‌جا نمایش داده می‌شوند.'}
@@ -1457,7 +1458,7 @@ export default function AdmissionsClient({
                           )
                         }
                         disabled={reverting}
-                        className="px-3 py-1.5 rounded-xl border border-rose-300 bg-white text-rose-800 font-bold text-[11px] hover:bg-rose-50 disabled:opacity-50"
+                        className="px-3 py-1.5 rounded-xl border border-rose-300 bg-white text-rose-800 font-bold text-2xs hover:bg-rose-50 disabled:opacity-50"
                       >
                         🗑 حذف شماره‌ها و بازگشت به بازبینی
                       </button>
@@ -1465,7 +1466,7 @@ export default function AdmissionsClient({
                   </div>
                 ) : (
                 <div className="overflow-auto max-h-[28rem] rounded-xl border border-slate-200">
-                  <table className="w-full text-right text-[11px]">
+                  <table className="w-full text-right text-2xs">
                     <thead className="sticky top-0 z-10 bg-slate-100 text-slate-700">
                       <tr>
                         {REVIEW_COLS.map(col => (
@@ -1530,7 +1531,7 @@ export default function AdmissionsClient({
                             <td className="p-2 font-mono text-slate-600" dir="ltr">{p.mobile || s.mobile || '—'}</td>
                             <td className="p-2 whitespace-nowrap">
                               <span
-                                className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                                className={`px-2 py-0.5 rounded-full text-3xs font-bold ${
                                   s.status === 'IMPORTED'
                                     ? 'bg-emerald-100 text-emerald-900'
                                     : isReady
@@ -1641,7 +1642,7 @@ export default function AdmissionsClient({
                                   setMapSel(p => ({ ...p, [code]: v }));
                                   if (v) void handleMapMajor(code, v);
                                 }}
-                                className="w-full rounded-lg border border-red-200 bg-red-50 px-1.5 py-1 text-[10px] min-w-0"
+                                className="w-full rounded-lg border border-red-200 bg-red-50 px-1.5 py-1 text-3xs min-w-0"
                               >
                                 <option value="">⚠️ انتخاب رشته…</option>
                                 {candidates.map(m => (
@@ -1658,13 +1659,13 @@ export default function AdmissionsClient({
                                     void handleMapMajor(rowCode, String(sug.major.id));
                                   }}
                                   title={`از نام رشتهٔ سنجش «${rowTitle}» حدس زده شد`}
-                                  className="text-right text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 rounded-lg px-1.5 py-1 hover:bg-amber-100"
+                                  className="text-right text-3xs font-bold text-amber-800 bg-amber-50 border border-amber-300 rounded-lg px-1.5 py-1 hover:bg-amber-100"
                                 >
                                   🪄 پیشنهاد: {sug.major.name} ({sug.percent.toLocaleString('fa-IR')}٪)
                                 </button>
                               )}
                               {!rowCode && (
-                                <span className="text-[10px] text-slate-400">
+                                <span className="text-3xs text-slate-400">
                                   کد رشتهٔ سنجش در این ردیف نیست — فایل را دوباره پردازش کنید.
                                 </span>
                               )}
@@ -1676,7 +1677,7 @@ export default function AdmissionsClient({
                       <td className="p-3 text-slate-600 font-mono">{st.rawSanjeshData?.universityCode || ''}</td>
                       <td className="p-3">
                         <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                          className={`px-2.5 py-0.5 rounded-full text-3xs font-bold ${
                             st.status === 'IMPORTED'
                               ? 'bg-emerald-100 text-emerald-900 border border-emerald-300 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'
                               : isResolved
@@ -1732,7 +1733,7 @@ export default function AdmissionsClient({
                 {/* مقدار ثابت — مثل «4051» یا جداکننده */}
                 <div className="grid grid-cols-12 gap-2 items-end">
                   <div className="col-span-8 min-w-0">
-                    <label className="block text-[10px] text-slate-500 mb-1">مقدار ثابت</label>
+                    <label className="block text-3xs text-slate-500 mb-1">مقدار ثابت</label>
                     <input
                       type="text"
                       value={constText}
@@ -1754,7 +1755,7 @@ export default function AdmissionsClient({
                 {/* متغیر + تعداد رقم */}
                 <div className="grid grid-cols-12 gap-2 items-end">
                   <div className="col-span-6 min-w-0">
-                    <label className="block text-[10px] text-slate-500 mb-1">متغیر</label>
+                    <label className="block text-3xs text-slate-500 mb-1">متغیر</label>
                     <select
                       value={tokenKey}
                       onChange={e => {
@@ -1771,7 +1772,7 @@ export default function AdmissionsClient({
                     </select>
                   </div>
                   <div className="col-span-3 min-w-0">
-                    <label className="block text-[10px] text-slate-500 mb-1">تعداد رقم</label>
+                    <label className="block text-3xs text-slate-500 mb-1">تعداد رقم</label>
                     <input
                       type="number"
                       min={1}
@@ -1795,14 +1796,14 @@ export default function AdmissionsClient({
                   <button
                     type="button"
                     onClick={() => setFormulaPattern(v => v.replace(/\{[^}]*\}$|[^\s{}]+$/, ''))}
-                    className="px-2 py-1 rounded-lg border border-slate-300 bg-white text-[11px] font-bold text-slate-600 hover:bg-slate-50"
+                    className="px-2 py-1 rounded-lg border border-slate-300 bg-white text-2xs font-bold text-slate-600 hover:bg-slate-50"
                   >
                     ↩ حذف آخرین بخش
                   </button>
                   <button
                     type="button"
                     onClick={() => setFormulaPattern('')}
-                    className="px-2 py-1 rounded-lg border border-rose-300 bg-white text-[11px] font-bold text-rose-700 hover:bg-rose-50"
+                    className="px-2 py-1 rounded-lg border border-rose-300 bg-white text-2xs font-bold text-rose-700 hover:bg-rose-50"
                   >
                     پاک‌کردن همه
                   </button>
@@ -1816,11 +1817,11 @@ export default function AdmissionsClient({
                   className="w-full p-2.5 text-xs font-mono font-bold rounded-xl border border-indigo-300 bg-indigo-50/50 dark:border-indigo-700 dark:bg-indigo-950 dark:text-indigo-100"
                   dir="ltr"
                 />
-                <p className="text-[10px] text-slate-400 mt-1">
+                <p className="text-3xs text-slate-400 mt-1">
                   متغیرهای مجاز: {FORMULA_TOKENS.map(t => t.key).join(' · ')} — شکل هر کدام <code className="bg-slate-100 p-0.5 rounded">{'{نام:تعداد‌رقم}'}</code>
                 </p>
                 {formulaErrors.length > 0 && (
-                  <ul className="text-[11px] text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-2 space-y-0.5">
+                  <ul className="text-2xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-2 space-y-0.5">
                     {formulaErrors.map((e, i) => <li key={i}>• {e}</li>)}
                   </ul>
                 )}
@@ -1841,7 +1842,7 @@ export default function AdmissionsClient({
 
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div>
-                  <span className="text-[10px] text-slate-400 block">سال ورود:</span>
+                  <span className="text-3xs text-slate-400 block">سال ورود:</span>
                   <input
                     type="number"
                     value={simYear}
@@ -1850,7 +1851,7 @@ export default function AdmissionsClient({
                   />
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-400 block">کد رشته (۳ رقم):</span>
+                  <span className="text-3xs text-slate-400 block">کد رشته (۳ رقم):</span>
                   <input
                     type="text"
                     value={simMajorCode}
@@ -1859,7 +1860,7 @@ export default function AdmissionsClient({
                   />
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-400 block">شماره سریال:</span>
+                  <span className="text-3xs text-slate-400 block">شماره سریال:</span>
                   <input
                     type="number"
                     value={simSeq}
@@ -1870,11 +1871,11 @@ export default function AdmissionsClient({
               </div>
 
               <div className="pt-3 border-t border-slate-800 text-center space-y-1">
-                <span className="text-[11px] text-slate-400">شماره دانشجویی تولیدشده:</span>
+                <span className="text-2xs text-slate-400">شماره دانشجویی تولیدشده:</span>
                 <p className="text-3xl font-black font-mono tracking-widest text-emerald-400" dir="ltr">
                   {simStudentId}
                 </p>
-                <p className="text-[10px] text-slate-400 mt-1">طول شناسه: {simStudentId.length} رقم یکتا</p>
+                <p className="text-3xs text-slate-400 mt-1">طول شناسه: {simStudentId.length} رقم یکتا</p>
               </div>
             </div>
           </div>
@@ -1892,7 +1893,7 @@ export default function AdmissionsClient({
                 دکمهٔ «استفاده» فقط فرمول را در کادر بالا می‌گذارد — تا «ذخیره فرمول مقطع» را نزنید هیچ چیز عوض نمی‌شود.
               </p>
             </div>
-            <span className="text-[11px] text-slate-500">{models.length.toLocaleString('fa-IR')} مدل</span>
+            <span className="text-2xs text-slate-500">{models.length.toLocaleString('fa-IR')} مدل</span>
           </div>
 
           <div className="overflow-x-auto">
@@ -1925,14 +1926,14 @@ export default function AdmissionsClient({
                         <button
                           type="button"
                           onClick={() => setFormulaPattern(m.formula)}
-                          className="px-2 py-1 rounded-lg border border-indigo-300 bg-white text-[10px] font-bold text-indigo-800 hover:bg-indigo-50"
+                          className="px-2 py-1 rounded-lg border border-indigo-300 bg-white text-3xs font-bold text-indigo-800 hover:bg-indigo-50"
                         >
                           استفاده
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDeleteModel(m.id, m.title)}
-                          className="px-2 py-1 rounded-lg border border-rose-300 bg-white text-[10px] font-bold text-rose-700 hover:bg-rose-50"
+                          className="px-2 py-1 rounded-lg border border-rose-300 bg-white text-3xs font-bold text-rose-700 hover:bg-rose-50"
                         >
                           حذف
                         </button>
@@ -1946,7 +1947,7 @@ export default function AdmissionsClient({
 
           <div className="grid grid-cols-12 gap-2 items-end border-t pt-3">
             <div className="col-span-12 sm:col-span-3 min-w-0">
-              <label className="block text-[10px] text-slate-500 mb-1">عنوان مدل *</label>
+              <label className="block text-3xs text-slate-500 mb-1">عنوان مدل *</label>
               <input
                 type="text"
                 value={modelTitle}
@@ -1956,7 +1957,7 @@ export default function AdmissionsClient({
               />
             </div>
             <div className="col-span-12 sm:col-span-4 min-w-0">
-              <label className="block text-[10px] text-slate-500 mb-1">فرمول *</label>
+              <label className="block text-3xs text-slate-500 mb-1">فرمول *</label>
               <input
                 type="text"
                 value={modelFormula}
@@ -1967,7 +1968,7 @@ export default function AdmissionsClient({
               />
             </div>
             <div className="col-span-12 sm:col-span-3 min-w-0">
-              <label className="block text-[10px] text-slate-500 mb-1">توضیح</label>
+              <label className="block text-3xs text-slate-500 mb-1">توضیح</label>
               <input
                 type="text"
                 value={modelNote}

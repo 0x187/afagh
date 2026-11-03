@@ -214,8 +214,8 @@ export default async function ProfessorHome() {
         {stats.map(s => (
           <div key={s.label} className="min-w-0 px-1.5 py-2.5 text-center" title={s.title}>
             <div className="text-base leading-none" aria-hidden>{s.icon}</div>
-            <div className={`mt-1 truncate text-[11px] font-extrabold leading-tight ${s.tone}`}>{s.value}</div>
-            <div className="truncate text-[10px] leading-tight text-slate-500">{s.label}</div>
+            <div className={`mt-1 truncate text-2xs font-extrabold leading-tight ${s.tone}`}>{s.value}</div>
+            <div className="truncate text-3xs leading-tight text-slate-500">{s.label}</div>
           </div>
         ))}
       </div>
@@ -229,8 +229,8 @@ export default async function ProfessorHome() {
             🗓️
           </div>
           <div>
-            <h3 className="font-extrabold text-[11px] sm:text-sm text-slate-900 leading-tight">برنامه هفتگی</h3>
-            <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 leading-4">
+            <h3 className="font-extrabold text-2xs sm:text-sm text-slate-900 leading-tight">برنامه هفتگی</h3>
+            <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 leading-4">
               مشاهده روزها، ساعات تشکیل، شماره کلاس فیزیکی و تواتر زوج/فرد
             </p>
           </div>
@@ -244,8 +244,8 @@ export default async function ProfessorHome() {
             📡
           </div>
           <div>
-            <h3 className="font-extrabold text-[11px] sm:text-sm text-slate-900 leading-tight">کلاس آنلاین</h3>
-            <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 leading-4">
+            <h3 className="font-extrabold text-2xs sm:text-sm text-slate-900 leading-tight">کلاس آنلاین</h3>
+            <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 leading-4">
               تعریف جلسهٔ BigBlueButton برای هر کلاس و ورود به اتاق
             </p>
           </div>
@@ -258,8 +258,8 @@ export default async function ProfessorHome() {
             📋
           </div>
           <div>
-            <h3 className="font-extrabold text-[11px] sm:text-sm text-slate-900 leading-tight">حضور و غیاب</h3>
-            <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 leading-4">
+            <h3 className="font-extrabold text-2xs sm:text-sm text-slate-900 leading-tight">حضور و غیاب</h3>
+            <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 leading-4">
               ثبت وضعیت هر جلسه، تاخیر، غیبت موجه و هشدار ماده ۳/۱۶
             </p>
           </div>
@@ -273,8 +273,8 @@ export default async function ProfessorHome() {
             📝
           </div>
           <div>
-            <h3 className="font-extrabold text-[11px] sm:text-sm text-slate-900 leading-tight">ثبت نمرات</h3>
-            <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 leading-4">
+            <h3 className="font-extrabold text-2xs sm:text-sm text-slate-900 leading-tight">ثبت نمرات</h3>
+            <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 leading-4">
               تعیین سهم میان‌ترم و پایان‌ترم (جمع ۲۰)، نمرات مشترک و رسیدگی به اعتراضات
             </p>
           </div>
@@ -288,8 +288,8 @@ export default async function ProfessorHome() {
             📑
           </div>
           <div>
-            <h3 className="font-extrabold text-[11px] sm:text-sm text-slate-900 leading-tight">قرارداد و مالی</h3>
-            <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 leading-4">
+            <h3 className="font-extrabold text-2xs sm:text-sm text-slate-900 leading-tight">قرارداد و مالی</h3>
+            <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 leading-4">
               مشاهده فرم رسمی، جزئیات مالی، نرخ هر ساعت و امضای دیجیتال
             </p>
           </div>
@@ -303,8 +303,8 @@ export default async function ProfessorHome() {
             ⏰
           </div>
           <div>
-            <h3 className="font-extrabold text-[11px] sm:text-sm text-slate-900 leading-tight">ساعات حضور</h3>
-            <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 leading-4">
+            <h3 className="font-extrabold text-2xs sm:text-sm text-slate-900 leading-tight">ساعات حضور</h3>
+            <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 leading-4">
               اعلام بازه‌های زمانی حضور در ترم
             </p>
           </div>
@@ -318,8 +318,8 @@ export default async function ProfessorHome() {
             📊
           </div>
           <div>
-            <h3 className="font-extrabold text-[11px] sm:text-sm text-slate-900 leading-tight">عملکرد</h3>
-            <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 leading-4">
+            <h3 className="font-extrabold text-2xs sm:text-sm text-slate-900 leading-tight">عملکرد</h3>
+            <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 leading-4">
               کارنامه عملکرد تدریس و ارزیابی‌ها
             </p>
           </div>
@@ -333,8 +333,8 @@ export default async function ProfessorHome() {
             📈
           </div>
           <div>
-            <h3 className="font-extrabold text-[11px] sm:text-sm text-slate-900 leading-tight">ارزشیابی</h3>
-            <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 leading-4">
+            <h3 className="font-extrabold text-2xs sm:text-sm text-slate-900 leading-tight">ارزشیابی</h3>
+            <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 leading-4">
               ارزشیابی دانشجویان هر کلاس
             </p>
           </div>
@@ -348,8 +348,8 @@ export default async function ProfessorHome() {
             📣
           </div>
           <div>
-            <h3 className="font-extrabold text-[11px] sm:text-sm text-slate-900 leading-tight">پیام به کلاس</h3>
-            <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 leading-4">
+            <h3 className="font-extrabold text-2xs sm:text-sm text-slate-900 leading-tight">پیام به کلاس</h3>
+            <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 leading-4">
               ارسال پیام به دانشجویان کلاس‌های شما
             </p>
           </div>
@@ -363,8 +363,8 @@ export default async function ProfessorHome() {
             📄
           </div>
           <div>
-            <h3 className="font-extrabold text-[11px] sm:text-sm text-slate-900 leading-tight">اسناد و امضا</h3>
-            <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 leading-4">
+            <h3 className="font-extrabold text-2xs sm:text-sm text-slate-900 leading-tight">اسناد و امضا</h3>
+            <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 leading-4">
               اسناد الکترونیک و امضای دیجیتال
             </p>
           </div>
@@ -378,8 +378,8 @@ export default async function ProfessorHome() {
             📖
           </div>
           <div>
-            <h3 className="font-extrabold text-[11px] sm:text-sm text-slate-900 leading-tight">راهنما</h3>
-            <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 leading-4">
+            <h3 className="font-extrabold text-2xs sm:text-sm text-slate-900 leading-tight">راهنما</h3>
+            <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 leading-4">
               راهنمای استفاده و PDF
             </p>
           </div>
@@ -433,11 +433,11 @@ export default async function ProfessorHome() {
                   <div className="flex items-center gap-2">
                     <p className={`font-extrabold text-sm ${c.isCoTaught ? 'text-purple-950' : 'text-slate-900'}`}>{c.title}</p>
                     {c.isMerged ? (
-                      <span className="px-2 py-0.5 rounded bg-teal-200 text-teal-950 font-bold text-[10px]">🔗 کلاس ادغامی</span>
+                      <span className="px-2 py-0.5 rounded bg-teal-200 text-teal-950 font-bold text-3xs">🔗 کلاس ادغامی</span>
                     ) : c.isCoTaught ? (
-                      <span className="px-2 py-0.5 rounded bg-purple-200 text-purple-950 font-bold text-[10px]">👥 درس مشترک</span>
+                      <span className="px-2 py-0.5 rounded bg-purple-200 text-purple-950 font-bold text-3xs">👥 درس مشترک</span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-900 font-bold text-[10px]">گروه {faNum(c.group)}</span>
+                      <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-900 font-bold text-3xs">گروه {faNum(c.group)}</span>
                     )}
                   </div>
                   <p className={`text-xs mt-0.5 font-bold ${c.isCoTaught ? 'text-purple-800' : 'text-slate-500'}`}>
@@ -474,7 +474,7 @@ export default async function ProfessorHome() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">وضعیت امضا:</span>
-                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold text-[10px]">
+                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold text-3xs">
                   {DEMO_DASHBOARD_CONTRACT.signatureStatus}
                 </span>
               </div>
@@ -512,7 +512,7 @@ export default async function ProfessorHome() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">وضعیت سند:</span>
-                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold text-[10px]">
+                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold text-3xs">
                   {signatureStatus === 'SIGNED' ? 'امضا شده' : signatureStatus === 'PENDING' ? 'در انتظار امضای دیجیتال' : 'ثبت نشده'}
                 </span>
               </div>

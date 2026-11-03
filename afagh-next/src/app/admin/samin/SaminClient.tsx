@@ -22,7 +22,7 @@ export default function SaminClient({
 
       <div className="card space-y-3">
         <h3 className="font-bold text-xs">۱) آماده‌سازی صف ثمین از داده داخلی</h3>
-        <p className="text-[11px] text-slate-500">
+        <p className="text-2xs text-slate-500">
           دانشجویان تاییدشدهٔ دانشگاه «{university.title}» را به صف ثمین (entity 1000) می‌برد. اجرای دوباره تکراری نمی‌سازد.
         </p>
         <button
@@ -38,7 +38,7 @@ export default function SaminClient({
         >
           آماده‌سازی صف (از students)
         </button>
-        <span className="text-[11px] text-slate-500">کل صف: {totalStaging}</span>
+        <span className="text-2xs text-slate-500">کل صف: {totalStaging}</span>
       </div>
 
       <div className="card space-y-3">
@@ -60,7 +60,7 @@ export default function SaminClient({
 
       <div className="card space-y-3">
         <h3 className="font-bold text-xs">۳) ارسال «نمونه» — دو فارغ‌التحصیل (آزمون واقعی اتصال)</h3>
-        <p className="text-[11px] text-slate-500">
+        <p className="text-2xs text-slate-500">
           دو دانش‌آموختهٔ همین مؤسسه (وضعیت «فارغ‌التحصیل») را مستقیم با <span className="font-mono">bulk_import_data</span> ارسال
           می‌کند و <span className="font-mono">trace_id</span> و پاسخ سازمان را برمی‌گرداند. اگر پاسخ
           <span className="font-mono"> NOT_ALLOWED_USER </span>
@@ -97,7 +97,7 @@ export default function SaminClient({
       <div className="card space-y-2">
         <h3 className="font-bold text-xs">صف ثمین (۵۰ اخیر)</h3>
         <div className="overflow-x-auto">
-          <table className="w-full text-[11px] rt">
+          <table className="w-full text-2xs rt">
             <thead><tr className="bg-slate-50 border-b"><th className="px-2 py-1 text-right">person_pk</th><th className="px-2 py-1">وضعیت</th><th className="px-2 py-1">trace</th></tr></thead>
             <tbody>
               {staging.map(s => (
@@ -115,7 +115,7 @@ export default function SaminClient({
       <div className="card space-y-2">
         <h3 className="font-bold text-xs">لاگ همگام‌سازی (۲۰ اخیر)</h3>
         <div className="overflow-x-auto">
-          <table className="w-full text-[11px] rt">
+          <table className="w-full text-2xs rt">
             <thead><tr className="bg-slate-50 border-b"><th className="px-2 py-1">trace</th><th className="px-2 py-1">وضعیت</th><th className="px-2 py-1">نتیجه</th></tr></thead>
             <tbody>
               {logs.map(l => (

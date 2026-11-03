@@ -40,7 +40,7 @@ export default function VerifyDegreeIndexPage() {
           </button>
         </form>
 
-        <div className="text-[11px] text-slate-500 pt-3 border-t border-slate-100 space-y-2">
+        <div className="text-2xs text-slate-500 pt-3 border-t border-slate-100 space-y-2">
           <p className="font-bold">
             کد استعلام زیر کد QR روی دانشنامه، گواهینامهٔ موقت یا ریزنمرات رسمی چاپ شده است.
             نتیجهٔ استعلام مستقیماً از پایگاه دادهٔ رسمی دانشگاه خوانده می‌شود.

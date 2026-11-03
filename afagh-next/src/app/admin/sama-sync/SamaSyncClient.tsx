@@ -61,7 +61,7 @@ export default function SamaSyncClient({ terms, defaultTerm }: { terms: { termCo
           >
             ▶ اجرا
           </button>
-          <label className="flex items-center gap-1.5 text-[11px] text-slate-600">
+          <label className="flex items-center gap-1.5 text-2xs text-slate-600">
             <input type="checkbox" checked={confirmed} onChange={(e) => setConfirmed(e.target.checked)} className="size-4" />
             می‌دانم اجرا رکورد اضافه می‌کند (حذف یا بازنویسی هرگز انجام نمی‌شود)
           </label>
@@ -111,7 +111,7 @@ export default function SamaSyncClient({ terms, defaultTerm }: { terms: { termCo
               ⬇ دانلود مارک‌داون
             </button>
           </div>
-          <pre dir="ltr" className="max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-[11px] leading-6 text-slate-700">
+          <pre dir="ltr" className="max-h-[60vh] overflow-auto whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-2xs leading-6 text-slate-700">
             {state.markdown}
           </pre>
         </div>
@@ -128,7 +128,7 @@ function Stat({ label, value, tone }: { label: string; value: number; tone?: 'ok
       : 'border-slate-200 bg-slate-50 text-slate-800';
   return (
     <div className={`rounded-xl border px-3 py-2 ${cls}`}>
-      <p className="text-[10px] opacity-80">{label}</p>
+      <p className="text-3xs opacity-80">{label}</p>
       <p className="font-mono text-base font-bold" dir="ltr">{value.toLocaleString('fa-IR')}</p>
     </div>
   );

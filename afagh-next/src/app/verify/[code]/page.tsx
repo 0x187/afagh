@@ -77,7 +77,7 @@ export default async function VerifyLegacyPage({ params }: { params: Promise<{ c
               <h2 className="text-xl font-black text-slate-900">گواهینامه‌ای با این کد یافت نشد</h2>
               <p className="text-xs text-slate-600 mt-2 leading-6">
                 کد رهگیری <span className="font-mono text-rose-600 font-black tracking-widest text-sm" dir="ltr">{code}</span> در پایگاه دادهٔ دانشگاه آفاق یافت نشد. این سند فاقد هرگونه اعتبار قانونی است.
-                {lookupError && <span className="block text-[11px] text-amber-700 mt-1 font-bold">{lookupError}</span>}
+                {lookupError && <span className="block text-2xs text-amber-700 mt-1 font-bold">{lookupError}</span>}
               </p>
             </div>
             <div className="pt-2 flex flex-col sm:flex-row gap-2 justify-center">
@@ -98,7 +98,7 @@ export default async function VerifyLegacyPage({ params }: { params: Promise<{ c
             </div>
             <h2 className="text-xl font-black text-slate-900">{isRevoked ? 'این گواهینامه باطل شده است' : 'هشدار: اثر انگشت دیجیتال ناهمخوان است'}</h2>
             <p className="text-xs text-slate-600 leading-6">{data.message}</p>
-            <div className="grid grid-cols-2 gap-2.5 text-[11px] font-bold">
+            <div className="grid grid-cols-2 gap-2.5 text-2xs font-bold">
               <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100"><p className="text-slate-500">شمارهٔ گواهینامه</p><p className="font-mono text-slate-900 mt-0.5" dir="ltr">{data.certificateNumber}</p></div>
               <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100"><p className="text-slate-500">نام فراگیر</p><p className="text-slate-900 mt-0.5">{data.fullNameFa}</p></div>
             </div>
@@ -119,42 +119,42 @@ export default async function VerifyLegacyPage({ params }: { params: Promise<{ c
 
             <div className="p-6 sm:p-7 space-y-6 text-xs">
               <div>
-                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-2 mb-3">👤 مشخصات هویتی فراگیر</h3>
+                <h3 className="text-2xs font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-2 mb-3">👤 مشخصات هویتی فراگیر</h3>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                    <p className="text-[11px] text-slate-500 font-bold">نام و نام خانوادگی:</p>
+                    <p className="text-2xs text-slate-500 font-bold">نام و نام خانوادگی:</p>
                     <p className="font-black text-slate-900 text-sm mt-0.5">{data.fullNameFa}</p>
-                    <p className="font-mono text-[10px] text-slate-400 mt-0.5" dir="ltr">{data.fullNameEn}</p>
+                    <p className="font-mono text-3xs text-slate-400 mt-0.5" dir="ltr">{data.fullNameEn}</p>
                   </div>
                   <div className="bg-slate-50 p-3 rounded-2xl border border-slate-100">
-                    <p className="text-[11px] text-slate-500 font-bold">کد ملی (ماسک‌شده):</p>
+                    <p className="text-2xs text-slate-500 font-bold">کد ملی (ماسک‌شده):</p>
                     <p className="font-mono font-black text-slate-900 text-sm mt-0.5 tracking-widest" dir="ltr">{data.nationalIdMasked}</p>
                   </div>
                 </div>
               </div>
 
               <div>
-                <h3 className="text-[11px] font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-2 mb-3">🎓 مشخصات دوره و ارزیابی</h3>
+                <h3 className="text-2xs font-black text-slate-400 uppercase tracking-wider border-b border-slate-100 pb-2 mb-3">🎓 مشخصات دوره و ارزیابی</h3>
                 <div className="space-y-2.5">
                   <div className="bg-indigo-50/70 p-3 rounded-2xl border border-indigo-100">
-                    <p className="text-[11px] text-indigo-950 font-bold">عنوان دورهٔ تخصصی:</p>
+                    <p className="text-2xs text-indigo-950 font-bold">عنوان دورهٔ تخصصی:</p>
                     <p className="font-black text-indigo-950 text-sm mt-0.5">{data.courseTitleFa}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-2.5">
                     <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
-                      <p className="text-[10px] text-slate-500 font-bold">استاد و ارزیاب دوره:</p>
+                      <p className="text-3xs text-slate-500 font-bold">استاد و ارزیاب دوره:</p>
                       <p className="font-bold text-slate-800 text-xs mt-0.5">{data.instructorName}</p>
                     </div>
                     <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
-                      <p className="text-[10px] text-slate-500 font-bold">طول مدت دوره:</p>
+                      <p className="text-3xs text-slate-500 font-bold">طول مدت دوره:</p>
                       <p className="font-mono font-bold text-slate-800 text-xs mt-0.5">{faDigits(data.courseHours)} ساعت</p>
                     </div>
                     <div className="bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
-                      <p className="text-[10px] text-slate-500 font-bold">تاریخ صدور رسمی:</p>
+                      <p className="text-3xs text-slate-500 font-bold">تاریخ صدور رسمی:</p>
                       <p className="font-mono font-bold text-slate-800 text-xs mt-0.5">{faDigits(data.issueDate)}</p>
                     </div>
                     <div className="bg-emerald-50 p-2.5 rounded-2xl border border-emerald-100">
-                      <p className="text-[10px] text-emerald-800 font-bold">نمرهٔ نهایی فراگیر:</p>
+                      <p className="text-3xs text-emerald-800 font-bold">نمرهٔ نهایی فراگیر:</p>
                       <p className="font-mono font-black text-emerald-800 text-sm mt-0.5">{faDigits(data.grade)} از ۲۰</p>
                     </div>
                   </div>
@@ -162,7 +162,7 @@ export default async function VerifyLegacyPage({ params }: { params: Promise<{ c
               </div>
             </div>
 
-            <div className="bg-slate-50 p-4 text-center text-[11px] text-slate-500 border-t border-slate-200 space-y-1 font-bold">
+            <div className="bg-slate-50 p-4 text-center text-2xs text-slate-500 border-t border-slate-200 space-y-1 font-bold">
               <p>🔒 اثر انگشت امنیتی: <span className="font-mono" dir="ltr">{String(data.verificationHash).slice(0, 20)}…</span></p>
               <p>این استعلام به‌صورت برخط و مستقیماً از پایگاه دادهٔ امن دانشگاه آفاق صادر شده است.</p>
             </div>

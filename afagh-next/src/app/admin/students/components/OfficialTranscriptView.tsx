@@ -138,7 +138,7 @@ export default function OfficialTranscriptView({
   };
   const termCell = (t: TermGroup) => (
     <section key={t.termCode} className="term-block min-w-0">
-      <div className="bg-slate-100 border-b border-slate-300 px-1 py-1 font-extrabold text-[10px] text-center">
+      <div className="bg-slate-100 border-b border-slate-300 px-1 py-1 font-extrabold text-3xs text-center">
         {termDisplayTitle(t.termCode, t.termTitle)}
         <span className="block font-normal text-slate-700">وضعیت دانشجو: {t.termStatusTitle || '—'} — <b className={t.probation ? 'text-red-700' : 'text-emerald-700'}>{t.probation ? 'مشروط' : 'عادی'}</b></span>
       </div>
@@ -200,14 +200,14 @@ export default function OfficialTranscriptView({
           <tr><td className="tr-doc-cell">
       {/* سربرگ سما */}
       <div className="flex items-start justify-between border-b-2 border-slate-700 px-3 py-2">
-        <div className="text-[10px] text-center">
+        <div className="text-3xs text-center">
           <p className="font-bold">باسمه تعالی</p>
           <p>اداره کل امور آموزشی</p>
           <p className="font-extrabold">کارنامه کل</p>
           <p className="mt-1">تاریخ تهیه: <b className="font-mono">{todayJalali()}</b></p>
         </div>
         <div className="text-center">
-          <p className="text-[10px]">موسسه آموزش عالی غیرانتفاعی - غیردولتی آفاق</p>
+          <p className="text-3xs">موسسه آموزش عالی غیرانتفاعی - غیردولتی آفاق</p>
           {printOptions.showPhoto && student.photoKey ? (
             <div className="mx-auto mt-1 w-14 h-[70px] flex items-center justify-center">
               <PersonPhoto userId={student.userId} hasPhoto={!!student.photoKey} className="w-14 h-[70px]" icon="👤" label="عکس" />
@@ -219,7 +219,7 @@ export default function OfficialTranscriptView({
         </div>
       </div>
       {/* مشخصات — در چاپ همیشه ۳ ستونه (مثل سما) */}
-      <div className="tr-info-grid grid grid-cols-2 sm:grid-cols-3 gap-px bg-slate-300 border-b-2 border-slate-700 text-[10px]">
+      <div className="tr-info-grid grid grid-cols-2 sm:grid-cols-3 gap-px bg-slate-300 border-b-2 border-slate-700 text-3xs">
         {info.map(([k, v]) => (
           <div key={k} className="bg-white px-2 py-1 flex justify-between gap-1">
             <span className="font-bold whitespace-nowrap">{k}:</span>
@@ -235,7 +235,7 @@ export default function OfficialTranscriptView({
         {/* امضاها در tfoot است تا زیر همهٔ صفحات چاپ تکرار شود (از جمله صفحهٔ آخر) */}
         <tfoot>
           <tr><td className="tr-doc-cell">
-            <div className="tr-signatures flex justify-between px-3 py-2 text-[10px]">
+            <div className="tr-signatures flex justify-between px-3 py-2 text-3xs">
               <span>امضاء رئیس خدمات آموزش</span>
               <span>امضاء و مهر اداره کل آموزش</span>
               <span>امضاء و مهر امور آموزشی دانشگاه منتخب</span>
@@ -264,7 +264,7 @@ export default function OfficialTranscriptView({
       )}
       {/* پانوشت */}
       <tr><td className="tr-doc-cell">
-      <div className="border-t-2 border-slate-700 px-3 py-2 text-[10px] space-y-1">
+      <div className="border-t-2 border-slate-700 px-3 py-2 text-3xs space-y-1">
         <div className="flex flex-wrap gap-x-6">
           <span>تعداد نیمسال مشروط: <b className="font-mono">{probation.toLocaleString('fa-IR')}</b></span>
           <span>وضعیت کلی دانشجو: <b>{studentStatusFa(student.status, student.samaStatusCode, universityCode)}</b></span>
@@ -295,8 +295,8 @@ export default function OfficialTranscriptView({
       {printOptions.showBreakdown && (
       <tr><td className="tr-doc-cell">
       <div className="tr-breakdown border-t-2 border-slate-700 px-3 py-2">
-        <p className="font-extrabold text-[11px] mb-1">جدول وضعیت دروس گذرانده (کاتالوگ رشته)</p>
-        <table className="w-full text-[10px] border border-slate-400 rt">
+        <p className="font-extrabold text-2xs mb-1">جدول وضعیت دروس گذرانده (کاتالوگ رشته)</p>
+        <table className="w-full text-3xs border border-slate-400 rt">
           <thead>
             <tr className="bg-slate-100 border-b border-slate-300">
               <th className="p-1 border-l border-slate-300">نوع درس</th>
@@ -323,7 +323,7 @@ export default function OfficialTranscriptView({
       {/* رتبه در رشته ورودی و میانگین هم‌رشته‌ای‌ها (تیک سما) */}
       {printOptions.showRank && (
         <tr><td className="tr-doc-cell">
-        <div className="border-t border-slate-300 px-3 py-1.5 text-[10px] bg-slate-50 leading-relaxed">
+        <div className="border-t border-slate-300 px-3 py-1.5 text-3xs bg-slate-50 leading-relaxed">
           <div className="flex flex-wrap gap-x-6">
             <span>رتبهٔ معدل کل دانشجو در رشته ورودی{cohortStats ? (cohortStats.scope === 'term' ? ' (هم‌ورودی ترم)' : ' (هم‌ورودی سال)') : ''}: <b className="font-mono">{cohortLoading ? '…' : (cohortStats && cohortStats.rank != null ? `${faNum(cohortStats.rank, 0)} / ${faNum(cohortStats.total, 0)}` : '—')}</b></span>
             <span>میانگین معدل دانشجویان هم‌رشته ورودی: <b className="font-mono">{cohortLoading ? '…' : faNum(cohortStats?.avgGpa)}</b></span>

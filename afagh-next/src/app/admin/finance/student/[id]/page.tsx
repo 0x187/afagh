@@ -153,7 +153,7 @@ const fin = await getStudentFinance(studentId, {
             </Link>
           </div>
           {/* وضعیت تأیید برای چاپ معتبر */}
-          <span className={`rounded-lg border px-2.5 py-1.5 text-[11px] font-bold ${approval ? 'border-emerald-400/50 bg-emerald-400/20 text-emerald-100' : 'border-amber-400/50 bg-amber-400/20 text-amber-100'}`}>
+          <span className={`rounded-lg border px-2.5 py-1.5 text-2xs font-bold ${approval ? 'border-emerald-400/50 bg-emerald-400/20 text-emerald-100' : 'border-amber-400/50 bg-amber-400/20 text-amber-100'}`}>
             {approval
               ? `✅ تأییدشده برای چاپ معتبر${approval.trackingCode ? ` — ${approval.trackingCode}` : ''}`
               : '⏳ بدون تأیید کارشناس مالی (QR برای دانشجو غیرفعال)'}
@@ -186,12 +186,12 @@ const fin = await getStudentFinance(studentId, {
                 <h4 className="mb-2 text-xs font-bold text-amber-800">
                   شهریهٔ ترم جاری با ضریب افزایشی
                   {enhancedTuition.overrideId !== null && (
-                    <span className="mr-2 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] text-violet-800">
+                    <span className="mr-2 rounded-full bg-violet-100 px-2 py-0.5 text-3xs text-violet-800">
                       🎯 فرمول ویژه
                     </span>
                   )}
                 </h4>
-                <div className="grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
+                <div className="grid grid-cols-2 gap-2 text-2xs sm:grid-cols-4">
                   <div><span className="text-slate-500">شهریه خام: </span><span className="font-medium">{fa(enhancedTuition.fixedTuition + enhancedTuition.variableTuition)}</span></div>
                   {enhancedTuition.fixedCoefficient !== 1 && (
                     <div><span className="text-slate-500">ضریب ثابت: </span><span className="font-medium text-amber-700">×{enhancedTuition.fixedCoefficient}</span></div>
@@ -204,23 +204,23 @@ const fin = await getStudentFinance(studentId, {
                   )}
                 </div>
                 {enhancedTuition.overrideId !== null && enhancedTuition.overrideReason && (
-                  <p className="mt-2 text-[11px] text-violet-700">
+                  <p className="mt-2 text-2xs text-violet-700">
                     دلیل فرمول ویژه: {enhancedTuition.overrideReason}
                   </p>
                 )}
                 {enhancedTuition.subjectFees.length > 0 && (
                   <div className="mt-2 border-t border-amber-200 pt-2">
-                    <p className="mb-1 text-[10px] font-bold text-amber-700">اقلام موضوعی:</p>
+                    <p className="mb-1 text-3xs font-bold text-amber-700">اقلام موضوعی:</p>
                     <div className="flex flex-wrap gap-2">
                       {enhancedTuition.subjectFees.map((sf, i) => (
-                        <span key={i} className={`rounded px-1.5 py-0.5 text-[10px] ${sf.kind === 'ADDITIVE' ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-800'}`}>
+                        <span key={i} className={`rounded px-1.5 py-0.5 text-3xs ${sf.kind === 'ADDITIVE' ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-800'}`}>
                           {sf.title}: {sf.amount > 0 ? '+' : ''}{fa(sf.amount)} ریال
                         </span>
                       ))}
                     </div>
                   </div>
                 )}
-                <p className="mt-2 text-[11px] text-amber-700">
+                <p className="mt-2 text-2xs text-amber-700">
                   شهریه نهایی ترم جاری: <span className="font-bold">{fa(enhancedTuition.totalTuition)} ریال</span>
                 </p>
               </div>

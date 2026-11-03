@@ -34,6 +34,10 @@ const REVERT_SRC = readFileSync(REVERT, 'utf8');
 
 let pass = 0;
 let fail = 0;
+/** گارد «تأیید گرفتن»: از مهاجرت به دیالوگ استایل‌دار، فراخوانی به askConfirm تغییر کرد؛
+ *  هر دو شکل پذیرفته می‌شوند تا مقصود تست (وجود تأیید) حفظ شود. */
+const asksConfirm = (body: string) => /(?:ask)?[Cc]onfirm\(/.test(body);
+
 const ok = (c: boolean, m: string): void => {
   if (c) { pass++; console.log(`  ✓ ${m}`); }
   else { fail++; console.error(`  ✗ ${m}`); }
@@ -218,14 +222,16 @@ console.log('\n▶ گارد منبع: شمارهٔ صادرشده را می‌ت
     CLIENT_SRC.indexOf('const handleRevertResolved'),
   );
   ok(
-    revokeBody.includes('confirm('),
+    asksConfirm(revokeBody),
     'حذف شماره بدون تأیید کاربر اجرا نمی‌شود',
   );
   ok(
-    CLIENT_SRC.slice(
-      CLIENT_SRC.indexOf('const handleRevertResolved'),
-      CLIENT_SRC.indexOf('const handleRevertStaged'),
-    ).includes('confirm('),
+    asksConfirm(
+      CLIENT_SRC.slice(
+        CLIENT_SRC.indexOf('const handleRevertResolved'),
+        CLIENT_SRC.indexOf('const handleRevertStaged'),
+      ),
+    ),
     'handleRevertResolved هم تأیید می‌گیرد (قبلاً ناخواسته حذف شده بود)',
   );
 }

@@ -59,13 +59,13 @@ export default async function SanjeshRowDetailPage({
         <h1 className="text-base font-bold text-slate-800">
           داوطلب ردیف {row.rowNo.toLocaleString('fa-IR')} — {row.fullName ?? 'بدون نام'}
         </h1>
-        <p className="text-[11px] text-slate-500" dir="ltr">
+        <p className="text-2xs text-slate-500" dir="ltr">
           nationalCode={row.nationalCode ?? '—'} · applicantNo={row.applicantNo ?? '—'} · uniqueId={row.uniqueId ?? '—'} · hash=
           {row.rowHash ?? '—'}
         </p>
       </header>
 
-      <div className="mb-3 flex flex-wrap gap-1.5 text-[11px]">
+      <div className="mb-3 flex flex-wrap gap-1.5 text-2xs">
         <span className="badge bg-slate-100 text-slate-600">وضعیت: {row.matchStatus}</span>
         {row.studentId && <span className="badge bg-emerald-100 text-emerald-800">شناسهٔ دانشجو: {row.studentId}</span>}
         <span className="badge bg-sky-100 text-sky-800">{totalCols} ستون ذخیره‌شده</span>
@@ -113,7 +113,7 @@ export default async function SanjeshRowDetailPage({
 
       <section className="card">
         <h2 className="mb-2 text-sm font-semibold text-slate-700">خط اصلی فایل (بدون دستکاری)</h2>
-        <pre className="max-h-48 overflow-auto rounded-xl bg-slate-900 p-3 text-[10px] leading-5 text-slate-200" dir="ltr">
+        <pre className="max-h-48 overflow-auto rounded-xl bg-slate-900 p-3 text-3xs leading-5 text-slate-200" dir="ltr">
           {row.rawLine}
         </pre>
       </section>

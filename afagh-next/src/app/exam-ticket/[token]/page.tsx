@@ -45,7 +45,7 @@ export default async function ExamTicketGatePage({ params }: { params: Promise<{
                 بدهی معوق: <span className="font-mono">{faNum(res.debt)}</span> ریال
               </div>
             )}
-            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-3 text-[11px] leading-5 text-slate-400">
+            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-3 text-2xs leading-5 text-slate-400">
               دانشجو باید از مسیر <span className="font-mono text-slate-200">پنل دانشجو ← کارت ورود به جلسه</span> توکن تازه
               دریافت کند. مراقب سالن در صورت عدم احراز هویت، دانشجو را به دفتر حوزه ارجاع دهد.
             </div>
@@ -76,10 +76,10 @@ export default async function ExamTicketGatePage({ params }: { params: Promise<{
             )}
             <div>
               <h1 className="text-sm font-black text-white">گیت ورود به حوزهٔ امتحانات دانشگاه آفاق</h1>
-              <p className="text-[11px] text-indigo-300">استعلام برخط کارت ورود به جلسه · {res.termTitle}</p>
+              <p className="text-2xs text-indigo-300">استعلام برخط کارت ورود به جلسه · {res.termTitle}</p>
             </div>
           </div>
-          <span className="rounded-full border border-emerald-600/50 bg-emerald-950 px-2.5 py-1 text-[10px] font-black text-emerald-300">
+          <span className="rounded-full border border-emerald-600/50 bg-emerald-950 px-2.5 py-1 text-3xs font-black text-emerald-300">
             ✓ تسویهٔ مالی تأیید شده
           </span>
         </div>
@@ -130,11 +130,11 @@ export default async function ExamTicketGatePage({ params }: { params: Promise<{
               <div key={i} className="space-y-2 rounded-2xl border border-indigo-900/40 bg-slate-950 p-3.5 transition hover:border-indigo-600">
                 <div className="flex items-center justify-between">
                   <span className="text-sm font-black text-white">{ex.courseTitle}</span>
-                  <span className="rounded-lg bg-indigo-900 px-2.5 py-0.5 font-mono text-[11px] font-bold text-indigo-200">
+                  <span className="rounded-lg bg-indigo-900 px-2.5 py-0.5 font-mono text-2xs font-bold text-indigo-200">
                     {ex.seatNumber != null ? `صندلی: ${faNum(ex.seatNumber)}` : 'صندلی: تخصیص نیافته'}
                   </span>
                 </div>
-                <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-400">
+                <div className="grid grid-cols-2 gap-2 text-2xs text-slate-400">
                   <div>📅 تاریخ: {faNum(ex.examDate) || '—'}</div>
                   <div>⏱️ ساعت: {faNum(ex.examTime)}</div>
                   <div>🏛️ سالن: {ex.hallName ?? '—'}{ex.buildingName ? ` (${ex.buildingName})` : ''}</div>
@@ -145,7 +145,7 @@ export default async function ExamTicketGatePage({ params }: { params: Promise<{
           )}
         </div>
 
-        <div className="text-center font-mono text-[10px] text-slate-500">
+        <div className="text-center font-mono text-3xs text-slate-500">
           استعلام زنده در {new Date(res.checkedAt).toLocaleString('fa-IR')}
         </div>
 

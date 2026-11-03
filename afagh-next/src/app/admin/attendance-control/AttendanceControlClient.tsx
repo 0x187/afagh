@@ -137,7 +137,7 @@ export default function AttendanceControlClient({
         <div className="flex flex-wrap items-center gap-2">
           <div className="text-sm font-black text-slate-900">حضور و غیاب امروز</div>
           <span
-            className={`text-[10px] font-black rounded-full px-2 py-0.5 ${
+            className={`text-3xs font-black rounded-full px-2 py-0.5 ${
               total > 0 && doneCount === total
                 ? 'bg-emerald-100 text-emerald-800'
                 : 'bg-amber-100 text-amber-800'
@@ -147,7 +147,7 @@ export default function AttendanceControlClient({
           </span>
         </div>
 
-        <div className="text-[10px] font-bold text-slate-500 leading-6">
+        <div className="text-3xs font-bold text-slate-500 leading-6">
           کلاس‌های ادغامی (چند عرضه در یک جلسه با یک استاد) فقط یک ردیف با نشان 🔗 دیده می‌شوند و ثبتِ
           آن روی همهٔ عرضه‌ها اعمال می‌شود.
         </div>
@@ -164,7 +164,7 @@ export default function AttendanceControlClient({
               key={v}
               type="button"
               onClick={() => setFilter(v)}
-              className={`rounded-xl px-3 py-1.5 text-[11px] font-black ${
+              className={`rounded-xl px-3 py-1.5 text-2xs font-black ${
                 filter === v ? 'bg-indigo-800 text-white' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
@@ -172,45 +172,45 @@ export default function AttendanceControlClient({
             </button>
           ))}
           <div className="flex items-center gap-1 rounded-xl bg-slate-100 p-1">
-            <button type="button" onClick={() => setLayout('row')} className={`rounded-lg px-3 py-1 text-[10px] font-black ${layout === 'row' ? 'bg-white text-indigo-800 shadow' : 'text-slate-600'}`}>ردیفی</button>
-            <button type="button" onClick={() => setLayout('col')} className={`rounded-lg px-3 py-1 text-[10px] font-black ${layout === 'col' ? 'bg-white text-indigo-800 shadow' : 'text-slate-600'}`}>ستونی</button>
+            <button type="button" onClick={() => setLayout('row')} className={`rounded-lg px-3 py-1 text-3xs font-black ${layout === 'row' ? 'bg-white text-indigo-800 shadow' : 'text-slate-600'}`}>ردیفی</button>
+            <button type="button" onClick={() => setLayout('col')} className={`rounded-lg px-3 py-1 text-3xs font-black ${layout === 'col' ? 'bg-white text-indigo-800 shadow' : 'text-slate-600'}`}>ستونی</button>
           </div>
-          <select onChange={(e) => { if (e.target.value !== '') window.location.href = '/admin/attendance-control?day=' + e.target.value; }} className="rounded-xl border border-slate-300 px-3 py-1.5 text-[11px] font-bold">
+          <select onChange={(e) => { if (e.target.value !== '') window.location.href = '/admin/attendance-control?day=' + e.target.value; }} className="rounded-xl border border-slate-300 px-3 py-1.5 text-2xs font-bold">
             <option value="">همهٔ روزها</option>
             {['شنبه','یکشنبه','دوشنبه','سه‌شنبه','چهارشنبه','پنج‌شنبه','جمعه'].map((d, i) => (
               <option key={i} value={i}>{d}</option>
             ))}
           </select>
-          <select value={filterFaculty} onChange={(e) => setFilterFaculty(e.target.value)} className="rounded-xl border border-slate-300 px-3 py-1.5 text-[11px] font-bold">
+          <select value={filterFaculty} onChange={(e) => setFilterFaculty(e.target.value)} className="rounded-xl border border-slate-300 px-3 py-1.5 text-2xs font-bold">
             <option value="">همهٔ دانشکده‌ها</option>
             {[...new Set(rows.map((r) => r.facultyName).filter(Boolean))].map((f) => (
               <option key={f as string} value={f as string}>{f as string}</option>
             ))}
           </select>
-          <select value={filterRoom} onChange={(e) => setFilterRoom(e.target.value)} className="rounded-xl border border-slate-300 px-3 py-1.5 text-[11px] font-bold">
+          <select value={filterRoom} onChange={(e) => setFilterRoom(e.target.value)} className="rounded-xl border border-slate-300 px-3 py-1.5 text-2xs font-bold">
             <option value="">همهٔ اتاق‌ها</option>
             {[...new Set(rows.filter((r) => !filterFaculty || r.facultyName === filterFaculty).map((r) => r.roomName))].map((r) => (
               <option key={r} value={r}>{r}</option>
             ))}
           </select>
-          <input value={filterProfCode} onChange={(e) => setFilterProfCode(e.target.value)} placeholder="کد استاد" className="w-24 rounded-xl border border-slate-300 px-3 py-1.5 text-[11px] font-bold" dir="ltr" />
-          <input value={filterCourseCode} onChange={(e) => setFilterCourseCode(e.target.value)} placeholder="کد درس" className="w-24 rounded-xl border border-slate-300 px-3 py-1.5 text-[11px] font-bold" dir="ltr" />
+          <input value={filterProfCode} onChange={(e) => setFilterProfCode(e.target.value)} placeholder="کد استاد" className="w-24 rounded-xl border border-slate-300 px-3 py-1.5 text-2xs font-bold" dir="ltr" />
+          <input value={filterCourseCode} onChange={(e) => setFilterCourseCode(e.target.value)} placeholder="کد درس" className="w-24 rounded-xl border border-slate-300 px-3 py-1.5 text-2xs font-bold" dir="ltr" />
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="جست‌وجوی اتاق / درس / استاد…"
-            className="flex-1 min-w-[180px] rounded-xl border border-slate-300 px-3 py-1.5 text-[11px] font-bold"
+            className="flex-1 min-w-[180px] rounded-xl border border-slate-300 px-3 py-1.5 text-2xs font-bold"
           />
         </div>
 
         {err ? (
-          <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-[11px] font-bold text-rose-800">
+          <div className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-2xs font-bold text-rose-800">
             {err}
           </div>
         ) : null}
 
         {note ? (
-          <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-[11px] font-bold text-indigo-900">
+          <div className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-2xs font-bold text-indigo-900">
             🔗 {note}
           </div>
         ) : null}
@@ -232,7 +232,7 @@ export default function AttendanceControlClient({
                   🚪 {list[0].roomName}
                   {list[0].buildingName ? <span className="text-slate-400 font-bold"> — {list[0].buildingName}</span> : null}
                 </div>
-                <div className="text-[10px] font-bold text-slate-500">
+                <div className="text-3xs font-bold text-slate-500">
                   {faNum(roomDone)} از {faNum(list.length)} کلاس ثبت شد
                 </div>
               </div>
@@ -243,7 +243,7 @@ export default function AttendanceControlClient({
                   const busy = pendingId === r.sessionId;
                   return (
                     <div key={r.sessionId} className={`px-4 py-2.5 flex items-center gap-3 ${ok ? 'bg-emerald-50/40' : ''}`}>
-                      <div className="text-[10px] font-bold text-slate-500 w-14 shrink-0 leading-4" dir="ltr">
+                      <div className="text-3xs font-bold text-slate-500 w-14 shrink-0 leading-4" dir="ltr">
                         {r.startTime}
                         <br />
                         {r.endTime}
@@ -251,7 +251,7 @@ export default function AttendanceControlClient({
 
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 min-w-0">
-                          <span className="text-[11px] font-black text-slate-800 truncate">{r.courseTitle}</span>
+                          <span className="text-2xs font-black text-slate-800 truncate">{r.courseTitle}</span>
                           {r.merged ? (
                             <span
                               title={`این کلاس از ${faNum(r.memberCount)} عرضه تشکیل شده: ${r.memberTitles}`}
@@ -261,7 +261,7 @@ export default function AttendanceControlClient({
                             </span>
                           ) : null}
                         </div>
-                        <div className="text-[10px] font-bold text-slate-500 truncate">
+                        <div className="text-3xs font-bold text-slate-500 truncate">
                           {r.professorName} · گروه {r.groupNumber} · {r.courseCode}
                         </div>
                         {r.merged && r.memberTitles ? (
@@ -288,7 +288,7 @@ export default function AttendanceControlClient({
                           type="button"
                           disabled={busy}
                           onClick={() => record(r)}
-                          className="shrink-0 rounded-lg bg-indigo-700 hover:bg-indigo-800 disabled:opacity-50 text-white text-[10px] font-black px-3 py-1.5 shadow-sm"
+                          className="shrink-0 rounded-lg bg-indigo-700 hover:bg-indigo-800 disabled:opacity-50 text-white text-3xs font-black px-3 py-1.5 shadow-sm"
                         >
                           {busy ? '…' : 'ثبت حضور'}
                         </button>

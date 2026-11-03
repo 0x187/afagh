@@ -70,7 +70,7 @@ export default async function AdminBiPage() {
             { label: 'کلاس نیازمند تعمیر', value: facilities.needsRepairCount, tone: facilities.needsRepairCount ? 'text-amber-300' : 'text-emerald-300' },
           ].map(c => (
             <div key={c.label} className="rounded-2xl border border-white/10 bg-white/5 p-3">
-              <div className="text-[11px] text-indigo-200/80">{c.label}</div>
+              <div className="text-2xs text-indigo-200/80">{c.label}</div>
               <div className={`mt-1 text-2xl font-extrabold ${c.tone}`}>{c.value}</div>
             </div>
           ))}
@@ -140,7 +140,7 @@ export default async function AdminBiPage() {
                     <div className="font-bold text-slate-100">{r.room}</div>
                     <div className="text-xs text-slate-400">{r.building || '—'} · {r.type || '—'}</div>
                   </div>
-                  {r.needsRepair && <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[11px] font-bold text-amber-300">🔧 نیازمند تعمیر</span>}
+                  {r.needsRepair && <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-2xs font-bold text-amber-300">🔧 نیازمند تعمیر</span>}
                 </div>
                 <div className="mt-2 space-y-1">
                   {r.axes.map(a => (
@@ -156,7 +156,7 @@ export default async function AdminBiPage() {
                     </div>
                   ))}
                 </div>
-                <div className="mt-2 text-[11px] text-slate-500">
+                <div className="mt-2 text-2xs text-slate-500">
                   ضعیف‌ترین شاخص: {r.worstAxis} ({r.worstScore}) · {r.responses} پاسخ · دروس: {r.courses.join('، ') || '—'}
                 </div>
               </div>

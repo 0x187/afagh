@@ -50,7 +50,7 @@ export default function MigrationClient(props: {
         <div className="flex flex-wrap items-center gap-3">
           <div>
             <h3 className="text-sm font-black text-indigo-900">🏛️ انتقال برای کدام دانشگاه است؟</h3>
-            <p className="mt-0.5 text-[11px] leading-5 text-indigo-800/80">
+            <p className="mt-0.5 text-2xs leading-5 text-indigo-800/80">
               {uniList.length > 1
                 ? 'سامانه چنددانشگاهی است — پیش از هر انتقال، دانشگاه مقصد را انتخاب کنید. تطبیق رشته و ثبت رکوردها فقط داخل همین دانشگاه انجام می‌شود.'
                 : 'تنها یک دانشگاه در سامانه ثبت شده و انتقال برای همان انجام می‌شود.'}
@@ -68,7 +68,7 @@ export default function MigrationClient(props: {
               {uniList.map(u => <option key={u.id} value={u.id}>{u.title}</option>)}
             </select>
             {universityId === '' && uniList.length > 1 && (
-              <span className="rounded-lg bg-amber-100 px-2 py-1 text-[11px] font-bold text-amber-900">
+              <span className="rounded-lg bg-amber-100 px-2 py-1 text-2xs font-bold text-amber-900">
                 ⚠️ الزامی است
               </span>
             )}
@@ -87,7 +87,7 @@ export default function MigrationClient(props: {
           ))}
         </div>
         <div className="ms-auto flex items-center gap-2">
-          <label className="text-[11px] text-slate-500">سرور مبدأ:</label>
+          <label className="text-2xs text-slate-500">سرور مبدأ:</label>
           <input className="input w-40 py-1 text-xs" dir="ltr" value={sourceCode}
             onChange={e => setSourceCode(e.target.value.toUpperCase())} list="afagh-sources" />
           <datalist id="afagh-sources">
@@ -123,7 +123,7 @@ function CoreTab({ entities, sourceCode, universityId }: { entities: Entity[]; s
             فایل <b>اکسل (xlsx)</b> یا CSV خروجی سیستم قدیمی را انتخاب کنید. اول <b>تحلیل اولیه</b> بگیرید
             (چیزی نوشته نمی‌شود)، پس از رفع خطاها <b>ثبت نهایی</b>. تکرار بی‌خطر است؛ ردیف‌های موجود دوباره ثبت نمی‌شوند.
           </p>
-          <p className="mt-1 rounded-lg bg-slate-50 px-2 py-1.5 text-[11px] leading-6 text-slate-500">
+          <p className="mt-1 rounded-lg bg-slate-50 px-2 py-1.5 text-2xs leading-6 text-slate-500">
             <b>ترتیب درست انتقال:</b> دانشکده‌ها ← گروه‌های آموزشی ← رشته‌ها و گرایش‌ها ← استادان ← دانشجویان ←
             دروس ← ترم‌ها ← نمرات ← مالی. هر لایه به لایهٔ پیش از خود تکیه دارد؛ اگر دانشکده یا گروهی در فایل
             باشد که هنوز تعریف نشده، خودکار ساخته می‌شود و در هشدارها گزارش می‌گردد.
@@ -135,7 +135,7 @@ function CoreTab({ entities, sourceCode, universityId }: { entities: Entity[]; s
           </select>
           <div className="md:col-span-9">
             {universityId === '' && (
-              <p className="mb-2 rounded-lg bg-amber-100 px-2 py-1.5 text-[11px] font-bold text-amber-900">
+              <p className="mb-2 rounded-lg bg-amber-100 px-2 py-1.5 text-2xs font-bold text-amber-900">
                 ⚠️ اول از بالای صفحه «دانشگاه مقصد» را انتخاب کنید؛ تا آن موقع انتقال غیرفعال است.
               </p>
             )}
@@ -149,11 +149,11 @@ function CoreTab({ entities, sourceCode, universityId }: { entities: Entity[]; s
             />
           </div>
         </div>
-        {cur && <p className="text-[11px] text-slate-400">ستون‌های نمونه: <span dir="ltr">{cur.sample}</span></p>}
+        {cur && <p className="text-2xs text-slate-400">ستون‌های نمونه: <span dir="ltr">{cur.sample}</span></p>}
 
         <label className="flex cursor-pointer items-start gap-2 rounded-xl border border-indigo-100 bg-indigo-50/50 p-2">
           <input type="checkbox" className="mt-1" checked={rewriteCodes} onChange={e => setRewriteCodes(e.target.checked)} />
-          <span className="text-[11px] leading-6 text-slate-600">
+          <span className="text-2xs leading-6 text-slate-600">
             <b>🔁 جایگزینی کد قدیمی با کد جدید هنگام ثبت</b> — کدهایی که در سربرگ «تطبیق کدها» برایشان
             <b> کد جدید</b> ثبت و وضعیتشان <b>تأییدشده</b> است، در لحظهٔ انتقال با کد جدید ذخیره می‌شوند
             (فایل قدیمی دست‌نخورده می‌ماند). نگاشت‌های تأییدنشده هیچ اثری ندارند.
@@ -165,11 +165,11 @@ function CoreTab({ entities, sourceCode, universityId }: { entities: Entity[]; s
       {report && !report.error && (
         <div className="card space-y-2">
           <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
-            <div className="rounded-xl bg-slate-50 p-2 text-center"><p className="text-xl font-bold text-slate-700">{fmt(report.total)}</p><p className="text-[11px] text-slate-500">ردیف فایل</p></div>
-            <div className="rounded-xl bg-slate-50 p-2 text-center"><p className="text-xl font-bold text-emerald-600">{fmt(report.willInsert ?? 0)}</p><p className="text-[11px] text-slate-500">ثبت‌شده / ثبت‌خواهدشد</p></div>
-            <div className="rounded-xl bg-slate-50 p-2 text-center"><p className="text-xl font-bold text-slate-400">{fmt(report.existing ?? 0)}</p><p className="text-[11px] text-slate-500">موجود (نادیده)</p></div>
-            <div className="rounded-xl bg-slate-50 p-2 text-center"><p className="text-xl font-bold text-red-600">{fmt(report.invalid)}</p><p className="text-[11px] text-slate-500">نامعتبر</p></div>
-            <div className="rounded-xl bg-slate-50 p-2 text-center"><p className="text-xl font-bold text-amber-500">{fmt(report.warnings?.length ?? 0)}</p><p className="text-[11px] text-slate-500">هشدار</p></div>
+            <div className="rounded-xl bg-slate-50 p-2 text-center"><p className="text-xl font-bold text-slate-700">{fmt(report.total)}</p><p className="text-2xs text-slate-500">ردیف فایل</p></div>
+            <div className="rounded-xl bg-slate-50 p-2 text-center"><p className="text-xl font-bold text-emerald-600">{fmt(report.willInsert ?? 0)}</p><p className="text-2xs text-slate-500">ثبت‌شده / ثبت‌خواهدشد</p></div>
+            <div className="rounded-xl bg-slate-50 p-2 text-center"><p className="text-xl font-bold text-slate-400">{fmt(report.existing ?? 0)}</p><p className="text-2xs text-slate-500">موجود (نادیده)</p></div>
+            <div className="rounded-xl bg-slate-50 p-2 text-center"><p className="text-xl font-bold text-red-600">{fmt(report.invalid)}</p><p className="text-2xs text-slate-500">نامعتبر</p></div>
+            <div className="rounded-xl bg-slate-50 p-2 text-center"><p className="text-xl font-bold text-amber-500">{fmt(report.warnings?.length ?? 0)}</p><p className="text-2xs text-slate-500">هشدار</p></div>
           </div>
           {report.errors?.length > 0 && (
             <Msg kind="err">

@@ -145,40 +145,40 @@ function ProfessorCalendarCard({
             </>
           )}
         </div>
-        <div className="prof-week-title print:hidden font-extrabold text-[11px] text-slate-900 leading-5 truncate" title={e.title}>
+        <div className="prof-week-title print:hidden font-extrabold text-2xs text-slate-900 leading-5 truncate" title={e.title}>
           {e.title}
         </div>
-        <div className="prof-week-code print:hidden font-mono text-[10px] font-bold text-indigo-900 whitespace-nowrap truncate" title={showCode ? `${e.code} · گروه ${professorCalendarEntryGroup(e)}` : `گروه ${professorCalendarEntryGroup(e)}`}>
+        <div className="prof-week-code print:hidden font-mono text-3xs font-bold text-indigo-900 whitespace-nowrap truncate" title={showCode ? `${e.code} · گروه ${professorCalendarEntryGroup(e)}` : `گروه ${professorCalendarEntryGroup(e)}`}>
           {showCode ? `${e.code} · ` : ''}گروه {professorCalendarEntryGroup(e)}{e.enrolledCount != null ? ` · 👥 ${faNum(e.enrolledCount)}${e.capacity != null ? `/${faNum(e.capacity)}` : ''}` : ''}
         </div>
-        <div className="prof-week-essential print:hidden text-[10px] font-mono font-bold text-slate-600 whitespace-nowrap">
+        <div className="prof-week-essential print:hidden text-3xs font-mono font-bold text-slate-600 whitespace-nowrap">
           {professorCalendarEntryTime(e)}
         </div>
         <div
-          className="prof-week-essential print:hidden text-[10px] font-bold text-slate-700 whitespace-nowrap truncate"
+          className="prof-week-essential print:hidden text-3xs font-bold text-slate-700 whitespace-nowrap truncate"
           title={placeTitle}
         >
           {byPlace}{placeMode === 'room' && e.buildingName ? <span className="prof-week-detail"> · {e.buildingName}</span> : null}
         </div>
         {e.merged && (
-          <div className="prof-week-badge print:hidden mt-0.5 inline-block px-1.5 py-0.5 rounded bg-teal-100 text-teal-950 font-bold border border-teal-300 text-[10px] whitespace-nowrap">
+          <div className="prof-week-badge print:hidden mt-0.5 inline-block px-1.5 py-0.5 rounded bg-teal-100 text-teal-950 font-bold border border-teal-300 text-3xs whitespace-nowrap">
             🔗 کلاس ادغامی
           </div>
         )}
         {e.professorName && !hideProfessorPill ? (
           <div
-            className="prof-week-detail print:hidden mt-0.5 px-1 py-0.5 rounded bg-slate-100 text-slate-800 text-[10px] font-bold border border-slate-200 leading-4 truncate"
+            className="prof-week-detail print:hidden mt-0.5 px-1 py-0.5 rounded bg-slate-100 text-slate-800 text-3xs font-bold border border-slate-200 leading-4 truncate"
             title={`استاد: ${e.professorName}`}
           >
             استاد: {e.professorName}
           </div>
         ) : null}
         {e.isCoTaught && (
-          <div className="prof-week-detail print:hidden mt-0.5 px-1 py-0.5 rounded bg-purple-100 text-purple-900 text-[10px] font-bold border border-purple-200 leading-4 truncate" title={e.coPartnerName ? `مشترک · ${e.coPartnerName}` : 'مشترک'}>
+          <div className="prof-week-detail print:hidden mt-0.5 px-1 py-0.5 rounded bg-purple-100 text-purple-900 text-3xs font-bold border border-purple-200 leading-4 truncate" title={e.coPartnerName ? `مشترک · ${e.coPartnerName}` : 'مشترک'}>
             👥 مشترک{e.coPartnerName ? ` · ${e.coPartnerName}` : ''}
           </div>
         )}
-        <div className="print:hidden flex items-center justify-between gap-1 text-[10px] pt-0.5 mt-0.5 border-t border-slate-200/60">
+        <div className="print:hidden flex items-center justify-between gap-1 text-3xs pt-0.5 mt-0.5 border-t border-slate-200/60">
           <span className="prof-week-detail font-bold text-slate-600 whitespace-nowrap">
             {e.enrolledCount != null ? `👥 ${faNum(e.enrolledCount)}/${faNum(e.capacity)}` : '👥'}
           </span>
@@ -244,7 +244,7 @@ export default function ProfessorCalendarGrid({ entries, placeMode = 'room', sho
   const hourHeader = Array.from({ length: HOUR_ROWS }, (_, h) => `${String(h + PROFESSOR_CALENDAR_START_MINUTES / 60).padStart(2, '0')}:00`);
 
   const weekLegend = (hasEven || hasOdd || hasBoth) && (
-    <div className="prof-week-legend flex flex-wrap items-center gap-1.5 text-[10px] font-bold">
+    <div className="prof-week-legend flex flex-wrap items-center gap-1.5 text-3xs font-bold">
       <span className="text-slate-500">راهنمای هفته‌ها:</span>
       {hasAll && <span className="prof-week-badge px-2 py-0.5 rounded-lg bg-slate-200 text-slate-800">هر هفته — همه هفته‌ها</span>}
       {hasEven && <span className="prof-week-badge px-2 py-0.5 rounded-lg bg-cyan-100 text-cyan-900 border border-cyan-300">🔷 هفته زوج — فقط هفته‌های زوج</span>}
@@ -263,9 +263,9 @@ export default function ProfessorCalendarGrid({ entries, placeMode = 'room', sho
           /* ─── مدل ب: سطرها روز، ستون‌ها ساعت ─── */
           <div className="prof-cal-b min-w-[1100px]" dir="rtl" style={{ '--cal-row': '76px' } as CSSProperties}>
             <div className="grid sticky top-0 z-20 bg-slate-900 text-white text-center" style={{ gridTemplateColumns: bTemplate }}>
-              <div className="p-2 border border-slate-800 font-extrabold bg-slate-900 text-[11px]">روز / ساعت</div>
+              <div className="p-2 border border-slate-800 font-extrabold bg-slate-900 text-2xs">روز / ساعت</div>
               {hourHeader.map(h => (
-                <div key={h} className="p-2 border border-slate-800 font-extrabold text-[11px] whitespace-nowrap">
+                <div key={h} className="p-2 border border-slate-800 font-extrabold text-2xs whitespace-nowrap">
                   {faNum(h)}
                 </div>
               ))}
@@ -342,7 +342,7 @@ export default function ProfessorCalendarGrid({ entries, placeMode = 'room', sho
           /* ─── مدل الف (پیش‌فرض): ستون‌ها روز، سطرها ساعت ─── */
           <div className="prof-cal min-w-[960px]" dir="rtl" style={{ '--cal-hour': '56px' } as CSSProperties}>
             <div className="prof-cal-head grid sticky top-0 z-20 bg-slate-900 text-white text-center" style={{ gridTemplateColumns: '56px repeat(7, minmax(0, 1fr))' }}>
-              <div className="prof-cal-sticky prof-cal-gutter-head sticky right-0 z-30 p-2 border border-slate-800 font-extrabold bg-slate-900 text-[11px]">ساعت</div>
+              <div className="prof-cal-sticky prof-cal-gutter-head sticky right-0 z-30 p-2 border border-slate-800 font-extrabold bg-slate-900 text-2xs">ساعت</div>
               {PROFESSOR_GRID_DAYS.map(day => (
                 <div key={day} className="prof-cal-day-head p-2 border border-slate-800 font-extrabold text-xs whitespace-nowrap bg-slate-900">
                   {day}
@@ -356,7 +356,7 @@ export default function ProfessorCalendarGrid({ entries, placeMode = 'room', sho
                   {HOUR_LABELS.map((label, i) => (
                     <div
                       key={label}
-                      className="prof-cal-gutter-label absolute inset-x-0 text-center text-[10px] font-bold text-slate-500 whitespace-nowrap"
+                      className="prof-cal-gutter-label absolute inset-x-0 text-center text-3xs font-bold text-slate-500 whitespace-nowrap"
                       style={{ top: `${(i / HOUR_ROWS) * 100}%`, transform: i === 0 ? 'translateY(0)' : i === HOUR_ROWS ? 'translateY(-100%)' : 'translateY(-50%)' }}
                     >
                       {faNum(label)}

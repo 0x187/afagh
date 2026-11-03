@@ -10,6 +10,7 @@ import {
   DEMO_CONTRACT_UNIVERSITY_SEAL_CODE,
   DEMO_FACULTY_NAME,
 } from '@/lib/demo-professor-data';
+import { notify } from '@/lib/ui-feedback';
 
 export type { ContractView };
 export type ContractCourseItem = ContractView['lines'][number];
@@ -66,14 +67,14 @@ export default function ProfessorContractClient({ demo = false, initialContract,
   /** ثبت امضا فقط پس از تأیید OTP در سرور (هش سند سمت سرور محاسبه می‌شود) */
   const handleSignContract = async () => {
     if (!otpCode.trim()) {
-      alert('کد تایید را وارد کنید.');
+      notify('کد تایید را وارد کنید.', 'error');
       return;
     }
     setSigning(true);
     try {
       const res = await signContractAction(otpCode.trim());
       if (!res.ok) {
-        alert(res.error || 'امضا ناموفق بود.');
+        notify(res.error || 'امضا ناموفق بود.', 'error');
         return;
       }
       if (res.contract) {
@@ -83,7 +84,7 @@ export default function ProfessorContractClient({ demo = false, initialContract,
         showToast('✅ قرارداد تدریس شما با موفقیت امضای دیجیتال گردید و نسخهٔ الکترونیک در دبیرخانه ثبت شد.');
       }
     } catch {
-      alert('خطا در ارتباط با سرور.');
+      notify('خطا در ارتباط با سرور.', 'error');
     } finally {
       setSigning(false);
     }
@@ -211,7 +212,7 @@ export default function ProfessorContractClient({ demo = false, initialContract,
             <div className="space-y-1">
               <span className="font-extrabold text-indigo-950 block">طرف دوم (مدرس / عضو هیئت علمی):</span>
               <p className="text-slate-700">
-                جناب آقای/سرکار خانم <b>{contract.professorName}</b>، کد ملی: <span className="font-mono">{faNum(contract.nationalCode)}</span>، کد پرسنلی: <span className="font-mono">{faNum(contract.staffCode)}</span>، مرتبه علمی: <b>{contract.academicRank}</b>، آخرین مدرک: <b>{contract.degree}</b>، شماره حساب بانکی: <span className="font-mono text-[11px]">{faNum(contract.bankAccountNo || '—')}</span>.
+                جناب آقای/سرکار خانم <b>{contract.professorName}</b>، کد ملی: <span className="font-mono">{faNum(contract.nationalCode)}</span>، کد پرسنلی: <span className="font-mono">{faNum(contract.staffCode)}</span>، مرتبه علمی: <b>{contract.academicRank}</b>، آخرین مدرک: <b>{contract.degree}</b>، شماره حساب بانکی: <span className="font-mono text-2xs">{faNum(contract.bankAccountNo || '—')}</span>.
               </p>
             </div>
           </div>
@@ -323,7 +324,7 @@ export default function ProfessorContractClient({ demo = false, initialContract,
           <div className="space-y-8 p-4 bg-slate-50 rounded-2xl border border-slate-200">
             <p className="font-extrabold text-slate-900">طرف اول: معاونت آموزشی و ریاست دانشکده</p>
             <div className="h-16 flex items-center justify-center">
-              <div className="px-4 py-2 border-2 border-dashed border-indigo-500 rounded-xl text-indigo-900 font-extrabold text-[11px] bg-indigo-50/50">
+              <div className="px-4 py-2 border-2 border-dashed border-indigo-500 rounded-xl text-indigo-900 font-extrabold text-2xs bg-indigo-50/50">
                 🏛️ مهر و امضای دیجیتال دانشگاه
                 <div className="text-[9px] font-mono text-slate-500">
                   {demo ? DEMO_CONTRACT_UNIVERSITY_SEAL_CODE : 'در انتظار تأیید اداره آموزش'}
@@ -336,7 +337,7 @@ export default function ProfessorContractClient({ demo = false, initialContract,
             <p className="font-extrabold text-slate-900">طرف دوم: مدرس / عضو هیئت علمی</p>
             <div className="h-16 flex items-center justify-center">
               {contract.signatureStatus === 'SIGNED' ? (
-                <div className="px-4 py-2 border-2 border-emerald-600 rounded-xl text-emerald-900 font-extrabold text-[11px] bg-emerald-50">
+                <div className="px-4 py-2 border-2 border-emerald-600 rounded-xl text-emerald-900 font-extrabold text-2xs bg-emerald-50">
                   <span>✓ امضای الکترونیکی ثبت شد</span>
                   <div className="text-[9px] font-mono text-slate-600">{contract.signedAt}</div>
                   <div className="text-[8px] font-mono text-slate-400 break-all">{contract.digitalHash?.slice(0, 24)}...</div>

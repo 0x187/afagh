@@ -61,7 +61,7 @@ export default function WeeklyMatrixTab() {
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                 <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
-                  <span className="text-slate-500 block text-[11px] mb-1">واحدهای موظفی:</span>
+                  <span className="text-slate-500 block text-2xs mb-1">واحدهای موظفی:</span>
                   <span className="text-lg font-extrabold text-indigo-950">
                     {faNum(inspectorStats.totalUnits)} از {faNum(inspectorProf.maxWeeklyUnits)} واحد
                   </span>
@@ -71,26 +71,26 @@ export default function WeeklyMatrixTab() {
                 </div>
 
                 <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
-                  <span className="text-slate-500 block text-[11px] mb-1">گروه‌های درسی:</span>
+                  <span className="text-slate-500 block text-2xs mb-1">گروه‌های درسی:</span>
                   <span className="text-lg font-extrabold text-purple-950">
                     {faNum(inspectorStats.groupsCount)} گروه
                   </span>
-                  <span className="text-[10px] text-purple-700 block mt-1 font-bold">
+                  <span className="text-3xs text-purple-700 block mt-1 font-bold">
                     (در {faNum(inspectorStats.distinctPrograms.length)} رشته)
                   </span>
                 </div>
 
                 <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
-                  <span className="text-slate-500 block text-[11px] mb-1">روزهای حضور:</span>
+                  <span className="text-slate-500 block text-2xs mb-1">روزهای حضور:</span>
                   <span className="text-lg font-extrabold text-emerald-950">
                     {faNum(inspectorStats.distinctDays)} روز در هفته
                   </span>
                 </div>
 
                 <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200">
-                  <span className="text-slate-500 block text-[11px] mb-1">نوع قرارداد:</span>
+                  <span className="text-slate-500 block text-2xs mb-1">نوع قرارداد:</span>
                   <span className="text-sm font-extrabold text-slate-900 block mt-0.5">{inspectorProf.contractType}</span>
-                  <span className="text-[10px] text-slate-500 block mt-1 font-bold">{inspectorProf.departmentName}</span>
+                  <span className="text-3xs text-slate-500 block mt-1 font-bold">{inspectorProf.departmentName}</span>
                 </div>
               </div>
             </div>
@@ -121,7 +121,7 @@ export default function WeeklyMatrixTab() {
                       {teachingSlots.map(slot => (
                         <th key={slot.id} className="p-3 border border-slate-800 font-extrabold">
                           <div>{slot.label}</div>
-                          <div className="text-[10px] text-slate-300 font-normal mt-0.5">{slot.startTime} الی {slot.endTime}</div>
+                          <div className="text-3xs text-slate-300 font-normal mt-0.5">{slot.startTime} الی {slot.endTime}</div>
                         </th>
                       ))}
                     </tr>
@@ -169,18 +169,18 @@ export default function WeeklyMatrixTab() {
                                           <div className="flex items-center gap-1">
                                             {schedule.weekType === 'EVEN' && <span className="text-[9px] px-1 py-0.2 rounded bg-cyan-700 text-white font-bold">هفته زوج</span>}
                                             {schedule.weekType === 'ODD' && <span className="text-[9px] px-1 py-0.2 rounded bg-amber-600 text-white font-bold">هفته فرد</span>}
-                                            <span className="px-1.5 py-0.5 rounded bg-indigo-900 text-white text-[10px]">
+                                            <span className="px-1.5 py-0.5 rounded bg-indigo-900 text-white text-3xs">
                                               گروه {faNum(offering.groupNumber)}
                                             </span>
                                           </div>
                                         </div>
-                                        <div className="text-[11px] text-slate-600 flex items-center justify-between font-bold">
+                                        <div className="text-2xs text-slate-600 flex items-center justify-between font-bold">
                                           <span>🎓 {offering.programTitle}</span>
-                                          <span className="text-[10px] text-indigo-700 font-mono">{offering.cohortTitle.split('(')[1]?.replace(')', '') || offering.cohortTitle}</span>
+                                          <span className="text-3xs text-indigo-700 font-mono">{offering.cohortTitle.split('(')[1]?.replace(')', '') || offering.cohortTitle}</span>
                                         </div>
-                                        <div className="text-[11px] font-extrabold text-emerald-800 flex items-center justify-between pt-1 border-t border-slate-100">
+                                        <div className="text-2xs font-extrabold text-emerald-800 flex items-center justify-between pt-1 border-t border-slate-100">
                                           <span>🏛️ {schedule.roomName}</span>
-                                          <span className="text-[10px] text-slate-500 font-normal">{faNum(offering.units)} واحد</span>
+                                          <span className="text-3xs text-slate-500 font-normal">{faNum(offering.units)} واحد</span>
                                         </div>
                                       </div>
                                     );
@@ -188,7 +188,7 @@ export default function WeeklyMatrixTab() {
                                 </div>
                               ) : (
                                 <div className="flex flex-col items-center justify-center h-full text-center p-1">
-                                  <span className={`text-[10px] font-bold ${
+                                  <span className={`text-3xs font-bold ${
                                     availabilityStatus === 'PREF' ? 'text-emerald-700' :
                                     availabilityStatus === 'AVAIL' ? 'text-amber-700' : 'text-slate-400'
                                   }`}>
@@ -213,7 +213,7 @@ export default function WeeklyMatrixTab() {
                 <h3 className="font-extrabold text-slate-900 text-sm">
                   ⏱️ درس‌های خارج از زنگ‌های تعریف‌شده ({faNum(unmatchedOfferings.length)})
                 </h3>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-2xs text-slate-500">
                   ساعت این کلاس‌ها داخل بازهٔ زنگ‌های تنظیم‌شده (۰۸:۰۰–۱۹:۳۰) نمی‌افتد؛ برای دیده‌شدن در جدول،
                   زنگ‌ها را در تنظیمات برنامهٔ هفتگی اصلاح کنید.
                 </p>

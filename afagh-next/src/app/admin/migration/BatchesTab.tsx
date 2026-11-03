@@ -6,6 +6,7 @@ import {
   listBatchesAction, reprocessBatchAction, rollbackAction,
 } from './actions';
 import { Msg, Stat, fmt } from './ui';
+import { askConfirm } from '@/lib/ui-feedback';
 
 // ═══ ناحیهٔ موقت و واگرد ═══
 // هر فایل آپلودشده یک «دسته» است؛ سطرهای خام نگه داشته می‌شوند تا:
@@ -88,8 +89,14 @@ export default function BatchesTab({ sourceCode }: { sourceCode: string }) {
 
   async function doRollback(input: { batchId?: number; opGroup?: string }) {
     const what = input.batchId ? `دستهٔ ${input.batchId}` : GROUP_FA[input.opGroup ?? ''] ?? input.opGroup;
-    if (!confirm(`واگرد ${what}؟\n\nهر چیزی که این عملیات روی سامانه نوشته حذف یا به مقدار قبلی برگردانده می‌شود.` +
-      (force ? '\n\n⚠ حالت اجباری فعال است: سطرهایی که بعد از مهاجرت دستی تغییر کرده‌اند هم برگردانده می‌شوند.' : ''))) return;
+    const okRollback = await askConfirm({
+      title: 'واگرد عملیات مهاجرت',
+      body: `واگرد ${what}؟ هر چیزی که این عملیات روی سامانه نوشته حذف یا به مقدار قبلی برگردانده می‌شود.` +
+        (force ? ' ⚠ حالت اجباری فعال است: سطرهایی که بعد از مهاجرت دستی تغییر کرده‌اند هم برگردانده می‌شوند.' : ''),
+      confirmText: 'واگرد کن',
+      danger: true,
+    });
+    if (!okRollback) return;
     setBusy('rb'); setMsg(null);
     const r = await rollbackAction({ ...input, sourceCode: input.opGroup ? sourceCode : undefined, force });
     setBusy('');
@@ -106,7 +113,7 @@ export default function BatchesTab({ sourceCode }: { sourceCode: string }) {
   }
 
   async function removeBatch(id: number) {
-    if (!confirm(`دستهٔ ${id} از ناحیهٔ موقت حذف شود؟ (دادهٔ ثبت‌شده روی سامانه دست نمی‌خورد؛ برای برگرداندن آن از «واگرد» استفاده کنید.)`)) return;
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: `دستهٔ ${id} از ناحیهٔ موقت حذف شود؟ (دادهٔ ثبت‌شده روی سامانه دست نمی‌خورد؛ برای برگرداندن آن از «واگرد» استفاده کنید.)`, confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
     setBusy('del:' + id);
     await deleteBatchAction(id);
     setBusy(''); setOpenBatch(null); setRows(null);
@@ -135,7 +142,7 @@ export default function BatchesTab({ sourceCode }: { sourceCode: string }) {
           <Stat label="سطر خطادار" value={totalErr} tone="red" />
           <Stat label="نوشتهٔ واگردپذیر" value={totalOpen} tone="amber" />
         </div>
-        <label className="flex items-center gap-2 text-[11px] text-slate-600">
+        <label className="flex items-center gap-2 text-2xs text-slate-600">
           <input type="checkbox" checked={force} onChange={e => setForce(e.target.checked)} />
           واگرد اجباری: سطرهایی که <b>بعد از</b> مهاجرت دستی تغییر کرده‌اند هم برگردانده شوند (با احتیاط)
         </label>
@@ -196,7 +203,7 @@ export default function BatchesTab({ sourceCode }: { sourceCode: string }) {
         </table>
 
         {openBatch && audit && audit.length > 0 && (
-          <div className="mt-3 rounded-xl bg-slate-50 p-3 text-[11px]">
+          <div className="mt-3 rounded-xl bg-slate-50 p-3 text-2xs">
             <p className="mb-1 font-bold text-slate-600">این دسته روی سامانه چه نوشته است:</p>
             <ul className="space-y-0.5">
               {audit.map((a, i) => (
@@ -212,8 +219,8 @@ export default function BatchesTab({ sourceCode }: { sourceCode: string }) {
         {openBatch && rows && (
           <div className="mt-3 overflow-x-auto">
             <p className="mb-1 text-xs font-bold text-slate-600">سطرهای خطادار دستهٔ {openBatch} ({fmt(rows.length)})</p>
-            {rows.length === 0 ? <p className="p-2 text-[11px] text-slate-400">سطر خطاداری نمانده.</p> : (
-              <table className="w-full text-right text-[11px] rt">
+            {rows.length === 0 ? <p className="p-2 text-2xs text-slate-400">سطر خطاداری نمانده.</p> : (
+              <table className="w-full text-right text-2xs rt">
                 <thead><tr className="text-slate-500"><th className="p-1">خط</th><th className="p-1">خطا</th><th className="p-1">دادهٔ خام</th></tr></thead>
                 <tbody>
                   {rows.slice(0, 100).map(r => (
@@ -234,7 +241,7 @@ export default function BatchesTab({ sourceCode }: { sourceCode: string }) {
 
       <div className="card overflow-x-auto">
         <h3 className="mb-2 text-sm font-bold">عملیات واگردپذیر</h3>
-        <p className="mb-2 text-[11px] text-slate-500">
+        <p className="mb-2 text-2xs text-slate-500">
           کارهایی مثل «اعمال نمرات» یا «ثبت مانده اولیه» فایل ندارند، ولی همه‌شان سند دارند و برگشت‌پذیرند.
         </p>
         <table className="w-full text-right text-xs rt">
@@ -274,7 +281,7 @@ export default function BatchesTab({ sourceCode }: { sourceCode: string }) {
           </div>
           {rollback.details.filter(d => d.result !== 'DELETED' && d.result !== 'RESTORED').length > 0 && (
             <div className="overflow-x-auto">
-              <table className="w-full text-right text-[11px] rt">
+              <table className="w-full text-right text-2xs rt">
                 <thead><tr className="text-slate-500"><th className="p-1">جدول</th><th className="p-1">شناسه</th><th className="p-1">نتیجه</th><th className="p-1">توضیح</th></tr></thead>
                 <tbody>
                   {rollback.details.filter(d => d.result !== 'DELETED' && d.result !== 'RESTORED').slice(0, 50).map((d, i) => (

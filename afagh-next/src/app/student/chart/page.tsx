@@ -315,11 +315,11 @@ export default async function StudentCurriculumChartPage() {
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                     <div className="flex items-center gap-2">
                       <span className="font-extrabold text-slate-800 text-sm">{title}</span>
-                      <span className="text-[11px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-mono">
+                      <span className="text-2xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-mono">
                         {semUnits} واحد
                       </span>
                       {isHighlighted && (
-                        <span className="text-[10px] bg-emerald-600 text-white font-bold px-1.5 py-0.5 rounded">
+                        <span className="text-3xs bg-emerald-600 text-white font-bold px-1.5 py-0.5 rounded">
                           نیمسال انتخابی: {filteredTerm?.title}
                         </span>
                       )}
@@ -327,7 +327,7 @@ export default async function StudentCurriculumChartPage() {
                     {isCurrentSemester && (
                       <Link
                         href="/student/enroll"
-                        className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition-colors print:hidden"
+                        className="text-2xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 px-2.5 py-1 rounded-lg transition-colors print:hidden"
                       >
                         ⚡ انتخاب هوشمند این ترم
                       </Link>
@@ -372,19 +372,19 @@ export default async function StudentCurriculumChartPage() {
                               <td className="p-2 text-slate-500">{(prereqMap.get(c.courseId) ?? []).join('، ') || '—'}</td>
                               <td className="p-2 text-left">
                                 {isPassed ? (
-                                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">
+                                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-3xs">
                                     ✅ گذرانده‌شده
                                   </span>
                                 ) : isInProgress ? (
-                                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 font-bold text-[10px]">
+                                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-sky-100 text-sky-800 font-bold text-3xs">
                                     ⏳ در حال گذران (ترم جاری)
                                   </span>
                                 ) : isPastSemester ? (
-                                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-[10px]">
+                                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-3xs">
                                     ✗ اخذ‌نشده (ترم گذشته)
                                   </span>
                                 ) : (
-                                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium text-[10px]">
+                                  <span className="inline-block px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-500 font-medium text-3xs">
                                     🔒 ترم‌های بعد
                                   </span>
                                 )}
@@ -452,7 +452,7 @@ export default async function StudentCurriculumChartPage() {
                   </tr>
                 </tbody>
               </table>
-              <p className="text-[10px] text-slate-400 font-bold">خانهٔ تیک‌دار = همهٔ دروس آن نوع گذرانده شده‌اند؛ خالی = هنوز مانده.</p>
+              <p className="text-3xs text-slate-400 font-bold">خانهٔ تیک‌دار = همهٔ دروس آن نوع گذرانده شده‌اند؛ خالی = هنوز مانده.</p>
             </div>
           )}
         </>

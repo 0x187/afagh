@@ -69,7 +69,7 @@ export default function FinanceTable({ students }: { students: FinanceStudent[] 
           <col style={{ width: 112 }} />
         </colgroup>
         <thead>
-          <tr className="sticky top-0 z-10 border-b-2 border-slate-300 bg-slate-100/95 text-[11px] text-slate-600 backdrop-blur">
+          <tr className="sticky top-0 z-10 border-b-2 border-slate-300 bg-slate-100/95 text-2xs text-slate-600 backdrop-blur">
             {COLS.map(c => (
               <ClientTh
                 key={c.key}
@@ -94,7 +94,7 @@ export default function FinanceTable({ students }: { students: FinanceStudent[] 
               <td className="p-2">
                 <div className="flex items-center gap-2">
                   <span
-                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-black text-white shadow-sm ${
+                    className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-2xs font-black text-white shadow-sm ${
                       s.balance > 0 ? 'bg-gradient-to-br from-rose-500 to-rose-700' : 'bg-gradient-to-br from-emerald-500 to-teal-600'
                     }`}
                   >
@@ -105,11 +105,11 @@ export default function FinanceTable({ students }: { students: FinanceStudent[] 
                       {`${s.firstName || ''} ${s.lastName || ''}`.trim() || '—'}
                     </Link>
                     <span className="mt-0.5 flex items-center justify-between gap-1">
-                      <span className="truncate text-[10px] text-slate-400" dir="ltr">{s.nationalCode || '—'}</span>
+                      <span className="truncate text-3xs text-slate-400" dir="ltr">{s.nationalCode || '—'}</span>
                       <Link
                         href={`/admin/finance/student/${s.studentId}`}
                         title="کارنامهٔ مالی دانشجو"
-                        className="shrink-0 rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-px text-[10px] font-black text-emerald-700 transition hover:bg-emerald-100 print:hidden"
+                        className="shrink-0 rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-px text-3xs font-black text-emerald-700 transition hover:bg-emerald-100 print:hidden"
                       >
                         📄 کارنامهٔ مالی
                       </Link>
@@ -130,7 +130,7 @@ export default function FinanceTable({ students }: { students: FinanceStudent[] 
               <td className="p-2 text-xs text-amber-700">{money(s.pendingCheques)}</td>
               <td className="p-2">
                 <span
-                  className={`inline-block min-w-[86px] rounded-full border px-2 py-0.5 text-center text-[11px] font-black ${
+                  className={`inline-block min-w-[86px] rounded-full border px-2 py-0.5 text-center text-2xs font-black ${
                     s.balance > 0
                       ? 'border-rose-200 bg-rose-50 text-rose-700'
                       : s.balance < 0
@@ -183,14 +183,14 @@ export default function FinanceTable({ students }: { students: FinanceStudent[] 
         { key: 'loans', label: 'وام', render: (s) => money(s.loans) },
         { key: 'pendingCheques', label: 'چک در انتظار', render: (s) => money(s.pendingCheques) },
         { key: 'balance', label: 'مانده', bare: true, render: (s) => (
-          <span className={`inline-block min-w-[86px] rounded-full border px-2 py-0.5 text-center text-[11px] font-black ${s.balance > 0 ? 'border-rose-200 bg-rose-50 text-rose-700' : s.balance < 0 ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-100 text-slate-600'}`}>
+          <span className={`inline-block min-w-[86px] rounded-full border px-2 py-0.5 text-center text-2xs font-black ${s.balance > 0 ? 'border-rose-200 bg-rose-50 text-rose-700' : s.balance < 0 ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-slate-100 text-slate-600'}`}>
             {fa(s.balance)}
           </span>
         ) },
       ]}
       getKey={(s) => s.studentId}
       renderActions={(s) => (
-        <Link href={`/admin/finance/student/${s.studentId}`} title="کارنامهٔ مالی دانشجو" className="shrink-0 rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-px text-[10px] font-black text-emerald-700 transition hover:bg-emerald-100">
+        <Link href={`/admin/finance/student/${s.studentId}`} title="کارنامهٔ مالی دانشجو" className="shrink-0 rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-px text-3xs font-black text-emerald-700 transition hover:bg-emerald-100">
           📄 کارنامهٔ مالی
         </Link>
       )}

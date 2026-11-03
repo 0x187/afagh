@@ -63,7 +63,7 @@ const INP =
 function Cell({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="min-w-0">
-      <span className="mb-0.5 block text-[10px] font-bold text-slate-400 md:hidden">{label}</span>
+      <span className="mb-0.5 block text-3xs font-bold text-slate-400 md:hidden">{label}</span>
       {children}
     </div>
   );
@@ -98,7 +98,7 @@ function normalizeDigits(s: string): string {
 /** فرم افزودن کلاس جدید — «کد» اولین فیلد است تا با ستون اول جدول هم‌نام باشد. */
 function AddForm({ faculties, departments }: { faculties: FacultyOption[]; departments: DeptOption[] }) {
   const [state, action, pending] = useActionState(adminSaveClassroomAction, INITIAL);
-  const LBL = 'flex min-w-0 flex-col gap-1 text-[11px] font-bold text-slate-500';
+  const LBL = 'flex min-w-0 flex-col gap-1 text-2xs font-bold text-slate-500';
   return (
     <form
       action={action}
@@ -152,8 +152,8 @@ function AddForm({ faculties, departments }: { faculties: FacultyOption[]; depar
       <button className="rounded-xl bg-indigo-700 px-5 py-2 text-sm font-black text-white disabled:opacity-60" disabled={pending}>
         {pending ? 'در حال افزودن…' : 'افزودن کلاس'}
       </button>
-      {state.err && <p className="col-span-full text-[11px] font-bold text-rose-600">⛔ {state.err}</p>}
-      {state.msg && <p className="col-span-full text-[11px] font-bold text-emerald-700">✓ {state.msg}</p>}
+      {state.err && <p className="col-span-full text-2xs font-bold text-rose-600">⛔ {state.err}</p>}
+      {state.msg && <p className="col-span-full text-2xs font-bold text-emerald-700">✓ {state.msg}</p>}
     </form>
   );
 }
@@ -216,7 +216,7 @@ function RowForm({
           placeholder="بدون کد"
           title={noCode ? 'این اتاق در سما کد ندارد' : `کد سما: ${room.code}`}
           dir="ltr"
-          className={`${INP} text-center font-mono ${noCode ? 'border-amber-300 bg-amber-50 placeholder:text-[10px] placeholder:font-sans placeholder:text-amber-600' : ''}`}
+          className={`${INP} text-center font-mono ${noCode ? 'border-amber-300 bg-amber-50 placeholder:text-3xs placeholder:font-sans placeholder:text-amber-600' : ''}`}
         />
       </Cell>
 
@@ -279,7 +279,7 @@ function RowForm({
       <Cell label="عملیات">
         <div className="flex flex-wrap items-center gap-1">
           <button
-            className="rounded-lg bg-slate-800 px-2.5 py-1.5 text-[11px] font-bold text-white disabled:opacity-60"
+            className="rounded-lg bg-slate-800 px-2.5 py-1.5 text-2xs font-bold text-white disabled:opacity-60"
             disabled={pending}
           >
             {pending ? '…' : 'ذخیره'}
@@ -289,12 +289,12 @@ function RowForm({
               <button
                 name="intent"
                 value="delete"
-                className="rounded-lg bg-rose-600 px-2 py-1.5 text-[11px] font-bold text-white"
+                className="rounded-lg bg-rose-600 px-2 py-1.5 text-2xs font-bold text-white"
                 disabled={pending}
               >
                 حذف؟
               </button>
-              <button type="button" onClick={() => setConfirmDel(false)} className="rounded-lg border border-slate-300 px-1.5 py-1.5 text-[11px] text-slate-600">
+              <button type="button" onClick={() => setConfirmDel(false)} className="rounded-lg border border-slate-300 px-1.5 py-1.5 text-2xs text-slate-600">
                 ✕
               </button>
             </>
@@ -302,7 +302,7 @@ function RowForm({
             <button
               type="button"
               onClick={() => setConfirmDel(true)}
-              className="rounded-lg border border-slate-200 px-2 py-1.5 text-[11px] font-bold text-rose-600 hover:bg-rose-50"
+              className="rounded-lg border border-slate-200 px-2 py-1.5 text-2xs font-bold text-rose-600 hover:bg-rose-50"
             >
               حذف
             </button>
@@ -311,16 +311,16 @@ function RowForm({
       </Cell>
 
       {state.err && (
-        <p className="col-span-full text-[11px] font-bold text-rose-600">⛔ {state.err}</p>
+        <p className="col-span-full text-2xs font-bold text-rose-600">⛔ {state.err}</p>
       )}
       {state.msg && (
-        <p className="col-span-full text-[11px] font-bold text-emerald-700">✓ {state.msg}</p>
+        <p className="col-span-full text-2xs font-bold text-emerald-700">✓ {state.msg}</p>
       )}
     </form>
   );
 }
 
-const LBL_TB = 'flex min-w-0 flex-col gap-1 text-[11px] font-bold text-slate-500';
+const LBL_TB = 'flex min-w-0 flex-col gap-1 text-2xs font-bold text-slate-500';
 
 /** گزینه‌های «مرتب‌سازی» — برای موبایل که سرسطر کلیک‌پذیر ندارد. */
 const SORT_OPTIONS: Array<[string, string]> = [
@@ -477,7 +477,7 @@ export default function ClassroomManager({ rooms, faculties, departments }: { ro
     <div className="space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="font-bold text-slate-800">کلاس‌ها (اتاق‌های درس قابل برنامه‌ریزی)</h3>
-        <p className="text-[11px] text-slate-500">
+        <p className="text-2xs text-slate-500">
           <span className="font-bold text-slate-700">{rooms.length.toLocaleString('fa-IR')}</span> اتاق ·{' '}
           <span className="font-bold text-emerald-700">{withCode.toLocaleString('fa-IR')}</span> دارای کد
           {missing > 0 && (
@@ -494,7 +494,7 @@ export default function ClassroomManager({ rooms, faculties, departments }: { ro
 
       <AddForm faculties={faculties} departments={departments} />
 
-      <p className="text-[11px] text-slate-400">
+      <p className="text-2xs text-slate-400">
         «کد کلاس» همان <span className="font-mono">LT4.Code</span> در سامانهٔ سماست؛ برنامهٔ هفتگی و سالن امتحان
         اتاق‌ها را با همین کد می‌شناسند. ردیف/ستون فقط برای چیدمانِ نقشهٔ حضور و غیاب است.
       </p>
@@ -550,7 +550,7 @@ export default function ClassroomManager({ rooms, faculties, departments }: { ro
         </label>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-2xs">
         <span className="text-slate-500">
           نمایش <b className="text-slate-800">{filtered.length.toLocaleString('fa-IR')}</b> از{' '}
           <b className="text-slate-800">{rooms.length.toLocaleString('fa-IR')}</b> اتاق
@@ -574,7 +574,7 @@ export default function ClassroomManager({ rooms, faculties, departments }: { ro
 
       {/* نتیجهٔ عملیات گروهی — جدا از نوار انتخاب تا پس از پاک‌شدن انتخاب هم دیده شود. */}
       {(bulkState.msg || bulkState.err) && !hideBulkMsg && (
-        <div className={`flex items-start justify-between gap-2 rounded-lg border px-3 py-2 text-[11px] font-bold ${
+        <div className={`flex items-start justify-between gap-2 rounded-lg border px-3 py-2 text-2xs font-bold ${
           bulkState.err ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
         }`}>
           <span>{bulkState.err ? `⛔ ${bulkState.err}` : `✓ ${bulkState.msg}`}</span>
@@ -596,13 +596,13 @@ export default function ClassroomManager({ rooms, faculties, departments }: { ro
           </span>
           <button
             name="op" value="activate" disabled={bulkPending}
-            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-bold text-white disabled:opacity-50"
+            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-2xs font-bold text-white disabled:opacity-50"
           >
             فعال کردن
           </button>
           <button
             name="op" value="deactivate" disabled={bulkPending}
-            className="rounded-lg bg-slate-700 px-3 py-1.5 text-[11px] font-bold text-white disabled:opacity-50"
+            className="rounded-lg bg-slate-700 px-3 py-1.5 text-2xs font-bold text-white disabled:opacity-50"
           >
             غیرفعال کردن
           </button>
@@ -610,13 +610,13 @@ export default function ClassroomManager({ rooms, faculties, departments }: { ro
             <>
               <button
                 name="op" value="delete" disabled={bulkPending}
-                className="rounded-lg bg-rose-600 px-3 py-1.5 text-[11px] font-bold text-white disabled:opacity-50"
+                className="rounded-lg bg-rose-600 px-3 py-1.5 text-2xs font-bold text-white disabled:opacity-50"
               >
                 حذف قطعی {selected.size.toLocaleString('fa-IR')} کلاس
               </button>
               <button
                 type="button" onClick={() => setConfirmBulkDel(false)}
-                className="rounded-lg border border-slate-300 px-2 py-1.5 text-[11px] text-slate-600"
+                className="rounded-lg border border-slate-300 px-2 py-1.5 text-2xs text-slate-600"
               >
                 ✕
               </button>
@@ -624,18 +624,18 @@ export default function ClassroomManager({ rooms, faculties, departments }: { ro
           ) : (
             <button
               type="button" onClick={() => setConfirmBulkDel(true)}
-              className="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-[11px] font-bold text-rose-600 hover:bg-rose-50"
+              className="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-2xs font-bold text-rose-600 hover:bg-rose-50"
             >
               حذف
             </button>
           )}
           <button
             type="button" onClick={() => { setSelected(new Set()); setConfirmBulkDel(false); }}
-            className="ms-auto text-[11px] font-bold text-slate-600 hover:underline"
+            className="ms-auto text-2xs font-bold text-slate-600 hover:underline"
           >
             پاک کردن انتخاب
           </button>
-          {bulkPending && <span className="text-[11px] text-indigo-700">در حال اعمال…</span>}
+          {bulkPending && <span className="text-2xs text-indigo-700">در حال اعمال…</span>}
         </form>
       )}
 
@@ -660,7 +660,7 @@ export default function ClassroomManager({ rooms, faculties, departments }: { ro
                     type="button"
                     onClick={() => toggleSort(h.key as SortKey)}
                     title={`${h.hint}\n(کلیک = مرتب‌سازی)`}
-                    className={`flex w-full min-w-0 items-center gap-1 text-[11px] font-black transition hover:text-indigo-700 ${
+                    className={`flex w-full min-w-0 items-center gap-1 text-2xs font-black transition hover:text-indigo-700 ${
                       sortKey === h.key ? 'text-indigo-700' : 'text-slate-600'
                     }`}
                   >
@@ -670,7 +670,7 @@ export default function ClassroomManager({ rooms, faculties, departments }: { ro
                     </span>
                   </button>
                 ) : (
-                  <span title={h.hint} className="block truncate text-[11px] font-black text-slate-600">{h.label}</span>
+                  <span title={h.hint} className="block truncate text-2xs font-black text-slate-600">{h.label}</span>
                 )}
               </div>
             ))}

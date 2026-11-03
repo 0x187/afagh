@@ -67,7 +67,7 @@ export default function RoleTargetsEditor({ initial, unitsByRole, countsByRole, 
               key={r.id}
               className={`flex flex-wrap items-center gap-2 p-2 rounded-xl border ${short ? 'border-amber-300 bg-amber-50' : 'border-slate-200 bg-slate-50/60'}`}
             >
-              <span className="w-6 h-6 shrink-0 rounded-lg bg-slate-900 text-white text-[10px] font-black flex items-center justify-center">
+              <span className="w-6 h-6 shrink-0 rounded-lg bg-slate-900 text-white text-3xs font-black flex items-center justify-center">
                 {faNum(idx + 1)}
               </span>
 
@@ -94,10 +94,10 @@ export default function RoleTargetsEditor({ initial, unitsByRole, countsByRole, 
                   placeholder="واحد"
                   className="w-20 border border-slate-300 rounded-lg px-2 py-1.5 text-center font-black bg-white disabled:opacity-50"
                 />
-                <span className="text-[11px] font-bold text-slate-500">واحد</span>
+                <span className="text-2xs font-bold text-slate-500">واحد</span>
               </div>
 
-              <span className={`text-[11px] font-bold ${short ? 'text-amber-700' : 'text-slate-500'}`}>
+              <span className={`text-2xs font-bold ${short ? 'text-amber-700' : 'text-slate-500'}`}>
                 {r.role
                   ? `${faNum(countsByRole?.get(r.role) ?? 0)} درس · ${faNum(have)} واحد${short ? ` (کسری ${faNum(want - have)})` : ''}`
                   : 'نوع درس تعیین نشده'}
@@ -108,7 +108,7 @@ export default function RoleTargetsEditor({ initial, unitsByRole, countsByRole, 
                 onClick={() => removeRow(r.id)}
                 disabled={disabled}
                 title="حذف این ردیف"
-                className="mr-auto px-2 py-1 rounded-lg border border-rose-200 text-rose-700 font-black text-[11px] hover:bg-rose-50 disabled:opacity-40"
+                className="mr-auto px-2 py-1 rounded-lg border border-rose-200 text-rose-700 font-black text-2xs hover:bg-rose-50 disabled:opacity-40"
               >
                 ✕
               </button>
@@ -122,17 +122,17 @@ export default function RoleTargetsEditor({ initial, unitsByRole, countsByRole, 
           type="button"
           onClick={addRow}
           disabled={disabled || usedRoles.size >= OPTIONS.length}
-          className="px-3 py-1.5 rounded-lg border border-teal-300 bg-teal-50 text-teal-900 font-extrabold text-[11px] hover:bg-teal-100 disabled:opacity-40"
+          className="px-3 py-1.5 rounded-lg border border-teal-300 bg-teal-50 text-teal-900 font-extrabold text-2xs hover:bg-teal-100 disabled:opacity-40"
         >
           ＋ افزودن نوع درس
         </button>
-        <span className="text-[10px] font-bold text-slate-400">
+        <span className="text-3xs font-bold text-slate-400">
           هر نوعی که اضافه نکنید، «مقرر» محسوب نمی‌شود (مثلاً رشتهٔ بدون درس عمومی).
         </span>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100">
-        <p className="text-[11px] font-black text-slate-700">
+        <p className="text-2xs font-black text-slate-700">
           جمع سهم‌ها: {faNum(sum)} واحد · واحد الزامی نسخه: {faNum(totalRequired)} واحد
           {diff !== 0 && (
             <span className="text-amber-700"> · اختلاف {faNum(Math.abs(diff))} واحد ({diff > 0 ? 'کمتر از سقف' : 'بیشتر از سقف'})</span>
@@ -142,7 +142,7 @@ export default function RoleTargetsEditor({ initial, unitsByRole, countsByRole, 
           type="button"
           onClick={submit}
           disabled={disabled}
-          className="px-3 py-2 rounded-lg bg-teal-700 hover:bg-teal-800 text-white font-extrabold text-[11px] disabled:opacity-50"
+          className="px-3 py-2 rounded-lg bg-teal-700 hover:bg-teal-800 text-white font-extrabold text-2xs disabled:opacity-50"
         >
           💾 ذخیره سهم‌ها و اعتبارسنجی مجدد
         </button>

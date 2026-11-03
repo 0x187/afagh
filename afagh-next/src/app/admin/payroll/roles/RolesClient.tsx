@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { askConfirm } from '@/lib/ui-feedback';
 
 type Role = {
   id: number; code: string; title: string;
@@ -115,8 +116,9 @@ export default function RolesClient(props: {
     });
   }
 
-  function doDelete(id: number) {
-    if (!confirm('این سمت حذف شود؟ انتساب‌های ترمی آن هم پاک می‌شود.')) return;
+  async function doDelete(id: number) {
+    const ok = await askConfirm({ title: 'حذف سمت', body: 'این سمت حذف شود؟ انتساب‌های ترمی آن هم پاک می‌شود.', confirmText: 'حذف کن', danger: true });
+    if (!ok) return;
     start(async () => {
       const res = await actions.deleteRoleAction(id);
       if (!res.ok) { setMsg(res.error ?? 'خطا در حذف.'); return; }

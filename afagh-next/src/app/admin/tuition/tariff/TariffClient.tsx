@@ -110,19 +110,19 @@ export default function TariffClient({
             {fa(y)}
           </button>
         ))}
-        <span className="mr-auto text-[11px] text-slate-500">
+        <span className="mr-auto text-2xs text-slate-500">
           {fa(groups.length)} گروه · {fa(groups.reduce((a, g) => a + g.majors.length, 0))} رشته
         </span>
       </div>
 
       <div className="rounded-xl border border-sky-300 bg-sky-50/60 p-3">
         <p className="text-xs font-black text-sky-900">تعریف سال نو با کپی از سال قبل</p>
-        <p className="mt-1 text-[11px] text-sky-800">
+        <p className="mt-1 text-2xs text-sky-800">
           همهٔ رشته‌ها، ورودی‌ها و نرخ‌های یک سال به سال بعد منتقل می‌شود و رقم سال در کد گروه به‌روز می‌شود.
           بعد از ساخت، نرخ‌ها را بازبینی و ذخیره کنید.
         </p>
         <div className="mt-2 flex flex-wrap items-end gap-2">
-          <label className="text-[11px] font-bold text-slate-700">
+          <label className="text-2xs font-bold text-slate-700">
             از سال
             <input
               type="number"
@@ -132,7 +132,7 @@ export default function TariffClient({
               dir="ltr"
             />
           </label>
-          <label className="text-[11px] font-bold text-slate-700">
+          <label className="text-2xs font-bold text-slate-700">
             به سال
             <input
               type="number"
@@ -142,7 +142,7 @@ export default function TariffClient({
               dir="ltr"
             />
           </label>
-          <label className="flex items-center gap-1 pb-2 text-[11px] font-bold text-slate-700">
+          <label className="flex items-center gap-1 pb-2 text-2xs font-bold text-slate-700">
             <input type="checkbox" checked={overwrite} onChange={(e) => setOverwrite(e.target.checked)} />
             بازنویسی اگر سال مقصد وجود دارد
           </label>
@@ -177,7 +177,7 @@ export default function TariffClient({
             <div className="flex items-center justify-between gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2">
               <div>
                 <p className="font-mono text-sm font-black text-slate-900" dir="ltr">{g.uPriceCode}</p>
-                <p className="mt-0.5 text-[11px] text-slate-500">
+                <p className="mt-0.5 text-2xs text-slate-500">
                   {fa(g.majors.length)} رشته · {g.source === 'MANUAL' ? 'تعریف خودمان' : 'واردشده از سما'}
                 </p>
               </div>
@@ -192,16 +192,16 @@ export default function TariffClient({
             </div>
 
             <div className="px-3 py-2">
-              <p className="text-[11px] font-bold text-slate-600">رشته‌ها</p>
-              <p className="mt-1 text-[11px] leading-5 text-slate-700">
+              <p className="text-2xs font-bold text-slate-600">رشته‌ها</p>
+              <p className="mt-1 text-2xs leading-5 text-slate-700">
                 {g.majors.map((m) => `${m.code}${m.faculty ? ` (${m.faculty})` : ''}`).join(' · ')}
               </p>
-              <p className="mt-1 text-[10px] text-slate-500">
+              <p className="mt-1 text-3xs text-slate-500">
                 ورودی‌ها: {[...new Set(g.majors.flatMap((m) => m.entryYears))].sort((a, b) => a - b).map(fa).join('، ')}
               </p>
             </div>
 
-            <table className="w-full border-collapse text-[11px] rt">
+            <table className="w-full border-collapse text-2xs rt">
               <thead>
                 <tr className="bg-slate-50 text-slate-600">
                   <th className="border-t border-slate-200 px-2 py-1 text-right font-bold">نوع درس مالی</th>
@@ -223,7 +223,7 @@ export default function TariffClient({
                           dir="ltr"
                           value={valOf(g.uPriceCode, r.maliType, 'th', r.th)}
                           onChange={(e) => setVal(g.uPriceCode, r.maliType, 'th', r.th, e.target.value)}
-                          className="w-32 rounded border border-slate-300 px-1.5 py-1 text-center font-mono text-[11px]"
+                          className="w-32 rounded border border-slate-300 px-1.5 py-1 text-center font-mono text-2xs"
                         />
                       </td>
                       <td className="border-t border-slate-100 px-2 py-1 text-center">
@@ -232,7 +232,7 @@ export default function TariffClient({
                           dir="ltr"
                           value={valOf(g.uPriceCode, r.maliType, 'op', r.op)}
                           onChange={(e) => setVal(g.uPriceCode, r.maliType, 'op', r.op, e.target.value)}
-                          className="w-32 rounded border border-slate-300 px-1.5 py-1 text-center font-mono text-[11px]"
+                          className="w-32 rounded border border-slate-300 px-1.5 py-1 text-center font-mono text-2xs"
                         />
                       </td>
                     </tr>

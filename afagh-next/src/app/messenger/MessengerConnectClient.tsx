@@ -149,7 +149,7 @@ export default function MessengerConnectClient() {
 
       {code && (
         <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-center dark:border-emerald-800 dark:bg-emerald-950">
-          <div className="text-[11px] text-emerald-700 font-bold dark:text-emerald-200">
+          <div className="text-2xs text-emerald-700 font-bold dark:text-emerald-200">
             در {ch?.label || 'پیام‌رسان'} به {ch?.bot || 'بات'} این پیام را بفرستید:
           </div>
           <button
@@ -164,7 +164,7 @@ export default function MessengerConnectClient() {
             </span>
           </button>
           {waiting && (
-            <div className="mt-2 flex items-center justify-center gap-1.5 text-[11px] font-bold text-amber-700 dark:text-amber-300">
+            <div className="mt-2 flex items-center justify-center gap-1.5 text-2xs font-bold text-amber-700 dark:text-amber-300">
               <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-amber-500 border-t-transparent" />
               در انتظار ارسال پیام در بات — تأیید خودکار انجام می‌شود…
             </div>

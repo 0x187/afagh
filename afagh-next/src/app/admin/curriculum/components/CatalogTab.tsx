@@ -22,7 +22,7 @@ export default function CatalogTab() {
       <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5 space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="font-extrabold text-slate-900 text-sm">🗂️ نسخه‌های این رشته</h3>
-          <span className="text-[11px] text-slate-500 font-bold">{isDraft ? 'حالت پیش‌نویس: ویرایش فعال' : 'حالت فقط‌خواندنی (بسته به وضعیت)'}</span>
+          <span className="text-2xs text-slate-500 font-bold">{isDraft ? 'حالت پیش‌نویس: ویرایش فعال' : 'حالت فقط‌خواندنی (بسته به وضعیت)'}</span>
         </div>
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-xs rt">
@@ -51,13 +51,13 @@ export default function CatalogTab() {
                     <td className="p-2.5 border border-slate-200 font-extrabold">{faNum(v.totalRequiredUnits)}</td>
                     <td className="p-2.5 border border-slate-200 font-extrabold">{faNum(v.courseCount)} درس</td>
                     <td className="p-2.5 border border-slate-200">
-                      <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${st.cls}`}>{st.label}</span>
+                      <span className={`px-2.5 py-0.5 rounded-full text-3xs font-black ${st.cls}`}>{st.label}</span>
                     </td>
                     <td className="p-2.5 border border-slate-200">
                       <div className="flex items-center justify-center gap-1.5">
                         <button
                           onClick={() => setSelectedVersionId(v.id)}
-                          className={`px-3 py-1.5 rounded-lg font-extrabold text-[11px] transition ${
+                          className={`px-3 py-1.5 rounded-lg font-extrabold text-2xs transition ${
                             selectedVersionId === v.id ? 'bg-indigo-900 text-white' : 'bg-indigo-100 text-indigo-900 hover:bg-indigo-200'
                           }`}
                         >
@@ -67,7 +67,7 @@ export default function CatalogTab() {
                           <button
                             onClick={() => openEditVersion(v)}
                             title="ویرایش کد/عنوان/ورودی/واحد الزامی/سقف ترم"
-                            className="px-3 py-1.5 rounded-lg font-extrabold text-[11px] transition bg-amber-100 text-amber-900 hover:bg-amber-200"
+                            className="px-3 py-1.5 rounded-lg font-extrabold text-2xs transition bg-amber-100 text-amber-900 hover:bg-amber-200"
                           >
                             ✏️ ویرایش
                           </button>
@@ -75,7 +75,7 @@ export default function CatalogTab() {
                           <button
                             onClick={() => openEditVersion(v)}
                             title="پس از انتشار فقط «ورودی از/تا» قابل ویرایش است — برای تغییر محتوا نسخهٔ R+1 بسازید"
-                            className="px-3 py-1.5 rounded-lg font-extrabold text-[11px] transition bg-slate-100 text-slate-700 hover:bg-slate-200"
+                            className="px-3 py-1.5 rounded-lg font-extrabold text-2xs transition bg-slate-100 text-slate-700 hover:bg-slate-200"
                           >
                             🗓️ ورودی
                           </button>

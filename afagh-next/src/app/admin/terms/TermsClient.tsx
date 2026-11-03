@@ -58,9 +58,9 @@ const termColumns: CardColumn<TermRow>[] = [
     bare: true,
     render: (t) =>
       t.isCurrent ? (
-        <span className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px]">فعال</span>
+        <span className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-3xs">فعال</span>
       ) : (
-        <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 text-[10px]">—</span>
+        <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 text-3xs">—</span>
       ),
   },
   {
@@ -69,9 +69,9 @@ const termColumns: CardColumn<TermRow>[] = [
     bare: true,
     render: (t) =>
       t.containsToday ? (
-        <span className="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[10px]">بله</span>
+        <span className="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-3xs">بله</span>
       ) : (
-        <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 text-[10px]">خیر</span>
+        <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 text-3xs">خیر</span>
       ),
   },
 ];
@@ -160,7 +160,7 @@ export default function TermsClient({
           قاعدهٔ سامانه: هر دانشگاه حداکثر یک نیمسال فعال دارد و با هر فعال‌سازی، پرچم بقیهٔ نیمسال‌های
           همان دانشگاه در یک تراکنش صفر می‌شود.
         </p>
-        <label className="flex items-center gap-2 text-[11px] text-slate-600">
+        <label className="flex items-center gap-2 text-2xs text-slate-600">
           <input
             type="checkbox"
             checked={teachingOnly}
@@ -175,7 +175,7 @@ export default function TermsClient({
             (معادل‌سازی و ویژه پنهان شوند — {hiddenCount.toLocaleString('fa-IR')} ردیف)
           </span>
         </label>
-        <div className="flex flex-wrap gap-2 text-[11px]">
+        <div className="flex flex-wrap gap-2 text-2xs">
           <span className="px-2 py-1 rounded bg-slate-100 text-slate-700">
             کل نیمسال‌ها: <b className="tabular-nums">{terms.length.toLocaleString('fa-IR')}</b>
           </span>
@@ -195,7 +195,7 @@ export default function TermsClient({
 
       <div className="card space-y-3">
         <h3 className="font-bold text-xs">همگام‌سازی با تاریخ</h3>
-        <p className="text-[11px] leading-6 text-slate-500">
+        <p className="text-2xs leading-6 text-slate-500">
           برای هر دانشگاه، نیمسالی که بازهٔ تاریخش امروز را در بر می‌گیرد فعال می‌شود و پرچم فعالِ
           نیمسال‌های دیگر همان دانشگاه صفر می‌گردد. نیمسال‌هایی که <span className="font-mono">startDate</span>
           خالی دارند هرگز فعال نمی‌شوند. اگر دانشگاهی نیمسالِ شامل امروز نداشته باشد، چیزی صفر
@@ -214,7 +214,7 @@ export default function TermsClient({
         </button>
 
         {syncReport?.ok && (
-          <div className="text-[11px] leading-6 border border-slate-200 rounded p-2 space-y-2 bg-slate-50">
+          <div className="text-2xs leading-6 border border-slate-200 rounded p-2 space-y-2 bg-slate-50">
             <div>
               <b className="text-emerald-700">فعال‌شده ({syncReport.activated.length}):</b>{' '}
               {syncReport.activated.length
@@ -235,7 +235,7 @@ export default function TermsClient({
           </div>
         )}
         {syncReport && !syncReport.ok && (
-          <div className="text-[11px] text-rose-700 bg-rose-50 border border-rose-200 rounded p-2">
+          <div className="text-2xs text-rose-700 bg-rose-50 border border-rose-200 rounded p-2">
             {syncReport.error}
           </div>
         )}
@@ -243,7 +243,7 @@ export default function TermsClient({
 
       <div className="card space-y-3">
         <h3 className="font-bold text-xs">فعال‌سازی گروهی برای چند دانشگاه</h3>
-        <p className="text-[11px] leading-6 text-slate-500">
+        <p className="text-2xs leading-6 text-slate-500">
           برای هر دانشگاه یک نیمسال انتخاب کنید و با یک ارسال، همه با هم فعال می‌شوند. برای هر دانشگاه
           قاعدهٔ «یک نیمسال فعال» اعمال می‌شود. دانشگاهی که خالی بماند دست‌نخورده است.
         </p>
@@ -253,17 +253,17 @@ export default function TermsClient({
             const active = list.find((t) => t.isCurrent);
             return (
               <label key={u.id} className="block border border-slate-200 rounded p-2 space-y-1">
-                <span className="block text-[11px] font-bold text-slate-700">
+                <span className="block text-2xs font-bold text-slate-700">
                   {u.title} ({u.code})
                   <span className="font-normal text-slate-500"> — {list.length.toLocaleString('fa-IR')} نیمسال</span>
                 </span>
-                <span className="block text-[10px] text-slate-500">
+                <span className="block text-3xs text-slate-500">
                   فعال فعلی: {active ? `${active.termCode} — ${active.title}` : 'هیچ'}
                 </span>
                 <select
                   value={picks[u.id] ?? ''}
                   onChange={(e) => setPicks((p) => ({ ...p, [u.id]: e.target.value }))}
-                  className="w-full border border-slate-300 rounded px-2 py-1 text-[11px] bg-white"
+                  className="w-full border border-slate-300 rounded px-2 py-1 text-2xs bg-white"
                 >
                   <option value="">— انتخاب نیمسال —</option>
                   {list.map((t) => (
@@ -320,7 +320,7 @@ export default function TermsClient({
                 {u.title} ({u.code})
                 <span className="font-normal text-slate-500"> — {list.length.toLocaleString('fa-IR')} نیمسال</span>
               </h3>
-              <div className="text-[10px] text-slate-500">
+              <div className="text-3xs text-slate-500">
                 فعال فعلی:{' '}
                 {active ? (
                   <span className="text-emerald-700 font-bold">
@@ -341,12 +341,12 @@ export default function TermsClient({
               </div>
             </div>
             {list.length === 0 ? (
-              <div className="text-[11px] text-slate-500 bg-slate-50 border border-slate-200 rounded p-2">
+              <div className="text-2xs text-slate-500 bg-slate-50 border border-slate-200 rounded p-2">
                 برای این دانشگاه هیچ نیمسالی ثبت نشده است.
               </div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="hidden md:table w-full text-[11px] rt">
+                <table className="hidden md:table w-full text-2xs rt">
                   <thead>
                     <tr className="bg-slate-50 border-b text-slate-600">
                       <th className="px-2 py-1 text-right">کد</th>
@@ -379,25 +379,25 @@ export default function TermsClient({
                         <td className="px-2 py-1 tabular-nums">{jalaliOf(t.endDate)}</td>
                         <td className="px-2 py-1 text-center">
                           {t.isCurrent ? (
-                            <span className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-[10px]">فعال</span>
+                            <span className="px-1.5 py-0.5 rounded bg-emerald-600 text-white text-3xs">فعال</span>
                           ) : (
-                            <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 text-[10px]">—</span>
+                            <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 text-3xs">—</span>
                           )}
                         </td>
                         <td className="px-2 py-1 text-center">
                           {t.containsToday ? (
-                            <span className="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-[10px]">
+                            <span className="px-1.5 py-0.5 rounded bg-indigo-600 text-white text-3xs">
                               بله
                             </span>
                           ) : (
-                            <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 text-[10px]">خیر</span>
+                            <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 text-3xs">خیر</span>
                           )}
                         </td>
                         <td className="px-2 py-1 text-center">
                           <button
                             disabled={busy !== null}
                             onClick={() => run('single', async () => activateTermAction(t.id))}
-                            className="border border-indigo-300 text-indigo-700 px-2 py-0.5 rounded text-[10px] hover:bg-indigo-50 disabled:opacity-50"
+                            className="border border-indigo-300 text-indigo-700 px-2 py-0.5 rounded text-3xs hover:bg-indigo-50 disabled:opacity-50"
                           >
                             فعال‌سازی برای {u.code}
                           </button>
@@ -414,7 +414,7 @@ export default function TermsClient({
                     <button
                       disabled={busy !== null}
                       onClick={() => run('single', async () => activateTermAction(t.id))}
-                      className="border border-indigo-300 text-indigo-700 px-2 py-0.5 rounded text-[10px] hover:bg-indigo-50 disabled:opacity-50"
+                      className="border border-indigo-300 text-indigo-700 px-2 py-0.5 rounded text-3xs hover:bg-indigo-50 disabled:opacity-50"
                     >
                       فعال‌سازی برای {u.code}
                     </button>
@@ -432,12 +432,12 @@ export default function TermsClient({
           <h3 className="font-bold text-xs text-amber-700">
             نیمسال‌های بدون دانشگاه ({orphanTerms.length.toLocaleString('fa-IR')})
           </h3>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-2xs text-slate-500">
             این نیمسال‌ها <span className="font-mono">universityId</span> ندارند و قابل فعال‌سازی نیستند.
           </p>
           <div className="flex flex-wrap gap-1">
             {orphanTerms.map((t) => (
-              <span key={t.id} className="text-[10px] px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
+              <span key={t.id} className="text-3xs px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200">
                 {t.termCode} — {t.title}
               </span>
             ))}

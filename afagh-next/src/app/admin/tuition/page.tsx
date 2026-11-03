@@ -30,7 +30,7 @@ export default async function TuitionRulesPage() {
         >
           📐 تعریف تعرفهٔ سالانهٔ شهریهٔ متغیر (نرخ هر نوع درس)
         </a>
-        <span className="text-[11px] text-sky-900">
+        <span className="text-2xs text-sky-900">
           نرخ شهریهٔ متغیر سالانه است و به «نوع درس مالی» گره خورده؛ سال‌های بعد را از همان صفحه با «کپی از سال قبل» تعریف کنید.
         </span>
       </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
+import { askConfirm } from '@/lib/ui-feedback';
 
 type Msg = { text: string; kind: 'ok' | 'error' } | null;
 
@@ -87,8 +88,14 @@ export default function DormClient() {
 
   useEffect(() => { load(''); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const remove = (id: number) => {
-    if (!confirm(`سکونت #${id} حذف شود؟`)) return;
+  const remove = async (id: number) => {
+    const ok = await askConfirm({
+      title: 'حذف سکونت',
+      body: `سکونت #${id} حذف شود؟`,
+      confirmText: 'حذف کن',
+      danger: true,
+    });
+    if (!ok) return;
     startTransition(async () => {
       try {
         await api(`/api/admin/dorm?id=${id}`, { method: 'DELETE' });

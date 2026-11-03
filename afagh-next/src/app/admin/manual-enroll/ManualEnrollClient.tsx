@@ -222,7 +222,7 @@ const filteredCatalog = useMemo(() => {
   };
   const removeBulkStudent = (id: number) => setBulkStudents(p => p.filter(x => x.studentId !== id));
 
-  const offerHelp = <span className="text-[10px] text-slate-400">ترم را عوض کن تا کلاس‌ها بیاید (تا ۴۰۰۰).</span>;
+  const offerHelp = <span className="text-3xs text-slate-400">ترم را عوض کن تا کلاس‌ها بیاید (تا ۴۰۰۰).</span>;
 
   return (
     <div className="space-y-4" dir="rtl">
@@ -252,7 +252,7 @@ const filteredCatalog = useMemo(() => {
             {searched && results.length > 0 && (
               <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-2 mt-2 max-h-48 overflow-y-auto">
                 {results.map(r => (
-                  <button key={r.studentId} onClick={() => { setSelStudent({ studentId: r.studentId, studentCode: r.studentCode, name: r.name }); setSelOffering(''); loadCatalog(r.studentId); }} className="w-full text-right px-2 py-1 text-[11px] hover:bg-indigo-50 flex items-center justify-between">
+                  <button key={r.studentId} onClick={() => { setSelStudent({ studentId: r.studentId, studentCode: r.studentCode, name: r.name }); setSelOffering(''); loadCatalog(r.studentId); }} className="w-full text-right px-2 py-1 text-2xs hover:bg-indigo-50 flex items-center justify-between">
                     <span className="font-bold">{r.studentCode} · {r.name}</span>
                     <span className="text-indigo-700 font-black">✓ انتخاب</span>
                   </button>
@@ -289,11 +289,11 @@ const filteredCatalog = useMemo(() => {
             <div className="rounded-xl border border-amber-300 bg-amber-50/70 p-3 space-y-1">
               <p className="text-xs font-black text-amber-900">⚠️ اخطارهای آیین‌نامهٔ این دانشجو:</p>
               {warnings.map((w, i) => (
-                <p key={i} className={'text-[11px] font-bold ' + (w.level === 'block' ? 'text-red-700' : 'text-amber-800')}>
+                <p key={i} className={'text-2xs font-bold ' + (w.level === 'block' ? 'text-red-700' : 'text-amber-800')}>
                   {w.level === 'block' ? '❌' : '⚠'} {w.title}: {w.detail}
                 </p>
               ))}
-              <p className="text-[10px] text-amber-800">برای صدور مجوز با وجود اخطار، تیک «نادیده‌گرفتن» را فعال و دلیل را بنویس — اخطارهای نادیده‌گرفته‌شده در تاریخچه ثبت می‌شوند.</p>
+              <p className="text-3xs text-amber-800">برای صدور مجوز با وجود اخطار، تیک «نادیده‌گرفتن» را فعال و دلیل را بنویس — اخطارهای نادیده‌گرفته‌شده در تاریخچه ثبت می‌شوند.</p>
             </div>
           )}
 
@@ -306,14 +306,14 @@ const filteredCatalog = useMemo(() => {
               </div>
 
               {catalogErr && (
-                <div className="rounded-lg border border-rose-300 bg-rose-50 p-2 text-[11px] font-black text-rose-800">
+                <div className="rounded-lg border border-rose-300 bg-rose-50 p-2 text-2xs font-black text-rose-800">
                   ⚠ خطا در بارگذاری کاتالوگ: {catalogErr}
                 </div>
               )}
 
               {/* ── خلاصهٔ چارت + سقف واحد ── */}
               {chartInfo && (
-                <div className="rounded-lg bg-white border border-indigo-200 p-2 text-[11px] space-y-1">
+                <div className="rounded-lg bg-white border border-indigo-200 p-2 text-2xs space-y-1">
                   <p className="font-black text-indigo-900">
                     {chartInfo.versionCode ? `چارت ${chartInfo.versionCode}${chartInfo.title ? ` «${chartInfo.title}»` : ''}` : 'چارت رشته'}
                     {' — '}🗂 کل چارت: {(chartInfo.chartTotalCount ?? chartInfo.chartCount).toLocaleString('fa-IR')}
@@ -334,14 +334,14 @@ const filteredCatalog = useMemo(() => {
               {/* ── درس‌های ثبت‌شدهٔ فعلی دانشجو (قابل حذف/اصلاح) ── */}
               {enrolled.length > 0 && (
                 <div className="rounded-lg border border-rose-200 bg-rose-50/50 p-2 space-y-1">
-                  <p className="text-[11px] font-black text-rose-900">✅ درس‌های ثبت‌شدهٔ این ترم ({enrolled.length}) — برای اصلاح/حذف:</p>
+                  <p className="text-2xs font-black text-rose-900">✅ درس‌های ثبت‌شدهٔ این ترم ({enrolled.length}) — برای اصلاح/حذف:</p>
                   {enrolled.map(e => (
-                    <div key={e.enrollmentId} className="flex flex-wrap items-center gap-2 text-[11px]">
+                    <div key={e.enrollmentId} className="flex flex-wrap items-center gap-2 text-2xs">
                       <span className="font-bold text-slate-800">{e.code} {e.title} <span className="text-slate-500">(گ{e.groupNumber})</span></span>
                       <span className="text-slate-500">{e.units ?? ''} واحد · {e.professorName}</span>
-                      <span className={'px-1.5 py-0.5 rounded-full text-[10px] font-black ' + (e.status === 'REGISTERED' ? 'bg-emerald-200 text-emerald-900' : 'bg-amber-200 text-amber-900')}>{e.status === 'REGISTERED' ? 'ثبت' : e.status === 'WAITLISTED' ? 'صف' : e.status}</span>
-                      {e.override && <span className="px-1.5 py-0.5 rounded-full bg-amber-200 text-amber-900 text-[10px] font-black">با مجوز</span>}
-                      <button onClick={() => dropEnrolled(e)} disabled={busy} className="mr-auto rounded-lg bg-rose-600 px-2 py-0.5 text-white font-black text-[10px] disabled:opacity-50">حذف</button>
+                      <span className={'px-1.5 py-0.5 rounded-full text-3xs font-black ' + (e.status === 'REGISTERED' ? 'bg-emerald-200 text-emerald-900' : 'bg-amber-200 text-amber-900')}>{e.status === 'REGISTERED' ? 'ثبت' : e.status === 'WAITLISTED' ? 'صف' : e.status}</span>
+                      {e.override && <span className="px-1.5 py-0.5 rounded-full bg-amber-200 text-amber-900 text-3xs font-black">با مجوز</span>}
+                      <button onClick={() => dropEnrolled(e)} disabled={busy} className="mr-auto rounded-lg bg-rose-600 px-2 py-0.5 text-white font-black text-3xs disabled:opacity-50">حذف</button>
                     </div>
                   ))}
                 </div>
@@ -351,20 +351,20 @@ const filteredCatalog = useMemo(() => {
               <div className="flex flex-wrap gap-1.5">
                 {([['mine', '📚 چارت + مشترک'], ['chart', '🗂 فقط چارت'], ['common', '🌐 فقط مشترک/عمومی']] as const).map(([k, l]) => (
                   <button key={k} onClick={() => setScopeFilter(k)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition ${scopeFilter === k ? 'bg-indigo-700 text-white' : 'bg-white text-slate-600 border border-slate-300'}`}>
+                    className={`px-2.5 py-1 rounded-lg text-2xs font-black transition ${scopeFilter === k ? 'bg-indigo-700 text-white' : 'bg-white text-slate-600 border border-slate-300'}`}>
                     {l}
                   </button>
                 ))}
-                <span className="text-[10px] text-slate-400 self-center">|</span>
+                <span className="text-3xs text-slate-400 self-center">|</span>
                 <button onClick={() => setScopeFilter(scopeFilter === 'other' ? 'mine' : 'other')}
                   title="درس‌های خارج از چارتِ رشتهٔ دانشجو (رشته/مقطع دیگر) — ثبتشان نیازمند نادیده‌گرفتن آیین‌نامه با دلیل است"
-                  className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition border ${scopeFilter === 'other' ? 'bg-rose-600 text-white border-rose-600' : 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100'}`}>
+                  className={`px-2.5 py-1 rounded-lg text-2xs font-black transition border ${scopeFilter === 'other' ? 'bg-rose-600 text-white border-rose-600' : 'bg-rose-50 text-rose-700 border-rose-300 hover:bg-rose-100'}`}>
                   ⚠ خارج از چارت {chartInfo?.otherCount ? `(${chartInfo.otherCount.toLocaleString('fa-IR')})` : ''}
                 </button>
               </div>
 
               {scopeFilter === 'other' && (
-                <div className="rounded-lg border border-rose-300 bg-rose-50 p-2 text-[11px] font-black text-rose-800 space-y-1">
+                <div className="rounded-lg border border-rose-300 bg-rose-50 p-2 text-2xs font-black text-rose-800 space-y-1">
                   <p>⛔ حالت «خارج از چارت» روشن است: این درس‌ها در برنامهٔ درسی رشتهٔ این دانشجو نیستند.</p>
                   <p className="font-bold">برای ثبتشان باید تیک «نادیده‌گرفتن آیین‌نامه» را با دلیل روشن بزنید؛ نام کاربر، دلیل و درس در تاریخچه ثبت می‌شود. برای برگشتن، دوباره همین دکمه را بزن.</p>
                 </div>
@@ -384,7 +384,7 @@ const filteredCatalog = useMemo(() => {
                       disabled={!c.offered || inCart(c.offeringId) || c.alreadyEnrolled}
                       onClick={() => setCart(p => inCart(c.offeringId) ? p.filter(x => x.offeringId !== c.offeringId) : [...p, c])}
                       title={c.offered ? '' : 'این درس در ترمِ انتخابی ارائه نشده است — تا ارائه شدن قابل ثبت نیست'}
-                      className={'px-2.5 py-1 rounded-lg text-[11px] font-black ' + (!c.offered ? 'bg-slate-200 text-slate-500 cursor-not-allowed' : inCart(c.offeringId) ? 'bg-indigo-800 text-white' : c.alreadyEnrolled ? 'bg-slate-200 text-slate-500' : 'bg-indigo-100 text-indigo-900 hover:bg-indigo-200')}>
+                      className={'px-2.5 py-1 rounded-lg text-2xs font-black ' + (!c.offered ? 'bg-slate-200 text-slate-500 cursor-not-allowed' : inCart(c.offeringId) ? 'bg-indigo-800 text-white' : c.alreadyEnrolled ? 'bg-slate-200 text-slate-500' : 'bg-indigo-100 text-indigo-900 hover:bg-indigo-200')}>
                       {!c.offered ? 'ارائه نشده' : c.alreadyEnrolled ? 'ثبت است' : inCart(c.offeringId) ? '✓ در سبد' : '＋'}
                     </button>
                     <span className={'font-bold ' + (c.offered ? 'text-slate-800' : 'text-slate-500')}>
@@ -392,15 +392,15 @@ const filteredCatalog = useMemo(() => {
                       {c.offered ? <span className="text-slate-500"> (گ{c.groupNumber})</span> : <span className="text-slate-400"> — در این ترم ارائه نشده</span>}
                     </span>
                     {c.offered
-                      ? <span className="text-[10px] text-slate-500">{c.units ?? ''} واحد · {c.enrolledCount}/{c.capacity} · {c.professorName}</span>
-                      : <span className="text-[10px] text-slate-400">{c.units ?? ''} واحد · {c.professorName === '—' ? 'بدون ارائه‌دهنده' : c.professorName}</span>}
-                    <span className={'px-1.5 py-0.5 rounded-full text-[10px] font-black ' + (c.scope === 'chart' ? 'bg-indigo-100 text-indigo-800' : c.scope === 'common' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-700')}>
+                      ? <span className="text-3xs text-slate-500">{c.units ?? ''} واحد · {c.enrolledCount}/{c.capacity} · {c.professorName}</span>
+                      : <span className="text-3xs text-slate-400">{c.units ?? ''} واحد · {c.professorName === '—' ? 'بدون ارائه‌دهنده' : c.professorName}</span>}
+                    <span className={'px-1.5 py-0.5 rounded-full text-3xs font-black ' + (c.scope === 'chart' ? 'bg-indigo-100 text-indigo-800' : c.scope === 'common' ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-700')}>
                       {c.scope === 'chart' ? 'چارت' : c.scope === 'common' ? 'مشترک' : 'خارج'}
                     </span>
-                    {c.prereq && !c.prereqMissing && <span className="text-[10px] text-amber-700 font-bold">پیش‌نیاز: {c.prereq}</span>}
-                    {c.prereqMissing && <span className="text-[10px] font-black text-rose-700 rounded-full bg-rose-100 px-2 py-0.5">⛔ پیش‌نیاز ناقص: {c.prereqMissing}</span>}
+                    {c.prereq && !c.prereqMissing && <span className="text-3xs text-amber-700 font-bold">پیش‌نیاز: {c.prereq}</span>}
+                    {c.prereqMissing && <span className="text-3xs font-black text-rose-700 rounded-full bg-rose-100 px-2 py-0.5">⛔ پیش‌نیاز ناقص: {c.prereqMissing}</span>}
                     {c.conflicts && c.conflicts.length > 0 && (
-                      <span className="text-[10px] font-black text-rose-700 rounded-full bg-rose-100 px-2 py-0.5">تداخل: {c.conflicts[0]}</span>
+                      <span className="text-3xs font-black text-rose-700 rounded-full bg-rose-100 px-2 py-0.5">تداخل: {c.conflicts[0]}</span>
                     )}
                   </div>
                 ))}
@@ -412,8 +412,8 @@ const filteredCatalog = useMemo(() => {
                   </p>
                 )}
               </div>
-              <p className={'text-[10px] leading-5 ' + (scopeFilter === 'other' ? 'text-rose-700 font-bold' : 'text-indigo-700')}>{scopeHint}</p>
-              <p className="text-[10px] text-slate-500">نادیده‌گرفتن آیین‌نامه (سقف واحد/پیش‌نیاز/ظرفیت/تداخل) اگر نیاز باشد از تیک بالا استفاده کن (با دلیل).</p>
+              <p className={'text-3xs leading-5 ' + (scopeFilter === 'other' ? 'text-rose-700 font-bold' : 'text-indigo-700')}>{scopeHint}</p>
+              <p className="text-3xs text-slate-500">نادیده‌گرفتن آیین‌نامه (سقف واحد/پیش‌نیاز/ظرفیت/تداخل) اگر نیاز باشد از تیک بالا استفاده کن (با دلیل).</p>
             </div>
           )}
 
@@ -453,7 +453,7 @@ const filteredCatalog = useMemo(() => {
 
           {/* ── انتخاب صریح دانشجو (اختیاری — مقدم بر فیلتر گروهی) ── */}
           <div className="rounded-xl border border-indigo-200 bg-indigo-50/40 p-2 space-y-1.5">
-            <p className="text-[11px] font-black text-indigo-900">🎯 انتخاب دانشجو (اختیاری): اگر دانشجویی اضافه کنی، فقط همان‌ها در عملیات لحاظ می‌شوند و فیلترهای بالا نادیده گرفته می‌شود.</p>
+            <p className="text-2xs font-black text-indigo-900">🎯 انتخاب دانشجو (اختیاری): اگر دانشجویی اضافه کنی، فقط همان‌ها در عملیات لحاظ می‌شوند و فیلترهای بالا نادیده گرفته می‌شود.</p>
             <div className="flex gap-1.5">
               <input value={bulkStudentQ} onChange={e => setBulkStudentQ(e.target.value)} onKeyDown={e => e.key === 'Enter' && searchBulkStudents()} placeholder="شماره دانشجویی یا نام…" className={sel + ' flex-1'} />
               <button onClick={searchBulkStudents} className="shrink-0 px-3 rounded-xl bg-slate-800 text-white text-xs font-black">جست‌وجو</button>
@@ -461,7 +461,7 @@ const filteredCatalog = useMemo(() => {
             {bulkStudentHits.length > 0 && (
               <div className="max-h-32 overflow-y-auto rounded-lg border border-indigo-100 bg-white divide-y divide-slate-100">
                 {bulkStudentHits.map(h => (
-                  <button key={h.studentId} onClick={() => addBulkStudent(h)} className="w-full text-right px-2 py-1 text-[11px] hover:bg-indigo-50 flex items-center justify-between">
+                  <button key={h.studentId} onClick={() => addBulkStudent(h)} className="w-full text-right px-2 py-1 text-2xs hover:bg-indigo-50 flex items-center justify-between">
                     <span className="font-bold">{h.studentCode} · {h.name}</span>
                     <span className="text-indigo-700 font-black">＋ افزودن</span>
                   </button>
@@ -471,12 +471,12 @@ const filteredCatalog = useMemo(() => {
             {bulkStudents.length > 0 && (
               <div className="flex flex-wrap gap-1.5">
                 {bulkStudents.map(s => (
-                  <span key={s.studentId} className="inline-flex items-center gap-1 rounded-full bg-indigo-700 text-white px-2.5 py-0.5 text-[11px] font-black">
+                  <span key={s.studentId} className="inline-flex items-center gap-1 rounded-full bg-indigo-700 text-white px-2.5 py-0.5 text-2xs font-black">
                     {s.studentCode} · {s.name}
                     <button onClick={() => removeBulkStudent(s.studentId)} className="text-white/80 hover:text-white">✕</button>
                   </span>
                 ))}
-                <button onClick={() => setBulkStudents([])} className="rounded-full bg-slate-200 text-slate-600 px-2.5 py-0.5 text-[11px] font-black">پاک‌سازی</button>
+                <button onClick={() => setBulkStudents([])} className="rounded-full bg-slate-200 text-slate-600 px-2.5 py-0.5 text-2xs font-black">پاک‌سازی</button>
               </div>
             )}
           </div>
@@ -498,7 +498,7 @@ const filteredCatalog = useMemo(() => {
             {bulkCount !== null && <span className="text-xs font-black text-indigo-800">{bulkCount.toLocaleString('fa-IR')} دانشجو</span>}
           </div>
           <div className="rounded-xl border border-slate-200 p-2 max-h-64 overflow-y-auto space-y-1">
-            <p className="text-[11px] font-bold text-slate-500">کلاس‌های ترم (چندتا را تیک بزن):</p>
+            <p className="text-2xs font-bold text-slate-500">کلاس‌های ترم (چندتا را تیک بزن):</p>
             {bulkOfferings.slice(0, 4000).map(o => (
               <label key={o.offeringId} className="flex items-center gap-2 text-xs">
                 <input type="checkbox" checked={chosen.includes(o.offeringId)} onChange={() => setChosen(p => p.includes(o.offeringId) ? p.filter(x => x !== o.offeringId) : [...p, o.offeringId])} className="w-4 h-4" />
@@ -583,7 +583,7 @@ const filteredCatalog = useMemo(() => {
                     <td className="p-2">{h.termTitle}</td>
                     <td className="p-2">{h.who}</td>
                     <td className="p-2">{h.when ? new Date(h.when).toLocaleString('fa-IR') : '—'}</td>
-                    <td className="p-2 text-center">{h.override ? <span className="px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 font-black text-[10px]">بله</span> : '—'}</td>
+                    <td className="p-2 text-center">{h.override ? <span className="px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 font-black text-3xs">بله</span> : '—'}</td>
                     <td className="p-2 text-slate-600">{h.reason || '—'}</td>
                   </tr>
                 ))}

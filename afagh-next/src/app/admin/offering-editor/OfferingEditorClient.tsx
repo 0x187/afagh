@@ -138,7 +138,7 @@ export default function OfferingEditorClient({ terms }: { terms: { id: number; t
           <tbody>
             {filtered.map(r => (
               <tr key={r.offeringId} className="border-t border-slate-100">
-                <td className="p-2"><b>{r.code}</b> {r.title}<div className="text-[10px] text-slate-500">{r.professorName}</div></td>
+                <td className="p-2"><b>{r.code}</b> {r.title}<div className="text-3xs text-slate-500">{r.professorName}</div></td>
                 <td className="p-2 text-center">{r.groupNumber}</td>
                 <td className="p-2 text-center">{r.capacity}</td>
                 <td className="p-2 text-center">{r.enrolledCount}</td>
@@ -163,7 +163,7 @@ export default function OfferingEditorClient({ terms }: { terms: { id: number; t
             <p className="text-xs font-black text-indigo-800">👤 کارشناسان آموزشِ این کلاس</p>
             <div className="flex flex-wrap items-center gap-1.5">
               {draft.eduExpertUserIds.map(id => (
-                <span key={id} className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-800">
+                <span key={id} className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-2xs font-bold text-indigo-800">
                   {experts.find(x => x.userId === id)?.name ?? `#${id}`}
                   <button
                     type="button"
@@ -175,7 +175,7 @@ export default function OfferingEditorClient({ terms }: { terms: { id: number; t
                 </span>
               ))}
               {!draft.eduExpertUserIds.length && (
-                <span className="text-[11px] text-slate-500">
+                <span className="text-2xs text-slate-500">
                   {draft.roomExpertUserIds?.length
                     ? 'بدون تخصیصِ صریح برای این درس — کارشناس از اتاقِ سانس‌های همین درس می‌آید:'
                     : 'خالی = کارشناس از دامنهٔ نقش‌های او پایین می‌آید.'}
@@ -188,7 +188,7 @@ export default function OfferingEditorClient({ terms }: { terms: { id: number; t
                 .map(id => (
                   <span
                     key={`room-${id}`}
-                    className="inline-flex items-center gap-1 rounded-full bg-teal-100 border border-teal-300 px-2 py-0.5 text-[11px] font-bold text-teal-900"
+                    className="inline-flex items-center gap-1 rounded-full bg-teal-100 border border-teal-300 px-2 py-0.5 text-2xs font-bold text-teal-900"
                     title="از تخصیصِ اتاق به ارث رسیده — برای تغییر، در صفحهٔ «تخصیص کارشناس به اتاق‌ها» عوض کنید"
                   >
                     {experts.find(x => x.userId === id)?.name ?? `#${id}`}
@@ -211,7 +211,7 @@ export default function OfferingEditorClient({ terms }: { terms: { id: number; t
                   .map(x => <option key={x.userId} value={x.userId}>{x.name}</option>)}
               </select>
             </div>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-2xs text-slate-500">
               {draft.eduExpertUserIds.length
                 ? `تخصیص صریح این کلاس (${draft.eduExpertUserIds.length} کارشناس) — بر تخصیص اتاق و نقش‌ها اولویت دارد.`
                 : draft.roomExpertUserIds?.length
@@ -219,11 +219,11 @@ export default function OfferingEditorClient({ terms }: { terms: { id: number; t
                   : 'تخصیص صریحی برای این کلاس ثبت نشده و اتاقِ سانس‌ها هم کارشناس ندارد.'}
             </p>
             {!experts.length && (
-              <p className="text-[11px] text-amber-700">
+              <p className="text-2xs text-amber-700">
                 هیچ کارشناس آموزشی با نقش EDU_EXPERT ثبت نشده — ابتدا در «تخصیص نقش‌ها» اضافه کنید.
               </p>
             )}
-            <a href="/admin/edu-expert-assign" className="inline-block text-[11px] font-bold text-indigo-700 underline">
+            <a href="/admin/edu-expert-assign" className="inline-block text-2xs font-bold text-indigo-700 underline">
               📋 تخصیص گروهی برای همهٔ کلاس‌های ترم →
             </a>
           </div>
@@ -258,11 +258,11 @@ export default function OfferingEditorClient({ terms }: { terms: { id: number; t
               title="تاریخ شمسی — مثلاً ۱۴۰۵/۱۱/۱۰"
               className={sel + ' w-32 ' + (draft.exam?.date && !jalaliInputToStored(draft.exam.date) ? 'border-rose-400 bg-rose-50' : '')}
             />
-            <span className="text-[10px] font-bold text-slate-500">شمسی</span>
+            <span className="text-3xs font-bold text-slate-500">شمسی</span>
             <input type="time" value={draft.exam?.start ?? ''} onChange={e => setDraft({ ...draft, exam: draft.exam ? { ...draft.exam, start: e.target.value } : { id: null, date: '', start: e.target.value, end: '' } })} className={sel} />
             <input type="time" value={draft.exam?.end ?? ''} onChange={e => setDraft({ ...draft, exam: draft.exam ? { ...draft.exam, end: e.target.value } : { id: null, date: '', start: '', end: e.target.value } })} className={sel} />
             {draft.exam && draft.exam.date && (
-              <button onClick={() => setDraft({ ...draft, exam: null })} className="text-[11px] text-rose-600 font-bold">حذف امتحان</button>
+              <button onClick={() => setDraft({ ...draft, exam: null })} className="text-2xs text-rose-600 font-bold">حذف امتحان</button>
             )}
           </div>
           <input value={reason} onChange={e => setReason(e.target.value)} placeholder="دلیل در صورت تداخل (حکم/مجوز) — در غیر این صورت خالی…" className={sel + ' w-full'} />

@@ -35,6 +35,7 @@ import MultipliersTab from './components/MultipliersTab';
 import ContractsTab from './components/ContractsTab';
 import BankDisketteTab from './components/BankDisketteTab';
 import CoefficientsRulesTab from './components/CoefficientsRulesTab';
+import { notify } from '@/lib/ui-feedback';
 
 export default function PayrollEngineClient({ universityTitle }: { universityTitle?: string | null } = {}) {
   const [state, dispatch] = useReducer(
@@ -78,11 +79,11 @@ export default function PayrollEngineClient({ universityTitle }: { universityTit
       // گلوگاه‌های قانونی (Enforcement Gates)
       if (rec.status === 'DEAN_APPROVED') {
         if (!rec.gradesFinalized) {
-          alert('⛔ گلوگاه تسویه مالی: استاد هنوز کلیه نمرات دروس ترم را نهایی نکرده است. صدور سند تسویه مالی مسدود است.');
+          notify('⛔ گلوگاه تسویه مالی: استاد هنوز کلیه نمرات دروس ترم را نهایی نکرده است. صدور سند تسویه مالی مسدود است.', 'error');
           return;
         }
         if (!rec.contractSigned || !rec.appointmentSigned) {
-          alert('⛔ گلوگاه اسناد: استاد هنوز قرارداد یا ابلاغیه تدریس را با امضای الکترونیک تایید نکرده است.');
+          notify('⛔ گلوگاه اسناد: استاد هنوز قرارداد یا ابلاغیه تدریس را با امضای الکترونیک تایید نکرده است.', 'error');
           return;
         }
       }
@@ -195,31 +196,31 @@ export default function PayrollEngineClient({ universityTitle }: { universityTit
         {/* Quick KPI Bar */}
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5 pt-4 mt-4 border-t border-indigo-800/60 text-xs">
           <div className="p-2.5 bg-indigo-900/60 rounded-xl border border-indigo-700/40">
-            <span className="text-indigo-300 block text-[11px]">کل خالص پرداختی ترم:</span>
+            <span className="text-indigo-300 block text-2xs">کل خالص پرداختی ترم:</span>
             <span className="text-base font-black text-emerald-400 font-mono">
-              {totalNetAmount.toLocaleString('fa-IR')} <span className="text-[10px] font-normal text-indigo-200">ريال</span>
+              {totalNetAmount.toLocaleString('fa-IR')} <span className="text-3xs font-normal text-indigo-200">ريال</span>
             </span>
           </div>
           <div className="p-2.5 bg-indigo-900/60 rounded-xl border border-indigo-700/40">
-            <span className="text-indigo-300 block text-[11px]">تعداد کل اساتید:</span>
+            <span className="text-indigo-300 block text-2xs">تعداد کل اساتید:</span>
             <span className="text-base font-black text-white">
               {payrollRecords.length} نفر ({fullTimeFacultyCount} هیئت علمی · {adjunctFacultyCount} مدعو)
             </span>
           </div>
           <div className="p-2.5 bg-indigo-900/60 rounded-xl border border-indigo-700/40">
-            <span className="text-indigo-300 block text-[11px]">مجموع واحدهای معادل:</span>
+            <span className="text-indigo-300 block text-2xs">مجموع واحدهای معادل:</span>
             <span className="text-base font-black text-amber-300 font-mono">
               {totalEquivalentUnitsCount.toFixed(2)} واحد
             </span>
           </div>
           <div className="p-2.5 bg-indigo-900/60 rounded-xl border border-indigo-700/40">
-            <span className="text-indigo-300 block text-[11px]">مجموع کسورات قانونی و انضباطی:</span>
+            <span className="text-indigo-300 block text-2xs">مجموع کسورات قانونی و انضباطی:</span>
             <span className="text-base font-black text-rose-300 font-mono">
-              {totalDeductionsAmount.toLocaleString('fa-IR')} <span className="text-[10px] font-normal text-indigo-200">ريال</span>
+              {totalDeductionsAmount.toLocaleString('fa-IR')} <span className="text-3xs font-normal text-indigo-200">ريال</span>
             </span>
           </div>
           <div className="p-2.5 bg-indigo-900/60 rounded-xl border border-indigo-700/40">
-            <span className="text-indigo-300 block text-[11px]">وضعیت تسویه مالی:</span>
+            <span className="text-indigo-300 block text-2xs">وضعیت تسویه مالی:</span>
             <span className="text-base font-black text-emerald-300">
               {payrollRecords.filter(r => r.status === 'FINANCE_SETTLED').length} فیش تسویه شده
             </span>
@@ -381,7 +382,7 @@ export default function PayrollEngineClient({ universityTitle }: { universityTit
                   <h3 className="font-extrabold text-sm sm:text-base">
                     ابلاغیه رسمی تدریس{universityTitle ? ` — ${universityTitle}` : ''}
                   </h3>
-                  <p className="text-[11px] text-indigo-300">
+                  <p className="text-2xs text-indigo-300">
                     شماره حکم: {selectedDecreeForView.decreeNo} · {selectedDecreeForView.termTitle}
                   </p>
                 </div>
@@ -440,7 +441,7 @@ export default function PayrollEngineClient({ universityTitle }: { universityTit
                     {selectedDecreeForView.signatureStatus === 'SIGNED' ? '✓ سند دارای امضای الکترونیک معتبر و غیرقابل انکار است' : 'در انتظار تایید و امضای الکترونیک استاد'}
                   </span>
                   {selectedDecreeForView.signedAt && (
-                    <span className="text-[10px] text-emerald-800 font-mono block">
+                    <span className="text-3xs text-emerald-800 font-mono block">
                       تاریخ امضا: {selectedDecreeForView.signedAt} · کد OTP: {selectedDecreeForView.otpUsed}
                     </span>
                   )}
@@ -490,7 +491,7 @@ export default function PayrollEngineClient({ universityTitle }: { universityTit
                   <h3 className="font-extrabold text-sm sm:text-base">
                     فیش رسمی حق‌التدریس و کارکرد آموزشی اساتید — دانشگاه آفاق
                   </h3>
-                  <p className="text-[11px] text-indigo-300">
+                  <p className="text-2xs text-indigo-300">
                     نیمسال اول ۱۴۰۵-۱۴۰۴ · شماره سند: AFAGH-PAY-1405-{detailedPayslipRecord.id}
                   </p>
                 </div>
@@ -508,23 +509,23 @@ export default function PayrollEngineClient({ universityTitle }: { universityTit
               {/* Professor Profile Box */}
               <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
                 <div>
-                  <span className="text-slate-500 text-[11px] block">نام استاد:</span>
+                  <span className="text-slate-500 text-2xs block">نام استاد:</span>
                   <span className="font-black text-slate-900 text-sm">{detailedPayslipRecord.name}</span>
                 </div>
                 <div>
-                  <span className="text-slate-500 text-[11px] block">کد پرسنلی / کد ملی:</span>
+                  <span className="text-slate-500 text-2xs block">کد پرسنلی / کد ملی:</span>
                   <span className="font-mono font-bold text-slate-800" dir="ltr">
                     {detailedPayslipRecord.staffCode} · {detailedPayslipRecord.nationalCode}
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-500 text-[11px] block">مرتبه علمی و مدرک:</span>
+                  <span className="text-slate-500 text-2xs block">مرتبه علمی و مدرک:</span>
                   <span className="font-bold text-indigo-900">
                     {detailedPayslipRecord.academicRank} ({detailedPayslipRecord.degree})
                   </span>
                 </div>
                 <div>
-                  <span className="text-slate-500 text-[11px] block">نوع قرارداد / سقف موظفی:</span>
+                  <span className="text-slate-500 text-2xs block">نوع قرارداد / سقف موظفی:</span>
                   <span className="font-bold text-slate-800">
                     {detailedPayslipRecord.contractType === 'FULL_TIME_FACULTY'
                       ? `هیئت علمی (${detailedPayslipRecord.baseDutyUnits} واحد موظفی)`
@@ -656,7 +657,7 @@ export default function PayrollEngineClient({ universityTitle }: { universityTit
                   </span>
                 </div>
                 <div className="text-left text-xs font-mono">
-                  <span className="block text-emerald-200 text-[10px]">شماره شبا:</span>
+                  <span className="block text-emerald-200 text-3xs">شماره شبا:</span>
                   <span className="font-black" dir="ltr">{detailedPayslipRecord.iban}</span>
                 </div>
               </div>
@@ -664,17 +665,17 @@ export default function PayrollEngineClient({ universityTitle }: { universityTit
               {/* Signatures and Seals */}
               <div className="grid grid-cols-3 gap-3 pt-3 border-t border-slate-200 text-center text-xs">
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-                  <span className="text-slate-500 font-bold block text-[10px]">تایید مدیر گروه آموزشی:</span>
+                  <span className="text-slate-500 font-bold block text-3xs">تایید مدیر گروه آموزشی:</span>
                   <span className="font-black text-slate-800">دکتر رضا رضایی</span>
                   <span className="text-emerald-700 font-mono text-[9px] block">✓ امضای دیجیتال ثبت شد</span>
                 </div>
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-                  <span className="text-slate-500 font-bold block text-[10px]">تایید معاونت آموزشی دانشکده:</span>
+                  <span className="text-slate-500 font-bold block text-3xs">تایید معاونت آموزشی دانشکده:</span>
                   <span className="font-black text-slate-800">دکتر محمدرضا صادقی</span>
                   <span className="text-emerald-700 font-mono text-[9px] block">✓ امضای دیجیتال ثبت شد</span>
                 </div>
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-                  <span className="text-slate-500 font-bold block text-[10px]">مهر اداره کل امور مالی و پرداخت:</span>
+                  <span className="text-slate-500 font-bold block text-3xs">مهر اداره کل امور مالی و پرداخت:</span>
                   <span className="font-black text-slate-800">{universityTitle || '—'}</span>
                   <span className="text-emerald-700 font-mono text-[9px] block">✓ پلمب و سند حسابداری صادر شد</span>
                 </div>

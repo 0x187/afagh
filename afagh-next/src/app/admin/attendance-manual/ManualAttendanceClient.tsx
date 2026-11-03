@@ -113,7 +113,7 @@ export default function ManualAttendanceClient({
       </div>
 
       <div className="flex flex-wrap items-end gap-2 rounded-xl border border-slate-300 bg-white p-3">
-        <label className="text-[11px] font-bold text-slate-700">
+        <label className="text-2xs font-bold text-slate-700">
           نیمسال
           <select
             value={termId}
@@ -127,15 +127,15 @@ export default function ManualAttendanceClient({
             ))}
           </select>
         </label>
-        <label className="text-[11px] font-bold text-slate-700">
+        <label className="text-2xs font-bold text-slate-700">
           جست‌وجو (درس/استاد/تاریخ)
           <input value={q} onChange={e => setQ(e.target.value)} className="mt-1 block w-56 rounded-lg border border-slate-300 px-2 py-1.5 text-xs" />
         </label>
-        <label className="flex items-center gap-1 pb-2 text-[11px] font-bold text-slate-700">
+        <label className="flex items-center gap-1 pb-2 text-2xs font-bold text-slate-700">
           <input type="checkbox" checked={onlyMissing} onChange={e => setOnlyMissing(e.target.checked)} />
           فقط جلسه‌های بدون تأیید
         </label>
-        <span className="mr-auto text-[11px] text-slate-500">
+        <span className="mr-auto text-2xs text-slate-500">
           {faNum(filtered.length)} جلسه از {faNum(rows.length)} — {termTitle}
         </span>
       </div>
@@ -149,7 +149,7 @@ export default function ManualAttendanceClient({
       <div className="overflow-x-auto rounded-xl border border-slate-300 bg-white">
         <table className="w-full text-xs rt">
           <thead>
-            <tr className="bg-slate-900 text-center text-[11px] text-white">
+            <tr className="bg-slate-900 text-center text-2xs text-white">
               <th className="p-2.5">جلسه</th>
               <th className="p-2.5">تاریخ / ساعت</th>
               <th className="p-2.5">درس</th>
@@ -172,11 +172,11 @@ export default function ManualAttendanceClient({
                   </td>
                   <td className="p-2.5 text-center text-slate-600">
                     <span className="block font-mono">{faNum(r.sessionDate)}</span>
-                    <span className="block text-[10px] text-slate-400" dir="ltr">{r.time}</span>
+                    <span className="block text-3xs text-slate-400" dir="ltr">{r.time}</span>
                   </td>
                   <td className="p-2.5">
                     <span className="font-black text-indigo-950">{r.courseCode}</span>
-                    <span className="block text-[10px] text-slate-500">{r.courseTitle}</span>
+                    <span className="block text-3xs text-slate-500">{r.courseTitle}</span>
                     {r.merged ? (
                       <span
                         title={`این کلاس از ${faNum(r.memberCount ?? 2)} عرضه تشکیل شده و ثبت روی همهٔ آن‌ها اعمال می‌شود.`}
@@ -189,13 +189,13 @@ export default function ManualAttendanceClient({
                   <td className="p-2.5 font-bold text-slate-800">{r.professorName}</td>
                   <td className="p-2.5 text-center">
                     {r.punches > 0
-                      ? <span className="rounded-full bg-teal-100 px-2 py-0.5 text-[10px] font-black text-teal-800">✓ {faNum(r.punches)} تردد</span>
-                      : <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500">ثبت نشده</span>}
+                      ? <span className="rounded-full bg-teal-100 px-2 py-0.5 text-3xs font-black text-teal-800">✓ {faNum(r.punches)} تردد</span>
+                      : <span className="rounded-full bg-slate-100 px-2 py-0.5 text-3xs font-black text-slate-500">ثبت نشده</span>}
                   </td>
                   <td className="p-2.5 text-center">
                     {recorded
-                      ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">✓ حاضر {manual ? '(دستی)' : ''}</span>
-                      : <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500">—</span>}
+                      ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-3xs font-black text-emerald-800">✓ حاضر {manual ? '(دستی)' : ''}</span>
+                      : <span className="rounded-full bg-slate-100 px-2 py-0.5 text-3xs font-black text-slate-500">—</span>}
                     {r.note && <span className="mt-1 block text-[9px] text-slate-500">{r.note}</span>}
                   </td>
                   <td className="p-2.5 text-center">
@@ -203,12 +203,12 @@ export default function ManualAttendanceClient({
                     {r.isExtraSession && <span className="ml-1 rounded bg-violet-100 px-1.5 py-0.5 text-[9px] font-black text-violet-800">فوق‌برنامه</span>}
                     {isHeld(r) ? (
                       <>
-                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">✓ برگزار شد</span>
+                        <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-3xs font-black text-emerald-800">✓ برگزار شد</span>
                         <button
                           type="button"
                           disabled={pending}
                           onClick={() => markHeld(r, false)}
-                          className="mr-1 rounded-lg border border-slate-300 px-2 py-0.5 text-[10px] font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
+                          className="mr-1 rounded-lg border border-slate-300 px-2 py-0.5 text-3xs font-black text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
                         >
                           لغو
                         </button>
@@ -218,7 +218,7 @@ export default function ManualAttendanceClient({
                         type="button"
                         disabled={pending}
                         onClick={() => markHeld(r, true)}
-                        className="rounded-lg bg-indigo-700 px-2.5 py-1 text-[10px] font-black text-white transition hover:bg-indigo-800 disabled:opacity-40"
+                        className="rounded-lg bg-indigo-700 px-2.5 py-1 text-3xs font-black text-white transition hover:bg-indigo-800 disabled:opacity-40"
                       >
                         تیک تشکیل کلاس
                       </button>
@@ -229,7 +229,7 @@ export default function ManualAttendanceClient({
                       type="button"
                       disabled={pending || !r.staffId}
                       onClick={() => act(r, true)}
-                      className="rounded-lg bg-emerald-700 px-2.5 py-1 text-[10px] font-black text-white transition hover:bg-emerald-800 disabled:opacity-40"
+                      className="rounded-lg bg-emerald-700 px-2.5 py-1 text-3xs font-black text-white transition hover:bg-emerald-800 disabled:opacity-40"
                     >
                       تأیید حضور
                     </button>
@@ -238,7 +238,7 @@ export default function ManualAttendanceClient({
                         type="button"
                         disabled={pending}
                         onClick={() => act(r, false)}
-                        className="mr-1 rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1 text-[10px] font-black text-rose-800 transition hover:bg-rose-100 disabled:opacity-40"
+                        className="mr-1 rounded-lg border border-rose-300 bg-rose-50 px-2.5 py-1 text-3xs font-black text-rose-800 transition hover:bg-rose-100 disabled:opacity-40"
                       >
                         لغو
                       </button>

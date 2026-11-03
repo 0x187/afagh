@@ -51,7 +51,7 @@ export default function PlanView({ offeringId, data }: { offeringId: number; dat
       <div className="bg-gradient-to-l from-indigo-950 via-indigo-900 to-slate-900 text-white rounded-2xl p-5 shadow-lg border border-indigo-700/50">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-400 text-slate-950">
+            <span className="px-2.5 py-0.5 rounded-full text-2xs font-bold bg-emerald-400 text-slate-950">
               طرح درس منتشرشده
             </span>
             <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight mt-1">📋 طرح درس ارائه‌شده توسط استاد</h1>
@@ -94,7 +94,7 @@ export default function PlanView({ offeringId, data }: { offeringId: number; dat
               <div className="flex flex-wrap items-center gap-2">
                 <span className="font-black text-slate-900 text-xs">جلسه {faNum(s.sessionNo)}</span>
                 <span
-                  className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                  className={`px-2 py-0.5 rounded-full text-3xs font-bold ${
                     String(s.sessionKind).toUpperCase().startsWith('PRACT')
                       ? 'bg-amber-100 text-amber-900'
                       : 'bg-blue-100 text-blue-900'
@@ -104,7 +104,7 @@ export default function PlanView({ offeringId, data }: { offeringId: number; dat
                 </span>
               </div>
               <div className="font-bold text-slate-800 text-xs mt-1">{s.topic || '—'}</div>
-              {s.details && <p className="text-[11px] text-slate-500 leading-5 mt-0.5 whitespace-pre-wrap">{s.details}</p>}
+              {s.details && <p className="text-2xs text-slate-500 leading-5 mt-0.5 whitespace-pre-wrap">{s.details}</p>}
             </li>
           ))}
         </ol>

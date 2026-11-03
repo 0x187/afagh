@@ -54,7 +54,7 @@ export default async function TemplateEditorPage({
           <h1 className="text-base font-bold text-slate-800">
             قالب <span dir="ltr">{tpl.key}</span> — {tpl.title}
           </h1>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-2xs text-slate-500">
             {tpl.columnCount} ستون · نوع {tpl.examKind} · سال {tpl.examYear}
             {tpl.verifiedWithRealFile ? ' · اعتبارسنجی‌شده با فایل واقعی' : ' · بدون نمونهٔ واقعی'}
           </p>
@@ -67,7 +67,7 @@ export default async function TemplateEditorPage({
       <Flash msg={sp.msg} err={sp.err} />
 
       {isBuiltin && (
-        <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-800">
+        <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-2xs text-amber-800">
           این قالب پیش‌فرض است و قابل ویرایش نیست. برای تغییر ساختار، از صفحهٔ قالب‌ها یک «کپی برای سال جدید» بسازید.
         </div>
       )}
@@ -79,11 +79,11 @@ export default async function TemplateEditorPage({
 
         <section className="card mb-3">
           <div className="grid grid-cols-2 items-end gap-2 md:grid-cols-12">
-            <label className="col-span-2 flex min-w-0 flex-col gap-0.5 text-[10px] text-slate-500 md:col-span-5">
+            <label className="col-span-2 flex min-w-0 flex-col gap-0.5 text-3xs text-slate-500 md:col-span-5">
               <span>عنوان</span>
               <input name="title" defaultValue={tpl.title} disabled={isBuiltin} className="input !py-1 !px-2 text-xs" />
             </label>
-            <label className="col-span-1 flex min-w-0 flex-col gap-0.5 text-[10px] text-slate-500 md:col-span-2">
+            <label className="col-span-1 flex min-w-0 flex-col gap-0.5 text-3xs text-slate-500 md:col-span-2">
               <span>نوع آزمون</span>
               <select name="examKind" defaultValue={tpl.examKind} disabled={isBuiltin} className="input !py-1 !px-2 text-xs" dir="ltr">
                 <option value="FANI">FANI</option>
@@ -93,12 +93,12 @@ export default async function TemplateEditorPage({
                 <option value="CUSTOM">CUSTOM</option>
               </select>
             </label>
-            <label className="col-span-1 flex min-w-0 flex-col gap-0.5 text-[10px] text-slate-500 md:col-span-2">
+            <label className="col-span-1 flex min-w-0 flex-col gap-0.5 text-3xs text-slate-500 md:col-span-2">
               <span>سال</span>
               <input name="examYear" defaultValue={tpl.examYear} disabled={isBuiltin} inputMode="numeric" className="input !py-1 !px-2 text-xs" dir="ltr" />
             </label>
             <div className="col-span-2 flex items-end md:col-span-3">
-              <span className="text-[11px] text-slate-500">
+              <span className="text-2xs text-slate-500">
                 {tpl.columns.length.toLocaleString('fa-IR')} ستون
               </span>
             </div>

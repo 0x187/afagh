@@ -335,7 +335,7 @@ export default async function StudentTranscriptPage({
               {r.status === 'GRADUATED' ? ' — فارغ‌التحصیل' : ''}
             </a>
           ))}
-          <span className="text-[10px] text-slate-400">هر مقطع کارنامهٔ جداگانه و QR جدا دارد.</span>
+          <span className="text-3xs text-slate-400">هر مقطع کارنامهٔ جداگانه و QR جدا دارد.</span>
         </div>
       )}
       {/* نوار ابزار: انتخاب نمای سند (کل / نیمسال) + چاپ همان نما */}
@@ -407,7 +407,7 @@ export default async function StudentTranscriptPage({
               <p className="font-bold text-slate-800">جمهوری اسلامی ایران</p>
               <p className="font-semibold text-slate-700">وزارت علوم، تحقیقات و فناوری</p>
               {universityTitle ? <p className="font-extrabold text-slate-900 text-sm">{universityTitle}</p> : null}
-              <p className="text-[11px] text-slate-500">معاونت آموزشی و تحصیلات تکمیلی</p>
+              <p className="text-2xs text-slate-500">معاونت آموزشی و تحصیلات تکمیلی</p>
             </div>
 
             {/* ستون وسط (نشان و عنوان سند) */}
@@ -418,11 +418,11 @@ export default async function StudentTranscriptPage({
               <h1 className="text-base font-black tracking-wide text-slate-950 border-b border-slate-800 pb-0.5 px-4">
                 {docTitle}
               </h1>
-              <p className="text-[10px] text-slate-600 mt-0.5">{docSubtitle}</p>
+              <p className="text-3xs text-slate-600 mt-0.5">{docSubtitle}</p>
             </div>
 
             {/* ستون چپ (اطلاعات سند) */}
-            <div className="text-left space-y-1 font-mono text-[11px]">
+            <div className="text-left space-y-1 font-mono text-2xs">
               <p><span className="font-sans text-slate-500">شماره پرونده: </span><b>{me.studentCode}</b></p>
               <p><span className="font-sans text-slate-500">تاریخ صدور: </span><b>{todayFa}</b></p>
               <p><span className="font-sans text-slate-500">صفحه: </span><b>۱ از ۱</b></p>
@@ -435,17 +435,17 @@ export default async function StudentTranscriptPage({
             عمداً «متن + کادر ضخیم» است نه فقط پس‌زمینهٔ رنگی (بسیاری از چاپگرها
             پس‌زمینه را حذف می‌کنند). متنِ نوار همان سیاست سند است: نسخهٔ مشاهده‌ای
             تا تأیید کارشناس، سند استنادی نیست و نسخهٔ معتبر از مسیر درخواست صادر می‌شود. */}
-        <div className="tr-unverified-band mb-3 flex flex-wrap items-center justify-between gap-2 border-2 border-amber-700 bg-amber-50 px-3 py-1.5 text-[10px] font-black text-amber-950">
+        <div className="tr-unverified-band mb-3 flex flex-wrap items-center justify-between gap-2 border-2 border-amber-700 bg-amber-50 px-3 py-1.5 text-3xs font-black text-amber-950">
           <span>⚠️ این کارنامه تا تأیید کارشناس امور آموزشی <u>غیرقابل استناد</u> است.</span>
           <span className="shrink-0 font-mono text-[9px] text-amber-900">نسخهٔ مشاهده‌ای — بدون رمز تایید</span>
         </div>
 
         {/* ۲. جدول مشخصات هویتی، آموزشی و آیین‌نامه اجرایی */}
         <div className="border border-slate-800 mb-5 overflow-hidden">
-          <div className="bg-slate-100 px-3 py-1 font-bold text-slate-900 border-b border-slate-800 text-[11px]">
+          <div className="bg-slate-100 px-3 py-1 font-bold text-slate-900 border-b border-slate-800 text-2xs">
             مشخصات فردی، تحصیلی و آیین‌نامه ملاک عمل
           </div>
-          <table className="w-full text-right text-[11px] border-collapse rt">
+          <table className="w-full text-right text-2xs border-collapse rt">
             <tbody>
               <tr className="border-b border-slate-300">
                 <td className="p-1.5 bg-slate-50 font-medium text-slate-600 w-1/6 border-l border-slate-300">نام و نام خانوادگی:</td>
@@ -469,7 +469,7 @@ export default async function StudentTranscriptPage({
                 <td className="p-1.5 bg-slate-50 font-medium text-slate-600 border-l border-slate-300">آیین‌نامه ملاک عمل:</td>
                 <td colSpan={3} className="p-1.5 font-semibold text-slate-900">
                   <span className="text-indigo-950 font-bold">{shownRegulation}</span>
-                  <span className="text-slate-500 text-[10px] mr-2">({regPolicy})</span>
+                  <span className="text-slate-500 text-3xs mr-2">({regPolicy})</span>
                 </td>
               </tr>
             </tbody>
@@ -556,19 +556,19 @@ export default async function StudentTranscriptPage({
                             )}
                           </span>
                           {termItem.isCurrent && (
-                            <span className="text-[10px] bg-emerald-700 text-white font-bold px-1.5 py-0.2 rounded">
+                            <span className="text-3xs bg-emerald-700 text-white font-bold px-1.5 py-0.2 rounded">
                               جاری
                             </span>
                           )}
                         </div>
-                        <span className="font-mono text-slate-700 text-[10px]" dir="ltr">
+                        <span className="font-mono text-slate-700 text-3xs" dir="ltr">
                           {termItem.normalized.displayYear} / {termItem.normalized.semester}
                         </span>
                       </div>
                     </div>
 
                     {/* جدول دروس */}
-                  <table className="w-full text-right text-[11px] border-collapse rt">
+                  <table className="w-full text-right text-2xs border-collapse rt">
                     <thead>
                       <tr className="bg-slate-100 border-b border-slate-700 font-bold text-slate-800">
                         <th className="p-1 border-l border-slate-300 text-center w-6">ردیف</th>
@@ -606,7 +606,7 @@ export default async function StudentTranscriptPage({
                         return (
                           <tr key={row.id} className="border-b border-slate-200 hover:bg-slate-50">
                             <td className="p-1 border-l border-slate-200 text-center text-slate-600">{rIdx + 1}</td>
-                            <td className="p-1 border-l border-slate-200 text-center font-mono text-[10px]" dir="ltr">{row.code}</td>
+                            <td className="p-1 border-l border-slate-200 text-center font-mono text-3xs" dir="ltr">{row.code}</td>
                             <td className="p-1 border-l border-slate-200 font-semibold text-slate-900">
                               {row.title}
                             </td>
@@ -614,7 +614,7 @@ export default async function StudentTranscriptPage({
                             <td className="p-1 border-l border-slate-200 text-center font-black text-slate-900">
                               {row.grade != null ? (
                                 isDescriptive ? (
-                                  <span className="text-emerald-800 text-[10px]">قبول</span>
+                                  <span className="text-emerald-800 text-3xs">قبول</span>
                                 ) : (
                                   Number(row.grade).toFixed(2)
                                 )
@@ -622,7 +622,7 @@ export default async function StudentTranscriptPage({
                                 <span className="text-slate-400">—</span>
                               )}
                             </td>
-                            <td className="p-1 text-center font-bold text-[10px]">
+                            <td className="p-1 text-center font-bold text-3xs">
                               {resultDisplay}
                             </td>
                           </tr>
@@ -631,7 +631,7 @@ export default async function StudentTranscriptPage({
                     </tbody>
                   </table>
 
-                <div className="bg-slate-100 p-2 border-t border-slate-700 flex items-center justify-between font-bold text-[10px] text-slate-800 mt-auto">
+                <div className="bg-slate-100 p-2 border-t border-slate-700 flex items-center justify-between font-bold text-3xs text-slate-800 mt-auto">
                   <div className="flex gap-2">
                     <span>اخذ: <b className="font-mono">{termUnits}</b></span>
                     <span>گذرانده: <b className="text-emerald-800 font-mono">{termPassed}</b></span>
@@ -653,7 +653,7 @@ export default async function StudentTranscriptPage({
               ? `خلاصه وضعیت نیمسال ${activeBucket!.title}`
               : 'خلاصه وضعیت تحصیلی کل دوره تا تاریخ صدور کارنامه'}
           </div>
-          <table className="w-full text-center text-[11px] border-collapse font-bold rt">
+          <table className="w-full text-center text-2xs border-collapse font-bold rt">
             <tbody>
               <tr className="bg-slate-100 border-b border-slate-400 text-slate-700">
                 <td className="p-2 border-l border-slate-300">{isTermView ? 'واحدهای اخذشده' : 'کل واحدهای اخذشده'}</td>
@@ -680,7 +680,7 @@ export default async function StudentTranscriptPage({
             </tbody>
           </table>
           {!isTermView && officialGpaData.excludedCount > 0 && (
-            <div className="bg-emerald-50 px-3 py-1.5 border-t border-emerald-200 text-[10px] text-emerald-900 font-medium flex items-center justify-between">
+            <div className="bg-emerald-50 px-3 py-1.5 border-t border-emerald-200 text-3xs text-emerald-900 font-medium flex items-center justify-between">
               <span>✨ تعداد <b>{officialGpaData.excludedCount} نمره مردودی</b> پس از قبولی مجدد در درس، طبق مصوبه آیین‌نامه (EXCLUDE_IF_PASSED) از مخرج و صورت معدل کل کسر گردید.</span>
               <span className="font-bold text-emerald-950">آیین‌نامه ملاک عمل</span>
             </div>
@@ -691,7 +691,7 @@ export default async function StudentTranscriptPage({
             کارنامهٔ معتبر، در بخش تعاملیِ زیرِ سند نمایش داده می‌شود. */}
 
         {/* ۶. متن حقوقی سند و محل امضا و مهرهای رسمی */}
-        <div className="mt-6 pt-3 border-t border-slate-400 text-[10px] text-slate-600 space-y-4">
+        <div className="mt-6 pt-3 border-t border-slate-400 text-3xs text-slate-600 space-y-4">
           <p className="leading-relaxed">
             <b>تذکر مهم:</b> این کارنامه صرفاً جهت اطلاع و مشاهدهٔ شخصی دانشجو صادر گردیده و <b>فاقد اعتبار اداری (غیرقابل استناد)</b> می‌باشد؛ هرگونه سوءاستفاده یا جعل قابل پیگرد قانونی است. برای دریافت کارنامهٔ معتبر با رمز تایید (QR) از بخش «درخواست‌ها → درخواست کارنامه معتبر» اقدام نمایید. نمرات دروس توصیفی در مخرج معدل عددی لحاظ نمی‌شوند.
           </p>

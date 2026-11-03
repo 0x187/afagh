@@ -47,7 +47,7 @@ export function StudentSidebar({ user }: { user: { name: string; studentCode?: s
           </div>
           <div className="overflow-hidden">
             <h3 className="font-black text-slate-900 text-xs sm:text-sm truncate">{user.name}</h3>
-            <p className="text-[11px] text-slate-500 font-mono">
+            <p className="text-2xs text-slate-500 font-mono">
               شماره دانشجویی: <span dir="ltr">{user.studentCode || '—'}</span>
             </p>
           </div>
@@ -56,7 +56,7 @@ export function StudentSidebar({ user }: { user: { name: string; studentCode?: s
 
       {/* Nav links */}
       <div className="p-3 space-y-1 flex-1 overflow-y-auto text-xs">
-        <div className="px-3 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+        <div className="px-3 py-1 text-3xs font-black text-slate-400 uppercase tracking-wider">
           منوی دسترسی و خدمات
         </div>
         {NAV_ITEMS.map(n => {
@@ -99,7 +99,7 @@ export function StudentSidebar({ user }: { user: { name: string; studentCode?: s
             <span>📖</span>
             <span>راهنمای دانشجو</span>
           </div>
-          <span className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded">راهنما</span>
+          <span className="text-3xs bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded">راهنما</span>
         </Link>
       </div>
     </aside>
@@ -138,7 +138,7 @@ export default function StudentNav() {
                 }`}
               >
                 <span className="text-base">{n.icon}</span>
-                <span className="text-[10px] leading-tight line-clamp-2 text-center min-h-[24px] flex items-center">
+                <span className="text-3xs leading-tight line-clamp-2 text-center min-h-[24px] flex items-center">
                   {TAB_LABELS[n.href] ?? n.label}
                 </span>
               </Link>
@@ -151,7 +151,7 @@ export default function StudentNav() {
             className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
           >
             <span className="text-base leading-none">☰</span>
-            <span className="text-[10px] leading-tight">منو</span>
+            <span className="text-3xs leading-tight">منو</span>
           </button>
         </div>
       </nav>
@@ -210,7 +210,7 @@ export default function StudentNav() {
                   <span>📖</span>
                   <span>راهنمای دانشجو</span>
                 </div>
-                <span className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded">راهنما</span>
+                <span className="text-3xs bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded">راهنما</span>
               </Link>
             </div>
           </aside>

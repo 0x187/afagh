@@ -145,13 +145,13 @@ export default function TermCalendarTab() {
                             <span className="text-indigo-900 font-bold">({item.profName})</span>
                             <span className="text-slate-500">· جبران جلسهٔ {faNum(item.sessionNo)}</span>
                           </div>
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black self-start sm:self-auto bg-indigo-100 text-indigo-900">
+                          <span className="px-2.5 py-0.5 rounded-full text-3xs font-black self-start sm:self-auto bg-indigo-100 text-indigo-900">
                             {item.replacedSessionId ? 'جایگزین جلسهٔ معلق' : 'ثبت‌شده'}
                           </span>
                         </div>
                         <div className="text-slate-600 flex flex-wrap items-center justify-between gap-2">
                           <span>تاریخ: <strong>{faNum(item.sessionDate)}</strong> ساعت <strong>{faNum(item.sessionTime)}</strong></span>
-                          <span className="font-mono text-[10px] text-slate-400">کد درس: {item.courseCode}</span>
+                          <span className="font-mono text-3xs text-slate-400">کد درس: {item.courseCode}</span>
                         </div>
                       </div>
                     ))}

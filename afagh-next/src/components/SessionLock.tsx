@@ -134,7 +134,7 @@ export default function SessionLock({ name, timeoutMin = 15, initialLocked = fal
         <div className="bg-slate-900 text-white px-5 py-4 text-center">
           <div className="text-3xl">🔒</div>
           <h3 className="font-extrabold text-sm mt-1">صفحه به‌علت بیکاری قفل شد</h3>
-          <p className="text-[11px] text-slate-300 mt-1">{name} — برای ادامه رمز عبور را وارد کنید.</p>
+          <p className="text-2xs text-slate-300 mt-1">{name} — برای ادامه رمز عبور را وارد کنید.</p>
         </div>
         <form onSubmit={unlock} className="p-5 space-y-3">
           <input

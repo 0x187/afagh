@@ -89,7 +89,7 @@ export default async function GroupManagerLayout({ children }: { children: React
           <Link href="/group-manager/compensatory" className="hover:underline">دانشجویان جبرانی</Link>
         </nav>
       </header>
-      <main className="mx-auto max-w-6xl p-4">
+      <main id="main" className="mx-auto max-w-6xl p-4">
         <BackToDashboard href="/group-manager" label="بازگشت به کارتابل مدیر گروه" />
         {children}
       </main>

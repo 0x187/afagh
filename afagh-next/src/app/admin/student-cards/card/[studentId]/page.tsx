@@ -109,10 +109,10 @@ export default async function StudentCardPrintPage({ params }: { params: Promise
             ) : null}
             <div>
               <p className="text-[13px] font-black text-slate-900">{row.uniTitle || uni?.title || ''}</p>
-              <p className="text-[10px] text-slate-600">کارت شناسایی دانشجویی</p>
+              <p className="text-3xs text-slate-600">کارت شناسایی دانشجویی</p>
             </div>
           </div>
-          <p className="text-[10px] font-bold text-slate-600">{faNum(row.studentCode)}</p>
+          <p className="text-3xs font-bold text-slate-600">{faNum(row.studentCode)}</p>
         </div>
 
         <div className="flex flex-wrap gap-4 p-4">
@@ -122,7 +122,7 @@ export default async function StudentCardPrintPage({ params }: { params: Promise
           </div>
 
           {/* مشخصات */}
-          <div className="min-w-0 flex-1 space-y-1.5 text-[11px]">
+          <div className="min-w-0 flex-1 space-y-1.5 text-2xs">
             <Row label="نام و نام خانوادگی" value={`${row.firstName} ${row.lastName}`} strong />
             <Row label="شمارهٔ دانشجویی" value={faNum(row.studentCode)} mono />
             <Row label="کد ملی" value={faNum(row.nationalCode)} mono />
@@ -141,7 +141,7 @@ export default async function StudentCardPrintPage({ params }: { params: Promise
                 className="h-32 w-32 overflow-hidden rounded border border-slate-300 bg-white p-1 [&>svg]:block [&>svg]:h-full [&>svg]:w-full"
               />
             ) : (
-              <div className="flex h-32 w-32 items-center justify-center rounded border border-dashed border-slate-300 text-[10px] text-slate-400">
+              <div className="flex h-32 w-32 items-center justify-center rounded border border-dashed border-slate-300 text-3xs text-slate-400">
                 QR در دسترس نیست
               </div>
             )}

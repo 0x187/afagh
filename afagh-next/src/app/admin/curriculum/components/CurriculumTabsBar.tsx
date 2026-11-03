@@ -28,7 +28,7 @@ export default function CurriculumTabsBar() {
           </button>
         ))}
         {selectedVersion && (
-          <span className="mr-auto px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-800 text-[11px] font-black">
+          <span className="mr-auto px-3 py-1.5 rounded-full bg-indigo-50 text-indigo-800 text-2xs font-black">
             نسخهٔ فعال: {selectedVersion.versionCode} — {(STATUS_UI[selectedVersion.status] ?? { label: selectedVersion.status }).label}
           </span>
         )}

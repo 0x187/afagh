@@ -162,7 +162,7 @@ export default function GradeObjectionsClient(props: {
                 <tr key={h.id} className="border-b border-slate-100">
                   <td className="p-2 font-bold whitespace-nowrap">
                     {h.studentName}
-                    <div className="font-mono text-[10px] text-slate-400" dir="ltr">
+                    <div className="font-mono text-3xs text-slate-400" dir="ltr">
                       {h.studentCode ?? ''}
                     </div>
                   </td>
@@ -174,7 +174,7 @@ export default function GradeObjectionsClient(props: {
                   </td>
                   <td className="p-2 text-center">
                     <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                      className={`px-2 py-0.5 rounded-full text-3xs font-black ${
                         h.status === 'PENDING'
                           ? 'bg-amber-100 text-amber-900'
                           : h.status === 'ACCEPTED'

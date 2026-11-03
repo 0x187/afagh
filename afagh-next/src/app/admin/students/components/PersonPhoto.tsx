@@ -32,7 +32,7 @@ export default function PersonPhoto({
     return (
       <div className={`${className} bg-slate-200 border-2 border-slate-400 rounded flex flex-col items-center justify-center text-slate-500 shadow-inner`}>
         <span className="text-3xl">{icon}</span>
-        <span className="text-[10px] mt-1 font-bold">{label}</span>
+        <span className="text-3xs mt-1 font-bold">{label}</span>
       </div>
     );
   }

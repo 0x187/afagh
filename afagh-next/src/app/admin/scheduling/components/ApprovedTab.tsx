@@ -42,7 +42,7 @@ export default function ApprovedTab() {
                       <td className="p-2 border border-slate-200 font-extrabold text-slate-900">
                         <div>{item.title}</div>
                         {item.isCoTaught && (
-                          <div className="text-[10px] text-purple-700 font-bold mt-0.5">
+                          <div className="text-3xs text-purple-700 font-bold mt-0.5">
                             👥 مشترک: تئوری ({faNum((item.theoryWeightRatio || 0.7) * 100)}٪) + عملی ({faNum((item.labWeightRatio || 0.3) * 100)}٪)
                           </div>
                         )}
@@ -50,17 +50,17 @@ export default function ApprovedTab() {
                       <td className="p-2 border border-slate-200 text-center font-bold bg-indigo-50/50">گروه {faNum(item.groupNumber)}</td>
                       <td className="p-2 border border-slate-200 text-center">
                         {item.classSchedules[0]?.weekType === 'EVEN' ? (
-                          <span className="px-2 py-0.5 rounded bg-cyan-100 text-cyan-900 font-bold text-[10px]">هفته زوج 🔷</span>
+                          <span className="px-2 py-0.5 rounded bg-cyan-100 text-cyan-900 font-bold text-3xs">هفته زوج 🔷</span>
                         ) : item.classSchedules[0]?.weekType === 'ODD' ? (
-                          <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-bold text-[10px]">هفته فرد 🔶</span>
+                          <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-bold text-3xs">هفته فرد 🔶</span>
                         ) : (
-                          <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-900 font-bold text-[10px]">هر هفته</span>
+                          <span className="px-2 py-0.5 rounded bg-blue-100 text-blue-900 font-bold text-3xs">هر هفته</span>
                         )}
                       </td>
                       <td className="p-2 border border-slate-200 font-bold text-slate-800">
                         <div>{item.professorName}</div>
                         {item.isCoTaught && item.coProfName && (
-                          <div className="text-[10px] text-purple-800">همکار عملی: {item.coProfName}</div>
+                          <div className="text-3xs text-purple-800">همکار عملی: {item.coProfName}</div>
                         )}
                       </td>
                       <td className="p-2 border border-slate-200 text-slate-800 font-bold">

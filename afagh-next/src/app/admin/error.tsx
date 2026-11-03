@@ -54,7 +54,7 @@ export default function AdminError({
 
         <pre
           dir="ltr"
-          className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-xl bg-slate-50 p-2.5 text-[11px] text-slate-700"
+          className="mt-3 max-h-40 overflow-auto whitespace-pre-wrap break-all rounded-xl bg-slate-50 p-2.5 text-2xs text-slate-700"
         >
           {msg || 'خطای نامشخص'}
           {error?.digest ? `\n\ndigest: ${error.digest}` : ''}

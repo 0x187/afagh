@@ -77,7 +77,7 @@ export default function SmartAssignTab() {
                   <span className="font-bold text-indigo-200">ماشین فاز برنامه‌ریزی:</span>
                   {(['SUPPLY', 'ALLOCATION', 'REVIEW', 'PUBLISHED'] as const).map(ph => (
                     <span key={ph}
-                      className={`px-2.5 py-1 rounded-full font-extrabold text-[11px] border ${
+                      className={`px-2.5 py-1 rounded-full font-extrabold text-2xs border ${
                         currentPhase === ph
                           ? 'bg-amber-400 text-slate-950 border-amber-300'
                           : 'bg-white/10 text-indigo-100 border-white/20'
@@ -88,11 +88,11 @@ export default function SmartAssignTab() {
                   ))}
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-[11px] text-indigo-200 font-bold">
+                  <span className="text-2xs text-indigo-200 font-bold">
                     تداخل سخت فعلی: {faNum(hardConflictCount)} — انتشار فقط بدون قید سخت
                   </span>
                   {isDeptScope ? (
-                    <span className="px-3 py-1.5 rounded-lg bg-white/10 border border-white/20 text-[11px] font-bold text-indigo-100">
+                    <span className="px-3 py-1.5 rounded-lg bg-white/10 border border-white/20 text-2xs font-bold text-indigo-100">
                       🔒 گذار فاز در اختیار مدیر آموزش است
                     </span>
                   ) : (
@@ -124,7 +124,7 @@ export default function SmartAssignTab() {
 
               {/* گزارش سلامت (در صورت اجرا) */}
               {health && (
-                <div className="bg-emerald-50/10 border border-emerald-300/30 rounded-xl p-3 text-[11px] text-emerald-100 space-y-1">
+                <div className="bg-emerald-50/10 border border-emerald-300/30 rounded-xl p-3 text-2xs text-emerald-100 space-y-1">
                   <b>گزارش سلامت ترم (واقعی):</b>
                   <div>• تداخل‌های پنهان استاد/سالن: {faNum(health.hiddenConflicts.length)}</div>
                   <div>• عرضه در برابر تقاضا (گروه‌های کم‌عرضه): {faNum((health.supplyVsDemand ?? []).filter(x => (x.gap ?? 0) > 0).length)}</div>
@@ -141,7 +141,7 @@ export default function SmartAssignTab() {
                   {(health.examConflicts?.hard?.length ?? 0) > 0 && (
                     <div className="mt-1 space-y-0.5 border-t border-rose-300/30 pt-1">
                       {health.examConflicts.hard.slice(0, 3).map((c, i) => (
-                        <div key={`${c.a}-${c.b}-${i}`} className="text-[10px] text-rose-100">— {c.message}</div>
+                        <div key={`${c.a}-${c.b}-${i}`} className="text-3xs text-rose-100">— {c.message}</div>
                       ))}
                     </div>
                   )}
@@ -187,7 +187,7 @@ export default function SmartAssignTab() {
               ) : suggestions.length === 0 ? (
                 <div className="text-center py-8 text-xs font-bold text-slate-500 space-y-1">
                   <div>📭 هنوز پیشنهادی محاسبه نشده است.</div>
-                  <div className="text-[10px] text-slate-400">یک درس انتخاب کنید؛ اگر استاد درٔ دسترس بودن اعلام نکرده باشد، موتور صادقانه هیچ پیشنهادی برمی‌گرداند.</div>
+                  <div className="text-3xs text-slate-400">یک درس انتخاب کنید؛ اگر استاد درٔ دسترس بودن اعلام نکرده باشد، موتور صادقانه هیچ پیشنهادی برمی‌گرداند.</div>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -199,16 +199,16 @@ export default function SmartAssignTab() {
                           <span className="text-xs font-extrabold text-indigo-900">
                             {DAY_NAMES[slot.dayOfWeek] ?? '—'} — {slot.startTime} تا {slot.endTime}
                           </span>
-                          <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                          <span className="text-3xs font-extrabold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
                             امتیاز {faNum(slot.score)}
                           </span>
                         </div>
-                        <div className="text-[11px] text-slate-600 font-bold">
+                        <div className="text-2xs text-slate-600 font-bold">
                           🏫 {slot.classroomName} (ظرفیت {faNum(slot.classroomCapacity)})
                         </div>
                         <div className="flex flex-wrap gap-1">
                           {slot.reasons.map((r, i) => (
-                            <span key={i} className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-bold">{r}</span>
+                            <span key={i} className="text-3xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-bold">{r}</span>
                           ))}
                         </div>
                         <button
@@ -228,24 +228,24 @@ export default function SmartAssignTab() {
             {/* وضعیت واقعی برنامه — KPI محاسبه‌شده از DB */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
               <div className="rounded-2xl p-4 border-2 border-slate-200 bg-white shadow-sm">
-                <div className="text-[10px] text-slate-400 font-bold">کلاس‌های مصوب</div>
+                <div className="text-3xs text-slate-400 font-bold">کلاس‌های مصوب</div>
                 <div className="text-xl font-extrabold text-slate-900">{faNum(currentRealScenario.offerings.length)}</div>
               </div>
               <div className="rounded-2xl p-4 border-2 border-slate-200 bg-white shadow-sm">
-                <div className="text-[10px] text-slate-400 font-bold">جلسات تولیدشده</div>
+                <div className="text-3xs text-slate-400 font-bold">جلسات تولیدشده</div>
                 <div className="text-xl font-extrabold text-slate-900">{faNum(generatedTermSessionsCount)}</div>
               </div>
               <div className="rounded-2xl p-4 border-2 border-slate-200 bg-white shadow-sm">
-                <div className="text-[10px] text-slate-400 font-bold">تداخل سخت فعلی</div>
+                <div className="text-3xs text-slate-400 font-bold">تداخل سخت فعلی</div>
                 <div className={`text-xl font-extrabold ${hardConflictCount > 0 ? 'text-rose-700' : 'text-emerald-700'}`}>{faNum(hardConflictCount)}</div>
               </div>
               <div className="rounded-2xl p-4 border-2 border-slate-200 bg-white shadow-sm">
-                <div className="text-[10px] text-slate-400 font-bold">سالن‌های دارای سهمیه</div>
+                <div className="text-3xs text-slate-400 font-bold">سالن‌های دارای سهمیه</div>
                 <div className="text-xl font-extrabold text-slate-900">{faNum(initial.allocatedRoomIds.length)} / {faNum(initial.classrooms.length)}</div>
                 <button
                   type="button"
                   onClick={() => setActiveMainTab('DEPT_ROOMS')}
-                  className="mt-1 px-3 py-1 rounded-lg bg-indigo-900 hover:bg-indigo-950 text-white font-extrabold text-[10px] shadow"
+                  className="mt-1 px-3 py-1 rounded-lg bg-indigo-900 hover:bg-indigo-950 text-white font-extrabold text-3xs shadow"
                 >
                   🏛️ مدیریت سهمیهٔ سالن‌ها
                 </button>
@@ -277,7 +277,7 @@ export default function SmartAssignTab() {
                       {teachingSlots.map(slot => (
                         <th key={slot.id} className="p-3 border border-slate-800 font-extrabold">
                           <div>{slot.label}</div>
-                          <div className="text-[10px] text-slate-300 font-normal mt-0.5">{slot.startTime} تا {slot.endTime}</div>
+                          <div className="text-3xs text-slate-300 font-normal mt-0.5">{slot.startTime} تا {slot.endTime}</div>
                         </th>
                       ))}
                     </tr>
@@ -305,7 +305,7 @@ export default function SmartAssignTab() {
                               }`}
                             >
                               {matchingOfferings.length === 0 ? (
-                                <span className="text-[10px] text-slate-300 flex items-center justify-center h-full">
+                                <span className="text-3xs text-slate-300 flex items-center justify-center h-full">
                                   — خالی —
                                 </span>
                               ) : (
@@ -317,7 +317,7 @@ export default function SmartAssignTab() {
                                     return (
                                       <div
                                         key={offering.id}
-                                        className="rounded-lg bg-indigo-50 border border-indigo-200 p-2 text-[10px] space-y-0.5"
+                                        className="rounded-lg bg-indigo-50 border border-indigo-200 p-2 text-3xs space-y-0.5"
                                       >
                                         <div className="font-extrabold text-indigo-900">{offering.code} — {offering.title}</div>
                                         <div className="text-slate-600 font-bold">

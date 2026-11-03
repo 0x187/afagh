@@ -488,21 +488,21 @@ export default function StudentRequestsClient({
                   }`}
                 >
                   <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
+                    <span className="text-2xs font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-700">
                       {proc.category}
                     </span>
                     {proc.feeAmount > 0 ? (
-                      <span className="text-[11px] font-bold text-amber-700">
+                      <span className="text-2xs font-bold text-amber-700">
                         {proc.feeAmount.toLocaleString('fa-IR')} تومان
                       </span>
                     ) : (
-                      <span className="text-[11px] font-bold text-emerald-700">رایگان</span>
+                      <span className="text-2xs font-bold text-emerald-700">رایگان</span>
                     )}
                   </div>
                   <h3 className="font-extrabold text-sm text-slate-900">{proc.title}</h3>
                   <p className="text-xs text-slate-500 line-clamp-2 leading-relaxed">{proc.description}</p>
                   
-                  <div className="pt-1 flex items-center justify-between text-[11px] text-slate-400 border-t border-slate-100">
+                  <div className="pt-1 flex items-center justify-between text-2xs text-slate-400 border-t border-slate-100">
                     <span>تعداد مراحل: {proc.steps?.length || 2} گام</span>
                     <span className="font-bold text-indigo-700">{isSel ? '✓ انتخاب‌شده' : 'انتخاب فرم'}</span>
                   </div>
@@ -523,7 +523,7 @@ export default function StudentRequestsClient({
                 </div>
                 <div className="text-left bg-indigo-50 p-2 px-3 rounded-xl border border-indigo-100 text-xs">
                   <span className="text-indigo-800 font-bold block">مراحل گردش کار:</span>
-                  <span className="text-indigo-600 text-[11px]">
+                  <span className="text-indigo-600 text-2xs">
                     {selectedProcess.steps?.map(s => s.title).join(' ← ')}
                   </span>
                 </div>
@@ -565,10 +565,10 @@ export default function StudentRequestsClient({
                               className="w-full text-xs rounded-xl border border-dashed border-slate-300 bg-slate-50 p-2.5 file:ml-2 file:rounded-lg file:border-0 file:bg-indigo-600 file:px-3 file:py-1.5 file:text-xs file:font-bold file:text-white"
                             />
                             {uploadingKey === field.key && (
-                              <p className="text-[11px] text-indigo-600 font-bold animate-pulse">در حال آپلود پیوست…</p>
+                              <p className="text-2xs text-indigo-600 font-bold animate-pulse">در حال آپلود پیوست…</p>
                             )}
                             {formData[field.key]?.name && uploadingKey !== field.key && (
-                              <p className="text-[11px] text-emerald-700 font-bold">
+                              <p className="text-2xs text-emerald-700 font-bold">
                                 ✓ پیوست شد: {formData[field.key].name}
                               </p>
                             )}
@@ -602,13 +602,13 @@ export default function StudentRequestsClient({
 
                             {remoteStatus === 'error' && (
                               <div className="flex items-center justify-between gap-2">
-                                <p className="text-[11px] text-red-600 font-bold">
+                                <p className="text-2xs text-red-600 font-bold">
                                   ⚠️ دریافت فهرست گزینه‌ها از سامانه ناموفق بود.
                                 </p>
                                 <button
                                   type="button"
                                   onClick={() => setOptionsRetry(n => n + 1)}
-                                  className="shrink-0 px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-[11px] font-extrabold shadow transition"
+                                  className="shrink-0 px-2.5 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white text-2xs font-extrabold shadow transition"
                                 >
                                   تلاش دوباره
                                 </button>
@@ -637,7 +637,7 @@ export default function StudentRequestsClient({
                         )}
 
                         {field.helperText && (
-                          <p className="text-[11px] text-slate-400">{field.helperText}</p>
+                          <p className="text-2xs text-slate-400">{field.helperText}</p>
                         )}
                       </div>
                     );
@@ -698,7 +698,7 @@ export default function StudentRequestsClient({
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <span className="text-base font-black text-slate-900">{req.processTitle}</span>
-                        <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                        <span className="text-2xs font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
                           {req.category}
                         </span>
                       </div>
@@ -773,8 +773,8 @@ export default function StudentRequestsClient({
                                 : 'bg-amber-50 text-amber-900 border-amber-200'
                             }`}
                           >
-                            <span className="block text-[11px] truncate">{cp.departmentTitle}</span>
-                            <span className="text-[10px] block mt-0.5">
+                            <span className="block text-2xs truncate">{cp.departmentTitle}</span>
+                            <span className="text-3xs block mt-0.5">
                               {cp.isCleared === 1 ? '✓ تسویه شد' : '⏳ در انتظار تایید'}
                             </span>
                           </div>
@@ -800,13 +800,13 @@ export default function StudentRequestsClient({
                               <span className="font-bold text-slate-800">
                                 {roleFa[lg.actorRole || ''] || lg.actorRole || 'کارشناس'} ({lg.action || 'اقدام'})
                               </span>
-                              <span className="text-[11px] text-slate-400 font-mono">
+                              <span className="text-2xs text-slate-400 font-mono">
                                 {lg.completedAt
                                   ? new Date(lg.completedAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' })
                                   : 'در جریان'}
                               </span>
                             </div>
-                            <p className="text-[11px] text-slate-600 mt-0.5">{lg.note || '—'}</p>
+                            <p className="text-2xs text-slate-600 mt-0.5">{lg.note || '—'}</p>
                           </div>
                         </div>
                       ))}
@@ -817,7 +817,7 @@ export default function StudentRequestsClient({
                   {req.processCode === 'VALID_TRANSCRIPT' && (
                     <div className="pt-2">
                       {qrError && (
-                        <p className="text-[11px] font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-2 mb-2">{qrError}</p>
+                        <p className="text-2xs font-bold text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-2 mb-2">{qrError}</p>
                       )}
                       {validTranscriptQr?.requestId === req.id && (
                         <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-3">
@@ -948,7 +948,7 @@ export default function StudentRequestsClient({
                   ) : null}
                   <h3 className="font-black text-sm mt-1">{viewingCertificate.processTitle}</h3>
                 </div>
-                <div className="text-left font-mono text-[11px] space-y-1">
+                <div className="text-left font-mono text-2xs space-y-1">
                   <p>شماره سند: <b>{viewingCertificate.certificateNumber || viewingCertificate.trackingCode}</b></p>
                   <p>تاریخ صدور: <b>{new Date().toLocaleDateString('fa-IR')}</b></p>
                   <p>اعتبار: <b>رسمی و دارای اصالت دیجیتال</b></p>
@@ -973,11 +973,11 @@ export default function StudentRequestsClient({
               {/* امضا و بارکد امنیتی */}
               <div className="grid grid-cols-2 pt-6 border-t border-slate-300 items-end">
                 <div className="space-y-1">
-                  <p className="font-mono text-[10px] text-slate-500">کد اعتبارسنجی SHA-256:</p>
-                  <p className="font-mono text-[10px] break-all bg-slate-100 p-1.5 rounded" dir="ltr">
+                  <p className="font-mono text-3xs text-slate-500">کد اعتبارسنجی SHA-256:</p>
+                  <p className="font-mono text-3xs break-all bg-slate-100 p-1.5 rounded" dir="ltr">
                     {viewingCertificate.digitalStampHash || 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'}
                   </p>
-                  <p className="text-[10px] text-emerald-800 font-bold">
+                  <p className="text-3xs text-emerald-800 font-bold">
                     ✓ اصالت این سند از طریق سامانه استعلام مدارک دانشگاه آفاق قابل ره‌گیری است.
                   </p>
                 </div>
@@ -985,7 +985,7 @@ export default function StudentRequestsClient({
                 <div className="text-center space-y-2">
                   <div className="inline-block p-2 border-2 border-dashed border-slate-700 rounded-xl">
                     <p className="font-bold text-xs text-indigo-950">مهر و امضای دیجیتال</p>
-                    <p className="text-[10px] text-slate-500">اداره کل امور آموزشی و تحصیلات تکمیلی</p>
+                    <p className="text-3xs text-slate-500">اداره کل امور آموزشی و تحصیلات تکمیلی</p>
                   </div>
                 </div>
               </div>

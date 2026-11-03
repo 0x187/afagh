@@ -48,8 +48,8 @@ function Kpi({ icon, label, value, tone, sub }: { icon: string; label: string; v
         {icon}
       </div>
       <p className={`text-lg font-black leading-tight ${t.text}`}>{value}</p>
-      <p className="mt-0.5 text-[11px] font-medium text-slate-500">{label}</p>
-      {sub && <p className={`mt-0.5 text-[10px] font-bold ${t.text} opacity-80`}>{sub}</p>}
+      <p className="mt-0.5 text-2xs font-medium text-slate-500">{label}</p>
+      {sub && <p className={`mt-0.5 text-3xs font-bold ${t.text} opacity-80`}>{sub}</p>}
     </div>
   );
 }
@@ -135,10 +135,10 @@ export default async function FinanceWorklistPage(props: {
             </p>
             {/* دامنهٔ فعال: دانشگاه × نیمسال — تا معلوم باشد اعداد متعلق به کدام بازه‌اند */}
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
-              <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-bold">
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-0.5 text-2xs font-bold">
                 🏛️ {currentUniversity ? currentUniversity.title : 'بدون دانشگاه'}
               </span>
-              <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-0.5 text-[11px] font-bold">
+              <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2.5 py-0.5 text-2xs font-bold">
                 📅 {scopeTermTitle ?? 'همهٔ نیمسال‌ها'}
               </span>
             </div>
@@ -182,7 +182,7 @@ export default async function FinanceWorklistPage(props: {
               style={{ width: `${collectionRate}%` }}
             />
           </div>
-          <div className="mt-1.5 flex flex-wrap justify-between gap-2 text-[11px] text-slate-500">
+          <div className="mt-1.5 flex flex-wrap justify-between gap-2 text-2xs text-slate-500">
             <span>جمع وصولی: <b className="text-emerald-700">{fa(collected)} ریال</b></span>
             <span>خالص قابل‌وصول: <b className="text-rose-700">{fa(Math.max(0, netDebtBase))} ریال</b></span>
           </div>
@@ -200,7 +200,7 @@ export default async function FinanceWorklistPage(props: {
         </div>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-6">
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-medium text-slate-600">رشته</span>
+            <span className="text-2xs font-medium text-slate-600">رشته</span>
             <select name="majorId" defaultValue={majorId ?? ''} className={inputCls}>
               <option value="">همهٔ رشته‌ها</option>
               {options.majors.map((m) => (
@@ -210,7 +210,7 @@ export default async function FinanceWorklistPage(props: {
           </label>
 
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-medium text-slate-600">مقطع</span>
+            <span className="text-2xs font-medium text-slate-600">مقطع</span>
             <select name="degreeLevelId" defaultValue={degreeLevelId ?? ''} className={inputCls}>
               <option value="">همهٔ مقاطع</option>
               {options.degrees.map((d) => (
@@ -220,7 +220,7 @@ export default async function FinanceWorklistPage(props: {
           </label>
 
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-medium text-slate-600">ورودی</span>
+            <span className="text-2xs font-medium text-slate-600">ورودی</span>
             <select name="entryYear" defaultValue={entryYear ?? ''} className={inputCls}>
               <option value="">همهٔ ورودی‌ها</option>
               {options.entryYears.map((y) => (
@@ -230,7 +230,7 @@ export default async function FinanceWorklistPage(props: {
           </label>
 
           <label className="flex flex-col gap-1 sm:col-span-2">
-            <span className="text-[11px] font-medium text-slate-600">جستجو (نام، کد ملی، شمارهٔ دانشجویی)</span>
+            <span className="text-2xs font-medium text-slate-600">جستجو (نام، کد ملی، شمارهٔ دانشجویی)</span>
             <input name="q" defaultValue={search} placeholder="جستجو…" className={inputCls} />
           </label>
 
@@ -251,7 +251,7 @@ export default async function FinanceWorklistPage(props: {
           <h2 className="font-bold text-slate-800">
             فهرست دانشجویان ({fa(students.length)} از {fa(count)})
           </h2>
-          <p className="text-[11px] text-slate-500 print:hidden">برای کارنامهٔ مالی روی نام دانشجو کلیک کنید</p>
+          <p className="text-2xs text-slate-500 print:hidden">برای کارنامهٔ مالی روی نام دانشجو کلیک کنید</p>
         </div>
 
         {students.length === 0 ? (
@@ -263,7 +263,7 @@ export default async function FinanceWorklistPage(props: {
         {/* نوار صفحه‌بندی */}
         {count > pageSize && (
           <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-3 print:hidden">
-            <span className="text-[11px] text-slate-500">
+            <span className="text-2xs text-slate-500">
               صفحهٔ {fa(page)} از {fa(pageCount)} - نمایش {fa(rangeFrom)} تا {fa(rangeTo)}
             </span>
             <div className="flex items-center gap-2">

@@ -31,7 +31,7 @@ export default async function VerifyDegreePage({ params }: { params: Promise<{ c
           <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 text-center">
             <div className="text-3xl">⛔</div>
             <p className="text-sm font-black text-rose-800 mt-2">مدرکی با کد استعلام «{code}» یافت نشد.</p>
-            <p className="text-[11px] text-rose-700 mt-1">لطفاً کد را بررسی کنید یا با اداره آموزش تماس بگیرید.</p>
+            <p className="text-2xs text-rose-700 mt-1">لطفاً کد را بررسی کنید یا با اداره آموزش تماس بگیرید.</p>
           </div>
         ) : (
           <>
@@ -60,7 +60,7 @@ export default async function VerifyDegreePage({ params }: { params: Promise<{ c
                 ['تاریخ صدور', faNum(new Date(r.issuedAt).toLocaleDateString('fa-IR'))],
               ] as [string, string][]).map(([k, v]) => (
                 <div key={k} className="bg-slate-50 border border-slate-200 rounded-lg p-2">
-                  <dt className="text-[10px] text-slate-500 font-bold">{k}</dt>
+                  <dt className="text-3xs text-slate-500 font-bold">{k}</dt>
                   <dd className="text-[12px] font-black text-slate-800 break-all">{v}</dd>
                 </div>
               ))}
@@ -68,7 +68,7 @@ export default async function VerifyDegreePage({ params }: { params: Promise<{ c
 
             <div className="flex items-center gap-3 border-t border-slate-100 pt-3">
               <QrSvg svg={qr} className="w-24 h-24 shrink-0" />
-              <div className="text-[10px] text-slate-500 leading-5 break-all">
+              <div className="text-3xs text-slate-500 leading-5 break-all">
                 <div className="font-black text-slate-700 mb-1">اثر انگشت دیجیتال (SHA-256):</div>
                 <code>{r.documentHash}</code>
               </div>

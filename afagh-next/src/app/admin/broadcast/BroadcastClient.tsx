@@ -296,11 +296,11 @@ export default function BroadcastClient({ filters }: { filters: BroadcastFilters
                         className="block w-full border-t border-slate-100 p-2.5 text-right text-xs hover:bg-indigo-50"
                       >
                         <span className="font-bold text-slate-800">{o.label}</span>
-                        <span className="mr-2 text-[11px] text-slate-500">({o.enrolled.toLocaleString('fa-IR')} نفر)</span>
+                        <span className="mr-2 text-2xs text-slate-500">({o.enrolled.toLocaleString('fa-IR')} نفر)</span>
                       </button>
                     ))}
                     {classQuery.trim() && (
-                      <p className="border-t border-slate-100 p-2 text-[11px] text-slate-400">
+                      <p className="border-t border-slate-100 p-2 text-2xs text-slate-400">
                         {classMatches.length} مورد اول نمایش داده شد — دقیق‌تر تایپ کنید.
                       </p>
                     )}
@@ -342,7 +342,7 @@ export default function BroadcastClient({ filters }: { filters: BroadcastFilters
           ))}
         </div>
         {channels.includes('SMS') && (
-          <p className="text-[11px] font-bold text-amber-700">⚠️ پیامک هزینه دارد — تعداد مخاطبان را حتماً اول بشمارید.</p>
+          <p className="text-2xs font-bold text-amber-700">⚠️ پیامک هزینه دارد — تعداد مخاطبان را حتماً اول بشمارید.</p>
         )}
         <textarea
           value={text}
@@ -353,7 +353,7 @@ export default function BroadcastClient({ filters }: { filters: BroadcastFilters
           className="w-full border border-slate-300 rounded-2xl p-3 text-sm leading-7 focus:border-indigo-600"
         />
         <div className="flex items-center justify-between">
-          <span className="text-[11px] text-slate-500">{text.length.toLocaleString('fa-IR')} / ۲۰۰۰ نویسه</span>
+          <span className="text-2xs text-slate-500">{text.length.toLocaleString('fa-IR')} / ۲۰۰۰ نویسه</span>
           <button onClick={send} disabled={busy} className="rounded-xl bg-indigo-700 px-6 py-2.5 text-sm font-black text-white hover:bg-indigo-800 disabled:opacity-60">
             {busy ? 'در حال ارسال…' : '🚀 ارسال همگانی'}
           </button>
@@ -405,11 +405,11 @@ export default function BroadcastClient({ filters }: { filters: BroadcastFilters
               history.map(h => (
                 <div key={h.eventCode} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-xs leading-6">
                   <p className="font-bold text-slate-800">{h.body || '—'}</p>
-                  <p className="mt-1 text-[11px] text-slate-500">
+                  <p className="mt-1 text-2xs text-slate-500">
                     👤 {h.sender} · 🕐 {h.sentAt ? new Date(h.sentAt).toLocaleString('fa-IR') : '—'} · 👥 {h.total.toLocaleString('fa-IR')} نفر · 📥 صندوق: {h.inbox.toLocaleString('fa-IR')}
                   </p>
                   {h.channels.length > 0 && (
-                    <p className="text-[11px] text-slate-600">
+                    <p className="text-2xs text-slate-600">
                       {h.channels.map(c => `${c.channel}: ${c.sent.toLocaleString('fa-IR')} ارسال / ${c.skipped.toLocaleString('fa-IR')} بدون اتصال / ${c.failed.toLocaleString('fa-IR')} خطا`).join(' · ')}
                     </p>
                   )}
