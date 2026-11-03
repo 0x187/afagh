@@ -368,3 +368,24 @@ CREATE TABLE IF NOT EXISTS "grade_objections" (
   "updatedAt" timestamp DEFAULT now(),
   "universityId" integer REFERENCES "universities"("id")
 );
+
+-- ═══════════════════════════════════════════════════════════════════════════
+--  ایندکس‌های عملکردی برای صفحهٔ اول و کارتابل‌ها
+--  ───────────────────────────────────────────────────────────────────────────
+--  چرا: جدول `student_requests` فقط ایندکسِ `status` داشت، ولی همهٔ کوئری‌های
+--  کارتابل با `WHERE universityId = X OR universityId IS NULL` و
+--  `ORDER BY id DESC LIMIT 20` اجرا می‌شوند؛ بدون ایندکس روی `universityId`
+--  این‌ها به اسکنِ کاملِ جدول می‌افتادند و همان چیزی می‌شد که کاربر «کندیِ
+--  شدیدِ صفحهٔ اول» توصیف کرد.
+--
+--  ⚠ `CONCURRENTLY` عمداً استفاده نشده: `apply-patches.mjs` کلِ این فایل را در
+--  یک تراکنش اجرا می‌کند و `CREATE INDEX CONCURRENTLY` داخل تراکنش خطا می‌دهد.
+--  `IF NOT EXISTS` هم اجرای مکرر در هر دیپلوی را بی‌خطر می‌کند.
+-- ═══════════════════════════════════════════════════════════════════════════
+CREATE INDEX IF NOT EXISTS "idx_req_uni_created" ON "student_requests" ("universityId", "id" DESC);
+CREATE INDEX IF NOT EXISTS "idx_req_uni_status"  ON "student_requests" ("universityId", "status");
+CREATE INDEX IF NOT EXISTS "idx_req_student"     ON "student_requests" ("studentId");
+CREATE INDEX IF NOT EXISTS "idx_req_process"     ON "student_requests" ("processId");
+
+-- فهرست درخواست‌های دانشجو و کارتابل‌های شخصی بر اساسِ وضعیت
+CREATE INDEX IF NOT EXISTS "idx_req_student_status" ON "student_requests" ("studentId", "status");

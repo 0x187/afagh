@@ -59,6 +59,7 @@ export default function PanelHero({
   icon,
   chips,
   stats,
+  statsSlot,
   children,
 }: {
   tone?: HeroTone;
@@ -72,6 +73,14 @@ export default function PanelHero({
   chips?: ReactNode;
   /** نوارِ آمارِ کنارِ عنوان (روی موبایل زیرِ آن) */
   stats?: HeroStat[];
+  /**
+   * جایگزینِ `stats` برای آمارِ «کند».
+   *
+   * چرا: اگر آمار با `await` گرفته شود، کل ویترین — و در نتیجه کل صفحه — تا
+   * پایانِ کوئری معطل می‌ماند. با این اسلات، پوستهٔ ویترین فوراً رندر می‌شود و
+   * آمار داخل یک `<Suspense>` استریم می‌شود (اسکلتون هم‌اندازه، بدون پرشِ چیدمان).
+   */
+  statsSlot?: ReactNode;
   /** محتوای دلخواه در گوشهٔ مقابل */
   children?: ReactNode;
 }) {
@@ -110,25 +119,51 @@ export default function PanelHero({
         </div>
 
         {/* نوارِ آمار: ستون‌های جداشده با خطِ مویی در دسکتاپ، شبکهٔ دوتایی در موبایل */}
-        {stats && stats.length > 0 ? (
-          <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:grid-cols-none sm:auto-cols-fr sm:grid-flow-col sm:gap-0 sm:[&>*+*]:border-r sm:[&>*+*]:border-slate-200">
-            {stats.map(s => (
-              <div
-                key={s.label}
-                title={s.title}
-                className="rounded-xl bg-slate-50/80 px-3 py-2 text-center sm:rounded-none sm:bg-transparent sm:px-4"
-              >
-                <p className={`truncate text-base font-black tabular-nums leading-tight sm:text-lg ${s.tone ?? 'text-slate-900'}`}>
-                  {s.value}
-                </p>
-                <p className="mt-0.5 truncate text-3xs font-bold text-slate-500">{s.label}</p>
-              </div>
-            ))}
-          </div>
+        {statsSlot ? (
+          <div className="w-full sm:w-auto">{statsSlot}</div>
+        ) : stats && stats.length > 0 ? (
+          <HeroStatsRow stats={stats} />
         ) : null}
 
         {children ? <div className="shrink-0">{children}</div> : null}
       </div>
     </section>
+  );
+}
+
+/**
+ * ردیفِ آمارِ ویترین — جدا شده تا هم داخل `PanelHero` و هم داخل یک
+ * `<Suspense>` (که آمار را دیرتر استریم می‌کند) عیناً یک شکل داشته باشد.
+ */
+export function HeroStatsRow({ stats }: { stats: HeroStat[] }) {
+  return (
+    <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:grid-cols-none sm:auto-cols-fr sm:grid-flow-col sm:gap-0 sm:[&>*+*]:border-r sm:[&>*+*]:border-slate-200">
+      {stats.map(s => (
+        <div
+          key={s.label}
+          title={s.title}
+          className="rounded-xl bg-slate-50/80 px-3 py-2 text-center sm:rounded-none sm:bg-transparent sm:px-4"
+        >
+          <p className={`truncate text-base font-black tabular-nums leading-tight sm:text-lg ${s.tone ?? 'text-slate-900'}`}>
+            {s.value}
+          </p>
+          <p className="mt-0.5 truncate text-3xs font-bold text-slate-500">{s.label}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** اسکلتونِ هم‌اندازهٔ ردیفِ آمار — جلوگیری از پرشِ چیدمان هنگام استریم */
+export function HeroStatsSkeleton({ count = 5 }: { count?: number }) {
+  return (
+    <div className="grid w-full grid-cols-2 gap-2 sm:w-auto sm:grid-flow-col sm:gap-0">
+      {Array.from({ length: count }).map((_, i) => (
+        <div key={i} className="px-3 py-2 sm:px-4">
+          <div className="mx-auto h-5 w-10 animate-pulse rounded bg-slate-200/80 sm:h-6" />
+          <div className="mx-auto mt-1.5 h-2.5 w-14 animate-pulse rounded bg-slate-200/60" />
+        </div>
+      ))}
+    </div>
   );
 }
