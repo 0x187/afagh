@@ -1398,3 +1398,63 @@ html {
     }
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   دارک‌مود — گونه‌های opacity که در overrideهای بالا جا افتاده بودند.
+   علتِ لکه‌های روشن در دارک: کلاس‌هایی مثل `bg-slate-50/80` با اسلش جدا
+   شده‌اند و قاعدهٔ سادهٔ `.bg-slate-50` روی آن‌ها اثر نمیکند ⇒ در دارک همان
+   رنگِ روشنِ تیلویند میماند (دقیقاً همان کاشی‌های «میز کار استاد» که در
+   موبایل روشن دیده میشدند). اینجا هر گونه با پلهٔ تیرهٔ همان خانواده و
+   همان شفافیت نگاشت میشود.
+   توجه: سفیدِ کم‌شفافیت (bg-white/5 … bg-white/25) عمداً دست‌نخورده است —
+   idiom خودِ حالتِ تیره است و باید همان بماند.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.dark .bg-amber-100\/60 { background-color: rgba(120, 53, 15, 0.6) !important; }
+.dark .bg-amber-50\/30 { background-color: rgba(120, 53, 15, 0.3) !important; }
+.dark .bg-amber-50\/40 { background-color: rgba(120, 53, 15, 0.4) !important; }
+.dark .bg-amber-50\/95 { background-color: #78350f !important; }
+.dark .bg-emerald-100\/60 { background-color: rgba(6, 78, 59, 0.6) !important; }
+.dark .bg-emerald-100\/80 { background-color: #064e3b !important; }
+.dark .bg-emerald-50\/10 { background-color: rgba(6, 78, 59, 0.1) !important; }
+.dark .bg-emerald-50\/30 { background-color: rgba(6, 78, 59, 0.3) !important; }
+.dark .bg-emerald-50\/40 { background-color: rgba(6, 78, 59, 0.4) !important; }
+.dark .bg-gray-50\/60 { background-color: rgba(30, 41, 59, 0.6) !important; }
+.dark .bg-indigo-50\/30 { background-color: rgba(49, 46, 129, 0.3) !important; }
+.dark .bg-indigo-50\/40 { background-color: rgba(49, 46, 129, 0.4) !important; }
+.dark .bg-rose-100\/60 { background-color: rgba(136, 19, 55, 0.6) !important; }
+.dark .bg-rose-100\/80 { background-color: #881337 !important; }
+.dark .bg-rose-50\/30 { background-color: rgba(136, 19, 55, 0.3) !important; }
+.dark .bg-sky-50\/30 { background-color: rgba(12, 74, 110, 0.3) !important; }
+.dark .bg-sky-50\/50 { background-color: rgba(12, 74, 110, 0.5) !important; }
+.dark .bg-sky-50\/60 { background-color: rgba(12, 74, 110, 0.6) !important; }
+.dark .bg-slate-200\/60 { background-color: rgba(51, 65, 85, 0.6) !important; }
+.dark .bg-slate-200\/70 { background-color: rgba(51, 65, 85, 0.7) !important; }
+.dark .bg-slate-200\/80 { background-color: #334155 !important; }
+.dark .bg-slate-200\/90 { background-color: #334155 !important; }
+.dark .bg-slate-50\/30 { background-color: rgba(30, 41, 59, 0.3) !important; }
+.dark .bg-slate-50\/80 { background-color: #1e293b !important; }
+.dark .bg-white\/50 { background-color: #1e293b !important; }
+.dark .bg-white\/70 { background-color: #1e293b !important; }
+.dark .bg-white\/80 { background-color: #1e293b !important; }
+.dark .bg-white\/95 { background-color: #1e293b !important; }
+
+/* گونه‌های hover/focus/md با opacity — همان پلهٔ تیرهٔ خانواده */
+.dark .hover\:amber-100\/60:hover { background-color: rgba(120, 53, 15, 0.6) !important; }
+.dark .hover\:amber-50\/50:hover { background-color: rgba(120, 53, 15, 0.5) !important; }
+.dark .hover\:emerald-100\/60:hover { background-color: rgba(6, 78, 59, 0.6) !important; }
+.dark .hover\:emerald-50\/40:hover { background-color: rgba(6, 78, 59, 0.4) !important; }
+.dark .hover\:emerald-50\/50:hover { background-color: rgba(6, 78, 59, 0.5) !important; }
+.dark .hover\:emerald-50\/60:hover { background-color: rgba(6, 78, 59, 0.6) !important; }
+.dark .hover\:gray-50\/60:hover { background-color: rgba(30, 41, 59, 0.6) !important; }
+.dark .hover\:indigo-50\/40:hover { background-color: rgba(49, 46, 129, 0.4) !important; }
+.dark .hover\:indigo-50\/50:hover { background-color: rgba(49, 46, 129, 0.5) !important; }
+.dark .hover\:indigo-50\/60:hover { background-color: rgba(49, 46, 129, 0.6) !important; }
+.dark .hover\:rose-100\/60:hover { background-color: rgba(136, 19, 55, 0.6) !important; }
+.dark .hover\:rose-50\/50:hover { background-color: rgba(136, 19, 55, 0.5) !important; }
+.dark .hover\:sky-50\/50:hover { background-color: rgba(12, 74, 110, 0.5) !important; }
+.dark .hover\:slate-100\/80:hover { background-color: #334155 !important; }
+.dark .hover\:slate-50\/60:hover { background-color: rgba(30, 41, 59, 0.6) !important; }
+.dark .hover\:slate-50\/70:hover { background-color: rgba(30, 41, 59, 0.7) !important; }
+.dark .hover\:slate-50\/80:hover { background-color: #1e293b !important; }
+.dark .hover\:white\/80:hover { background-color: #1e293b !important; }
+.dark .md\:indigo-50\/50 { background-color: rgba(49, 46, 129, 0.5) !important; }
