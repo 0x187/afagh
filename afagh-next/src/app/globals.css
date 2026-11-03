@@ -1065,3 +1065,53 @@ html {
 .hdr-controls > details > summary {
   display: inline-flex;
 }
+
+/* ═════════════════════════════════════════════════════════════
+   پالایشِ حرفه‌ایِ ظاهر — فقط «صفحه» (چاپ دست‌نخورده می‌ماند)
+   شامل: رندرِ نرم‌ترِ فونت، حلقهٔ فوکوسِ یکدست، ریتمِ تیترها،
+   اسکرول‌بارِ ظریف و سایهٔ نرم/لایه‌ای برای کارت‌های سطح.
+   ═════════════════════════════════════════════════════════════ */
+@media screen {
+  /* رندرِ نرم‌ترِ فونت (فارسی/لاتین) */
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* حلقهٔ فوکوسِ یکدست و دیدنی — دسترس‌پذیری + ظاهرِ حرفه‌ای */
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid rgba(79, 70, 229, 0.65);
+    outline-offset: 2px;
+  }
+
+  /* ریتمِ تیترها: فشردگیِ عمودیِ کمتر و فاصلهٔ حروفِ منظم */
+  h1, h2, h3, h4, h5, h6 {
+    line-height: 1.45;
+    letter-spacing: -0.01em;
+  }
+
+  /* اسکرول‌بارِ ظریف و هم‌خوان با تم */
+  * { scrollbar-width: thin; scrollbar-color: var(--b-300) transparent; }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb {
+    background: var(--b-300);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover { background: var(--b-400); background-clip: content-box; }
+
+  /* کارت‌های سطح (الگوی غالب): سایهٔ نرم و لایه‌ای به‌جای سایهٔ تختِ shadow-sm.
+     فقط در حالت غیر-hover تا افکتِ hover کارت‌ها حفظ شود و مودال‌ها
+     (که shadow-2xl دارند) دست‌نخورده بمانند. */
+  .bg-white.rounded-2xl.shadow-sm:not(:hover),
+  .bg-white.rounded-3xl.shadow-sm:not(:hover) {
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 10px 28px -14px rgba(15, 23, 42, 0.14);
+  }
+  .dark .bg-white.rounded-2xl.shadow-sm:not(:hover),
+  .dark .bg-white.rounded-3xl.shadow-sm:not(:hover) {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 10px 28px -14px rgba(0, 0, 0, 0.6);
+  }
+}
