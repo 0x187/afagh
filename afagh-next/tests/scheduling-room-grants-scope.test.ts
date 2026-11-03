@@ -34,6 +34,14 @@ const read = (rel: string) => readFileSync(path.join(HERE, '..', rel), 'utf8');
 
 // ── ۱) دامنهٔ دانشگاه در اکشن‌های سهمیهٔ سالن ─────────────────────────────
 const ACTIONS = read('src/app/admin/scheduling/actions.ts');
+// همهٔ فایل‌های منبع یک‌جا خوانده می‌شوند — نه دم‌ودست هر بخش. دلیلش این است که
+// در همین فایل یک بار `CORE` بعد از محل استفاده تعریف شد و کل تست با
+// «Cannot access 'CORE' before initialization» مرد. همان دام TDZ که در
+// کامپوننت‌های کلاینت هم هست؛ `tsc` هم نمی‌گیرد.
+const DEPT = read('src/app/admin/scheduling/components/DeptRoomsTab.tsx');
+const ROOMS = read('src/app/admin/settings/ClassroomManager.tsx');
+const CORE = read('src/app/admin/scheduling/planning-core.ts');
+const ENGINE = read('src/lib/scheduling-engine.ts');
 
 /** بدنهٔ یک تابع async را از روی نامش جدا می‌کند (تا سراغ تابع بعدی نرود). */
 function fnBody(src: string, name: string): string {
@@ -93,7 +101,6 @@ ok(
 
 // موتور هم باید literal برگرداند، وگرنه اتحادِ `ok` به boolean گشاد می‌شود
 // و `res.grants` در کلاینت خطای تایپ می‌دهد (که با NEXT_SKIP_TYPE_CHECK پنهان می‌ماند).
-const ENGINE = read('src/lib/scheduling-engine.ts');
 ok(
   'engine: allocateRoomQuotas نوع literal دارد',
   /allocateRoomQuotas\([^)]*\): Promise<\{ ok: true; grants: number \}>/.test(ENGINE),
@@ -108,7 +115,6 @@ ok(
 );
 
 // ── ۲) پیام خطا نباید با پیام موفقیت بازنویسی شود ─────────────────────────
-const DEPT = read('src/app/admin/scheduling/components/DeptRoomsTab.tsx');
 ok(
   'لغو همه: خطای اولین ردیفِ ناموفق نگه داشته می‌شود',
   /let firstErr: string \| null = null/.test(DEPT) && /firstErr = res\?\.error/.test(DEPT),
@@ -144,7 +150,6 @@ ok(
 // الگو و `HEADERS` به‌روز نشوند، خانه‌های آخر به سطر دوم می‌ریزند و ستون
 // «عملیات» (دکمهٔ ذخیره) از جای خودش بیرون می‌افتد. این دقیقاً باگ «سالن
 // امتحان» بود: ۱۲ خانه در شبکهٔ ۱۰ ستونی.
-const ROOMS = read('src/app/admin/settings/ClassroomManager.tsx');
 
 const rowForm = ROOMS.slice(ROOMS.indexOf('function RowForm'), ROOMS.indexOf('const LBL_TB'));
 const cellCount = (rowForm.match(/<Cell label=/g) ?? []).length;
@@ -176,13 +181,44 @@ ok(
   /case 'examHall': return r\.isExamHall \?\? 0;/.test(ROOMS),
 );
 
+// ── ۶) توضیح «چرا این سالن سهمیه ندارد» ──────────────────────────────────
+// موتور `allocateRoomQuotas` دانشکده‌به‌دانشکده کار می‌کند و دانشکدهٔ بدون
+// دانشجوی فعال را کامل رد می‌کند. قبلاً کارت فقط «بدون سهمیهٔ ثبت‌شده»
+// می‌نوشت و کاربر فکر می‌کرد خراب است.
+ok(
+  'بدون سهمیه: تعداد دانشجوی دانشکده از سرور می‌آید',
+  /SELECT d\."facultyId" AS fac, count\(st\.id\)::int AS n/.test(ACTIONS) &&
+    /facultyStudents: r\.facultyId == null \? 0 : \(studentsByFaculty\.get\(r\.facultyId\) \?\? 0\)/.test(ACTIONS),
+);
+ok(
+  'بدون سهمیه: facultyStudents در خروجی اکشن هست',
+  /facultyStudents: c\.facultyStudents/.test(ACTIONS),
+);
+ok(
+  'بدون سهمیه: facultyStudents از mapClassrooms عبور می‌کند',
+  /facultyStudents: r\.facultyStudents \?\? 0/.test(CORE),
+);
+ok(
+  'بدون سهمیه: سه حالتِ دلیل پوشش داده شده',
+  /دانشکده ندارد، پس در تخصیص خودکار شرکت نمی‌کند/.test(DEPT) &&
+    /دانشجوی فعال ندارد، پس تخصیص خودکار برایش سهمیه نساخت/.test(DEPT) &&
+    /شیفتی در نظر نگرفت/.test(DEPT),
+);
+ok(
+  'بدون سهمیه: از داخل همان کارت می‌توان سهمیه ثبت کرد',
+  /add-\$\{room\.id\}/.test(DEPT) && /upsertRoomGrantAction\(\{ termId: selectedTermId, classroomId: room\.id/.test(DEPT),
+);
+ok(
+  'بدون سهمیه: متن بی‌توضیح حذف شده',
+  !/بدون سهمیهٔ ثبت‌شده<\/p>/.test(DEPT),
+);
+
 // ── ۳) کد رشته در کارت فاز ۰ نباید خالی رندر شود ──────────────────────────
 const SCOPE = read('src/app/admin/scheduling/components/ProgramScopeTab.tsx');
 ok(
   'فاز ۰: کد رشته به‌صورت شرطی رندر می‌شود (پرانتز خالی نمی‌ماند)',
   /p\.code \?/.test(SCOPE) && !/<span className="text-slate-500 font-mono text-xs">\(\{p\.code\}\)<\/span>/.test(SCOPE),
 );
-const CORE = read('src/app/admin/scheduling/planning-core.ts');
 ok(
   'فاز ۰: ماتریس رشته واقعاً code را برمی‌گرداند',
   /return \{ id: p\.id, title: p\.title, code: p\.code \?\? ''/.test(CORE),

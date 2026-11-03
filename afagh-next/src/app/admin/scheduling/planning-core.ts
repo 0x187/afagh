@@ -168,6 +168,7 @@ export function mapClassrooms(rooms: SchedulingWorkspace['classrooms'], allocate
     isActive: r.isActive !== 0,
     facultyId: r.facultyId ?? null,
     facultyName: r.facultyName ?? '—',
+    facultyStudents: r.facultyStudents ?? 0,
     isAllocatedToDept: allocatedRoomIds.includes(r.id),
   }));
 }

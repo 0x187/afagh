@@ -50,6 +50,8 @@ export interface ClassroomOption {
   isActive: boolean;
   facultyId: number | null;
   facultyName: string;
+  /** تعداد دانشجوی فعالِ دانشکده — برای توضیح «چرا این سالن سهمیه نگرفت» */
+  facultyStudents: number;
   isAllocatedToDept: boolean;
 }
 
@@ -199,7 +201,7 @@ export interface SchedulingWorkspace {
   selectedTermId: number | null;
   programs: { id: number; code: string; title: string; facultyName: string; degreeLevel: string; facultyId: number | null }[];
   cohorts: { majorId: number | null; entryYear: number; entryTerm: number; expectedStudents: number }[];
-  classrooms: { id: number; name: string; buildingName: string; capacity: number; roomType: string; isActive: number | null; facultyId: number | null; facultyName: string | null }[];
+  classrooms: { id: number; name: string; buildingName: string; capacity: number; roomType: string; isActive: number | null; facultyId: number | null; facultyName: string | null; facultyStudents: number }[];
   allocatedRoomIds: number[];
   roomGrants: { id: number; classroomId: number; shift: string; ownerDepartmentId: number; status: string }[];
   professors: { id: number; name: string; staffCode: string | null; academicRank: string | null; departmentId: number | null; departmentName: string | null }[];

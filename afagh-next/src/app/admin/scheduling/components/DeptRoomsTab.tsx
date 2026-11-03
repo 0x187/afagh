@@ -42,6 +42,33 @@ export default function DeptRoomsTab() {
     .filter(c => facultyFilter === 'ALL' || c.facultyId === facultyFilter);
   const grantsOf = (roomId: number) => roomGrants.filter(g => g.classroomId === roomId);
 
+  // تخصیص دستی از داخل کارتِ «بدون سهمیه» — تا کاربر مجبور نباشد سالن را در
+  // فرم بالای صفحه پیدا کند.
+  const [manual, setManual] = useState<Record<number, { shift: 'MORNING' | 'EVENING'; deptId: number }>>({});
+  const manualOf = (roomId: number) => manual[roomId] ?? { shift: 'MORNING' as const, deptId: departments[0]?.id ?? 0 };
+  const patchManual = (roomId: number, patch: Partial<{ shift: 'MORNING' | 'EVENING'; deptId: number }>) =>
+    setManual(prev => ({ ...prev, [roomId]: { ...manualOf(roomId), ...patch } }));
+
+  /**
+   * چرا این سالن سهمیه ندارد؟
+   *
+   * موتور `allocateRoomQuotas` دانشکده‌به‌دانشکده کار می‌کند:
+   *   • سالنِ بدون `facultyId` هیچ‌وقت در حلقه نمی‌آید (شرط `facultyId = f.id`).
+   *   • دانشکده‌ای که هیچ گروهی با دانشجوی فعال ندارد، کامل رد می‌شود.
+   *   • و اگر ظرفیت سالن‌های دانشکده از تقاضا بیشتر باشد، بعضی سالن‌ها
+   *     شیفتی نمی‌گیرند.
+   * بدون این توضیح، «بدون سهمیه» شبیه خرابی به‌نظر می‌رسد.
+   */
+  const noQuotaReason = (room: (typeof classrooms)[number]) => {
+    if (room.facultyId == null) {
+      return 'این سالن دانشکده ندارد، پس در تخصیص خودکار شرکت نمی‌کند.';
+    }
+    if (!room.facultyStudents) {
+      return `دانشکدهٔ «${room.facultyName}» دانشجوی فعال ندارد، پس تخصیص خودکار برایش سهمیه نساخت.`;
+    }
+    return 'تخصیص خودکار برای این سالن شیفتی در نظر نگرفت (ظرفیت دانشکده کافی بود).';
+  };
+
   const run = async (key: string, fn: () => Promise<any>, okMsg: string) => {
     setBusyKey(key);
     setMsg(null);
@@ -250,7 +277,45 @@ export default function DeptRoomsTab() {
               <p className="text-xs text-slate-500">{room.buildingName} — ظرفیت {faNum(room.capacity)} نفر</p>
 
               {grants.length === 0 ? (
-                <p className="text-xs text-slate-400 font-bold">بدون سهمیهٔ ثبت‌شده</p>
+                <div className="space-y-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-2.5">
+                  <p className="text-[11px] font-bold leading-5 text-slate-500">
+                    {noQuotaReason(room)}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={manualOf(room.id).shift}
+                      onChange={e => patchManual(room.id, { shift: e.target.value as 'MORNING' | 'EVENING' })}
+                      className="border border-slate-300 rounded-lg px-2 py-1 text-xs font-bold bg-white"
+                    >
+                      <option value="MORNING">شیفت صبح</option>
+                      <option value="EVENING">شیفت عصر</option>
+                    </select>
+                    <select
+                      value={manualOf(room.id).deptId}
+                      onChange={e => patchManual(room.id, { deptId: Number(e.target.value) })}
+                      className="border border-slate-300 rounded-lg px-2 py-1 text-xs font-bold bg-white"
+                    >
+                      {departments.map(d => (
+                        <option key={d.id} value={d.id}>{deptLabel(d)}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      disabled={busyKey === `add-${room.id}` || !selectedTermId || !manualOf(room.id).deptId}
+                      onClick={() => {
+                        const m = manualOf(room.id);
+                        run(
+                          `add-${room.id}`,
+                          () => upsertRoomGrantAction({ termId: selectedTermId, classroomId: room.id, shift: m.shift, departmentId: m.deptId }),
+                          '✅ سهمیهٔ سالن ثبت شد.',
+                        );
+                      }}
+                      className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-[11px] disabled:opacity-50"
+                    >
+                      {busyKey === `add-${room.id}` ? '⏳…' : '➕ ثبت سهمیه'}
+                    </button>
+                  </div>
+                </div>
               ) : (
                 <div className="space-y-2">
                   {grants.map(g => {

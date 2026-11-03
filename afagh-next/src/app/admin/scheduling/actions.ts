@@ -138,7 +138,27 @@ async function listRealCohorts(universityId?: number, majorIds?: number[]) {
 /** سالن‌های واقعی — فیلتر شده بر اساس universityId */
 async function listRealClassrooms(universityId?: number) {
   const where = universityEq(classrooms.universityId, universityId);
-  return db
+  /**
+   * تعداد دانشجوی فعالِ هر دانشکده.
+   *
+   * چرا لازم است؟ موتور تخصیص خودکار (`allocateRoomQuotas`) هر دانشکده را
+   * جدا می‌گیرد و اگر هیچ گروهی با دانشجوی فعال نداشته باشد، **کل دانشکده** را
+   * رد می‌کند. بدون این عدد، رابط کاربری نمی‌تواند توضیح بدهد چرا یک سالن
+   * «بدون سهمیه» مانده و کاربر فکر می‌کند خراب است.
+   */
+  const stuRows = await db.execute(sql`
+    SELECT d."facultyId" AS fac, count(st.id)::int AS n
+    FROM departments d
+    JOIN majors m ON m."departmentId" = d.id
+    JOIN students st ON st."majorId" = m.id AND st.status = 'ACTIVE'
+    GROUP BY 1
+  `);
+  const studentsByFaculty = new Map<number, number>();
+  for (const r of (stuRows.rows as { fac: number | null; n: number }[])) {
+    if (r.fac != null) studentsByFaculty.set(Number(r.fac), Number(r.n));
+  }
+
+  const rows = await db
     .select({
       id: classrooms.id,
       name: classrooms.name,
@@ -152,6 +172,11 @@ async function listRealClassrooms(universityId?: number) {
     .from(classrooms)
     .leftJoin(faculties, eq(faculties.id, classrooms.facultyId))
     .where(where);
+
+  return rows.map(r => ({
+    ...r,
+    facultyStudents: r.facultyId == null ? 0 : (studentsByFaculty.get(r.facultyId) ?? 0),
+  }));
 }
 
 /** استادان واقعی (staff + users + گروه) — فیلتر شده بر اساس universityId */
@@ -654,7 +679,7 @@ export type SchedulingWorkspaceResult =
       selectedTermId: number | null;
       programs: { id: number; code: string; title: string; facultyName: string; degreeLevel: string; facultyId: number | null }[];
       cohorts: { majorId: number | null; entryYear: number; entryTerm: number; expectedStudents: number }[];
-      classrooms: { id: number; name: string; buildingName: string; capacity: number; roomType: string; isActive: number | null; facultyId: number | null; facultyName: string | null }[];
+      classrooms: { id: number; name: string; buildingName: string; capacity: number; roomType: string; isActive: number | null; facultyId: number | null; facultyName: string | null; facultyStudents: number }[];
       allocatedRoomIds: number[];
       roomGrants: { id: number; classroomId: number; shift: string; ownerDepartmentId: number; status: string }[];
       departments: { id: number; name: string; departmentCode: string | null }[];
@@ -811,6 +836,7 @@ export async function getSchedulingWorkspaceAction(termId?: number, _universityI
       classrooms: classrooms.map(c => ({
         id: c.id, name: c.name, buildingName: c.buildingName ?? '—',
         capacity: c.capacity, roomType: c.roomType ?? 'THEORY', isActive: c.isActive ?? 1, facultyId: c.facultyId ?? null, facultyName: c.facultyName ?? '—',
+        facultyStudents: c.facultyStudents,
       })),
       professors: professors.map(p => ({
         id: p.id, name: `${p.name} ${p.lastName}`.trim(), staffCode: p.staffCode,
