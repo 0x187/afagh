@@ -24,8 +24,6 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
-  // دسته‌ها پیش‌فرض بسته‌اند؛ با کلیک روی سرصفحه باز می‌شوند
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   // با عوض‌شدن مسیر، کشو بسته شود
   useEffect(() => { setOpen(false); }, [pathname]);
@@ -46,6 +44,17 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
 
   const modules = useMemo(() => navModules(roles, permissions), [roles, permissions]);
   const grouped = useMemo(() => groupedModules(roles, permissions), [roles, permissions]);
+  // دستهٔ فعال: چون ماژول‌ها دیگر در منو نیستند، باید از روی مسیرِ جاری بفهمیم
+  // کاربر داخل کدام دسته است تا همان ردیف برجسته شود. بلندترین href اول بررسی
+  // می‌شود تا `/admin/x/y` به‌اشتباه با `/admin/x` تطبیق داده نشود؛ `/admin`
+  // خودش (داشبورد) از این محاسبه کنار گذاشته می‌شود چون پیشوندِ همه‌چیز است.
+  const activeGroup = useMemo(() => {
+    const hit = modules
+      .filter(m => m.href !== '/admin')
+      .sort((a, b) => b.href.length - a.href.length)
+      .find(m => pathname === m.href || pathname.startsWith(m.href + '/'));
+    return hit?.group;
+  }, [modules, pathname]);
   const filtered = useMemo(() => {
     const t = normalizeFa(q);
     if (!t) return modules;
@@ -112,10 +121,27 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
             </div>
           </div>
 
-          {/* لیست ماژول‌ها (اسکرول‌پذیر) */}
-          <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-3 text-[13px]">
+          {/* لیست بخش‌های اصلی (اسکرول‌پذیر)
+              ────────────────────────────────────────────────────────────
+              ⚠ بازطراحیِ عملکردی: پیش‌تر این‌جا هر ۵۱ ماژول (و زیرماژول) به‌صورت
+              فهرستِ آکاردئونی رندر می‌شد. روی دسکتاپ این پنل همیشه باز است
+              (`lg:block`)، پس هر ۵۱ لینک در viewport بودند و Next.js برای همه‌شان
+              prefetch می‌فرستاد: در HAR یک بارگذاریِ `/admin`، **۱۶۲ درخواست
+              `_rsc` برای ۵۱ صفحهٔ متمایز** ثبت شد — یعنی ۵۱ رندرِ کاملِ RSC با
+              تمام کوئری‌های دیتابیس، فقط برای اینکه کاربر شاید یکی را کلیک کند.
+              شاهدِ قاطع: یک فایل **استاتیک** (`/_next/static/chunks/…js`) ۲٫۲ ثانیه
+              در صف ماند؛ دیتابیس نمی‌تواند فایل استاتیک را کند کند، پس گلوگاه
+              اشباعِ event-loop نود بود.
+
+              حالا فقط ۸ بخشِ اصلی لینک دارند و هر کدام به صفحهٔ کاشی‌های همان
+              دسته (`/admin/c/<key>`) می‌رود؛ ماژول‌ها یک کلیک عقب‌ترند. `prefetch`
+              هم عمداً خاموش است تا هیچ رندری در پس‌زمینه اجرا نشود. جست‌وجو باقی
+              مانده تا مسیرِ «یک‌کلیکی» به ماژولِ خاص از دست نرود — نتیجهٔ جست‌وجو
+              حداکثر چند لینک است، نه ۵۱. */}
+          <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-1 text-[13px]">
             <Link
               href="/admin"
+              prefetch={false}
               aria-current={pathname === '/admin' ? 'page' : undefined}
               className={`flex items-center gap-2 rounded-lg px-3 py-2 transition-colors ${pathname === '/admin' ? th.navActive : th.navHover}`}
             >
@@ -123,73 +149,50 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
               <span className="flex-1">داشبورد</span>
             </Link>
 
-            {filtered.length > 0 && q.trim() === '' ? (
-              grouped.map(g => {
-                // همهٔ دسته‌ها پیش‌فرض بسته‌اند؛ فقط با کلیکِ کاربر باز می‌شوند.
-                // (نام `isOpen` است تا با state بیرونیِ `open` — که کشوی موبایل را
-                //  کنترل می‌کند — قاطی نشود.)
-                const isOpen = !!expanded[g.group.key];
-                return (
-                  <div key={g.group.key}>
-                    {/* سرصفحهٔ دسته — کلیک‌پذیر برای باز/بسته‌کردن (پیش‌فرض بسته) */}
-                    <button
-                      type="button"
-                      onClick={() => setExpanded(p => ({ ...p, [g.group.key]: !isOpen }))}
-                      aria-expanded={isOpen}
-                      className={`flex w-full items-center gap-1.5 rounded-lg px-3 py-2 text-[11px] font-extrabold tracking-wide transition-colors ${th.navHover}`}
+            {q.trim() !== '' ? (
+              /* حالت جست‌وجو: پرشِ مستقیم به ماژول (بدون prefetch) */
+              filtered.length > 0 ? (
+                filtered.map(m => {
+                  const active = pathname === m.href || pathname.startsWith(m.href + '/');
+                  return (
+                    <Link
+                      key={m.href}
+                      href={m.href}
+                      prefetch={false}
+                      title={m.desc}
+                      aria-current={active ? 'page' : undefined}
+                      className={`flex items-center gap-2 rounded-lg px-3 py-2 text-[12.5px] transition-colors ${active ? th.navActive : th.navHover}`}
                     >
-                      <span aria-hidden className="shrink-0">{g.group.icon}</span>
-                      <span className="flex-1 text-start">{g.group.title}</span>
-                      <span className={`shrink-0 rounded px-1 text-3xs font-black tabular-nums ${th.navMuted}`}>
-                        {g.modules.length}
-                      </span>
-                      <span
-                        aria-hidden
-                        className={`shrink-0 text-3xs transition-transform duration-150 ${th.navMuted} ${isOpen ? '' : 'rotate-[-90deg]'}`}
-                      >
-                        ▼
-                      </span>
-                    </button>
-                    {isOpen && (
-                      <div className="mb-1 mt-0.5 space-y-0.5">
-                        {g.modules.map(m => {
-                          const active = pathname === m.href || pathname.startsWith(m.href + '/');
-                          return (
-                            <Link
-                              key={m.href}
-                              href={m.href}
-                              title={m.desc}
-                              aria-current={active ? 'page' : undefined}
-                              className={`flex items-center gap-2 rounded-lg py-2 pe-3 ps-4 text-[12.5px] transition-colors ${active ? th.navActive : th.navHover}`}
-                            >
-                              <span aria-hidden className="shrink-0">{m.icon}</span>
-                              <span className="flex-1 truncate">{m.title}</span>
-                            </Link>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
+                      <span aria-hidden className="shrink-0">{m.icon}</span>
+                      <span className="flex-1 truncate">{m.title}</span>
+                    </Link>
+                  );
+                })
+              ) : (
+                <p className={`px-3 py-4 text-center text-xs ${th.navMuted}`}>ماژولی یافت نشد.</p>
+              )
+            ) : (
+              /* حالت عادی: فقط ۸ بخشِ اصلی */
+              grouped.map(g => {
+                const href = `/admin/c/${g.group.key}`;
+                const active = pathname === href || pathname.startsWith(href + '/') || activeGroup === g.group.key;
+                return (
+                  <Link
+                    key={g.group.key}
+                    href={href}
+                    prefetch={false}
+                    title={g.group.desc}
+                    aria-current={active ? 'page' : undefined}
+                    className={`flex items-center gap-2 rounded-lg px-3 py-2 font-bold transition-colors ${active ? th.navActive : th.navHover}`}
+                  >
+                    <span aria-hidden className="shrink-0">{g.group.icon}</span>
+                    <span className="flex-1 truncate">{g.group.title}</span>
+                    <span className={`shrink-0 rounded px-1 text-3xs font-black tabular-nums ${th.navMuted}`}>
+                      {g.modules.length}
+                    </span>
+                  </Link>
                 );
               })
-            ) : filtered.map(m => {
-              const active = pathname === m.href || pathname.startsWith(m.href + '/');
-              return (
-                <Link
-                  key={m.href}
-                  href={m.href}
-                  title={m.desc}
-                  aria-current={active ? 'page' : undefined}
-                  className={`flex items-center gap-2 rounded-lg px-3 py-2 text-[12.5px] transition-colors ${active ? th.navActive : th.navHover}`}
-                >
-                  <span aria-hidden className="shrink-0">{m.icon}</span>
-                  <span className="flex-1 truncate">{m.title}</span>
-                </Link>
-              );
-            })}
-
-            {filtered.length === 0 && (
-              <p className={`px-3 py-4 text-center text-xs ${th.navMuted}`}>ماژولی یافت نشد.</p>
             )}
           </nav>
 
@@ -197,6 +200,7 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
           <div className={`p-2 border-t ${th.navBorder}`}>
             <Link
               href="/help/admin"
+              prefetch={false}
               className="flex items-center gap-2 rounded-lg px-3 py-2 text-[13px] bg-emerald-700/70 hover:bg-emerald-700 border border-emerald-500/40 font-bold transition-colors"
             >
               <Icon emoji="📖" className="h-4 w-4 shrink-0" /> راهنمای کاربری و PDF

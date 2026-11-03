@@ -65,8 +65,21 @@ function InboxTh({
   const active = sortKey === col;
   return (
     <th className="p-2.5">
+      {/* ⚠ `prefetch={false}` حیاتی است — این را حذف نکنید.
+          Next.js App Router به‌طور پیش‌فرض هر <Link> داخلِ viewport را
+          prefetch می‌کند و هر prefetch یک **رندرِ کاملِ RSC** از همان صفحه است،
+          با همهٔ کوئری‌های دیتابیس. این جدول ۵ سرستونِ مرتب‌سازی دارد، پس
+          باز کردنِ /admin پنج رندرِ کاملِ موازی شلیک می‌کرد.
+          اندازه‌گیریِ واقعی با HAR روی سرورِ تولید: چهار درخواست
+          `?sort=track|name|proc|status` در یک میلی‌ثانیه، هر کدام ~۱.۱۶ ثانیه
+          ⇒ حدود ۵ ثانیه کارِ سرور فقط برای prefetch. پیامدش این بود که یک
+          endpoint بی‌هزینه مثلِ `/api/version` هم ۴.۲ ثانیه منتظر می‌ماند،
+          چون سرور اشباع شده بود.
+          مرتب‌سازی یک کنشِ صریحِ کاربر است، نه ناوبری؛ پیش‌واکشی‌اش هیچ سودی
+          ندارد و فقط ظرفیتِ سرور را می‌سوزاند. */}
       <Link
         href={href(col)}
+        prefetch={false}
         title="مرتب‌سازی"
         className={`font-bold hover:text-indigo-700 whitespace-nowrap ${active ? 'text-indigo-700' : ''}`}
       >
@@ -167,6 +180,7 @@ export default async function AdminHome({
             <Link
               key={g.group.key}
               href={`/admin/c/${g.group.key}`}
+              prefetch={false}
               className="group relative flex h-full items-start gap-3 overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-lg sm:p-4"
             >
               {/* نوارِ رنگیِ بالای کارت — فقط در hover ظاهر می‌شود؛ نشانهٔ «قابل کلیک» */}

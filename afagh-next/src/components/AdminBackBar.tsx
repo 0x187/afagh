@@ -42,6 +42,7 @@ export default function AdminBackBar({
         <Link
           href={homeHref}
           title={homeLabel}
+          prefetch={false}
           className={BACK_HOME_CLASS}
         >
           <span aria-hidden>🏠</span>
@@ -52,6 +53,7 @@ export default function AdminBackBar({
       <Link
         href={target.href}
         title={`بازگشت به ${target.title}`}
+        prefetch={false}
         className={BACK_BTN_CLASS}
       >
         <span aria-hidden>→</span>

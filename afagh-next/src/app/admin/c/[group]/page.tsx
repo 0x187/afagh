@@ -54,13 +54,20 @@ export default async function CategoryPage({ params }: { params: Promise<{ group
           ⚠ بازطراحی: پیش‌تر **کلِ کاشی** یک گرادیانِ رنگیِ مخصوصِ خودش داشت؛ با
           ۴۰+ ماژول، صفحه به یک تابلوی رنگارنگ تبدیل می‌شد و سلسله‌مراتب نداشت.
           حالا سطحِ کاشی خنثی است و رنگِ هر ماژول فقط در «نشانِ آیکن» می‌ماند —
-          هم‌خوان با کاشی‌های دسته در داشبورد و با هر دو حالت روشن/تیره. */}
+          هم‌خوان با کاشی‌های دسته در داشبورد و با هر دو حالت روشن/تیره.
+
+          prefetch خاموش است: هر کاشی یک صفحهٔ سنگینِ force-dynamic است. با
+          prefetch روشن، باز کردن یک دسته ۵ تا ۸ رندرِ کاملِ RSC با تمام
+          کوئری‌هایشان را همزمان به event-loop نود تحمیل می‌کرد — همان الگویی
+          که در HAR باعث ۱۶۲ درخواست `_rsc` روی یک بارگذاری شده بود.
+          ناوبری حالا فقط با کلیک و یک درخواست انجام می‌شود. */}
       <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 sm:gap-3.5 lg:grid-cols-5">
         {g.modules.map(m => (
           <Link
             key={m.href}
             href={m.href}
             title={m.title}
+            prefetch={false}
             className="group flex min-h-[104px] flex-col items-center justify-start gap-2 rounded-2xl border border-slate-200 bg-white px-2 py-3 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-md"
           >
             <div

@@ -179,7 +179,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               </div>
               <UserAvatar userId={user.id} hasPhoto={!!photoRow?.photoKey} name={user.name} className="w-9 h-9 shrink-0" fallbackClass="bg-indigo-600" />
               <div className="min-w-0">
-                <Link href="/admin" title="بازگشت به صفحه اول (داشبورد)" className="block hover:opacity-90 transition-opacity">
+                <Link href="/admin" prefetch={false} title="بازگشت به صفحه اول (داشبورد)" className="block hover:opacity-90 transition-opacity">
                   <p className="truncate font-extrabold text-sm tracking-wide">
                     <span className="sm:hidden">داشبورد مدیریت</span>
                     <span className="hidden sm:inline">داشبورد مدیریت جامع {curUni.title}</span>
