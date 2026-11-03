@@ -506,9 +506,9 @@ export function cohortSemesterNo(
 export function programSemesterMatrix(
   demands: CourseDemand[],
   approved: DepartmentOffering[],
-  programs: { id: number; title: string }[],
+  programs: { id: number; title: string; code?: string }[],
 ): {
-  id: number; title: string;
+  id: number; title: string; code: string;
   semesters: { semester: number | null; total: number; missingProf: number; unscheduled: number; complete: boolean }[];
 }[] {
   const scheduled = new Set(approved.map(o => o.id));
@@ -535,7 +535,7 @@ export function programSemesterMatrix(
       })
       // ترم‌های شماره‌دار اول (صعودی)، «نامشخص» آخر
       .sort((a, b) => (a.semester ?? 999) - (b.semester ?? 999));
-    return { id: p.id, title: p.title, semesters };
+    return { id: p.id, title: p.title, code: p.code ?? '', semesters };
   });
 }
 

@@ -93,7 +93,7 @@ export default function ProgramScopeTab() {
           >
             <div className="flex items-start justify-between gap-2 mb-3">
               <div className="min-w-0">
-                <h4 className="font-extrabold text-slate-900 text-sm truncate" title={p.title}>🎓 {p.title} <span className="text-slate-500 font-mono text-xs">({p.code})</span></h4>
+                <h4 className="font-extrabold text-slate-900 text-sm truncate" title={p.title}>🎓 {p.title}{p.code ? <span className="text-slate-500 font-mono text-xs"> ({p.code})</span> : null}</h4>
                 <p className="text-[11px] font-bold text-slate-500 mt-0.5">
                   {faNum(p.semesters.reduce((n, s) => n + s.total, 0))} درس در این نیمسال
                 </p>

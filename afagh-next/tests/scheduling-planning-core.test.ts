@@ -70,11 +70,11 @@ eq('رتبهٔ عمومی قبل از تخصصی', [courseTypeRank('عمومي')
 eq('استاد null → صفر (نه undefined)', mapDemands([{ ...rawDemand, professorId: null, isSharedService: false, offeringScope: 'DEPARTMENTAL' }])[0].preferredProfId, 0);
 eq('پیش‌فرض‌های ایمن نشست', [d.requiredRoomType, d.groupsCount, d.weekRecurrence, d.examDate], ['THEORY', 1, 'ALL', '']);
 eq('کارت تهی هیچ‌وقت undefined نمی‌شود', NO_PROFESSOR.id, 0);
-const [co] = mapCohorts([{ entryYear: 1403, entryTerm: 1, expectedStudents: 120 }]);
+const [co] = mapCohorts([{ majorId: null, entryYear: 1403, entryTerm: 1, expectedStudents: 120 }]);
 // «نیمسال ورود» (مهر/بهمن) به‌جای «سال ورود»
 eq('عنوان نیمسال ورود با رقم فارسی', co.title, 'نیمسال ورود مهر ۱۴۰۳');
 eq('کلید نیمسال ورود = سال-نیمسال', co.id, '1403-1');
-eq('بهمن = نیمسال دوم', mapCohorts([{ entryYear: 1403, entryTerm: 2, expectedStudents: 10 }])[0].title, 'نیمسال ورود بهمن ۱۴۰۳');
+eq('بهمن = نیمسال دوم', mapCohorts([{ majorId: null, entryYear: 1403, entryTerm: 2, expectedStudents: 10 }])[0].title, 'نیمسال ورود بهمن ۱۴۰۳');
 
 const rawApproved = {
   offeringId: 9, code: '202', title: 'فیزیک', units: '2', courseType: 'پایه', groupNumber: 1,

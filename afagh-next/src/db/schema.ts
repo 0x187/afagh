@@ -1002,9 +1002,9 @@ export const classrooms = pgTable('classrooms', {
   code: varchar('code', { length: 30 }),
   capacity: integer('capacity').notNull(),
   roomType: varchar('roomType', { length: 30 }),
-  /** OUOU+ UcU,OO3 OO� O_O� U.O'O�O�U�U" O�OrO�UOO� U.UO�?OO'U^O_ U�O� U_O�U^U� (O�U.O1U,U, O"U� O,O�U?UOO� UcU,OO3) */
+  /** آیا این کلاس «سالن امتحان» است؟ (۱ = بله، ۰ = خیر) */
   isExamHall: integer('isExamHall').notNull().default(0),
-  /** O,O�U?UOO� O�U.O1U,U, UcU,OO3 O"O� U.O'O�O�U�U" O�OrO�UOO� (O�U.O1U,U, O"U� UcU,OO3 O1OU./O3UOO3O�U.UO) */
+  /** ظرفیت امتحان کلاس؛ اگر خالی باشد از ظرفیت عادی کلاس استفاده می‌شود */
   examCapacity: integer('examCapacity'),
   buildingName: varchar('buildingName', { length: 100 }),
   // ── طبقه (Floor) — نمایش در پوستر سردر کلاسی (درخواست کاربر R-AA) ──

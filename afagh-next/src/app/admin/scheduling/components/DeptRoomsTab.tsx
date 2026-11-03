@@ -121,12 +121,16 @@ export default function DeptRoomsTab() {
                   try {
                     const allocated = roomGrants.filter(g => g.status === 'ALLOCATED');
                     let okCount = 0;
+                    let firstErr: string | null = null;
                     for (const g of allocated) {
                       const res = await releaseRoomShiftAction({ termId: selectedTermId, departmentId: g.ownerDepartmentId, classroomId: g.classroomId, shift: g.shift as 'MORNING' | 'EVENING' });
                       if (res?.ok) okCount++;
-                      else { setMsg(`⚠️ ${res?.error ?? 'خطا'}`); break; }
+                      else { firstErr = res?.error ?? 'خطا'; break; }
                     }
-                    setMsg(`✅ ${faNum(okCount)} سهمیه لغو شد.`);
+                    // پیام خطا نباید با پیام موفقیت بازنویسی شود؛ هر دو را با هم نشان می‌دهیم.
+                    setMsg(firstErr
+                      ? `⚠️ ${faNum(okCount)} سهمیه لغو شد، اما یکی ناموفق بود: ${firstErr}`
+                      : `✅ ${faNum(okCount)} سهمیه لغو شد.`);
                     reloadRoomGrants();
                   } catch (e: any) {
                     setMsg(`⚠️ ${e?.message ?? 'خطا'}`);

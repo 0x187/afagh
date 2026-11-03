@@ -303,7 +303,7 @@ export async function allocateSections(actorUserId: number | null, px: {
 // ─────────────────────────── سهمیهٔ کلاس‌ها + استخر شناور ───────────────────────────
 
 /** تخصیص اولیهٔ سهمیه (سالن، شیفت) گروه‌های هر دانشکده بر اساس جمعیت دانشجویی */
-export async function allocateRoomQuotas(actorUserId: number | null, termId: number) {
+export async function allocateRoomQuotas(actorUserId: number | null, termId: number): Promise<{ ok: true; grants: number }> {
   const faculties = await db.execute(sql`select id from faculties order by id`);
   const grantsAll: { departmentId: number; classroomId: number; shift: Shift }[] = [];
 
@@ -351,7 +351,7 @@ export async function allocateRoomQuotas(actorUserId: number | null, termId: num
 /** آزادسازی شیفت مازاد (فقط مالک) → ورود به استخر مشترک دانشکده */
 export async function releaseRoomShift(actorUserId: number | null, px: {
   termId: number; departmentId: number; classroomId: number; shift: Shift;
-}) {
+}): Promise<{ ok: true }> {
   return db.transaction(async tx => {
     await advisoryLock(tx, 'sched_pool', px.termId, px.classroomId);
     const [g] = await tx
@@ -376,7 +376,7 @@ export async function releaseRoomShift(actorUserId: number | null, px: {
 /** قرض‌گرفتن شیفت آزادشده از استخر (هر گروه‌ای) */
 export async function borrowReleasedShift(actorUserId: number | null, px: {
   termId: number; classroomId: number; shift: Shift; departmentId: number;
-}) {
+}): Promise<{ ok: true }> {
   return db.transaction(async tx => {
     await advisoryLock(tx, 'sched_pool', px.termId, px.classroomId);
     const [g] = await tx

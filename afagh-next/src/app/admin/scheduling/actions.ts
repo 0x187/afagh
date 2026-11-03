@@ -644,20 +644,22 @@ async function listRoomGrants(termId: number, universityId?: number) {
 
 // ─────────────────────────── اکشن‌ها — Page Data ───────────────────────────
 
-/** تایپ صریح نتیجهٔ کارتابل — برای narrowing صحیح در کلاینت */
+/** تایپ صریح نتیجهٔ کارتابل — برای narrowing صحیح در کلاینت
+ *  ⚠️ این تایپ باید آینهٔ `SchedulingWorkspace` در `./types.ts` بماند؛
+ *  اگر فیلدی به خروجی اضافه/حذف شد، هر دو جا هم‌زمان به‌روز شوند. */
 export type SchedulingWorkspaceResult =
   | {
       ok: true;
       terms: { id: number; code: string; title: string; isCurrent: boolean }[];
       selectedTermId: number | null;
       programs: { id: number; code: string; title: string; facultyName: string; degreeLevel: string; facultyId: number | null }[];
-      cohorts: { entryYear: number; expectedStudents: number }[];
+      cohorts: { majorId: number | null; entryYear: number; entryTerm: number; expectedStudents: number }[];
       classrooms: { id: number; name: string; buildingName: string; capacity: number; roomType: string; isActive: number | null; facultyId: number | null; facultyName: string | null }[];
       allocatedRoomIds: number[];
       roomGrants: { id: number; classroomId: number; shift: string; ownerDepartmentId: number; status: string }[];
       departments: { id: number; name: string; departmentCode: string | null }[];
       availabilities: { staffId: number; dayOfWeek: number | null; startTime: string | null; endTime: string | null; status: string | null }[];
-      professors: { id: number; name: string; staffCode: string | null; academicRank: string | null; departmentName: string | null }[];
+      professors: { id: number; name: string; staffCode: string | null; academicRank: string | null; departmentId: number | null; departmentName: string | null }[];
       demands: {
         offeringId: number; courseId: number; courseDeptId: number | null;
         code: string; title: string; units: string; courseType: string;
@@ -718,7 +720,7 @@ export async function getSchedulingWorkspaceAction(termId?: number, _universityI
     let sessionsTotal = 0;
     let sessionsByOffering: Record<number, { total: number; makeup: number; firstDate: string | null }> = {};
     let hardConflictCount = 0;
-    let cohorts: { entryYear: number; expectedStudents: number }[] = [];
+    let cohorts: { majorId: number | null; entryYear: number; entryTerm: number; expectedStudents: number }[] = [];
     let approvedOfferings: Awaited<ReturnType<typeof listApprovedOfferings>> = [];
     let makeupSessions: Awaited<ReturnType<typeof listMakeupSessions>> = [];
     let allocatedRoomIds: number[] = [];
@@ -1147,7 +1149,7 @@ export async function allocateSectionsAction(px: { termId: number; departmentId:
 }
 
 /** سهمیه‌بندی (سالن، شیفت) گروه‌ها بر اساس جمعیت دانشجویی — موتور واقعی */
-export async function allocateRoomQuotasAction(termId: number) {
+export async function allocateRoomQuotasAction(termId: number): Promise<{ ok: true; grants: number } | { ok: false; error: string }> {
   try {
     const user = await requireRole(EDITORS);
     const res = await allocateRoomQuotas(user.id, termId);
@@ -1158,21 +1160,33 @@ export async function allocateRoomQuotasAction(termId: number) {
   }
 }
 
-export async function copyRoomQuotasFromPreviousTermAction(termId: number) {
+export async function copyRoomQuotasFromPreviousTermAction(termId: number): Promise<{ ok: true; copied: number } | { ok: false; error: string }> {
   try {
     await requireRole(EDITORS);
+    const uid = await serverUniId();
     const terms = await db
       .select({ id: academic_terms.id })
       .from(academic_terms)
       .orderBy(desc(academic_terms.id));
-    const idx = terms.findIndex(t => t.id === termId);
-    const prevTermId = idx >= 0 && idx + 1 < terms.length ? terms[idx + 1].id : null;
+    // «ترم قبل» = نزدیک‌ترین ترم با شناسهٔ کمتر. به `idx + 1` تکیه نمی‌کنیم چون
+    // اگر termId در فهرست نباشد (یا ترتیب شناسه‌ها زمانی نباشد) نتیجه غلط می‌شد.
+    const prevTermId = terms.find(t => t.id < termId)?.id ?? null;
     if (!prevTermId) return { ok: false, error: 'ترم قبلی یافت نشد.' };
 
+    // فقط سهمیهٔ سالن‌های همین دانشگاه منتقل می‌شود. بدون این شرط، مدیرِ یک
+    // دانشگاه سهمیهٔ سالن‌های بقیهٔ دانشگاه‌ها را هم به این ترم کپی می‌کرد.
     const prevGrants = await db
-      .select()
+      .select({
+        classroomId: scheduling_room_grants.classroomId,
+        shift: scheduling_room_grants.shift,
+        ownerDepartmentId: scheduling_room_grants.ownerDepartmentId,
+      })
       .from(scheduling_room_grants)
-      .where(eq(scheduling_room_grants.termId, prevTermId));
+      .innerJoin(classrooms, eq(classrooms.id, scheduling_room_grants.classroomId))
+      .where(and(
+        eq(scheduling_room_grants.termId, prevTermId),
+        universityEq(classrooms.universityId, uid),
+      ));
 
     let copied = 0;
     for (const g of prevGrants) {
@@ -1184,7 +1198,7 @@ export async function copyRoomQuotasFromPreviousTermAction(termId: number) {
           shift: g.shift,
           ownerDepartmentId: g.ownerDepartmentId,
           status: 'ALLOCATED',
-          universityId: g.universityId,
+          universityId: uid ?? null,
         })
         .onConflictDoNothing()
         .returning({ id: scheduling_room_grants.id });
@@ -1236,17 +1250,18 @@ export async function borrowReleasedShiftAction(px: { termId: number; classroomI
   }
 }
 
-export async function upsertRoomGrantAction(px: { termId: number; classroomId: number; shift: 'MORNING' | 'EVENING'; departmentId: number }) {
+export async function upsertRoomGrantAction(px: { termId: number; classroomId: number; shift: 'MORNING' | 'EVENING'; departmentId: number }): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     await requireRole(EDITORS);
-    const uid = await (async () => {
-      const { getCurrentUniversity } = await import('@/lib/university-scope');
-      const u = await getCurrentUniversity().catch(() => null);
-      return u?.id ?? null;
-    })();
-    const { db } = await import('@/db');
-    const { scheduling_room_grants } = await import('@/db/schema');
-    const { eq, and } = await import('drizzle-orm');
+    const uid = await serverUniId();
+    // سالن باید در دامنهٔ همین دانشگاه باشد؛ وگرنه مدیرِ یک دانشگاه می‌توانست
+    // برای سالنِ دانشگاه دیگر سهمیه بسازد (نشتی بین‌دانشگاهی).
+    const [room] = await db
+      .select({ id: classrooms.id })
+      .from(classrooms)
+      .where(and(eq(classrooms.id, px.classroomId), universityEq(classrooms.universityId, uid)))
+      .limit(1);
+    if (!room) return { ok: false, error: 'این سالن در دامنهٔ دانشگاه شما نیست.' };
     await db
       .insert(scheduling_room_grants)
       .values({
@@ -1255,12 +1270,13 @@ export async function upsertRoomGrantAction(px: { termId: number; classroomId: n
         shift: px.shift,
         ownerDepartmentId: px.departmentId,
         status: 'ALLOCATED',
-        universityId: uid,
+        universityId: uid ?? null,
       })
       .onConflictDoUpdate({
         target: [scheduling_room_grants.termId, scheduling_room_grants.classroomId, scheduling_room_grants.shift],
         set: { ownerDepartmentId: px.departmentId, status: 'ALLOCATED', releasedAt: null },
       });
+    revalidatePath('/admin/scheduling');
     return { ok: true };
   } catch (e: any) {
     return { ok: false, error: e?.message ?? 'خطا در تخصیص سالن.' };
