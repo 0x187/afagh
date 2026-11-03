@@ -193,27 +193,33 @@ export default async function AdminHome({
 
   return (
     <div className="space-y-5">
+      {/* ═══ سربرگِ صفحه ═══ */}
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div className="min-w-0">
+          <h1 className="text-base font-black tracking-tight text-slate-900 sm:text-lg">داشبورد مدیریت</h1>
+          <p className="mt-0.5 text-2xs font-bold text-slate-500 sm:text-xs">
+            دسته‌بندی ماژول‌ها و کارتابلِ رسیدگی — {groups.reduce((s, g) => s + g.modules.length, 0)} ماژول در دسترسِ نقش شما
+          </p>
+        </div>
+      </div>
+
       {/* ═══ دسته‌های کلی — کلیک = صفحهٔ کاشی‌های همان دسته ═══ */}
       <section>
-        <div className="flex items-center justify-between mb-3">
-          <h1 className="font-extrabold text-slate-800 text-base sm:text-lg">دسته‌بندی سامانه</h1>
-          <span className="text-xs text-slate-500">{groups.reduce((s, g) => s + g.modules.length, 0)} ماژول در دسترس نقش شما</span>
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5 lg:grid-cols-4">
           {groups.map(g => (
             <Link
               key={g.group.key}
               href={`/admin/c/${g.group.key}`}
-              className="group h-full p-3 sm:p-4 rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-start gap-2.5 sm:gap-3"
+              className="group flex h-full items-start gap-2.5 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-lg sm:gap-3 sm:p-4"
             >
-              <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-xl sm:text-2xl group-hover:scale-110 transition-transform">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-indigo-100 bg-indigo-50 text-xl transition-transform group-hover:scale-110 sm:h-11 sm:w-11 sm:text-2xl">
                 {g.group.icon}
               </div>
               <div className="min-w-0">
-                <h3 className="font-extrabold text-[12px] sm:text-sm leading-tight text-slate-800">{g.group.title}</h3>
+                <h3 className="text-[12px] font-extrabold leading-tight text-slate-800 sm:text-sm">{g.group.title}</h3>
                 {/* توضیح دسته فقط از sm به بالا — در موبایل کارت را بی‌دلیل بلند می‌کرد */}
-                <p className="hidden sm:block text-2xs text-slate-500 mt-1 leading-5">{g.group.desc}</p>
-                <p className="text-3xs text-indigo-600 mt-1 font-bold">{g.modules.length} ماژول ←</p>
+                <p className="mt-1 hidden text-2xs leading-5 text-slate-500 sm:block">{g.group.desc}</p>
+                <p className="mt-1 text-3xs font-bold text-indigo-600">{g.modules.length} ماژول ←</p>
               </div>
             </Link>
           ))}
@@ -222,21 +228,20 @@ export default async function AdminHome({
 
       {isEdu && (
         <>
-          {/* کارت‌های خلاصه وضعیت کل سیستم */}
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-            <div className="card text-center">
-              <p className="text-2xl font-bold text-indigo-700">{total}</p>
-              <p className="text-xs text-slate-500">کل درخواست‌ها</p>
-            </div>
-            {['SUBMITTED', 'IN_REVIEW', 'APPROVED', 'REJECTED'].map(k => {
-              const n = counts.find(c => c.status === k)?.n ?? 0;
-              return (
-                <div key={k} className="card text-center">
-                  <p className="text-2xl font-bold text-slate-700">{n}</p>
-                  <p className="text-xs text-slate-500">{stFa[k]}</p>
-                </div>
-              );
-            })}
+          {/* کارت‌های خلاصه وضعیت کل سیستم — یک نوارِ پنج‌کاشیِ هم‌تراز */}
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3 md:grid-cols-5">
+            {[{ k: 'ALL', label: 'کل درخواست‌ها', n: total, accent: 'text-indigo-700' } as const,
+              ...['SUBMITTED', 'IN_REVIEW', 'APPROVED', 'REJECTED'].map(k => ({
+                k,
+                label: stFa[k],
+                n: counts.find(c => c.status === k)?.n ?? 0,
+                accent: 'text-slate-700',
+              }))].map(s => (
+              <div key={s.k} className="card flex flex-col items-center justify-center gap-0.5 !p-3 text-center">
+                <p className={`text-xl font-black tabular-nums sm:text-2xl ${s.accent}`}>{s.n}</p>
+                <p className="text-3xs font-bold text-slate-500 sm:text-2xs">{s.label}</p>
+              </div>
+            ))}
           </div>
 
           {/* کارتابل درخواست‌های کلاس جبرانی اساتید */}
@@ -245,9 +250,11 @@ export default async function AdminHome({
           {/* 🔴 فعالیت زندهٔ نمرات — چه کسی هم‌اکنون/اخیراً نمره تغییر داده است */}
           {showGradeLive && (
             <div className="card border-red-300">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="font-bold text-slate-800">🔴 فعالیت زندهٔ نمرات (۳۰ دقیقهٔ اخیر)</h2>
-                <span className="text-xs text-slate-500">{gradeLive.length} تغییر</span>
+              <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
+                <h2 className="text-sm font-extrabold text-slate-900">🔴 فعالیت زندهٔ نمرات</h2>
+                <span className="ui-chip !border-red-200 !bg-red-50 !text-red-700 dark:!border-red-900 dark:!bg-red-950 dark:!text-red-200">
+                  {gradeLive.length} تغییر در ۳۰ دقیقهٔ اخیر
+                </span>
               </div>
               {gradeLive.length === 0 ? (
                 <p className="text-xs text-slate-400">در ۳۰ دقیقهٔ اخیر تغییری در نمرات ثبت نشده است.</p>
@@ -273,13 +280,20 @@ export default async function AdminHome({
           {/* وضعیت موتور صف Redis */}
           {wr && (
             <div className={'card flex flex-wrap items-center justify-between gap-3 ' + (wr.up ? 'border-emerald-300' : 'border-red-300')}>
-              <div>
-                <h2 className="font-bold">اتاق انتظار Redis (§۶۹۰۶)</h2>
-                <p className="text-xs text-slate-500">
-                  {wr.up
-                    ? 'فعال — ' + wr.warmedOfferings + ' کلاس گرم‌شده · صف ثبت نهایی: ' + wr.queueLength + ' درخواست'
-                    : 'Redis در دسترس نیست — موتور به شمارش SQL برمی‌گردد (حالت تداوم)'}
-                </p>
+              <div className="flex min-w-0 items-start gap-2.5">
+                <span
+                  aria-hidden
+                  className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${wr.up ? 'bg-emerald-500' : 'bg-red-500'}`}
+                  style={wr.up ? { boxShadow: '0 0 0 4px rgba(16,185,129,.15)' } : { boxShadow: '0 0 0 4px rgba(239,68,68,.15)' }}
+                />
+                <div className="min-w-0">
+                  <h2 className="text-sm font-extrabold text-slate-900">اتاق انتظار Redis (§۶۹۰۶)</h2>
+                  <p className="mt-0.5 text-2xs font-bold text-slate-500">
+                    {wr.up
+                      ? `فعال — ${wr.warmedOfferings} کلاس گرم‌شده · صف ثبت نهایی: ${wr.queueLength} درخواست`
+                      : 'Redis در دسترس نیست — موتور به شمارش SQL برمی‌گردد (حالت تداوم)'}
+                  </p>
+                </div>
               </div>
               <form action={warmupAction}>
                 <button className="btn-primary !py-1.5 text-xs">گرم‌کردن مجدد ظرفیت‌ها (شب قبل §۱۰۰۶)</button>
@@ -288,10 +302,12 @@ export default async function AdminHome({
           )}
 
           {/* جدول کارتابل گردش کار و اقدامات دانشجویی */}
-          <div className="card">
-            <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
-              <h2 className="font-bold text-slate-800">کارتابل رسیدگی به درخواست‌های دانشجویی (شورای آموزشی)</h2>
-              <span className="text-xs text-slate-500">{inbox.length} پرونده اخیر</span>
+          <div className="card !p-0">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
+              <div className="min-w-0">
+                <h2 className="text-sm font-extrabold text-slate-900">کارتابل رسیدگی به درخواست‌های دانشجویی</h2>
+                <p className="mt-0.5 text-2xs font-bold text-slate-500">شورای آموزشی · {inbox.length} پروندهٔ اخیر</p>
+              </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -309,8 +325,10 @@ export default async function AdminHome({
                 <tbody>
                   {inbox.length === 0 && (
                     <tr>
-                      <td colSpan={6} className="p-6 text-center text-slate-400">
-                        درخواستی در کارتابل موجود نیست.
+                      <td colSpan={6} className="px-4 py-10 text-center">
+                        <p className="text-2xl" aria-hidden>🗂️</p>
+                        <p className="mt-1 text-xs font-bold text-slate-500">درخواستی در کارتابل موجود نیست.</p>
+                        <p className="mt-0.5 text-3xs font-bold text-slate-400">درخواست‌های تازه پس از ثبت دانشجو همین‌جا دیده می‌شوند.</p>
                       </td>
                     </tr>
                   )}

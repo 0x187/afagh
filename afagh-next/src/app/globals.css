@@ -423,7 +423,18 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-text); bo
 .dark .border-teal-300 { border-color: #0d9488 !important; }
 .dark .hover\:bg-rose-200:hover { background-color: #9f1239 !important; }
 
-.card { @apply bg-white rounded-2xl shadow-sm border border-slate-200 p-4; }
+/* کارتِ پایه — پرکاربردترین سطحِ سامانه (۴۰۰+ کاربرد).
+   ⚠ باگِ رفع‌شده: `@apply bg-white` رنگِ **ثابتِ سفید** تولید می‌کرد و چون این
+   قاعده بعد از `@tailwind utilities` می‌آید، بر نگاشتِ تم در خط ۱۲۴ هم غالب
+   می‌شد؛ نتیجه اینکه در **حالت تیره** همهٔ `.card`ها سفید می‌ماندند. حالا رنگ
+   از توکنِ سطح خوانده می‌شود (روشن: سفید، تیره: کارتِ تیره) و ارتفاع هم از
+   پلهٔ دومِ سایه می‌آید تا کارت از بوم جدا دیده شود. */
+.card {
+  @apply rounded-2xl border p-4;
+  background-color: var(--ui-card);
+  border-color: var(--ui-stroke);
+  box-shadow: var(--ui-shadow-2);
+}
 .btn { @apply inline-flex items-center justify-center gap-1 rounded-xl px-4 py-2 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed; }
 .btn-primary { @apply btn bg-emerald-600 text-white hover:bg-emerald-700; }
 .btn-ghost { @apply btn bg-slate-100 text-slate-700 hover:bg-slate-200; }
@@ -447,7 +458,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-text); bo
    گارد: tests/input-width-precedence.test.ts
    ───────────────────────────────────────────────────────────── */
 @layer components {
-  .input { @apply w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500; }
+  .input { @apply w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/35; }
   /* نشانگرِ فوکوسِ عمومی (:focus-visible در بالای فایل) روی .input دوتایی
      نشود؛ همین‌جا و **داخل** لایه، تا هیچ `.input`ای بیرون از
      `@layer components` تعریف نشود (گارد: tests/input-width-precedence.test.ts). */
