@@ -16,10 +16,10 @@ export default function AdminNav({ roles, permissions, theme }: { roles: string[
   const th: UniTheme = theme ?? {
     header: 'bg-indigo-950', badge: 'bg-indigo-900/90 hover:bg-indigo-900 border-indigo-600/60',
     ring: 'border-indigo-700/60', soft: 'bg-indigo-900/80 text-indigo-200',
-    navPanel: 'bg-indigo-950 border-indigo-700/50', navBorder: 'border-indigo-800/60',
-    navHover: 'hover:bg-indigo-900/70', navActive: 'bg-indigo-700 font-bold',
-    navMuted: 'text-indigo-400',
-    navInput: 'bg-indigo-900/70 border-indigo-700/60 placeholder:text-indigo-400 focus:border-indigo-400',
+    navPanel: 'bg-indigo-600 text-white border-indigo-500 dark:bg-indigo-950 dark:border-indigo-700/50', navBorder: 'border-indigo-200',
+    navHover: 'hover:bg-indigo-500 dark:hover:bg-indigo-900/70', navActive: 'bg-indigo-700 font-bold',
+    navMuted: 'text-indigo-200 dark:text-indigo-400',
+    navInput: 'bg-white border-indigo-200 dark:bg-indigo-900/70 dark:border-indigo-700/60 placeholder:text-indigo-400 focus:border-indigo-500 dark:focus:border-indigo-400',
   };
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
