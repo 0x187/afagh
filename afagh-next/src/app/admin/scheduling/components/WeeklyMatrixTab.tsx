@@ -18,6 +18,12 @@ export default function WeeklyMatrixTab() {
     teachingSlots,
   } = usePlanning();
 
+  // ارائه‌هایی که ساعتشان در هیچ زنگِ تعریف‌شده نمی‌افتد (مثلاً ۰۱:۰۰ یا خارج از
+  // ۰۸:۰۰–۱۹:۳۰). قبلاً این‌ها کامل ناپدید می‌شدند و جدول «خالی» به‌نظر می‌رسید.
+  const unmatchedOfferings = inspectorOfferings.filter(o =>
+    !o.classSchedules.some(cs => teachingSlots.some(slot =>
+      cs.startTime !== '' && cs.startTime >= slot.startTime && cs.startTime < slot.endTime)));
+
   return (
           <div className="space-y-5">
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-4">
@@ -88,6 +94,13 @@ export default function WeeklyMatrixTab() {
                 </div>
               </div>
             </div>
+
+            {inspectorOfferings.length === 0 && (
+              <div className="rounded-2xl border-2 border-dashed border-amber-300 bg-amber-50 p-6 text-center">
+                <p className="font-extrabold text-amber-900">این استاد در این ترم درسِ ثبت‌شده‌ای ندارد</p>
+                <p className="text-xs text-amber-800 mt-1">از فهرست بالا استاد دیگری را انتخاب کنید؛ استادی که درس دارد به‌صورت پیش‌فرض انتخاب می‌شود.</p>
+              </div>
+            )}
 
             {/* Professor Weekly Grid */}
             <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-4">
@@ -194,6 +207,31 @@ export default function WeeklyMatrixTab() {
               </div>
 
             </div>
+
+            {unmatchedOfferings.length > 0 && (
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-amber-200 space-y-2">
+                <h3 className="font-extrabold text-slate-900 text-sm">
+                  ⏱️ درس‌های خارج از زنگ‌های تعریف‌شده ({faNum(unmatchedOfferings.length)})
+                </h3>
+                <p className="text-[11px] text-slate-500">
+                  ساعت این کلاس‌ها داخل بازهٔ زنگ‌های تنظیم‌شده (۰۸:۰۰–۱۹:۳۰) نمی‌افتد؛ برای دیده‌شدن در جدول،
+                  زنگ‌ها را در تنظیمات برنامهٔ هفتگی اصلاح کنید.
+                </p>
+                <ul className="text-xs divide-y divide-slate-100">
+                  {unmatchedOfferings.map(o => {
+                    const cs = o.classSchedules[0];
+                    return (
+                      <li key={o.id} className="py-1.5 flex items-center justify-between gap-2">
+                        <span className="font-bold text-slate-800">{o.title} — گروه {faNum(o.groupNumber)}</span>
+                        <span className="text-slate-500 font-mono">
+                          {DAY_NAMES[cs?.dayOfWeek ?? 0] ?? '—'} {cs?.startTime}–{cs?.endTime} · {cs?.roomName}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
           </div>
   );
 }

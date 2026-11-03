@@ -448,6 +448,47 @@ export function filterContextDemands(
 }
 
 /**
+ * دامنهٔ مدیرگروه بر تقاضاها: فقط دروسِ دپارتمان‌های تحت مدیریت.
+ *
+ * دروسِ عمومی/معارف (مثل «انقلاب اسلامی») را مدیرگروهِ همان گروه تخصیص
+ * می‌دهد؛ نمایشِ آن‌ها در تابلوِ گروه تخصصی فقط زمانِ برنامه‌ریزی را پر
+ * می‌کرد و انتخاب‌ها را غیرواقعی می‌ساخت. `deptIds` خالی ⇒ هیچ (fail-closed).
+ */
+export function scopeDemandsToDepts<T extends { courseDeptId: number | null }>(
+  demands: T[],
+  deptIds: number[],
+): T[] {
+  if (!deptIds.length) return [];
+  const allowed = new Set(deptIds);
+  return demands.filter(d => d.courseDeptId != null && allowed.has(d.courseDeptId));
+}
+
+/**
+ * دامنهٔ سالن‌های مدیرگروه: دانشکدهٔ دپارتمان‌های خودش + سالن‌های اختصاصیِ
+ * همان دپارتمان‌ها + سالن‌هایی که سهمیه‌شان به او داده شده.
+ *
+ * بدونِ این، مدیرگروه برق هر ۱۳۸ سالنِ دانشگاه — از جمله باشگاه‌های
+ * تربیت‌بدنی که مالِ او نیست — را می‌دید.
+ */
+export function scopeClassroomsToDepts<
+  T extends { id: number; facultyId: number | null; departmentId?: number | null },
+>(
+  rooms: T[],
+  facultyIds: number[],
+  deptIds: number[],
+  allocatedIds: number[],
+): T[] {
+  const fac = new Set(facultyIds);
+  const dep = new Set(deptIds);
+  const alloc = new Set(allocatedIds);
+  return rooms.filter(r =>
+    (r.facultyId != null && fac.has(r.facultyId)) ||
+    (r.departmentId != null && dep.has(r.departmentId)) ||
+    alloc.has(r.id),
+  );
+}
+
+/**
  * وضعیت «کامل بودن برنامه» به تفکیک رشته.
  *
  * یک گروه می‌تواند چند رشته داشته باشد و برنامه‌ریزی هر رشته جدا تمام

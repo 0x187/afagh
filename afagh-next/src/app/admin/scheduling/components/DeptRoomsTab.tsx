@@ -37,7 +37,12 @@ export default function DeptRoomsTab() {
   const [newRoom, setNewRoom] = useState<number>(classrooms.find(c => c.isActive)?.id ?? 0);
 
   const facultyOptions = Array.from(new Set(classrooms.map(c => c.facultyId).filter((x): x is number => x != null)));
-  const visibleRooms = (isDeptScope ? classrooms.filter(c => c.isAllocatedToDept) : classrooms)
+  // مدیرگروه: سالن‌ها از سرور به دانشکدهٔ خودش محدود شده‌اند؛ همهٔ آن‌ها را
+  // نشان می‌دهیم (نه فقط سهمیه‌دارها) تا سالن‌های خودش را ببیند و سهمیه ثبت کند.
+  // قبلاً `filter(c => c.isAllocatedToDept)` بود و چون سهمیه‌های ترم از نوع
+  // RELEASED بودند، تنها سالن‌های سهمیه‌گرفتهٔ گروه‌های *دیگر* (باشگاه‌های
+  // تربیت‌بدنی) نمایش داده می‌شد — «سالن‌هایی که مال ما نیست».
+  const visibleRooms = classrooms
     .filter(c => c.isActive)
     .filter(c => facultyFilter === 'ALL' || c.facultyId === facultyFilter);
   const grantsOf = (roomId: number) => roomGrants.filter(g => g.classroomId === roomId);
@@ -116,7 +121,7 @@ export default function DeptRoomsTab() {
           </select>
           <span className="px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-900 font-extrabold text-xs">
             {isDeptScope
-              ? `${faNum(visibleRooms.length)} سالن سهمیه‌دار این گروه`
+              ? `${faNum(classrooms.filter(c => c.isAllocatedToDept).length)} سالن سهمیه‌دار این گروه از ${faNum(visibleRooms.length)} سالن`
               : `${faNum(classrooms.filter(c => c.isAllocatedToDept).length)} سالن سهمیه‌دار از ${faNum(classrooms.length)} سالن`}
           </span>
           {!isDeptScope && (

@@ -71,8 +71,22 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
   const [realAvailRows, setRealAvailRows] = useState<SchedulingWorkspace['availabilities']>(initial.availabilities);
   const [courseDemands, setCourseDemands] = useState<CourseDemand[]>(() => mapDemands((initial as any).demands));
 
-  // Inspector
-  const [inspectorProfId, setInspectorProfId] = useState<number>(initial.professors[0]?.id ?? 1);
+  // Inspector — استادِ پیش‌فرضِ «گام ۵» باید کسی باشد که واقعاً درس دارد؛ وگرنه
+  // جدولِ پیش‌فرض تقریباً خالی دیده می‌شود و کاربر فکر می‌کند برنامه ثبت نشده است.
+  const [inspectorProfId, setInspectorProfId] = useState<number>(() => {
+    const counts = new Map<number, number>();
+    for (const o of initial.approvedOfferings) {
+      const pid = o.professorId ?? 0;
+      if (pid) counts.set(pid, (counts.get(pid) ?? 0) + 1);
+    }
+    let best = initial.professors[0]?.id ?? 1;
+    let bestN = -1;
+    for (const p of initial.professors) {
+      const n = counts.get(p.id) ?? 0;
+      if (n > bestN) { bestN = n; best = p.id; }
+    }
+    return best;
+  });
   // برنامهٔ مصوب واقعی از جدول schedules — تنها منبع جدول‌های نمایشی
   const [approvedOfferings, setApprovedOfferings] = useState<DepartmentOffering[]>(() => mapOfferings(initial.approvedOfferings));
   const [currentRealScenario, setCurrentRealScenario] = useState<AutoScheduleScenario>(() =>
@@ -456,12 +470,14 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
   const realAvailStatus = (profId: number, dayIdx: number, slot: TimeSlot) =>
     slotAvailStatus(realAvailRows, profId, dayIdx, slot);
 
-  // بار واحد هر استاد (با تقسیم سهم تئوری/عملی در درس مشترک) — هستهٔ خالص
-  // بر اساس «منبع تقاضای فعلی» (چارت رشته در صورت انتخاب، وگرنه همهٔ تقاضاهای ترم)
-  // تا واحدهای نمایش‌داده‌شده با فیلتر رشته/ورودی هم‌خوان باشند.
+  // بار واحد هر استاد (با تقسیم سهم تئوری/عملی در درس مشترک) — هستهٔ خالص.
+  // بار واحدِ *فعلی* هر استاد از «همهٔ ارائه‌های همین ترم» — نه فقط برشِ چارتِ
+  // یک ترم. قبلاً از `curriculumDemands` (چارتِ ترمِ انتخابی، مثلاً ترم ۳) حساب
+  // می‌شد؛ استادی که درسش در ترمِ دیگری از چارت بود «۰ واحد» نشان داده می‌شد،
+  // در حالی که همین حالا چند درس داشت (گزارش: «واحد اساتید تخصصی صفر است»).
   const profAssignedUnitsMap = useMemo(
-    () => computeProfUnits(curriculumDemands.length > 0 ? curriculumDemands : courseDemands, professors),
-    [courseDemands, curriculumDemands, professors],
+    () => computeProfUnits(courseDemands, professors),
+    [courseDemands, professors],
   );
 
   // Computed state — تنها سناریوی مشروع: برنامهٔ مصوب (واقعی از DB)

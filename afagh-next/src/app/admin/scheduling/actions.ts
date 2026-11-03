@@ -29,6 +29,8 @@ import { generateClassSessionsForTerm, getTermSessionsSummary, inspectScheduling
 import { detectScheduleConflicts, jalaliDateOf, type RoomCapacityInfo, type ScheduleConflictInput } from '@/lib/scheduling-core';
 // ستون‌های تاریخِ جلالی هرگز نباید با `new Date` پارس شوند — از این helper بخوانید.
 import { normalizeExamDate } from '@/lib/shamsi';
+// دامنهٔ مدیرگروه — توابعِ خالص و Unit-Test‌شده (tests/scheduling-dept-scope.test.ts)
+import { scopeDemandsToDepts, scopeClassroomsToDepts } from './planning-core';
 
 const EDITORS = ['ADMIN', 'EDU_EXPERT'];
 const MANAGERS = EDITORS;
@@ -167,6 +169,8 @@ async function listRealClassrooms(universityId?: number) {
       roomType: classrooms.roomType,
       isActive: classrooms.isActive,
       facultyId: classrooms.facultyId,
+      /** گروهِ مسئولِ اتاق (زونینگ) — برای محدودکردنِ سالن‌ها به دامنهٔ مدیرگروه */
+      departmentId: classrooms.departmentId,
       facultyName: faculties.name,
     })
     .from(classrooms)
@@ -790,13 +794,15 @@ export async function getSchedulingWorkspaceAction(termId?: number, _universityI
       const ownMajors = await db.select({ id: majors.id }).from(majors).where(inArray(majors.departmentId, deptIds));
       deptMajorIds = ownMajors.map(m => m.id);
     }
-    const [terms, programRows, classrooms, professorsRaw, deptRows] = await Promise.all([
+    const [terms, programRows, classroomsRaw, professorsRaw, deptRows] = await Promise.all([
       listRealTerms(uid),
       listRealPrograms(uid),
       listRealClassrooms(uid),
       listRealProfessors(uid),
-      db.select({ id: departments.id, name: departments.name, departmentCode: departments.departmentCode }).from(departments).where(uniOrGlobal(departments.universityId, uid)).orderBy(departments.name),
+      db.select({ id: departments.id, name: departments.name, departmentCode: departments.departmentCode, facultyId: departments.facultyId }).from(departments).where(uniOrGlobal(departments.universityId, uid)).orderBy(departments.name),
     ]);
+    // سالن‌ها بعد از اعمالِ دامنهٔ مدیرگروه فیلتر می‌شوند (پایین‌تر)
+    let classrooms = classroomsRaw;
     let professors = professorsRaw;
     // دامنهٔ مدیرگروه: فقط استادانِ دپارتمان‌های تحت مدیریتِ خودش را ببیند
     // (نه همهٔ استادان دانشگاه) — تا در «تخصیص درس» فقط استادان گروه خودش را انتخاب کند.
@@ -876,7 +882,21 @@ export async function getSchedulingWorkspaceAction(termId?: number, _universityI
     // (ادمین/کارشناس آموزش: isDeptHead=false ⇒ هیچ فیلتری اعمال نمیشود)
     if (isDeptHead) {
       const allowed = new Set(deptIds);
-      demands = demands.filter(d => d.courseDeptId != null && allowed.has(d.courseDeptId));
+
+      // ── سالن‌ها: فقط دانشکده‌های دپارتمان‌های تحت مدیریت (زونینگ) ──
+      // قبلاً هر ۱۳۸ سالنِ دانشگاه می‌آمد و چون `allocatedRoomIds` سهمیه‌های
+      // *همهٔ* گروه‌ها را داشت، مدیرگروه برق دقیقاً ۱۲ باشگاهِ تربیت‌بدنی را
+      // می‌دید («فقط سالن‌های تربیت‌بدنی را می‌بیند که مال ما نیست»).
+      const facIds = deptRows
+        .filter(d => allowed.has(d.id) && d.facultyId != null)
+        .map(d => d.facultyId as number);
+      classrooms = scopeClassroomsToDepts(classrooms, facIds, deptIds, allocatedRoomIds);
+      const roomIds = new Set(classrooms.map(c => c.id));
+      // سهمیه‌ها فقط از آنِ همین گروه‌ها (نه سهمیهٔ گروه‌های دیگر روی همان سالن)
+      roomGrants = roomGrants.filter(g => allowed.has(g.ownerDepartmentId) && roomIds.has(g.classroomId));
+      allocatedRoomIds = allocatedRoomIds.filter(id => roomIds.has(id));
+
+      demands = scopeDemandsToDepts(demands, deptIds);
       const offIds = new Set(demands.map(d => d.offeringId));
       approvedOfferings = approvedOfferings.filter(o => offIds.has(o.offeringId));
       makeupSessions = makeupSessions.filter(m => offIds.has(m.offeringId));
@@ -962,15 +982,33 @@ export async function getCurriculumDemandsAction(
     // خواندنِ تقاضای چارت — مدیرگروه هم مجاز است (فقط مشاهده، فقط رشته‌های خودش)
     const actor = await requireRole([...EDITORS, 'DEP_HEAD']);
     const { isDeptHead, deptIds } = await deptHeadScope(actor);
+    let scopedDeptIds: number[] | null = null;
     if (isDeptHead) {
+      const allowedDepts = deptIds.length ? deptIds : [-1];
       const owned = await db
         .select({ id: majors.id })
         .from(majors)
-        .where(and(eq(majors.id, programId), inArray(majors.departmentId, deptIds.length ? deptIds : [-1])))
+        .where(and(eq(majors.id, programId), inArray(majors.departmentId, allowedDepts)))
         .limit(1);
-      if (!owned.length) return { ok: false, error: 'این رشته در دپارتمان‌های تحت مدیریت شما نیست.' };
+      if (!owned.length) {
+        // رشته ممکن است زیرِ دپارتمانِ دیگری ثبت شده باشد ولی دروسِ همین گروه
+        // در چارتش باشد (مثلِ «برق قدرت» که زیرِ عمران است ولی دروسش در برق).
+        const hasOwnCourse = await db
+          .select({ id: curriculum_courses.courseId })
+          .from(curriculum_courses)
+          .innerJoin(curriculum_versions, eq(curriculum_versions.id, curriculum_courses.curriculumVersionId))
+          .innerJoin(courses, eq(courses.id, curriculum_courses.courseId))
+          .where(and(eq(curriculum_versions.majorId, programId), inArray(courses.departmentId, allowedDepts)))
+          .limit(1);
+        if (!hasOwnCourse.length) return { ok: false, error: 'این رشته در دپارتمان‌های تحت مدیریت شما نیست.' };
+      }
+      scopedDeptIds = deptIds;
     }
-    const demands = await listCurriculumDemands(termId, programId, await serverUniId(), entryYear ?? null, semester ?? null);
+    const allDemands = await listCurriculumDemands(termId, programId, await serverUniId(), entryYear ?? null, semester ?? null);
+    // ── دامنهٔ مدیرگروه: فقط دروسِ دپارتمان‌های خودش ──
+    // دروسِ عمومی/معارف (مثل «انقلاب اسلامی») را مدیرگروهِ همان گروه تخصیص
+    // می‌دهد؛ نمایشِ آن‌ها این‌جا فقط زمانِ برنامه‌ریزیِ گروه تخصصی را پر می‌کرد.
+    const demands = scopedDeptIds ? scopeDemandsToDepts(allDemands, scopedDeptIds) : allDemands;
     // بازهٔ ورودیِ چارتی که واقعاً استفاده شد — UI می‌گوید «چارت معتبر برای
     // ورودی‌های فلان تا فلان» یا «برای این ورودی چارت تعریف نشده».
     const chart = await db
