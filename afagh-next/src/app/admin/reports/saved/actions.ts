@@ -133,7 +133,15 @@ function validateConfig(sourceKey: string, config: SavedReportConfig): string | 
   for (const c of cols) {
     const f = getField(source, c.field);
     if (!f) return `ستونِ نامعتبر: ${c.field}`;
-    if (c.agg && !f.agg?.includes(c.agg)) return `تجمیعِ «${c.agg}» روی «${f.title}» مجاز نیست.`;
+    if (c.agg) {
+      // محاسبهٔ ثابت (مثل «ماندهٔ بدهی») با تجمیعِ دلخواه جمع نمی‌شود
+      if (f.aggSql) return `ستونِ «${f.title}» محاسبهٔ ثابت دارد؛ تجمیع روی آن مجاز نیست.`;
+      // شمارش روی هر ستونِ سطح‌ردیف مجاز است؛ بقیه فقط اگر فیلد عددی باشد
+      const counting = c.agg === 'count' || c.agg === 'count_distinct';
+      if (!counting && !f.agg?.includes(c.agg)) {
+        return `تجمیعِ «${c.agg}» روی «${f.title}» مجاز نیست.`;
+      }
+    }
   }
 
   const filters = config?.filters ?? [];

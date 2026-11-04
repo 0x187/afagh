@@ -136,6 +136,11 @@ export type SourceMeta = {
     ops?: FilterOp[];
     groupable?: boolean;
     agg?: AggKind[];
+    /**
+     * true یعنی این ستون «محاسبهٔ ثابت» دارد (مثل «ماندهٔ بدهی») و خودش
+     * تجمیعی است ⇒ کاربر روی آن تجمیعِ دیگری انتخاب نمی‌کند.
+     */
+    hasFixedAgg?: boolean;
     options?: { value: string; label: string }[];
     ref?: OptionRef;
     hint?: string;

@@ -59,9 +59,32 @@ const CHARGE_TYPES = `('TUITION_FIXED','TUITION_VARIABLE','SUBJECT_ADDITIVE','TU
 const DISC_TYPES = `('DISCOUNT_FIXED','DISCOUNT_VARIABLE','SUBJECT_DEDUCTIVE','TUITION_BATES','TUITION_ADJUST_INC')`;
 const PAID_TYPES = `('PAYMENT','POS_PAYMENT','LOAN','SPONSORSHIP')`;
 
-const SUM_CHARGE = `COALESCE(SUM(sl."amount") FILTER (WHERE sl."transactionType" IN ${CHARGE_TYPES}), 0)::bigint`;
-const SUM_DISC = `COALESCE(SUM(sl."amount") FILTER (WHERE sl."transactionType" IN ${DISC_TYPES}), 0)::bigint`;
-const SUM_PAID = `COALESCE(SUM(sl."amount") FILTER (WHERE sl."transactionType" IN ${PAID_TYPES}), 0)::bigint`;
+/**
+ * جمعِ دفترِ مالیِ یک دانشجو — به‌ازای هر دانشجو **یک** ردیف.
+ *
+ * ⚠ چرا LATERAL و نه یک JOIN ساده؟
+ *   یک JOIN ساده به student_ledger باعث «تکثیرِ ردیف» می‌شد: هر ردیفِ دفترِ
+ *   مالی یک ردیفِ گزارش می‌ساخت (برای دانشگاهی با ۸۰۷ دانشجو، ۷٬۴۸۸ ردیف!).
+ *   اینجا جمع‌ها *قبل* از JOIN و در سطحِ همان دانشجو محاسبه می‌شوند، پس
+ *   خروجی دقیقاً «یک ردیف به‌ازای هر دانشجو» است — همان چیزی که عنوانِ منبع
+ *   وعده می‌دهد.
+ *   از ایندکسِ پوشانِ idx_ledger_balance_cover(studentId, transactionType, amount)
+ *   استفاده می‌کند.
+ *
+ * 🔒 شرطِ هم‌دانشگاهی: ردیف‌های دفترِ مالیِ دانشجویی که دانشگاهشان با خودِ
+ *   دانشجو نمی‌خواند (دادهٔ کهنه/ناهماهنگ) شمرده نمی‌شوند.
+ */
+const BALANCE_LEDGER_JOIN = `LEFT JOIN LATERAL (
+      SELECT sl2."studentId" AS "studentId",
+        COALESCE(SUM(sl2."amount") FILTER (WHERE sl2."transactionType" IN ${CHARGE_TYPES}), 0)::bigint AS "charge",
+        COALESCE(SUM(sl2."amount") FILTER (WHERE sl2."transactionType" IN ${DISC_TYPES}), 0)::bigint AS "discount",
+        COALESCE(SUM(sl2."amount") FILTER (WHERE sl2."transactionType" IN ${PAID_TYPES}), 0)::bigint AS "paid",
+        COUNT(sl2.id)::int AS "txnCount"
+      FROM student_ledger sl2
+      WHERE sl2."studentId" = s.id
+        AND (sl2."universityId" = s."universityId" OR sl2."universityId" IS NULL)
+      GROUP BY sl2."studentId"
+    ) sl ON TRUE`;
 
 // ══════════════════════════════════════════════════════════════════════
 // ۱) گردش حساب دانشجو — ردیف‌به‌ردیفِ دفتر مالی
@@ -95,7 +118,7 @@ const LEDGER_FIELDS: ReportField[] = [
 ];
 
 // ══════════════════════════════════════════════════════════════════════
-// ۲) صورت‌حساب و ماندهٔ دانشجو — یک ردیف به‌ازای هر دانشجو (تجمیعی)
+// ۲) صورت‌حساب و ماندهٔ دانشجو — یک ردیف به‌ازای هر دانشجو
 // ══════════════════════════════════════════════════════════════════════
 const BALANCE_FIELDS: ReportField[] = [
   { key: 'studentCode', title: 'شمارهٔ دانشجویی', sql: `s."studentCode"`, type: 'text', filterable: true, ops: ['eq', 'like'], groupable: true },
@@ -104,15 +127,15 @@ const BALANCE_FIELDS: ReportField[] = [
   { key: 'major', title: 'رشته', sql: `m.name`, type: 'text', filterable: true, ops: ['like'], groupable: true },
   { key: 'degree', title: 'مقطع', sql: `d.title`, type: 'text', filterable: true, ops: ['like'], groupable: true },
   { key: 'entryYear', title: 'سال ورود', sql: `s."entryYear"`, type: 'number', filterable: true, ops: ['eq', 'gte', 'lte', 'between'], groupable: true },
-  { key: 'charge', title: 'بدهی شهریه', sql: `sl."amount"`, aggSql: SUM_CHARGE, type: 'money', format: 'MONEY', hint: 'جمعِ اقلامِ بدهی‌ساز' },
-  { key: 'discount', title: 'تخفیف', sql: `sl."amount"`, aggSql: SUM_DISC, type: 'money', format: 'MONEY', hint: 'جمعِ اقلامِ اعتباری' },
-  { key: 'paid', title: 'پرداختی', sql: `sl."amount"`, aggSql: SUM_PAID, type: 'money', format: 'MONEY', hint: 'جمعِ پرداخت/وام/حمایت' },
+  { key: 'charge', title: 'بدهی شهریه', sql: `COALESCE(sl."charge", 0)::bigint`, type: 'money', format: 'MONEY', hint: 'جمعِ اقلامِ بدهی‌ساز' },
+  { key: 'discount', title: 'تخفیف', sql: `COALESCE(sl."discount", 0)::bigint`, type: 'money', format: 'MONEY', hint: 'جمعِ اقلامِ اعتباری' },
+  { key: 'paid', title: 'پرداختی', sql: `COALESCE(sl."paid", 0)::bigint`, type: 'money', format: 'MONEY', hint: 'جمعِ پرداخت/وام/حمایت' },
   {
-    key: 'balance', title: 'ماندهٔ بدهی', sql: `sl."amount"`,
-    aggSql: `(${SUM_CHARGE} - ${SUM_DISC} - ${SUM_PAID})::bigint`,
+    key: 'balance', title: 'ماندهٔ بدهی',
+    sql: `(COALESCE(sl."charge", 0) - COALESCE(sl."discount", 0) - COALESCE(sl."paid", 0))::bigint`,
     type: 'money', format: 'MONEY', hint: 'بدهی − تخفیف − پرداختی',
   },
-  { key: 'txnCount', title: 'تعداد تراکنش', sql: `sl.id`, aggSql: `COUNT(sl.id)::int`, type: 'number', format: 'NUMBER' },
+  { key: 'txnCount', title: 'تعداد تراکنش', sql: `COALESCE(sl."txnCount", 0)::int`, type: 'number', format: 'NUMBER' },
 ];
 
 // ══════════════════════════════════════════════════════════════════════
@@ -171,8 +194,10 @@ export const FINANCE_SOURCES: ReportSource[] = [
       LEFT JOIN degree_level_configs d ON d.id = s."degreeLevelId"
       LEFT JOIN academic_terms t ON t.id = sl."termId"
       LEFT JOIN financial_terms ft ON ft.id = sl."financialTermId"`,
-    universityColumn: 'sl."universityId"',
-    universityNullable: true,
+    // 🔒 اسکوپ بر پایهٔ «دانشگاهِ خودِ دانشجو» (نه ستونِ دفتر مالی):
+    //    ستونِ دفتر مالی می‌تواند در دادهٔ کهنه NULL یا ناهماهنگ باشد، ولی
+    //    مالکیتِ دانشجو همیشه معتبر است. این کار از «نشتِ بین‌دانشگاهی» جلوگیری می‌کند.
+    universityColumn: 's."universityId"',
     roles: ['ADMIN', 'FINANCE_EXPERT', 'FINANCE', 'CASHIER', 'EDU_EXPERT'],
     fields: LEDGER_FIELDS,
     maxRows: 20000,
@@ -186,11 +211,9 @@ export const FINANCE_SOURCES: ReportSource[] = [
       JOIN users u ON u.id = s."userId"
       LEFT JOIN majors m ON m.id = s."majorId"
       LEFT JOIN degree_level_configs d ON d.id = s."degreeLevelId"
-      LEFT JOIN student_ledger sl ON sl."studentId" = s.id`,
+      ${BALANCE_LEDGER_JOIN}`,
     universityColumn: 's."universityId"',
-    universityNullable: true,
     roles: ['ADMIN', 'FINANCE_EXPERT', 'FINANCE', 'CASHIER', 'EDU_EXPERT'],
-    groupKeys: ['s.id'],
     fields: BALANCE_FIELDS,
     maxRows: 20000,
   },
@@ -205,7 +228,7 @@ export const FINANCE_SOURCES: ReportSource[] = [
       LEFT JOIN majors m ON m.id = s."majorId"
       LEFT JOIN payment_gateways g ON g.id = pt."gatewayId"
       LEFT JOIN academic_terms t ON t.id = pt."termId"`,
-    universityColumn: 'pt."universityId"',
+    universityColumn: 's."universityId"',
     roles: ['ADMIN', 'FINANCE_EXPERT', 'FINANCE', 'CASHIER'],
     fields: PAYMENT_FIELDS,
     maxRows: 20000,
@@ -222,7 +245,6 @@ export const FINANCE_SOURCES: ReportSource[] = [
       LEFT JOIN financial_terms fct ON fct.id = tr."currentTermId"
       LEFT JOIN academic_terms at ON at.id = fct."academicTermId"`,
     universityColumn: 'tr."universityId"',
-    universityNullable: true,
     roles: ['ADMIN', 'FINANCE_EXPERT', 'FINANCE', 'EDU_EXPERT'],
     fields: TARIFF_FIELDS,
     maxRows: 20000,

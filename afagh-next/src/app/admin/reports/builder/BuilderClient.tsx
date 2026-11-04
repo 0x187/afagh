@@ -315,13 +315,26 @@ export default function BuilderClient({
                       تجمیع
                       <select
                         className="input mt-0.5 !py-1 text-xs"
-                        value={c.agg ?? ''}
-                        onChange={e => setCol(i, { agg: (e.target.value || undefined) as AggKind | undefined })}
-                        disabled={!f.agg?.length && !f.hint}
+                        value={c.agg ?? (f.hasFixedAgg ? '__fixed' : '')}
+                        onChange={e => {
+                          const v = e.target.value;
+                          // «محاسبهٔ ثابت» یعنی بدونِ تجمیعِ کاربر ⇒ موتور خودش
+                          // از aggSql فیلد استفاده می‌کند (نه یک رشتهٔ جادویی که
+                          // موتور آن را نمی‌شناسد و ستون را حذف کند).
+                          setCol(i, { agg: !v || v === '__fixed' ? undefined : (v as AggKind) });
+                        }}
                       >
-                        <option value="">— بدون —</option>
-                        {(f.agg ?? []).map(a => <option key={a} value={a}>{AGG_LABELS[a]}</option>)}
-                        {f.hint && !f.agg?.length ? <option value="__fixed">محاسبهٔ ثابت</option> : null}
+                        {f.hasFixedAgg ? (
+                          <option value="__fixed">محاسبهٔ ثابت</option>
+                        ) : (
+                          <>
+                            <option value="">— بدون —</option>
+                            {(f.agg ?? []).map(a => <option key={a} value={a}>{AGG_LABELS[a]}</option>)}
+                            {/* شمارش روی هر ستونِ سطح‌ردیف مجاز است */}
+                            <option value="count">{AGG_LABELS.count}</option>
+                            <option value="count_distinct">{AGG_LABELS.count_distinct}</option>
+                          </>
+                        )}
                       </select>
                     </label>
                   </div>

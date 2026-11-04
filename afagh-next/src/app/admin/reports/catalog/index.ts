@@ -37,6 +37,7 @@ export function listSourceMetas(): SourceMeta[] {
       ops: f.ops,
       groupable: f.groupable,
       agg: f.agg,
+      hasFixedAgg: !!f.aggSql,
       options: f.options,
       ref: f.ref,
       hint: f.hint,

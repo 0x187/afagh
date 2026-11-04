@@ -148,8 +148,14 @@ export async function runCatalogReport(
   const orderBy = buildOrderBy(source, config, columns);
 
   // ── ۵) اجرا ──
-  const selectList = sql.join(columns.map(c => sql`${c.expr} AS ${sql.raw(c.alias)}`), sql`, `);
-  const body = sql`${selectList} ${sql.raw(source.baseFrom)} ${where} ${groupBy ?? sql``} ${orderBy}`;
+  // 🔒 شناسه‌ها داخل گیومه: Postgres شناسهٔ بدون گیومه را به حروف کوچک می‌برد
+  //    (studentCode → studentcode) و آن‌وقت کلیدِ ردیف با کلیدِ ستون ناهماهنگ
+  //    می‌شود (عنوانِ فارسی، قالبِ مبلغ و خروجی CSV همه «—» می‌شدند).
+  //    safeIdent قبلاً تضمین کرده که نام فقط از [A-Za-z0-9_] تشکیل شده است.
+  const selectList = sql.join(columns.map(c => sql`${c.expr} AS ${sql.identifier(c.alias)}`), sql`, `);
+  // بدنهٔ کوئری: «SELECT <ستون‌ها> <FROM> <WHERE> <GROUP BY> <ORDER BY>»
+  // (همین بدنه هم برای شمارش داخل پرانتز و هم برای دادهٔ صفحه استفاده می‌شود)
+  const body = sql`SELECT ${selectList} ${sql.raw(source.baseFrom)} ${where} ${groupBy ?? sql``} ${orderBy}`;
 
   const cap = Math.min(source.maxRows ?? HARD_MAX_ROWS, HARD_MAX_ROWS);
   const per = Math.max(1, Math.min(opts.per ?? PER, 200));
@@ -243,16 +249,27 @@ function resolveColumns(source: ReportSource, config: SavedReportConfig, notes: 
   return out;
 }
 
-/** ساختِ عبارتِ تجمیع برای یک ستون */
+/**
+ * ساختِ عبارتِ تجمیع برای یک ستون.
+ *
+ * قاعده:
+ *  • `count` / `count_distinct` روی هر ستونِ **سطح‌ردیف** مجازند (شمارشِ
+ *    مقدارهای غیر-NULL) — به همین دلیل در `agg` هر فیلد لازم نیست تکرار شوند.
+ *  • `sum`/`avg`/`min`/`max` فقط اگر فیلد در فهرستِ `agg` خودش آن‌ها را داشته باشد
+ *    (یعنی عددی باشد).
+ *  • فیلدهایی که `aggSql` دارند (مثل «ماندهٔ بدهی») خودشان یک محاسبهٔ ثابت‌اند؛
+ *    جمع/میانگینِ ساده روی عبارتِ پایه‌شان گمراه‌کننده است، پس رد می‌شوند.
+ */
 function buildAgg(kind: AggKind, field: ReportField): string | null {
+  if (field.aggSql) return null; // محاسبهٔ ثابت — قابل تجمیع روی عبارتِ پایه نیست
+  if (kind === 'count') return `COUNT(${field.sql})`;
+  if (kind === 'count_distinct') return `COUNT(DISTINCT ${field.sql})`;
   if (!field.agg?.includes(kind)) return null;
   switch (kind) {
     case 'sum': return `SUM(${field.sql})`;
     case 'avg': return `AVG(${field.sql})`;
     case 'min': return `MIN(${field.sql})`;
     case 'max': return `MAX(${field.sql})`;
-    case 'count': return `COUNT(${field.sql})`;
-    case 'count_distinct': return `COUNT(DISTINCT ${field.sql})`;
     default: return null;
   }
 }
@@ -334,7 +351,7 @@ function buildOrderBy(source: ReportSource, config: SavedReportConfig, columns: 
   for (const o of order) {
     const col = columns.find(c => c.field.key === o.field || c.alias === o.field);
     if (col) {
-      parts.push(sql`${sql.raw(col.alias)} ${sql.raw(o.dir === 'desc' ? 'DESC' : 'ASC')}`);
+      parts.push(sql`${sql.identifier(col.alias)} ${sql.raw(o.dir === 'desc' ? 'DESC' : 'ASC')}`);
       continue;
     }
     const f = getField(source, o.field);
@@ -345,7 +362,7 @@ function buildOrderBy(source: ReportSource, config: SavedReportConfig, columns: 
 
   // بدون ترتیبِ صریح: روی اولین ستون مرتب کن تا خروجی پایدار باشد
   if (!parts.length && columns.length) {
-    parts.push(sql`${sql.raw(columns[0].alias)} ASC`);
+    parts.push(sql`${sql.identifier(columns[0].alias)} ASC`);
   }
   if (!parts.length) return sql``;
   return sql`ORDER BY ${sql.join(parts, sql`, `)}`;
