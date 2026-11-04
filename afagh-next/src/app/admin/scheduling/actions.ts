@@ -913,20 +913,27 @@ export async function getSchedulingWorkspaceAction(termId?: number, _universityI
           uniOrGlobal(professor_availabilities.universityId, uid),
         )),
       ]);
-      const [inspect, term] = await Promise.all([
+      // ⚡ همهٔ پرسوجوهای وابسته به ترم در **یک** مرحلهٔ موازی.
+      //    قبلاً ۳ مرحلهٔ پشتسرهم بودند: inspect → چهار فهرست → خلاصهٔ جلسات؛
+      //    یعنی ۳ RTT اضافه به دیتابیس روی هر بار باز شدن کارتابل (HAR:
+      //    wait≈1004ms). هیچکدام به نتیجهٔ دیگری وابسته نیستند.
+      const [inspect, term, approved, makeup, allocated, grants, summary] = await Promise.all([
         inspectSchedulingHardConflicts(resolvedTermId),
         db.select().from(academic_terms).where(and(
           eq(academic_terms.id, resolvedTermId),
           uniOrGlobal(academic_terms.universityId, uid),
         )).limit(1).then(rows => rows[0] ?? null),
-      ]);
-      hardConflictCount = inspect.total;
-      [approvedOfferings, makeupSessions, allocatedRoomIds, roomGrants] = await Promise.all([
         listApprovedOfferings(resolvedTermId, uid),
         listMakeupSessions(resolvedTermId, uid),
         listAllocatedRoomIds(resolvedTermId, uid),
         listRoomGrants(resolvedTermId, uid),
+        getTermSessionsSummary(resolvedTermId),
       ]);
+      hardConflictCount = inspect.total;
+      approvedOfferings = approved;
+      makeupSessions = makeup;
+      allocatedRoomIds = allocated;
+      roomGrants = grants;
       if (term) {
       // تقویم برنامه‌ریزی از «تعریف ترم» خوانده می‌شود، نه از اعداد پیش‌فرض UI
       // (قبلاً هفته‌ها همیشه ۱۶ و تاریخ‌ها خالی بود).
@@ -942,7 +949,6 @@ export async function getSchedulingWorkspaceAction(termId?: number, _universityI
         examEndJalali: term.examEndDate ? jalaliDateOf(term.examEndDate) : null,
       } as any;
       }
-      const summary = await getTermSessionsSummary(resolvedTermId);
       for (const s of summary) {
         sessionsTotal += s.total;
         sessionsByOffering[s.offeringId] = { total: s.total, makeup: s.makeup, firstDate: s.firstDate };

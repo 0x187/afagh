@@ -451,9 +451,14 @@ export async function inspectSchedulingHardConflicts(termId: number): Promise<{
   truncated: boolean;
   rowCount: number;
 }> {
-  const schedRows = await loadTermSchedules(db, termId);
-  const profByOffering = await loadProfessorsByOffering(db, termId);
-  const roomCap = await loadRoomCapacities(db);
+  // این سه پرسوجو به هم وابسته نیستند — قبلاً پشتسرهم اجرا میشدند (۳ RTT
+  // جداگانه) و در صفحهٔ برنامهريزي روی ترمهای بزرگ ~۱ ثانیه به TTFB اضافه
+  // میکردند. `Promise.all` همان نتایج را در یک RTT میدهد.
+  const [schedRows, profByOffering, roomCap] = await Promise.all([
+    loadTermSchedules(db, termId),
+    loadProfessorsByOffering(db, termId),
+    loadRoomCapacities(db),
+  ]);
   const entries: HardConflictEntry[] = schedRows.map(s => {
     const profs = profByOffering.get(s.offeringId) ?? [];
     if (s.professorId != null && !profs.includes(s.professorId)) profs.unshift(s.professorId);

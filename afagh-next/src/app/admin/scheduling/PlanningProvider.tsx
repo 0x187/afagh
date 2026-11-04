@@ -20,6 +20,43 @@ import type { SmartSlot, SchedulingHealthReport, SchedulingWorkspaceResult, Curr
  */
 export type PlanningScope = 'admin' | 'dept';
 
+/**
+ * ⚡ کش کوتاهعمرِ «کارتابل کامل» (ماژول-level، نه state فقط همین mount).
+ *
+ * HAR واقعی (۱۵۷ درخواست): با جابهجایی بین تبهای برنامهریزی، صفحه دوباره
+ * mount میشد و همان Server Action دقیقاً دوباره اجرا میشد — دو POST یکسان
+ * `next-action=60ad…` / بدنه `[111]` / هرکدام ۱٫۷MB و wait≈۱۰۰۰ms،
+ * تنها ۲٫۹ ثانیه فاصله. یعنی نیمی از هزینهٔ پیمایش، تکرار محض بود.
+ *
+ * اعتبار فقط ۲۰ ثانیه است؛ هر عملیات ذخیرهشده (reloadWorkspace / تغییر
+ * سهمیهٔ سالن / تغییر ترم) کش را باطل میکند تا دادهٔ کهنه نمایش نگیریم.
+ * درخواستهای همزمان با یک کلید هم dedupe میشوند (StrictMode / دابل effect).
+ */
+type FullWorkspace = Extract<SchedulingWorkspaceResult, { ok: true }>;
+const WORKSPACE_TTL_MS = 20_000;
+const workspaceCache = new Map<number, { at: number; value: FullWorkspace }>();
+const workspacePending = new Map<number, Promise<SchedulingWorkspaceResult>>();
+
+function invalidateWorkspaceCache(): void {
+  workspaceCache.clear();
+}
+
+function loadWorkspace(termId: number, force = false): Promise<SchedulingWorkspaceResult> {
+  if (force) invalidateWorkspaceCache();
+  const hit = workspaceCache.get(termId);
+  if (hit && Date.now() - hit.at < WORKSPACE_TTL_MS) return Promise.resolve(hit.value);
+  const pending = workspacePending.get(termId);
+  if (pending) return pending;
+  const p = getSchedulingWorkspaceAction(termId)
+    .then(res => {
+      if (res.ok) workspaceCache.set(termId, { at: Date.now(), value: res });
+      return res;
+    })
+    .finally(() => { workspacePending.delete(termId); });
+  workspacePending.set(termId, p);
+  return p;
+}
+
 function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string | null, timeSlotsInit?: TimeSlot[], scope: PlanningScope = 'admin') {
   // Global Planning Context — همه از دادهٔ واقعی سرور (getSchedulingWorkspaceAction)
   const [selectedTermId, setSelectedTermId] = useState<number>(initial.selectedTermId ?? 0);
@@ -158,7 +195,7 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
     if (selectedTermId === baseId) return;
     let cancelled = false;
     setIsLoadingWorkspace(true);
-    getSchedulingWorkspaceAction(selectedTermId)
+    loadWorkspace(selectedTermId)
       .then(w => {
         if (cancelled || !w.ok) return;
         applyWorkspace(w);
@@ -176,7 +213,7 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
     if ((initial as any).partial !== true || !selectedTermId) return;
     let cancelled = false;
     setIsLoadingWorkspace(true);
-    getSchedulingWorkspaceAction(selectedTermId)
+    loadWorkspace(selectedTermId)
       .then(w => {
         if (cancelled || !w.ok) return;
         applyWorkspace(w);
@@ -207,7 +244,8 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
   const reloadWorkspace = () => {
     if (!selectedTermId) return;
     setIsLoadingWorkspace(true);
-    getSchedulingWorkspaceAction(selectedTermId)
+    // بعد از هر ذخیره حتماً دادهٔ تازه خواسته شود — کش باطل میشود.
+    loadWorkspace(selectedTermId, true)
       .then(w => {
         if (!w.ok) { showToast(w.error, 'warning'); return; }
         applyWorkspace(w);
@@ -219,6 +257,8 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
   /** بازخوانی سبک فقط سهمیه‌های سالن (بعد از تخصیص/لغو/واگذاری) — بدون بارگذاری سنگین کل کارتابل */
   const reloadRoomGrants = () => {
     if (!selectedTermId) return;
+    // سهمیهها عوض شد ⇒ کش کارتابل کامل دیگر معتبر نیست.
+    invalidateWorkspaceCache();
     getRoomGrantsAction(selectedTermId)
       .then(res => {
         if (!res.ok) { showToast(res.error, 'warning'); return; }
