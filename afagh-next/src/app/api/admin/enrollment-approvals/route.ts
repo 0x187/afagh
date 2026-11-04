@@ -59,6 +59,32 @@ export async function GET(req: NextRequest) {
     const page = Math.max(1, Number(searchParams.get('page') ?? '1') || 1);
     const universityId = (await getCurrentUniversity().catch(() => null))?.id ?? null;
 
+    // فهرست ترمها برای انتخابگر چند صفحه (ادغام دروس، پوشش حقالتدریس،
+    // نقشهای تدریس). ⚠ پیشتر این شاخه وجود نداشت: درخواست
+    // `?action=terms` به شاخهٔ «فهرست درخواستها» میافتاد و `{rows,total}`
+    // برمیگرداند، پس کلاینتها `d.terms` را خالی میگرفتند، هیچ ترمی انتخاب
+    // نمیشد و صفحهٔ «ادغام دروس» همیشه «کلاسی یافت نشد» نشان میداد — با
+    // اینکه ترم جاری صدها کلاس ادغامی دارد.
+    // مرتبسازی: ترم جاری اول، سپس جدیدترینها؛ coalesce چون isCurrent/sortOrder
+    // نالپذیرند و Postgres در DESC نالها را اول میآورد.
+    // 🔒 مرز دانشگاهی fail-closed: universityEq با شناسهٔ ۰/null ⇒ `1 = 0`.
+    if (searchParams.get('action') === 'terms') {
+      const rows = await db
+        .select({
+          id: academic_terms.id,
+          title: academic_terms.title,
+          termCode: academic_terms.termCode,
+          isCurrent: academic_terms.isCurrent,
+        })
+        .from(academic_terms)
+        .where(universityEq(academic_terms.universityId, universityId))
+        .orderBy(sql`coalesce(${academic_terms.isCurrent}, 0) desc,
+                     coalesce(${academic_terms.sortOrder}, 0) desc,
+                     ${academic_terms.id} desc`)
+        .limit(120);
+      return NextResponse.json({ terms: rows });
+    }
+
     // جستجوی دانشجو (اتومکمل مثل discipline/warnings)
     if (searchParams.get('action') === 'students') {
       if (!q) return NextResponse.json({ hits: [] });
