@@ -959,3 +959,30 @@ ALTER TABLE "legacy_code_maps" ENABLE ROW LEVEL SECURITY;
 -- targetId عمومی/داخلی است و کاربرد نقش اپ ندارد → برای نقش اپ «هیچ» (deny-all صریح)
 DROP POLICY IF EXISTS legacy_code_maps_deny_all ON "legacy_code_maps";
 CREATE POLICY legacy_code_maps_deny_all ON "legacy_code_maps" FOR ALL TO afagh_app USING (false);
+
+-- ── گزارش‌ساز: گزارش‌های ذخیره‌شده (saved_reports) ──
+-- این جدول «تعریفِ گزارش» است، نه دادهٔ دانشجویی. سه دامنهٔ دیده‌شدن:
+--   PRIVATE → فقط مالک
+--   ROLE    → مالک + اعضای نقش‌های فهرست‌شده در allowedRoles
+--   PUBLIC  → همهٔ کاربرانی که به مرکز گزارش‌ها دسترسی دارند
+-- نوشتن (ساخت/ویرایش/حذف) همیشه فقط برای مالک.
+-- نکته: like سایر سیاست‌های نقش‌محور، app.user_id تنها GUCی است که withUserRls
+-- (src/db/index.ts) در همان تراکنش می‌نویسد؛ نبودِ آن ⇒ uid NULL ⇒ EXISTS صفر
+-- ⇒ همچنان fail-closed. زیرپرسمانِ user_roles خودش RLS دارد و روی همین userId
+-- است، پس فقط نقش‌های خودِ کاربر جاری دیده می‌شود (بازگشتِ بی‌نهایت هم ندارد).
+ALTER TABLE "saved_reports" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS saved_reports_read ON "saved_reports";
+CREATE POLICY saved_reports_read ON "saved_reports" FOR SELECT TO afagh_app
+  USING (
+    "ownerUserId" = nullif(current_setting('app.user_id', true), '')::int
+    OR "visibility" = 'PUBLIC'
+    OR ("visibility" = 'ROLE' AND EXISTS (
+          SELECT 1 FROM "user_roles" ur JOIN "roles" r ON r."id" = ur."roleId"
+          WHERE ur."userId" = nullif(current_setting('app.user_id', true), '')::int
+            AND r."code" = ANY (SELECT jsonb_array_elements_text(saved_reports."allowedRoles"))
+        ))
+  );
+DROP POLICY IF EXISTS saved_reports_write ON "saved_reports";
+CREATE POLICY saved_reports_write ON "saved_reports" FOR ALL TO afagh_app
+  USING ("ownerUserId" = nullif(current_setting('app.user_id', true), '')::int)
+  WITH CHECK ("ownerUserId" = nullif(current_setting('app.user_id', true), '')::int);

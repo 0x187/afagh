@@ -250,6 +250,8 @@ try {
     'teaching_role_defs',
     'classroom_edu_experts',
     'course_offering_edu_experts',
+    // گزارش‌ساز (مهاجرت 0134) — «تعریفِ گزارش»؛ مالک/نقش/عمومی. دادهٔ دانشجویی ندارد.
+    'saved_reports',
   ];
   const checks = await client.query(
     `SELECT c.relname AS table_name, c.relrowsecurity AS rls_enabled

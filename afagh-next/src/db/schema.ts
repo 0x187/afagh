@@ -3865,3 +3865,45 @@ export const expert_scopes = pgTable('expert_scopes', {
   uq: unique('uq_expert_scopes').on(t.userId, t.scopeType, t.scopeId, t.universityId),
   ux: index('idx_expert_scopes_user').on(t.userId),
 }));
+
+/**
+ * ══════════════════════════════════════════════════════════════════════
+ *  گزارش‌ساز — گزارش‌های ذخیره‌شده (Saved Reports)
+ * ══════════════════════════════════════════════════════════════════════
+ *  در این سامانه «گزارش» کد نیست؛ پیکربندیِ آن داده است: منبع، ستون‌ها،
+ *  شرط‌ها، گروه‌بندی و ترتیب. هر مدیر می‌تواند گزارشی بسازد، به آن نام بدهد
+ *  و آن را (خصوصی یا اشتراکی) در اختیار دیگران بگذارد تا اجرا کنند.
+ *
+ *  چرا config از نوع jsonb است و نه ستون‌های جداگانه؟
+ *  شکلِ گزارش پیوسته تغییر می‌کند (ستون تازه، شرط تازه، تجمیع تازه)؛ با jsonb
+ *  افزودن قابلیت تازه به گزارش‌ساز هیچ مهاجرتِ اسکیمایی نمی‌خواهد.
+ *
+ *  🔒 این جدول دادهٔ دانشجویی نگه نمی‌دارد (آن در student_ledger است)؛ فقط
+ *  «تعریفِ گزارش» است. هیچ SQL آزادی اینجا ذخیره نمی‌شود: «کدام ستون» و
+ *  «با چه عملگری» از کاتالوگِ کد (src/app/admin/reports/catalog) می‌آید و
+ *  فقط «مقدارِ» فیلتر به‌صورت bind parameter به موتور اجرا می‌رود.
+ */
+export const saved_reports = pgTable('saved_reports', {
+  id: serial('id').primaryKey(),
+  /** دانشگاهِ مالک — اسکوپ fail-closed در لایهٔ اپ + RLS */
+  universityId: integer('universityId').notNull().references(() => universities.id),
+  /** نامی که سازنده برای گزارش گذاشته */
+  name: varchar('name', { length: 150 }).notNull(),
+  description: text('description'),
+  /** کلید منبع از کاتالوگ (مثلاً finance-ledger) */
+  sourceKey: varchar('sourceKey', { length: 60 }).notNull(),
+  /** { columns: [...], filters: [...], groupBy: [...], orderBy: [...] } */
+  config: jsonb('config').notNull().default('{}'),
+  /** PRIVATE (فقط مالک) | ROLE (اعضای نقش‌های مجاز) | PUBLIC (همه) */
+  visibility: varchar('visibility', { length: 20 }).notNull().default('PRIVATE'),
+  /** کدِ نقش‌های مجاز — وقتی visibility = ROLE */
+  allowedRoles: jsonb('allowedRoles').notNull().default('[]'),
+  ownerUserId: integer('ownerUserId').notNull().references(() => users.id),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+}, (t) => [
+  index('idx_saved_reports_uni').on(t.universityId),
+  index('idx_saved_reports_owner').on(t.ownerUserId),
+  // نامِ گزارش در هر دانشگاه یکتاست تا دو گزارش هم‌نام مبهم نشوند
+  uniqueIndex('uq_saved_reports_uni_name').on(t.universityId, t.name),
+]);
