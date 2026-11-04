@@ -8,11 +8,14 @@ import { roleFromBankType } from '@/lib/bank-roles';
 
 export default function EditVersionModal() {
   const {
+    bank,
     bankFiltered,
     bankLoading,
     bankQuery,
     bankSelected,
+    bankTotal,
     bankVisible,
+    refreshBank,
     busy,
     codePrefix,
     detail,
@@ -26,7 +29,6 @@ export default function EditVersionModal() {
     modal,
     roleForBank,
     setAddCourseForm,
-    setBank,
     setBankQuery,
     setBankRoles,
     setBankSelected,
@@ -142,13 +144,24 @@ export default function EditVersionModal() {
                       />
                       <button
                         type="button"
-                        onClick={() => { setBank([]); }}
+                        onClick={refreshBank}
                         className="px-3 rounded-lg bg-indigo-100 text-indigo-900 font-extrabold text-3xs shrink-0"
                       >
                         {bankLoading ? '…' : 'به‌روزرسانی'}
                       </button>
                     </div>
                   </div>
+                  {/* سرور حداکثر ۱۰۰ درس برمیگرداند؛ بقیه با جستجو پیدا میشوند. */}
+                  {bankTotal > bank.length && (
+                    <p className="rounded-lg bg-amber-50 border border-amber-200 px-2 py-1 text-3xs font-bold text-amber-800">
+                      نمایش {faNum(bank.length)} از {faNum(bankTotal)} درس — برای دیدن بقیه، کد یا عنوان را جستجو کنید.
+                    </p>
+                  )}
+                  {bank.length === 0 && !bankLoading && bankQuery.trim() && (
+                    <p className="rounded-lg bg-slate-50 border border-slate-200 px-2 py-1 text-3xs font-bold text-slate-500">
+                      درسی با این عبارت پیدا نشد.
+                    </p>
+                  )}
                   <div className="max-h-44 overflow-y-auto rounded-lg border border-slate-200 divide-y divide-slate-100 bg-white">
                     {bankVisible.map(b => (
                       <div key={b.id} className="flex items-center gap-2 px-2.5 py-1.5 text-2xs font-bold hover:bg-emerald-50">

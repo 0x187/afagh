@@ -44,6 +44,10 @@ function useCurriculumWorkspace(
   const [bankSelected, setBankSelected] = useState<Set<number>>(new Set());
   /** نمایش همهٔ نتایج بانک (نه فقط ۶۰ مورد اول) */
   const [bankShowAll, setBankShowAll] = useState(false);
+  /** تعداد کلِ دروسِ هم‌خوان با جست‌وجو (برای برچسبِ «X از Y») */
+  const [bankTotal, setBankTotal] = useState(0);
+  /** غیرت: هر بار که تغییر کند، بانک دوباره از سرور خوانده می‌شود (دکمهٔ «به‌روزرسانی») */
+  const [bankNonce, setBankNonce] = useState(0);
   const [bankRoles, setBankRoles] = useState<Record<number, string>>({});
   const [bulkRoleType, setBulkRoleType] = useState('CORE');
 
@@ -120,16 +124,28 @@ function useCurriculumWorkspace(
     reloadDetail(selectedVersionId);
   }, [selectedVersionId, reloadDetail]);
 
-  // بانک دروس (هنگام نیاز برای افزودن — هم مودال افزودن، هم مودال ویرایش نسخه)
+  // بانک دروس — جست‌وجوی سمتِ سرور (کد یا عنوان درس) + سقف ردیف.
+  // پیش‌تر *همه* دروس دانشگاه بی‌سقف می‌آمد و این‌جا فیلتر می‌شد؛ حالا سرور
+  // فیلتر می‌کند و فقط ۱۰۰ ردیف برمی‌گرداند. هر بار که مودال باز شود یا
+  // کاربر جست‌وجو کند (debounce) یا روی «به‌روزرسانی» بزند (bankNonce)، بانک
+  // دوباره خوانده می‌شود.
   useEffect(() => {
-    if ((modal !== 'ADD_COURSE' && modal !== 'EDIT_VERSION') || bank.length > 0 || bankLoading) return;
+    if (modal !== 'ADD_COURSE' && modal !== 'EDIT_VERSION') return;
+    let alive = true;
     setBankLoading(true);
-    listCourseBankAction().then(r => {
-      setBankLoading(false);
-      if (r.ok) setBank(r.data);
-      else showToast(r.error, 'error');
-    });
-  }, [modal, bank.length, bankLoading, showToast]);
+    const t = setTimeout(() => {
+      listCourseBankAction(bankQuery.trim(), 100).then(r => {
+        if (!alive) return;
+        setBankLoading(false);
+        if (r.ok) { setBank(r.data); setBankTotal(r.total); }
+        else showToast(r.error, 'error');
+      }).catch(() => { if (alive) setBankLoading(false); });
+    }, bankQuery ? 350 : 0);
+    return () => { alive = false; clearTimeout(t); };
+  }, [modal, bankQuery, bankNonce, showToast]);
+
+  /** دکمهٔ «به‌روزرسانی» مودال‌ها: بانک را دوباره از سرور می‌خواند */
+  const refreshBank = () => setBankNonce(n => n + 1);
 
   // گروه‌های آموزشی (هنگام نیاز برای تعریف درس جدید)
   useEffect(() => {
@@ -623,6 +639,8 @@ function useCurriculumWorkspace(
     bankSelected,
     bankVisible,
     bankShowAll,
+    bankTotal,
+    refreshBank,
     showMoreBank: () => setBankShowAll(true),
     bulkRoleType,
     busy,

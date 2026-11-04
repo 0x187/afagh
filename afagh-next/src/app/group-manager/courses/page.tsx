@@ -1,7 +1,8 @@
-import { eq } from 'drizzle-orm';
+import { and, count, eq, or } from 'drizzle-orm';
 import { db } from '@/db';
 import { courses, departments } from '@/db/schema';
 import { requireDepHead } from '@/lib/group-manager';
+import { faSearchConds } from '@/lib/fa-list-query';
 import { MALI_TYPE_OPTIONS, maliTypeLabel } from '@/lib/mali-types';
 import { createCourseAction, deleteCourseAction, updateCourseAction } from './actions';
 import PanelHero from '@/components/PanelHero';
@@ -10,11 +11,32 @@ export const dynamic = 'force-dynamic';
 
 const TYPE_OPTS = ['عمومی', 'پایه', 'اصلی', 'تخصصی', 'اختیاری', 'جبرانی', 'کارورزی', 'پروژه', 'پایان‌نامه', 'کارگاهی'];
 
-export default async function CoursesPage({ searchParams }: { searchParams: Promise<{ msg?: string; err?: string }> }) {
+/**
+ * سقف ردیف‌های جدول. پیش‌تر کل دروسِ گروه (هر چند تا که بود) در RSC به
+ * کلاینت می‌رفت و هر ردیف ۹ ورودیِ قابل‌ویرایش داشت ⇒ صفحه روی خطوط
+ * کم‌سرعت سنگین می‌شد. حالا سرور فیلتر + سقف می‌گذارد و کاربر برای بقیه
+ * جست‌وجو می‌کند.
+ */
+const LIST_CAP = 100;
+
+export default async function CoursesPage({ searchParams }: { searchParams: Promise<{ msg?: string; err?: string; q?: string }> }) {
   const sp = await searchParams;
   const { staff: me, deptId } = await requireDepHead();
   const [dept] = await db.select().from(departments).where(eq(departments.id, deptId)).limit(1);
-  const rows = await db.select().from(courses).where(eq(courses.departmentId, deptId)).orderBy(courses.code);
+
+  // ── جست‌وجوی سمتِ سرور (کد یا عنوان درس) + سقف ردیف ──
+  const q = (sp.q ?? '').trim();
+  const searchConds = faSearchConds(q, [courses.code, courses.title]);
+  const where = and(
+    eq(courses.departmentId, deptId),
+    searchConds.length ? or(...searchConds) : undefined,
+  );
+
+  const [rows, totalRow] = await Promise.all([
+    db.select().from(courses).where(where).orderBy(courses.code).limit(LIST_CAP),
+    db.select({ n: count() }).from(courses).where(where),
+  ]);
+  const total = Number(totalRow[0]?.n ?? 0);
 
   return (
     <div className="space-y-4">
@@ -28,7 +50,7 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
         eyebrow="کارتابل مدیر گروه"
         title={`دروس گروه ${dept?.name ?? ''}`.trim()}
         subtitle="تعریف و ویرایش دروسِ گروه؛ ارائه‌های ترم، برنامه‌ریزی درسی و معادل‌سازی از نوارِ بالا در دسترس است."
-        stats={[{ label: 'درس ثبت‌شده', value: rows.length.toLocaleString('fa-IR') }]}
+        stats={[{ label: 'درس ثبت‌شده', value: total.toLocaleString('fa-IR') }]}
       />
 
       {sp.msg && <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-800">✓ {sp.msg}</p>}
@@ -66,7 +88,27 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
       </div>
 
       <div className="card">
-        <h2 className="mb-2 font-bold">دروس گروه ({rows.length})</h2>
+        {/* ── جست‌وجوی سمتِ سرور ──
+            فرم GET است تا آدرس صفحه (و در نتیجه «بازگشت» و «تازه‌سازی») جست‌وجو را
+            از دست ندهد. بدون این جست‌وجو، ردیف‌های بعد از سقف اصلاً قابل دسترسی
+            نبودند. */}
+        <form method="GET" className="mb-3 flex flex-wrap items-end gap-2">
+          <label className="min-w-52 flex-1 text-xs text-slate-500">
+            جست‌وجوی درس (کد یا عنوان)
+            <input name="q" defaultValue={q} placeholder="مثلاً 5122305 یا یادگیری ماشین" className="input mt-1" />
+          </label>
+          <button type="submit" className="btn-primary">جست‌وجو</button>
+          {q && (
+            <a href="/group-manager/courses" className="btn-ghost">پاک‌کردن جست‌وجو</a>
+          )}
+        </form>
+
+        <h2 className="mb-2 font-bold">دروس گروه ({total.toLocaleString('fa-IR')})</h2>
+        {rows.length < total && (
+          <p className="mb-2 text-2xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
+            نمایش {rows.length.toLocaleString('fa-IR')} از {total.toLocaleString('fa-IR')} درس — برای دیدن بقیه جست‌وجو کنید.
+          </p>
+        )}
         <div className="overflow-x-auto">
           {/*
             ⚠ ساختار ردیف‌ها اصلاح شد. پیش‌تر کل فرم ویرایش در یک
@@ -145,7 +187,13 @@ export default async function CoursesPage({ searchParams }: { searchParams: Prom
                   </tr>
                 );
               })}
-              {rows.length === 0 && <tr><td colSpan={9} className="p-3 text-center text-slate-400">درسی تعریف نشده است.</td></tr>}
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="p-3 text-center text-slate-400">
+                    {q ? 'درسی با این عبارت پیدا نشد.' : 'درسی تعریف نشده است.'}
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

@@ -6,10 +6,11 @@
 //  همه فقط‌خواندنی‌اند و گاردشان requireRole(EDITORS) است.
 // ════════════════════════════════════════════════════════════════════════
 
-import { asc, desc, eq, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { courses, curriculum_approvals, curriculum_courses, curriculum_tracks, curriculum_versions, degree_level_configs, departments, financial_terms, majors } from '@/db/schema';
 import { requireRole } from '@/lib/auth';
+import { faSearchConds, capRows } from '@/lib/fa-list-query';
 import { validateCurriculumCore } from '@/lib/curriculum-validator';
 import { type CourseBankResult, type CurriculumOverviewResult, type CurriculumVersionDetailResult, type DepartmentListResult, EDITORS, buildCheckInput, loadVersionData } from './shared';
 
@@ -68,21 +69,40 @@ export async function getCurriculumOverviewAction(): Promise<CurriculumOverviewR
   }
 }
 
-/** بانک دروس دانشگاه — برای افزودن درس به نسخهٔ DRAFT (Thin Client فاز ۷) */
+/** بانک دروس دانشگاه — برای افزودن درس به نسخهٔ DRAFT (Thin Client فاز ۷)
+ *
+ *  سقف + جست‌وجوی سروری: پیش‌تر *همه* دروس دانشگاه (بدون سقف) به کلاینت می‌آمد
+ *  و این‌جا فیلتر می‌شد ⇒ در دانشگاه‌های بزرگ بانک چندهزارتایی بود و صفحهٔ
+ *  «افزودن درس» سنگین می‌شد. حالا سرور فیلتر (نرمال‌سازی فارسی روی کد/عنوان)
+ *  و سقف می‌گذارد؛ کلاینت فقط برای نمایشِ «X از Y» و فیلترِ پیشوند کد استفاده
+ *  می‌کند.
+ */
+const BANK_SERVER_CAP = 100;
 
-
-export async function listCourseBankAction(): Promise<CourseBankResult> {
+export async function listCourseBankAction(q?: string, limit?: number): Promise<CourseBankResult> {
   await requireRole(EDITORS);
   try {
     const { getCurrentUniversity } = await import('@/lib/university-scope');
     const uni = await getCurrentUniversity().catch(() => null);
-    const rows = await db
-      .select({ id: courses.id, code: courses.code, title: courses.title, units: courses.units, courseType: courses.courseType })
-      .from(courses)
-      .where(uni ? eq(courses.universityId, uni.id) : undefined)
-      .orderBy(asc(courses.code));
+    const query = (q ?? '').trim();
+    const conds = faSearchConds(query, [courses.code, courses.title]);
+    const where = and(
+      uni ? eq(courses.universityId, uni.id) : undefined,
+      conds.length ? or(...conds) : undefined,
+    );
+    const cap = capRows(limit ?? BANK_SERVER_CAP);
+    const [rows, totalRow] = await Promise.all([
+      db
+        .select({ id: courses.id, code: courses.code, title: courses.title, units: courses.units, courseType: courses.courseType })
+        .from(courses)
+        .where(where)
+        .orderBy(asc(courses.code))
+        .limit(cap),
+      db.select({ n: sql<number>`count(*)::int` }).from(courses).where(where),
+    ]);
     return {
       ok: true,
+      total: Number(totalRow[0]?.n ?? 0),
       data: rows.map((r) => ({ id: r.id, code: r.code, title: r.title, units: String(r.units), courseType: r.courseType ?? '—' })),
     };
   } catch (err: any) {

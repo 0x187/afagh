@@ -15,7 +15,9 @@ export default function AddCourseModal() {
     bankQuery,
     bankSelected,
     bankShowAll,
+    bankTotal,
     bankVisible,
+    refreshBank,
     showMoreBank,
     busy,
     closeAddCourse,
@@ -25,7 +27,6 @@ export default function AddCourseModal() {
     modal,
     roleForBank,
     setAddCourseForm,
-    setBank,
     setBankQuery,
     setBankRoles,
     setBankSelected,
@@ -64,7 +65,7 @@ export default function AddCourseModal() {
                     />
                     <button
                       type="button"
-                      onClick={() => { setBank([]); }}
+                      onClick={refreshBank}
                       className="px-3 rounded-lg bg-indigo-100 text-indigo-900 font-extrabold text-3xs shrink-0"
                     >
                       {bankLoading ? '…' : 'به‌روزرسانی'}
@@ -72,6 +73,18 @@ export default function AddCourseModal() {
                   </div>
                 </label>
               </div>
+              {/* سرور حداکثر ۱۰۰ درس برمیگرداند؛ اگر کلِ بانک بیشتر است،
+                  کاربر باید جستجو کند تا به بقیه برسد. */}
+              {bankTotal > bank.length && (
+                <p className="rounded-lg bg-amber-50 border border-amber-200 px-2 py-1 text-3xs font-bold text-amber-800">
+                  نمایش {faNum(bank.length)} از {faNum(bankTotal)} درس — برای دیدن بقیه، کد یا عنوان را جستجو کنید.
+                </p>
+              )}
+              {bank.length === 0 && !bankLoading && bankQuery.trim() && (
+                <p className="rounded-lg bg-slate-50 border border-slate-200 px-2 py-1 text-3xs font-bold text-slate-500">
+                  درسی با این عبارت پیدا نشد.
+                </p>
+              )}
               {bank.length > 0 && (
                 <>
                   <div className="flex items-center justify-between gap-2 rounded-lg bg-indigo-50/70 border border-indigo-100 px-2.5 py-1.5">

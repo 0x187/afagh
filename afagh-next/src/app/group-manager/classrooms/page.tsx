@@ -1,12 +1,24 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, count, eq, inArray } from 'drizzle-orm';
 import Link from 'next/link';
 import { db } from '@/db';
 import { academic_terms, classrooms, course_offerings, courses, faculties, schedules, staff, users } from '@/db/schema';
 import { requireDepHead } from '@/lib/group-manager';
+import { faIncludes } from '@/lib/persian-search';
 
 export const dynamic = 'force-dynamic';
 const DAYS = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
 const hm = (t: string | null) => (t ? String(t).slice(0, 5) : '');
+
+/**
+ * سقف کلاس‌ها و جلسات هفتگی که در یک نوبت به کلاینت میروند.
+ *
+ * این صفحه فقطخواندنی است، ولی پیشتر *همه* جلسات هفتگی ترم جاری (برای تمام
+ * کلاسهای گروه) خوانده و بهصورت چیپ در هر ردیف رندر میشد ⇒ در ترمهای شلوغ
+ * صدها ردیف × چندین چیپ، payload و کار رندر را سنگین میکرد. حالا سرور جستجو
+ * (نام/کد کلاس) + سقف میگذارد و بقیه با جستجو پیدا میشوند.
+ */
+const ROOM_CAP = 100;
+const SESSION_CAP = 300;
 
 /**
  * کلاس‌های گروه — **فقط خواندنی**.
@@ -27,7 +39,9 @@ const hm = (t: string | null) => (t ? String(t).slice(0, 5) : '');
  * ثبت برنامه هم از کارتابل «ارائه‌ها» انجام می‌شود (برنامهٔ هفتگی هر ارائه)،
  * نه از اینجا — پس این صفحه لینک راهنما می‌دهد و تغییری ثبت نمی‌کند.
  */
-export default async function ClassroomsPage() {
+export default async function ClassroomsPage({ searchParams }: { searchParams: Promise<{ q?: string }> }) {
+  const sp = await searchParams;
+  const q = (sp.q ?? '').trim();
   const { deptId, dept } = await requireDepHead();
   const [term] = await db.select().from(academic_terms).where(eq(academic_terms.isCurrent, 1)).limit(1);
 
@@ -54,7 +68,7 @@ export default async function ClassroomsPage() {
 
   const roomIds = [...roomIdSet];
 
-  const rooms = roomIds.length
+  const allRooms = roomIds.length
     ? await db.select({
         id: classrooms.id,
         name: classrooms.name,
@@ -73,31 +87,50 @@ export default async function ClassroomsPage() {
         .orderBy(classrooms.name)
     : [];
 
-  // برنامهٔ هفتگیِ ترم جاری برای همین کلاس‌ها
-  const schedRows = roomIds.length && term
-    ? await db.select({
-        roomId: schedules.roomId,
-        day: schedules.dayOfWeek,
-        st: schedules.startTime,
-        en: schedules.endTime,
-        courseTitle: courses.title,
-        courseCode: courses.code,
-        groupNumber: course_offerings.groupNumber,
-        profFirst: users.firstName,
-        profLast: users.lastName,
-      })
-        .from(schedules)
-        .innerJoin(course_offerings, eq(course_offerings.id, schedules.offeringId))
-        .innerJoin(courses, eq(courses.id, course_offerings.courseId))
-        .leftJoin(staff, eq(staff.id, course_offerings.professorId))
-        .leftJoin(users, eq(users.id, staff.userId))
-        .where(and(
-          eq(schedules.scheduleType, 'CLASS'),
-          eq(course_offerings.termId, term.id),
-          inArray(schedules.roomId, roomIds),
-        ))
-        .orderBy(schedules.dayOfWeek, schedules.startTime)
-    : [];
+  // جستجوی سمتِ سرور (نام یا کد کلاس) — چون فهرست کلاس‌های گروه محدود است،
+  // فیلتر در حافظهٔ سرور ارزان و بیخطر است. بقیه با جستجو پیدا میشوند.
+  const matchedRooms = q
+    ? allRooms.filter(r => faIncludes(`${r.name} ${r.code ?? ''}`, q))
+    : allRooms;
+  const totalRooms = matchedRooms.length;
+  const rooms = matchedRooms.slice(0, ROOM_CAP);
+  const shownRoomIds = rooms.map(r => r.id);
+
+  // برنامهٔ هفتگیِ ترم جاری — فقط برای کلاس‌های نمایشدادهشده، با سقف جلسه.
+  const schedWhere = and(
+    eq(schedules.scheduleType, 'CLASS'),
+    eq(course_offerings.termId, term?.id ?? -1),
+    inArray(schedules.roomId, shownRoomIds),
+  );
+  const schedSelect = {
+    roomId: schedules.roomId,
+    day: schedules.dayOfWeek,
+    st: schedules.startTime,
+    en: schedules.endTime,
+    courseTitle: courses.title,
+    courseCode: courses.code,
+    groupNumber: course_offerings.groupNumber,
+    profFirst: users.firstName,
+    profLast: users.lastName,
+  };
+  const [schedRows, sessionCountRow] = shownRoomIds.length && term
+    ? await Promise.all([
+        db.select(schedSelect)
+          .from(schedules)
+          .innerJoin(course_offerings, eq(course_offerings.id, schedules.offeringId))
+          .innerJoin(courses, eq(courses.id, course_offerings.courseId))
+          .leftJoin(staff, eq(staff.id, course_offerings.professorId))
+          .leftJoin(users, eq(users.id, staff.userId))
+          .where(schedWhere)
+          .orderBy(schedules.dayOfWeek, schedules.startTime)
+          .limit(SESSION_CAP),
+        db.select({ n: count() })
+          .from(schedules)
+          .innerJoin(course_offerings, eq(course_offerings.id, schedules.offeringId))
+          .where(schedWhere),
+      ])
+    : [[], [{ n: 0 }]];
+  const totalSessions = Number(sessionCountRow[0]?.n ?? 0);
 
   const byRoom = new Map<number, typeof schedRows>();
   for (const s of schedRows) {
@@ -106,7 +139,6 @@ export default async function ClassroomsPage() {
     list.push(s);
     byRoom.set(s.roomId, list);
   }
-  const totalSessions = schedRows.length;
 
   return (
     <div className="space-y-3">
@@ -114,9 +146,25 @@ export default async function ClassroomsPage() {
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h1 className="text-sm font-bold">کلاس‌های گروه {dept.name}</h1>
           <p className="text-2xs text-slate-500">
-            ترم جاری: {term?.title ?? '—'} · {rooms.length} کلاس · {totalSessions} جلسه در هفته
+            ترم جاری: {term?.title ?? '—'} · {rooms.length.toLocaleString('fa-IR')} کلاس · {totalSessions.toLocaleString('fa-IR')} جلسه در هفته
           </p>
         </div>
+        {/* ── جستجوی سمتِ سرور + سقف ردیف ── */}
+        <form method="GET" className="mt-2 flex flex-wrap items-end gap-2">
+          <label className="min-w-52 flex-1 text-2xs text-slate-500">
+            جستجوی کلاس (نام یا کد)
+            <input name="q" defaultValue={q} placeholder="مثلاً ۲۰۷ یا انسانی" className="input mt-1" />
+          </label>
+          <button type="submit" className="btn-primary">جستجو</button>
+          {q && <a href="/group-manager/classrooms" className="btn-ghost">پاککردن جستجو</a>}
+        </form>
+        {(rooms.length < totalRooms || schedRows.length < totalSessions) && (
+          <p className="mt-2 text-2xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
+            نمایش {rooms.length.toLocaleString('fa-IR')} از {totalRooms.toLocaleString('fa-IR')} کلاس
+            {schedRows.length < totalSessions && ` و ${schedRows.length.toLocaleString('fa-IR')} از ${totalSessions.toLocaleString('fa-IR')} جلسه`}
+            {' '}— برای دیدن بقیه جستجو کنید.
+          </p>
+        )}
         <p className="mt-1 text-2xs leading-5 text-slate-500">
           تعریف و ویرایش کلاس‌ها با مدیر سامانه است. این صفحه فقط کلاس‌هایی را نشان می‌دهد که به این گروه
           تخصیص یافته‌اند، همراه با برنامهٔ هفتگیِ نوشته‌شده در آن‌ها. برای افزودن/تغییر جلسه به کارتابل{' '}
@@ -128,7 +176,9 @@ export default async function ClassroomsPage() {
       <div className="card !p-3">
         {rooms.length === 0 ? (
           <p className="py-6 text-center text-xs text-slate-400">
-            هنوز هیچ کلاسی به این گروه تخصیص نیافته است. پس از ثبت برنامهٔ هفتگیِ ارائه‌های گروه، کلاس‌ها اینجا نمایش داده می‌شوند.
+            {q
+              ? 'کلاسی با این عبارت پیدا نشد.'
+              : 'هنوز هیچ کلاسی به این گروه تخصیص نیافته است. پس از ثبت برنامهٔ هفتگیِ ارائه‌های گروه، کلاس‌ها اینجا نمایش داده می‌شوند.'}
           </p>
         ) : (
           <div className="overflow-x-auto">

@@ -3,6 +3,7 @@ import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import { db } from '@/db';
 import { academic_terms, classrooms, course_offerings, courses, degree_level_configs, majors, offering_professors, schedules, staff, users } from '@/db/schema';
 import { requireDepHead } from '@/lib/group-manager';
+import { faIncludes } from '@/lib/persian-search';
 import { targetingLabel } from '@/lib/offering-targeting';
 import { getBool } from '@/lib/settings';
 import { addScheduleAction, createOfferingAction, deactivateOfferingAction, deleteScheduleAction, updateOfferingAction } from './actions';
@@ -10,6 +11,17 @@ import { addScheduleAction, createOfferingAction, deactivateOfferingAction, dele
 export const dynamic = 'force-dynamic';
 const DAYS = ['شنبه', 'یکشنبه', 'دوشنبه', 'سه‌شنبه', 'چهارشنبه', 'پنجشنبه', 'جمعه'];
 const hm = (t: string | null) => (t ? String(t).slice(0, 5) : '');
+
+/**
+ * سقف ارائه‌هایی که در یک نوبت به کلاینت می‌روند.
+ *
+ * چرا؟ هر کارتِ ارائه دو فرمِ ۱۲ستونی دارد (ویرایش + هدف‌گیری) و سه
+ * `<select>` با فهرست‌های طولانی (استاد / مقطع / رشته). پیش‌تر *همهٔ* ارائه‌های
+ * ترم گروه می‌آمد ⇒ ده‌ها کارت × ده‌ها `<option>` ⇒ payload چند صد کیلوبایتی
+ * و صفحه‌ای که روی خطوط کم‌سرعت اصلاً بالا نمی‌آمد. حالا سرور فیلتر و سقف
+ * می‌گذارد و برای بقیه جست‌وجو می‌کنیم.
+ */
+const OFFERING_CAP = 25;
 
 /**
  * سلولِ برچسب‌دارِ گرید — یک برچسب کوچک بالای فیلد، خودِ فیلد تمام‌عرضِ خانه.
@@ -28,7 +40,7 @@ const F = ({ label, span, children }: { label: string; span: string; children: R
 
 const INPUT = 'input !py-1 !px-2 text-xs';
 
-export default async function OfferingsPage({ searchParams }: { searchParams: Promise<{ msg?: string; err?: string }> }) {
+export default async function OfferingsPage({ searchParams }: { searchParams: Promise<{ msg?: string; err?: string; q?: string }> }) {
   const sp = await searchParams;
   const { staff: me, deptId } = await requireDepHead();
   const [term] = await db.select().from(academic_terms).where(eq(academic_terms.isCurrent, 1)).limit(1);
@@ -40,16 +52,32 @@ export default async function OfferingsPage({ searchParams }: { searchParams: Pr
   const deptCourses = await db.select().from(courses).where(eq(courses.departmentId, deptId)).orderBy(courses.code);
   const courseById = new Map(deptCourses.map(c => [c.id, c]));
 
-  const offs = term && courseById.size > 0
+  const allOffs = term && courseById.size > 0
     ? await db.select().from(course_offerings)
         .where(and(
           eq(course_offerings.termId, term.id),
           eq(course_offerings.isActive, 1),
           inArray(course_offerings.courseId, [...courseById.keys()]),
         ))
+        .limit(500)
     : [];
-  const mine = offs;
-  const offIds = mine.map(o => o.id);
+
+  /**
+   * جست‌وجوی سمتِ سرور روی کد/عنوان درس و شمارهٔ گروه.
+   * فهرستِ گروه محدود است (فقط ارائه‌های همین گروه)، پس فیلتر کردنش در
+   * حافظهٔ سرور ارزان است — و نتیجه فقط ۲۵ ردیف است که به کلاینت می‌رود.
+   */
+  const q = (sp.q ?? '').trim();
+  const mine = q
+    ? allOffs.filter(o => {
+        const c = courseById.get(o.courseId);
+        if (!c) return false;
+        return faIncludes(`${c.code} ${c.title} ${o.groupNumber}`, q);
+      })
+    : allOffs;
+  const totalOffs = mine.length;
+  const shown = mine.slice(0, OFFERING_CAP);
+  const offIds = shown.map(o => o.id);
 
   const profs = await db.select({ id: staff.id, name: users.firstName, family: users.lastName, rank: staff.academicRank })
     .from(staff).innerJoin(users, eq(users.id, staff.userId)).where(eq(staff.departmentId, deptId));
@@ -62,15 +90,38 @@ export default async function OfferingsPage({ searchParams }: { searchParams: Pr
     : [];
 
   // سالن‌های قابل انتخاب: همین دانشگاه یا سالن‌های عام/سیستمی (universityId NULL)
+  // ⚠ این فهرست *یک‌بار* در صفحه رندر می‌شود (فرمِ مشترکِ «افزودن جلسه»)، نه
+  // یک‌بار به‌ازای هر ارائه — پیش‌تر همین فهرست در هر کارت تکرار می‌شد.
   const rooms = me.universityId == null
     ? await db.select().from(classrooms).where(isNull(classrooms.universityId)).orderBy(classrooms.name)
     : await db.select().from(classrooms)
         .where(or(eq(classrooms.universityId, me.universityId), isNull(classrooms.universityId)))
         .orderBy(classrooms.name);
   const degrees = await db.select().from(degree_level_configs);
-  const majorRows = await db.select().from(majors);
+
+  /**
+   * رشته‌های قابل هدف‌گیری: فقط رشته‌های همین دانشگاه.
+   * پیش‌تر `db.select().from(majors)` *بدونِ هیچ فیلتری* بود ⇒ همهٔ رشته‌های
+   * کشور در `<select>`ِ هر ارائه تکرار می‌شد (صدها `<option>` در هر ردیف!).
+   * رشته‌هایی که ارائه‌های بارگذاری‌شده به آن‌ها هدف زده‌اند جداگانه خوانده
+   * می‌شوند تا نامشان در نمایش گم نشود.
+   */
+  const majorSelectRows = me.universityId == null
+    ? await db.select({ id: majors.id, name: majors.name }).from(majors).orderBy(majors.name)
+    : await db.select({ id: majors.id, name: majors.name }).from(majors)
+        .where(or(eq(majors.universityId, me.universityId), isNull(majors.universityId)))
+        .orderBy(majors.name);
+
+  const targetMajorIds = [...new Set(shown.map(o => o.targetMajorId).filter((x): x is number => x != null))];
+  const extraMajors = targetMajorIds.length
+    ? await db.select({ id: majors.id, name: majors.name }).from(majors).where(inArray(majors.id, targetMajorIds))
+    : [];
+  const majorNameById = new Map<number, string>();
+  for (const m of majorSelectRows) majorNameById.set(m.id, m.name);
+  for (const m of extraMajors) majorNameById.set(m.id, m.name);
+
   const degTitle = (id: number) => degrees.find(d => d.id === id)?.title ?? String(id);
-  const majorTitle = (id: number) => majorRows.find(m => m.id === id)?.name ?? String(id);
+  const majorTitle = (id: number) => majorNameById.get(id) ?? String(id);
   void offering_professors;
 
   /**
@@ -89,7 +140,7 @@ export default async function OfferingsPage({ searchParams }: { searchParams: Pr
       <F label={`رشتهٔ مجاز${requireChart ? '' : ' (الزامی)'}`} span="md:col-span-3">
         <select name="major" defaultValue={o?.targetMajorId ?? ''} className={INPUT} required={!requireChart}>
           <option value="">{requireChart ? 'همه' : '— انتخاب —'}</option>
-          {majorRows.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+          {majorSelectRows.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
         </select>
       </F>
       <F label="ورودی مجاز از" span="md:col-span-2">
@@ -114,7 +165,7 @@ export default async function OfferingsPage({ searchParams }: { searchParams: Pr
       {sp.err && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-800">⛔ {sp.err}</p>}
       {!requireChart && (
         <div className="rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs text-rose-800">
-          ⚠️ چارت تحصیلی در انتخاب واحد الزامی <b>نیست</b>؛ بنابراین هدف‌گیریِ هر ارائه (رشته مجاز + بازهٔ ورودی) تعیین‌کنندهٔ این است که کدام دانشجو آن را می‌بیند. تعیین «رشته مجاز» و «ورودی مجاز از» هنگام ایجاد/ویرایش ارائه <b>الزامی</b> است.
+          ⚠️ چارت تحصیلی در انتخاب واحد الزامی <b>نیست</b>؛ بنابراین هدف‌گیریِ هر ارائه (رشته مجاز + بازهٔ ورودی) تعیین‌کنندهٔ این است که کدام دانشجو آن را می‌بیند. تعیین «رشتهٔ مجاز» و «ورودی مجاز از» هنگام ایجاد/ویرایش ارائه <b>الزامی</b> است.
         </div>
       )}
 
@@ -125,12 +176,12 @@ export default async function OfferingsPage({ searchParams }: { searchParams: Pr
         </div>
         {!requireChart && (
           <p className="text-2xs text-rose-600 bg-rose-50 border border-rose-200 rounded-lg px-2 py-1">
-            چون چارت تحصیلی در انتخاب واحد الزامی نیست، تعیین «رشته مجاز» و «ورودی مجاز از» برای هر ارائه الزامی است.
+            چون چارت تحصیلی در انتخاب واحد الزامی نیست، تعیین «رشتهٔ مجاز» و «ورودی مجاز از» برای هر ارائه الزامی است.
           </p>
         )}
         {/*
           چیدمان صریح: ۱۲ ستون، دو ردیفِ کامل (۴+۳+۱+۲+۲ و ۲+۳+۲+۲+۳).
-          پیش‌تر `flex flex-wrap` بود و چون `.input` عرض ۱۰۰٪ داشت، هر ۹ فیلد
+          پیش‌تر `flex flex-wrap` بود و چون `.input` عرضِ ۱۰۰٪ داشت، هر ۹ فیلد
           در سطر جدا می‌افتاد و فرم ده سطر بلند می‌شد.
         */}
         <form action={createOfferingAction} className="grid grid-cols-2 items-end gap-2 md:grid-cols-12">
@@ -156,8 +207,72 @@ export default async function OfferingsPage({ searchParams }: { searchParams: Pr
         </form>
       </div>
 
+      {/* ── افزودن جلسه: یک فرمِ مشترک به‌جای یک فرم در هر کارت ──
+          پیش‌تر هر کارتِ ارائه فرمِ «افزودن جلسه» خودش را داشت و آن فرم
+          `<select>`ِ کاملِ سالن‌ها (≈۱۴۰ گزینه) را هم حمل می‌کرد ⇒ فهرستِ
+          سالن‌ها به تعدادِ ارائه‌ها تکرار می‌شد. حالا یک فرمِ مشترک هست و
+          فهرستِ سالن‌ها فقط یک‌بار در صفحه می‌آید. */}
+      {shown.length > 0 && (
+        <div className="card space-y-2 !p-3">
+          <h2 className="text-sm font-bold">افزودن جلسهٔ برنامهٔ هفتگی</h2>
+          <p className="text-2xs text-slate-500">ارائه را انتخاب کنید و جلسه را ثبت کنید. تداخلِ ساعت/کلاس/استاد خودکار بررسی می‌شود.</p>
+          <form action={addScheduleAction} className="grid grid-cols-2 items-end gap-2 md:grid-cols-12">
+            <input type="hidden" name="termId" value={term?.id ?? 0} />
+            <F label="ارائه" span="col-span-2 md:col-span-3">
+              <select name="offeringId" required className={INPUT}>
+                <option value="">— ارائه را انتخاب کنید —</option>
+                {shown.map(o => {
+                  const c = courseById.get(o.courseId);
+                  return (
+                    <option key={o.id} value={o.id}>
+                      {c ? `${c.title} (${c.code})` : `#${o.id}`} — گروه {o.groupNumber}
+                    </option>
+                  );
+                })}
+              </select>
+            </F>
+            <F label="روز" span="col-span-1 md:col-span-1">
+              <select name="day" className={INPUT} aria-label="روز">{DAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}</select>
+            </F>
+            <F label="ساعت شروع" span="col-span-1 md:col-span-1">
+              <input name="start" type="time" required className={INPUT} dir="ltr" aria-label="ساعت شروع" />
+            </F>
+            <F label="ساعت پایان" span="col-span-1 md:col-span-1">
+              <input name="end" type="time" required className={INPUT} dir="ltr" aria-label="ساعت پایان" />
+            </F>
+            <F label="کلاس" span="col-span-2 md:col-span-3">
+              <select name="roomId" className={INPUT} aria-label="کلاس">
+                <option value="">— کلاس —</option>
+                {rooms.map(r => <option key={r.id} value={r.id}>{r.name} ({r.capacity})</option>)}
+              </select>
+            </F>
+            <button className="btn-primary col-span-2 !py-1.5 text-xs md:col-span-3">افزودن جلسه</button>
+          </form>
+        </div>
+      )}
+
+      {/* ── جست‌وجوی سمتِ سرور + سقف ردیف ── */}
+      <div className="card !p-3">
+        <form method="GET" className="flex flex-wrap items-end gap-2">
+          <label className="min-w-52 flex-1 text-xs text-slate-500">
+            جست‌وجوی ارائه (کد یا عنوان درس، یا شمارهٔ گروه)
+            <input name="q" defaultValue={q} placeholder="مثلاً 5122305 یا ریاضی یا 2" className="input mt-1" />
+          </label>
+          <button type="submit" className="btn-primary">جست‌وجو</button>
+          {q && <a href="/group-manager/offerings" className="btn-ghost">پاک‌کردن جست‌وجو</a>}
+          <span className="text-2xs text-slate-500">
+            {shown.length.toLocaleString('fa-IR')} از {totalOffs.toLocaleString('fa-IR')} ارائه
+          </span>
+        </form>
+        {shown.length < totalOffs && (
+          <p className="mt-2 text-2xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-2 py-1">
+            فقط {shown.length.toLocaleString('fa-IR')} ارائهٔ نخست نمایش داده می‌شود — برای دیدن بقیه جست‌وجو کنید.
+          </p>
+        )}
+      </div>
+
       <div className="space-y-2">
-        {mine.map(o => {
+        {shown.map(o => {
           const c = courseById.get(o.courseId)!;
           const sch = scheds.filter(s => s.offeringId === o.id);
           return (
@@ -201,17 +316,6 @@ export default async function OfferingsPage({ searchParams }: { searchParams: Pr
                     <button className="text-red-500 hover:underline" aria-label="حذف این جلسه">×</button>
                   </form>
                 ))}
-                <form action={addScheduleAction} className="flex flex-wrap items-center gap-1">
-                  <input type="hidden" name="offeringId" value={o.id} />
-                  <select name="day" className={`${INPUT} w-24`} aria-label="روز">{DAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}</select>
-                  <input name="start" type="time" required className={`${INPUT} w-24`} dir="ltr" aria-label="ساعت شروع" />
-                  <input name="end" type="time" required className={`${INPUT} w-24`} dir="ltr" aria-label="ساعت پایان" />
-                  <select name="roomId" className={`${INPUT} w-44`} aria-label="کلاس">
-                    <option value="">— کلاس —</option>
-                    {rooms.map(r => <option key={r.id} value={r.id}>{r.name} ({r.capacity})</option>)}
-                  </select>
-                  <button className="btn-ghost !py-1 !px-2" title="افزودن جلسه">+ افزودن</button>
-                </form>
                 <form action={deactivateOfferingAction} className="ms-auto">
                   <input type="hidden" name="id" value={o.id} />
                   <button className="text-red-600 text-2xs hover:underline">{o.enrolledCount > 0 ? 'غیرفعال‌سازی' : 'حذف ارائه'}</button>
@@ -220,7 +324,11 @@ export default async function OfferingsPage({ searchParams }: { searchParams: Pr
             </div>
           );
         })}
-        {mine.length === 0 && <p className="card text-center text-sm text-slate-400">ارائه‌ای برای ترم جاری در گروه شما نیست.</p>}
+        {shown.length === 0 && (
+          <p className="card text-center text-sm text-slate-400">
+            {q ? 'ارائه‌ای با این عبارت پیدا نشد.' : 'ارائه‌ای برای ترم جاری در گروه شما نیست.'}
+          </p>
+        )}
       </div>
     </div>
   );

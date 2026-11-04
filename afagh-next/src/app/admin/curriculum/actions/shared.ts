@@ -302,9 +302,10 @@ export type CurriculumVersionDetailResult =
   | { ok: false; error: string };
 
 
-/** بانک دروس دانشگاه — برای افزودن درس به نسخهٔ DRAFT (Thin Client فاز ۷) */
+/** بانک دروس دانشگاه — برای افزودن درس به نسخهٔ DRAFT (Thin Client فاز ۷)
+ *  `total` = تعداد کلِ دروسِ هم‌خوان با فیلتر (برای برچسبِ «X از Y») */
 export type CourseBankResult =
-  | { ok: true; data: { id: number; code: string; title: string; units: string; courseType: string }[] }
+  | { ok: true; total: number; data: { id: number; code: string; title: string; units: string; courseType: string }[] }
   | { ok: false; error: string };
 
 

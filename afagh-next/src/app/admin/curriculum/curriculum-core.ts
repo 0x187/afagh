@@ -4,6 +4,7 @@
 //  همه قابل Unit Test → tests/curriculum-core.test.ts
 // ════════════════════════════════════════════════════════════════════════
 import { compareCourseCode, type LogicNode } from '@/lib/curriculum-types';
+import { faIncludes } from '@/lib/persian-search';
 import { SUMMER_SEMESTER, isSummerSemester } from '@/lib/term-plan';
 import type { BankCourse, CourseRow, MajorItem, CurriculumTab, RuleRow } from './types';
 
@@ -516,7 +517,10 @@ export function filterBankCourses(bank: BankCourse[], query: string, prefix: str
   const q = query.trim();
   const p = prefix.trim();
   return bank.filter(b => {
-    const okQ = !q || String(b.id).includes(q) || b.code.includes(q) || b.title.includes(q);
+    // ⚠ نرمال‌سازی فارسی لازم است: سرور (listCourseBankAction) عبارت را نرمال
+    // کرده و با ILIKE می‌گردد ⇒ اگر این‌جا خام مقایسه شود، ردیف‌هایی که سرور
+    // پیدا کرده (مثل «كتاب» در برابر «کتاب») دوباره اینجا حذف می‌شدند.
+    const okQ = !q || String(b.id).includes(q) || faIncludes(b.code, q) || faIncludes(b.title, q);
     const okP = !p || b.code.startsWith(p);
     return okQ && okP;
   });
