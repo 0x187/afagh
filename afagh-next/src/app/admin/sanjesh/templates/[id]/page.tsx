@@ -59,7 +59,7 @@ export default async function TemplateEditorPage({
             {tpl.verifiedWithRealFile ? ' · اعتبارسنجی‌شده با فایل واقعی' : ' · بدون نمونهٔ واقعی'}
           </p>
         </div>
-        <Link href="/admin/sanjesh/templates" className="btn-ghost !py-1 text-xs">
+        <Link prefetch={false} href="/admin/sanjesh/templates" className="btn-ghost !py-1 text-xs">
           ← فهرست قالب‌ها
         </Link>
       </header>

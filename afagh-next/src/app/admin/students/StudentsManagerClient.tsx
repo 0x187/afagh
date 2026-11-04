@@ -2252,7 +2252,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
             </button>
 
             {/* کاشی ۵: مدیریت جلسات درس */}
-            <Link
+            <Link prefetch={false}
               href="/admin/class-sessions"
               className="p-4 bg-gradient-to-b from-white to-slate-100 border-2 border-slate-300 hover:border-slate-500 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-3 text-right group"
             >
@@ -2266,7 +2266,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
             </Link>
 
             {/* کاشی ۶: کاتالوگ و سرفصل رشته‌ها */}
-            <Link
+            <Link prefetch={false}
               href="/admin/curriculum"
               className="p-4 bg-gradient-to-b from-white to-slate-100 border-2 border-indigo-300 hover:border-indigo-500 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-3 text-right group"
             >

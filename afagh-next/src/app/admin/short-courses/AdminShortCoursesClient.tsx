@@ -276,7 +276,7 @@ export default function AdminShortCoursesClient({
         </div>
 
         <div className="flex items-center gap-2">
-          <Link
+          <Link prefetch={false}
             href="/open-courses"
             target="_blank"
             className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs shadow-lg transition flex items-center gap-1.5"
@@ -284,7 +284,7 @@ export default function AdminShortCoursesClient({
             <span>🌐 مشاهده کاتالوگ عمومی</span>
             <span>↗</span>
           </Link>
-          <Link
+          <Link prefetch={false}
             href="/verify-certificate"
             target="_blank"
             className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-700 transition"
@@ -504,7 +504,7 @@ export default function AdminShortCoursesClient({
                             <span className="px-2.5 py-1 rounded-xl bg-amber-100 text-amber-900 font-mono font-black text-3xs">
                               {learner.certificateNumber}
                             </span>
-                            <Link
+                            <Link prefetch={false}
                               href={`/verify-certificate/${learner.certificateNumber}`}
                               target="_blank"
                               className="px-2.5 py-1 rounded-xl bg-indigo-50 text-indigo-900 border border-indigo-200 font-bold text-3xs hover:bg-indigo-100 transition"

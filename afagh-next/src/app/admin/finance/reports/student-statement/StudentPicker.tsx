@@ -117,13 +117,13 @@ export default function StudentPicker({
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link
+            <Link prefetch={false}
               href="/admin/finance/reports"
               className="rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-bold backdrop-blur transition hover:bg-white/20"
             >
               ↩️ مرکز گزارش‌ها
             </Link>
-            <Link
+            <Link prefetch={false}
               href="/admin/finance"
               className="rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-bold backdrop-blur transition hover:bg-white/20"
             >
@@ -236,7 +236,7 @@ export default function StudentPicker({
                     </td>
                     <td className="p-2.5 text-xs text-amber-700">{s.pendingCheques ? `${fa(s.pendingCheques)} ریال` : '—'}</td>
                     <td className="p-2.5 print:hidden">
-                      <Link
+                      <Link prefetch={false}
                         href={`/admin/finance/reports/student-statement?studentId=${s.studentId}`}
                         className="inline-block rounded-lg bg-gradient-to-l from-emerald-600 to-teal-700 px-3 py-1.5 text-2xs font-black text-white shadow-sm transition hover:from-emerald-700 hover:to-teal-800"
                       >

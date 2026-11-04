@@ -44,7 +44,7 @@ export default async function HelpRolePage(props: { params: Promise<{ role: stri
           <h2 className="text-sm font-black">⚡ کارهای پرتکرار</h2>
           <div className="mt-2 grid gap-2 sm:grid-cols-2">
             {g.quickTasks.map(q => (
-              <Link key={q.topicSlug ?? q.href} href={`/help/${q.role}/${q.topicSlug}`} className="rounded-xl border border-slate-200 px-3 py-2.5 hover:border-indigo-300 hover:bg-indigo-50/50">
+              <Link prefetch={false} key={q.topicSlug ?? q.href} href={`/help/${q.role}/${q.topicSlug}`} className="rounded-xl border border-slate-200 px-3 py-2.5 hover:border-indigo-300 hover:bg-indigo-50/50">
                 <span className="block text-[13px] font-bold text-slate-800">{q.title}</span>
                 <span className="block text-2xs text-slate-500">{q.hint}</span>
               </Link>
@@ -59,7 +59,7 @@ export default async function HelpRolePage(props: { params: Promise<{ role: stri
             <ul className="mt-3 space-y-2">
               {s.topics.map(t => (
                 <li key={t.slug}>
-                  <Link href={`/help/${g.role}/${t.slug}`} className="block rounded-xl border border-slate-100 p-3 hover:border-indigo-300 hover:bg-indigo-50/40">
+                  <Link prefetch={false} href={`/help/${g.role}/${t.slug}`} className="block rounded-xl border border-slate-100 p-3 hover:border-indigo-300 hover:bg-indigo-50/40">
                     <span className="block text-[13px] font-black text-indigo-800">{t.title}</span>
                     <span className="mt-0.5 block text-xs leading-relaxed text-slate-600">{t.summary}</span>
                     <span className="mt-1 block text-2xs text-slate-400">{t.path} · {t.steps.length.toLocaleString('fa-IR')} مرحله</span>
@@ -70,7 +70,7 @@ export default async function HelpRolePage(props: { params: Promise<{ role: stri
           </section>
         ))}
 
-        <Link href="/help" className="block rounded-2xl border border-slate-200 bg-slate-50 p-3 text-center text-xs font-black text-slate-600 hover:border-slate-400">بازگشت به فهرست</Link>
+        <Link prefetch={false} href="/help" className="block rounded-2xl border border-slate-200 bg-slate-50 p-3 text-center text-xs font-black text-slate-600 hover:border-slate-400">بازگشت به فهرست</Link>
       </div>
     </div>
   );

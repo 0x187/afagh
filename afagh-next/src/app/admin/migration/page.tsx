@@ -62,7 +62,7 @@ export default async function MigrationPage() {
           {missingCodes.map(m => `${m.table} (${m.missing.toLocaleString('fa-IR')})`).join('، ')}.
           تطبیق اول با کد انجام می‌شود؛ رکورد بی‌کد فقط با نام تطبیق می‌خورد و اگر نام تکراری باشد، آن ردیف وصل
           نمی‌شود و خطا می‌گیرد.{' '}
-          <Link href="/admin/codes" className="font-bold underline">رفتن به مرکز کدها</Link>
+          <Link prefetch={false} href="/admin/codes" className="font-bold underline">رفتن به مرکز کدها</Link>
         </div>
       )}
 

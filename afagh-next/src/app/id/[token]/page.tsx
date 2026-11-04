@@ -49,7 +49,7 @@ export default async function StudentCardGatePage({ params }: { params: Promise<
             </div>
           </div>
           <div className="pt-4 text-center">
-            <Link href="/id" className="text-xs text-indigo-400 hover:underline">← بازگشت به اسکنر حراست</Link>
+            <Link prefetch={false} href="/id" className="text-xs text-indigo-400 hover:underline">← بازگشت به اسکنر حراست</Link>
           </div>
         </div>
       </div>
@@ -150,7 +150,7 @@ export default async function StudentCardGatePage({ params }: { params: Promise<
         </div>
 
         <div className="pt-4 text-center">
-          <Link href="/id" className="text-xs text-indigo-400 hover:underline">← بازگشت به اسکنر دوربین حراست</Link>
+          <Link prefetch={false} href="/id" className="text-xs text-indigo-400 hover:underline">← بازگشت به اسکنر دوربین حراست</Link>
         </div>
       </div>
     </div>

@@ -126,7 +126,7 @@ const fin = await getStudentFinance(studentId, {
                 {student.fullName} — {student.studentCode || 'بدون شمارهٔ دانشجویی'}
               </p>
             </div>
-            <Link
+            <Link prefetch={false}
               href="/admin/finance"
               className="rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-bold backdrop-blur transition hover:bg-white/20"
             >
@@ -139,13 +139,13 @@ const fin = await getStudentFinance(studentId, {
           <StatementLinkButton studentId={studentId} />
           {/* نوع سند: الف = کارتی · ب = تخت و فشرده */}
           <div className="flex overflow-hidden rounded-lg border border-white/30 bg-white/10 text-xs font-bold text-white backdrop-blur">
-            <Link
+            <Link prefetch={false}
               href={`/admin/finance/student/${studentId}`}
               className={!flatView ? 'bg-white px-3 py-1.5 text-slate-900' : 'px-3 py-1.5 text-white/85 hover:bg-white/10'}
             >
               نوع الف
             </Link>
-            <Link
+            <Link prefetch={false}
               href={`/admin/finance/student/${studentId}?format=flat`}
               className={flatView ? 'border-r border-white/30 bg-white px-3 py-1.5 text-slate-900' : 'border-r border-white/30 px-3 py-1.5 text-white/85 hover:bg-white/10'}
             >

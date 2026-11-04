@@ -368,7 +368,7 @@ setForm(Object.fromEntries(editFields.map(f => {
             </button>
           )}
           {elsewhere && (
-            <Link href={elsewhere.href} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50">
+            <Link prefetch={false} href={elsewhere.href} className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50">
               ➕ {elsewhere.label}
             </Link>
           )}

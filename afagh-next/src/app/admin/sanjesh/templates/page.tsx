@@ -28,7 +28,7 @@ export default async function SanjeshTemplatesPage({
             قالب تازه بسازید، از روی فایل بسازید، یا یک قالب موجود را برای سال جدید کپی و ویرایش کنید.
           </p>
         </div>
-        <Link href="/admin/sanjesh" className="btn-ghost !py-1 text-xs">
+        <Link prefetch={false} href="/admin/sanjesh" className="btn-ghost !py-1 text-xs">
           ← فایل‌های سنجش
         </Link>
       </header>
@@ -77,7 +77,7 @@ export default async function SanjeshTemplatesPage({
                     )}
                   </td>
                   <td className="p-2">
-                    <Link href={`/admin/sanjesh/templates/${encodeURIComponent(t.key)}`} className="text-2xs text-teal-700 hover:underline">
+                    <Link prefetch={false} href={`/admin/sanjesh/templates/${encodeURIComponent(t.key)}`} className="text-2xs text-teal-700 hover:underline">
                       ویرایش ستون‌ها
                     </Link>
                   </td>

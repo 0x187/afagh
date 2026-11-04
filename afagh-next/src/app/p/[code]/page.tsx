@@ -157,7 +157,7 @@ export default async function RoomCheckinPage({
         <Card>
           {header}
           <Notice kind="info" text="برای ثبت حضور باید با حساب استاد وارد سامانه شوید." />
-          <Link
+          <Link prefetch={false}
             href={`/login?next=${encodeURIComponent(`/p/room-${roomId}`)}`}
             className="block w-full py-3 rounded-2xl bg-indigo-900 hover:bg-indigo-950 text-white font-black text-xs text-center shadow-md transition"
           >
@@ -489,7 +489,7 @@ export default async function RoomCheckinPage({
                   این نام برای چند اتاق ثبت شده؛ این اتاق‌های هم‌نام برنامه دارند:
                 </div>
                 {twinRooms.map(t => (
-                  <Link
+                  <Link prefetch={false}
                     key={t.id}
                     href={`/p/room-${t.id}`}
                     className="flex items-center justify-between rounded-2xl border border-indigo-200 bg-indigo-50 px-3 py-2"

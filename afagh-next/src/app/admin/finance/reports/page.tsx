@@ -45,10 +45,10 @@ export default async function AdminFinanceReportsPage() {
             )}
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/admin/finance" className="rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-bold backdrop-blur transition hover:bg-white/20">
+            <Link prefetch={false} href="/admin/finance" className="rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-bold backdrop-blur transition hover:bg-white/20">
               🗂️ کارتابل مالی
             </Link>
-            <Link href="/admin/finance/reports/student-statement" className="rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-bold backdrop-blur transition hover:bg-white/20">
+            <Link prefetch={false} href="/admin/finance/reports/student-statement" className="rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-bold backdrop-blur transition hover:bg-white/20">
               📄 کارنامهٔ مالی دانشجو
             </Link>
           </div>
@@ -58,7 +58,7 @@ export default async function AdminFinanceReportsPage() {
       {/* ── کاشی‌های دسترسی سریع به میزهای تخصصی ── */}
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
         {DOCKS.map((d) => (
-          <Link
+          <Link prefetch={false}
             key={d.href}
             href={d.href}
             className={`group rounded-xl border bg-gradient-to-b p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md ${d.tone}`}

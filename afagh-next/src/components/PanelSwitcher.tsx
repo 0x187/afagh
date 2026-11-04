@@ -141,7 +141,7 @@ export default function PanelSwitcher({
                     {body}
                   </div>
                 ) : (
-                  <Link
+                  <Link prefetch={false}
                     key={l.key}
                     href={l.href}
                     role="menuitem"

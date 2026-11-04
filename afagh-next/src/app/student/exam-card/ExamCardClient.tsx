@@ -230,7 +230,7 @@ export default function ExamCardClient({ user, publicBaseUrl, examTicket, examTi
               <div className="rounded-xl border border-rose-300 bg-rose-50 p-2.5 text-2xs font-bold leading-5 text-rose-900">
                 پرداخت از طریق امور مالی دانشگاه انجام و در دفتر کل ثبت می‌شود؛ پس از ثبت تراکنش، این گیت به‌صورت
                 خودکار سبز می‌شود. برای پیگیری، درخواست «تسویهٔ مالی» ثبت کنید.
-                <Link href="/student/requests" className="mt-1 block text-rose-700 underline">ثبت درخواست تسویه ←</Link>
+                <Link prefetch={false} href="/student/requests" className="mt-1 block text-rose-700 underline">ثبت درخواست تسویه ←</Link>
               </div>
             )}
           </div>

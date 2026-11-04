@@ -29,7 +29,7 @@ export default async function ExamHandoverPage({ params }: { params: Promise<{ t
             {res.reason === 'EXPIRED' ? 'کد تحویل منقضی شده است' : 'کد تحویل نامعتبر است'}
           </h2>
           <p className="mx-auto mt-2 max-w-md text-xs leading-6 text-slate-300">{res.message}</p>
-          <Link href="/" className="inline-block rounded-xl bg-slate-800 px-4 py-2 text-xs font-bold text-slate-200">بازگشت</Link>
+          <Link prefetch={false} href="/" className="inline-block rounded-xl bg-slate-800 px-4 py-2 text-xs font-bold text-slate-200">بازگشت</Link>
         </div>
       </div>
     );
@@ -71,7 +71,7 @@ export default async function ExamHandoverPage({ params }: { params: Promise<{ t
         ) : (
           <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-center text-xs font-bold text-amber-900">
             برای تأیید تحویل باید با حساب خودتان وارد سامانه شوید.
-            <Link href="/login" className="mx-auto mt-2 block w-fit rounded-lg bg-amber-700 px-4 py-2 text-white">ورود به سامانه</Link>
+            <Link prefetch={false} href="/login" className="mx-auto mt-2 block w-fit rounded-lg bg-amber-700 px-4 py-2 text-white">ورود به سامانه</Link>
           </div>
         )}
 

@@ -30,7 +30,7 @@ export default function ProfessorQuotasTab() {
                 </p>
               </div>
 
-              <Link
+              <Link prefetch={false}
                 href="/professor/availability"
                 className="px-4 py-2 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-xs shadow transition flex items-center gap-1.5"
               >

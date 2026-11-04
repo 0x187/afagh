@@ -18,7 +18,7 @@ export function SanjeshSteps({ fileId, active }: { fileId: number; active: strin
         const isActive = s.key === active;
         return (
           <span key={s.key} className="flex items-center gap-1.5">
-            <Link
+            <Link prefetch={false}
               href={href}
               className={
                 isActive

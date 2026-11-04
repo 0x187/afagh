@@ -33,7 +33,7 @@ export default async function VerifyLegacyPage({ params }: { params: Promise<{ c
           <p className="text-4xl">⏳</p>
           <h1 className="text-lg font-black text-slate-900">تعداد استعلام‌ها بیش از حد مجاز شد</h1>
           <p className="text-xs text-slate-500 font-bold">چند دقیقهٔ دیگر دوباره تلاش کنید.</p>
-          <Link href="/" className="inline-block mt-2 text-xs font-bold text-indigo-700 underline">بازگشت به صفحهٔ اصلی</Link>
+          <Link prefetch={false} href="/" className="inline-block mt-2 text-xs font-bold text-indigo-700 underline">بازگشت به صفحهٔ اصلی</Link>
         </div>
       </div>
     );
@@ -81,10 +81,10 @@ export default async function VerifyLegacyPage({ params }: { params: Promise<{ c
               </p>
             </div>
             <div className="pt-2 flex flex-col sm:flex-row gap-2 justify-center">
-              <Link href="/open-courses" className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition">
+              <Link prefetch={false} href="/open-courses" className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition">
                 کاتالوگ دوره‌های معتبر
               </Link>
-              <Link href="/verify-certificate" className="px-5 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 font-bold text-xs transition">
+              <Link prefetch={false} href="/verify-certificate" className="px-5 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 font-bold text-xs transition">
                 🔎 استعلام با شمارهٔ سریال رسمی
               </Link>
             </div>
@@ -170,7 +170,7 @@ export default async function VerifyLegacyPage({ params }: { params: Promise<{ c
         )}
 
         <div className="text-center">
-          <Link href="/open-courses" className="text-xs text-indigo-900 font-bold hover:underline">← بازگشت به صفحهٔ اصلی دوره‌های آموزشی</Link>
+          <Link prefetch={false} href="/open-courses" className="text-xs text-indigo-900 font-bold hover:underline">← بازگشت به صفحهٔ اصلی دوره‌های آموزشی</Link>
         </div>
       </div>
     </div>

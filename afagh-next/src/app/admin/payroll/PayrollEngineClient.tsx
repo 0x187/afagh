@@ -184,7 +184,7 @@ export default function PayrollEngineClient({ universityTitle }: { universityTit
             >
               <span>💾 دریافت دیسکت بانکی (شبا)</span>
             </button>
-            <Link
+            <Link prefetch={false}
               href="/admin/exams"
               className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs border border-slate-600/50 flex items-center gap-1.5 transition"
             >

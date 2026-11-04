@@ -628,7 +628,7 @@ export default function TemplateEngineClient({ settings, initialTemplates }: { s
           </div>
 
           <div className="flex items-center gap-2">
-            <Link
+            <Link prefetch={false}
               href="/admin/exams"
               className="px-3.5 py-2 rounded-xl bg-indigo-800 hover:bg-indigo-700 text-white font-bold text-xs border border-indigo-600/50 flex items-center gap-1.5 transition"
             >

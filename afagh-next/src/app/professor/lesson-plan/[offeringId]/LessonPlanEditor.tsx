@@ -180,7 +180,7 @@ export default function LessonPlanEditor({
             </div>
             <h1 className="text-xl sm:text-2xl font-extrabold tracking-tight">📋 تدوین طرح درس نیمسال</h1>
           </div>
-          <Link
+          <Link prefetch={false}
             href="/professor/schedule"
             className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 transition"
           >

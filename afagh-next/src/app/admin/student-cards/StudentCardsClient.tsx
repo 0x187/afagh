@@ -203,14 +203,14 @@ export default function StudentCardsClient({
                         >
                           تعویض توکن
                         </button>
-                        <Link
+                        <Link prefetch={false}
                           href={`/admin/student-cards/card/${r.studentId}`}
                           target="_blank"
                           className="rounded-lg border border-emerald-300 bg-emerald-50 px-2 py-1 text-3xs font-bold text-emerald-800 hover:bg-emerald-100"
                         >
                           🖨 چاپ کارت (QR)
                         </Link>
-                        <Link
+                        <Link prefetch={false}
                           href={`/id/${r.card.token}`}
                           target="_blank"
                           className="rounded-lg border border-indigo-300 bg-indigo-50 px-2 py-1 text-3xs font-bold text-indigo-800 hover:bg-indigo-100"
@@ -252,7 +252,7 @@ export default function StudentCardsClient({
         <div className="flex flex-wrap items-center justify-between gap-2 text-2xs font-bold text-slate-600">
           <span>نمایش {fa(from)}–{fa(to)} از {fa(total)}</span>
           <div className="flex items-center gap-1.5">
-            <Link
+            <Link prefetch={false}
               href={pageHref(page - 1)}
               aria-disabled={page <= 1}
               className={`rounded-lg border px-3 py-1 ${page <= 1 ? 'pointer-events-none border-slate-200 text-slate-400' : 'border-slate-300 hover:bg-slate-100'}`}
@@ -260,7 +260,7 @@ export default function StudentCardsClient({
               ← قبلی
             </Link>
             <span className="px-2">صفحهٔ {fa(page)} از {fa(totalPages)}</span>
-            <Link
+            <Link prefetch={false}
               href={pageHref(page + 1)}
               aria-disabled={page >= totalPages}
               className={`rounded-lg border px-3 py-1 ${page >= totalPages ? 'pointer-events-none border-slate-200 text-slate-400' : 'border-slate-300 hover:bg-slate-100'}`}

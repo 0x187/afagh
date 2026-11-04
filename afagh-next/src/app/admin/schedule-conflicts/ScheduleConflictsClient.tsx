@@ -199,7 +199,7 @@ export default function ScheduleConflictsClient({ terms }: { terms: Term[] }) {
           </option>
         ))}
       </select>
-      <Link
+      <Link prefetch={false}
         href="/admin/offering-editor"
         className="rounded border border-slate-400 px-2 py-1 text-2xs hover:bg-slate-100 dark:hover:bg-slate-800"
       >
@@ -477,7 +477,7 @@ export default function ScheduleConflictsClient({ terms }: { terms: Term[] }) {
           </>
         ) : null}{' '}
         تداخلِ امتحانی و تداخلِ برنامهٔ دانشجویان در{' '}
-        <Link href="/admin/reports" className="text-indigo-600 underline">
+        <Link prefetch={false} href="/admin/reports" className="text-indigo-600 underline">
           مرکز گزارش‌ها
         </Link>{' '}
         قابل مشاهده است.

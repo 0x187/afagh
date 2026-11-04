@@ -91,14 +91,14 @@ export default function PlanningHeader() {
               >
                 <span>{isLoadingWorkspace ? '⏳ در حال بازخوانی…' : '📥 بازخوانی کارتابل از سرور'}</span>
               </button>
-              <Link
+              <Link prefetch={false}
                 href={isDeptScope ? '/group-manager' : '/admin/exams'}
                 className="px-3.5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-700 to-indigo-800 hover:from-indigo-800 hover:to-indigo-900 text-white font-extrabold text-xs border border-indigo-500/50 flex items-center gap-1.5 shadow-md transition"
               >
                 <span>{isDeptScope ? '← بازگشت به کارتابل مدیر گروه' : '📝 ماژول مدیریت و تخصیص امتحانات ←'}</span>
               </Link>
               {!isDeptScope && (
-                <Link
+                <Link prefetch={false}
                   href="/admin/curriculum"
                   className="px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 transition"
                 >

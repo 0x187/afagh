@@ -33,7 +33,7 @@ export default function HeaderActions({
 
   return (
     <div className="flex shrink-0 items-center gap-1.5">
-      <Link href={helpHref} className={`hidden sm:inline-flex ${ghost}`}>
+      <Link prefetch={false} href={helpHref} className={`hidden sm:inline-flex ${ghost}`}>
         <Icon emoji="📖" className="h-3.5 w-3.5" />
         راهنما
       </Link>

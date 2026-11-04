@@ -83,7 +83,7 @@ export default async function SanjeshMatchedPage({
             انتقال {readyCount.toLocaleString('fa-IR')} ردیف به پذیرش
           </button>
         </form>
-        <Link
+        <Link prefetch={false}
           href="/admin/admissions"
           className="rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-1.5 text-2xs font-bold text-indigo-800 hover:bg-indigo-100"
         >

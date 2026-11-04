@@ -67,7 +67,7 @@ export default function HelpSearch({ index, role = null, placeholder, id = 'help
             <ul className="max-h-80 divide-y divide-slate-100 overflow-auto">
               {results.map(r => (
                 <li key={`${r.role}:${r.slug}`}>
-                  <Link
+                  <Link prefetch={false}
                     href={`/help/${r.role}/${r.slug}`}
                     className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-indigo-50/60"
                   >

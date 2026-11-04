@@ -66,7 +66,7 @@ function InboxTh({
   return (
     <th className="p-2.5">
       {/* ⚠ `prefetch={false}` حیاتی است — این را حذف نکنید.
-          Next.js App Router به‌طور پیش‌فرض هر <Link> داخلِ viewport را
+          Next.js App Router به‌طور پیش‌فرض هر <Link prefetch={false}> داخلِ viewport را
           prefetch می‌کند و هر prefetch یک **رندرِ کاملِ RSC** از همان صفحه است،
           با همهٔ کوئری‌های دیتابیس. این جدول ۵ سرستونِ مرتب‌سازی دارد، پس
           باز کردنِ /admin پنج رندرِ کاملِ موازی شلیک می‌کرد.

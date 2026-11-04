@@ -88,7 +88,7 @@ export default async function StudentCardPrintPage({ params }: { params: Promise
       <div className="flex items-center justify-between print:hidden">
         <h1 className="text-sm font-black text-slate-800">🪪 کارت دانشجویی — {row.firstName} {row.lastName}</h1>
         <div className="flex gap-2">
-          <Link href="/admin/student-cards" className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700">بازگشت</Link>
+          <Link prefetch={false} href="/admin/student-cards" className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-bold text-slate-700">بازگشت</Link>
           <PrintButton />
         </div>
       </div>

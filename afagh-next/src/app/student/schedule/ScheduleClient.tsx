@@ -198,7 +198,7 @@ export default function ScheduleClient({
 
       <div className="flex items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-sm print:hidden">
         <div className="flex items-center gap-2">
-          <Link
+          <Link prefetch={false}
             href="/student/enroll"
             className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl font-bold transition-colors flex items-center gap-1"
           >
@@ -355,7 +355,7 @@ export default function ScheduleClient({
                     <td className="p-2 border-l border-slate-200 font-extrabold text-slate-900">
                       {c.title}
                       <div className="mt-1">
-                        <Link
+                        <Link prefetch={false}
                           href={`/student/lesson-plan/${c.offeringId}`}
                           className="inline-block px-2 py-0.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-bold text-3xs transition"
                         >

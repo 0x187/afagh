@@ -39,7 +39,7 @@ export default function BackToDashboard({
 
   return (
     <div className={`flex justify-end print:hidden ${wrapClassName}`}>
-      <Link
+      <Link prefetch={false}
         href={href}
         className={className || BACK_BTN_CLASS}
       >

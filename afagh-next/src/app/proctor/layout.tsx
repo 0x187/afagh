@@ -53,7 +53,7 @@ export default async function ProctorLayout({ children }: { children: React.Reac
               siblings={siblings}
             />
             {hasAdminRole && (
-              <Link
+              <Link prefetch={false}
                 href="/admin/exams"
                 className="text-xs bg-indigo-900/90 hover:bg-indigo-800 text-indigo-200 border border-indigo-700/60 px-3 py-1.5 rounded-lg transition-colors font-bold"
               >
@@ -69,7 +69,7 @@ export default async function ProctorLayout({ children }: { children: React.Reac
         </div>
 
         <nav className="mx-auto flex max-w-6xl gap-2 sm:gap-4 px-4 pb-2.5 text-xs sm:text-sm font-medium overflow-x-auto">
-          <Link href="/proctor" className="px-3 py-1.5 rounded-lg bg-indigo-800/80 text-white border border-indigo-600/50 transition-colors whitespace-nowrap">
+          <Link prefetch={false} href="/proctor" className="px-3 py-1.5 rounded-lg bg-indigo-800/80 text-white border border-indigo-600/50 transition-colors whitespace-nowrap">
             📷 حضور و غیاب آزمون با QR-Code
           </Link>
         </nav>

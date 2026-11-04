@@ -51,7 +51,7 @@ export default async function ExamTicketGatePage({ params }: { params: Promise<{
             </div>
           </div>
           <div className="pt-4 text-center">
-            <Link href="/proctor" className="text-xs text-indigo-400 hover:underline">ورود به سامانهٔ مراقبین سالن ←</Link>
+            <Link prefetch={false} href="/proctor" className="text-xs text-indigo-400 hover:underline">ورود به سامانهٔ مراقبین سالن ←</Link>
           </div>
         </div>
       </div>
@@ -149,7 +149,7 @@ export default async function ExamTicketGatePage({ params }: { params: Promise<{
           استعلام زنده در {new Date(res.checkedAt).toLocaleString('fa-IR')}
         </div>
 
-        <Link
+        <Link prefetch={false}
           href="/proctor"
           className="block w-full rounded-2xl bg-indigo-600 py-3 text-center text-xs font-black text-white shadow-lg transition hover:bg-indigo-500"
         >

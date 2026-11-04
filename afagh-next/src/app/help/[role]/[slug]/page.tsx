@@ -44,7 +44,7 @@ export default async function HelpTopicPage(props: { params: Promise<{ role: str
           <h1 className="mt-1 text-xl font-black sm:text-2xl">{t.title}</h1>
           <p className="mt-2 text-xs leading-relaxed text-slate-200 sm:text-sm">{t.summary}</p>
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <Link href={t.path} className="rounded-xl bg-emerald-500 px-4 py-2 text-xs font-black text-slate-950 hover:bg-emerald-400">ورود به صفحه ←</Link>
+            <Link prefetch={false} href={t.path} className="rounded-xl bg-emerald-500 px-4 py-2 text-xs font-black text-slate-950 hover:bg-emerald-400">ورود به صفحه ←</Link>
             <span className="rounded-xl bg-white/10 px-3 py-2 font-mono text-2xs text-slate-200" dir="ltr">{t.path}</span>
           </div>
           <p className="mt-3 text-2xs text-slate-400">آخرین به‌روزرسانی: {t.updated}</p>
@@ -131,7 +131,7 @@ export default async function HelpTopicPage(props: { params: Promise<{ role: str
             <h2 className="text-sm font-black text-slate-900">🔗 صفحات مرتبط</h2>
             <div className="mt-2 flex flex-wrap gap-2">
               {(t.related ?? []).map(r => (
-                <Link key={r.href} href={r.href} className="rounded-xl bg-indigo-700 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-600" title={r.note}>{r.title} ←</Link>
+                <Link prefetch={false} key={r.href} href={r.href} className="rounded-xl bg-indigo-700 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-600" title={r.note}>{r.title} ←</Link>
               ))}
             </div>
           </section>

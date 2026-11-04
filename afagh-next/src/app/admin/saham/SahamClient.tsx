@@ -371,9 +371,9 @@ export default function SahamClient({ stats, lookups }: { stats: SahamStat[]; lo
           <li>برای فایل بزرگ‌تر، فیلتر را تنگ‌تر کنید (وضعیت/رشته/ورودی) یا چند نوبت بگیرید.</li>
         </ul>
         <div className="mt-2 flex flex-wrap gap-3">
-          <Link href="/admin/saham/settings" className="font-bold text-indigo-700 underline">⚙️ تنظیمات کدهای مؤسسه (استان/شهر استقرار)</Link>
-          <Link href="/admin/migration" className="font-bold text-indigo-700 underline">تکمیل کدها و نگاشت‌ها</Link>
-          <Link href="/admin/students" className="font-bold text-indigo-700 underline">پروندهٔ دانشجویان</Link>
+          <Link prefetch={false} href="/admin/saham/settings" className="font-bold text-indigo-700 underline">⚙️ تنظیمات کدهای مؤسسه (استان/شهر استقرار)</Link>
+          <Link prefetch={false} href="/admin/migration" className="font-bold text-indigo-700 underline">تکمیل کدها و نگاشت‌ها</Link>
+          <Link prefetch={false} href="/admin/students" className="font-bold text-indigo-700 underline">پروندهٔ دانشجویان</Link>
         </div>
       </div>
     </div>

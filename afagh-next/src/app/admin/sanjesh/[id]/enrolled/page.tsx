@@ -67,7 +67,7 @@ export default async function SanjeshEnrolledPage({
       <Flash msg={sp.msg} err={sp.err} />
 
       <div className="mb-3">
-        <Link href="/admin/admissions" className="btn-ghost !py-1 text-xs">
+        <Link prefetch={false} href="/admin/admissions" className="btn-ghost !py-1 text-xs">
           رفتن به کارتابل پذیرش ←
         </Link>
       </div>

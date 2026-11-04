@@ -46,9 +46,9 @@ export default function VerifyDegreeIndexPage() {
             نتیجهٔ استعلام مستقیماً از پایگاه دادهٔ رسمی دانشگاه خوانده می‌شود.
           </p>
           <div className="flex flex-wrap gap-2 justify-center pt-1">
-            <Link href="/verify" className="text-indigo-600 hover:underline">استعلام سایر مدارک</Link>
+            <Link prefetch={false} href="/verify" className="text-indigo-600 hover:underline">استعلام سایر مدارک</Link>
             <span className="text-slate-300">·</span>
-            <Link href="/verify-certificate" className="text-indigo-600 hover:underline">گواهینامهٔ دورهٔ آزاد</Link>
+            <Link prefetch={false} href="/verify-certificate" className="text-indigo-600 hover:underline">گواهینامهٔ دورهٔ آزاد</Link>
           </div>
         </div>
       </div>

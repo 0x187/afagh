@@ -499,7 +499,7 @@ export default function EnrollClient(props: {
             </ol>
           </div>
           <div className="flex items-center gap-3 pt-1">
-            <Link
+            <Link prefetch={false}
               href="/student/requests"
               className="bg-rose-700 hover:bg-rose-800 text-white font-bold text-xs px-4 py-2 rounded-xl transition-all shadow"
             >
@@ -643,7 +643,7 @@ export default function EnrollClient(props: {
       )}
 
       {/* کلاس آنلاین — همیشه در دسترس (حتی خارج از زمان انتخاب واحد) */}
-      <Link
+      <Link prefetch={false}
         href="/student/virtual-classes"
         className="card !p-4 bg-gradient-to-r from-sky-900 via-blue-900 to-slate-900 text-white rounded-2xl border-0 shadow-lg flex flex-wrap items-center justify-between gap-3 no-underline"
       >
@@ -986,7 +986,7 @@ export default function EnrollClient(props: {
             <div className="rounded-xl bg-emerald-50 p-4 text-sm text-emerald-900 border border-emerald-300 font-bold space-y-2 shadow-sm">
               <div className="flex items-center justify-between">
                 <span>🎉 ثبت قطعی شد: {result.registered.join('، ')}</span>
-                <Link
+                <Link prefetch={false}
                   href="/student/schedule"
                   className="bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-black px-4 py-2 rounded-xl shadow transition-all inline-flex items-center gap-1.5"
                 >

@@ -27,7 +27,7 @@ export default async function PosPage() {
             <h1 className="text-lg font-black sm:text-xl">🏧 مدیریت ترمینال‌های POS (پرداخت حضوری)</h1>
             <p className="mt-1 text-xs text-emerald-50/90">ثبت پرداخت کارت‌خوان فیزیکی، ویدی تراکنش، گزارش‌های روزانه</p>
           </div>
-          <Link
+          <Link prefetch={false}
             href="/admin/finance"
             className="rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-bold backdrop-blur transition hover:bg-white/20"
           >

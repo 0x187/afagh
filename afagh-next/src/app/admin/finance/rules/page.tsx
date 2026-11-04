@@ -73,7 +73,7 @@ export default async function FinanceRulesPage() {
               انواع تخفیف شهریه، بنیادهای حامی، فرمول‌ها، ضریب افزایشی نیمسال و مبالغ موضوعی
             </p>
           </div>
-          <Link
+          <Link prefetch={false}
             href="/admin/finance"
             className="rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-bold backdrop-blur transition hover:bg-white/20"
           >

@@ -296,7 +296,7 @@ export default function RegulationsClient(props: {
               <span>➕</span>
               <span>تعریف آیین‌نامه جدید</span>
             </button>
-            <Link
+            <Link prefetch={false}
               href="/admin/curriculum"
               className="bg-indigo-800/80 hover:bg-indigo-800 text-indigo-100 font-bold text-xs px-3.5 py-2.5 rounded-xl transition-all border border-indigo-700/60"
             >

@@ -144,11 +144,11 @@ export default async function FinanceWorklistPage(props: {
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/admin/finance/rules" className={dockCls}>⚙️ قواعد مالی</Link>
-            <Link href="/admin/tuition" className={dockCls}>🧮 موتور شهریه</Link>
-            <Link href="/admin/finance/student-formula" className={dockCls}>🎯 فرمول ویژه</Link>
-            <Link href="/admin/finance/welfare" className={dockCls}>🤝 صندوق رفاه</Link>
-            <Link href="/admin/finance/reports" className={dockCls}>📊 مرکز گزارش‌ها</Link>
+            <Link prefetch={false} href="/admin/finance/rules" className={dockCls}>⚙️ قواعد مالی</Link>
+            <Link prefetch={false} href="/admin/tuition" className={dockCls}>🧮 موتور شهریه</Link>
+            <Link prefetch={false} href="/admin/finance/student-formula" className={dockCls}>🎯 فرمول ویژه</Link>
+            <Link prefetch={false} href="/admin/finance/welfare" className={dockCls}>🤝 صندوق رفاه</Link>
+            <Link prefetch={false} href="/admin/finance/reports" className={dockCls}>📊 مرکز گزارش‌ها</Link>
             <PrintButton />
           </div>
         </div>
@@ -238,7 +238,7 @@ export default async function FinanceWorklistPage(props: {
             <button type="submit" className="rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 text-xs font-medium text-white shadow-sm">
               اعمال فیلتر
             </button>
-            <Link href="/admin/finance" className="rounded-lg bg-slate-100 hover:bg-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700">
+            <Link prefetch={false} href="/admin/finance" className="rounded-lg bg-slate-100 hover:bg-slate-200 px-3 py-1.5 text-xs font-medium text-slate-700">
               پاک‌کردن
             </Link>
           </div>
@@ -267,7 +267,7 @@ export default async function FinanceWorklistPage(props: {
               صفحهٔ {fa(page)} از {fa(pageCount)} - نمایش {fa(rangeFrom)} تا {fa(rangeTo)}
             </span>
             <div className="flex items-center gap-2">
-              <Link
+              <Link prefetch={false}
                 href={buildFinanceHref(sp, page - 1)}
                 aria-disabled={page <= 1}
                 className={`rounded-lg px-3 py-1.5 text-xs font-bold ${
@@ -278,7 +278,7 @@ export default async function FinanceWorklistPage(props: {
               >
                 › قبلی
               </Link>
-              <Link
+              <Link prefetch={false}
                 href={buildFinanceHref(sp, page + 1)}
                 aria-disabled={page >= pageCount}
                 className={`rounded-lg px-3 py-1.5 text-xs font-bold ${

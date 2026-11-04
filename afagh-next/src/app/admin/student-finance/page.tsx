@@ -191,7 +191,7 @@ export default async function StudentFinancePage({
             <h1 className="text-lg font-black sm:text-xl">💳 امور مالی دانشجویان</h1>
             <p className="mt-1 text-xs text-emerald-50/90">شهریه، دفتر مالی دانشجویان و پرونده‌های در انتظار اقدام مالی</p>
           </div>
-          <Link
+          <Link prefetch={false}
             href="/admin/finance/reports"
             className="rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-bold backdrop-blur transition hover:bg-white/20"
           >

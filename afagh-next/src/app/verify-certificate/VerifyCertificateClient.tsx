@@ -107,7 +107,7 @@ export default function VerifyCertificateClient({
               <p className="text-2xs text-indigo-300">AFAGH University Official Certificate Verification Portal</p>
             </div>
           </div>
-          <Link href="/open-courses" className="rounded-xl bg-slate-800 px-3.5 py-1.5 text-xs font-bold text-slate-200 transition hover:bg-slate-700">
+          <Link prefetch={false} href="/open-courses" className="rounded-xl bg-slate-800 px-3.5 py-1.5 text-xs font-bold text-slate-200 transition hover:bg-slate-700">
             ← کاتالوگ دوره‌های آزاد
           </Link>
         </div>

@@ -161,13 +161,13 @@ export default function OpenCoursesClient({
           </div>
 
           <div className="flex items-center gap-2">
-            <Link
+            <Link prefetch={false}
               href="/verify-certificate"
               className="px-3.5 py-1.5 rounded-xl bg-indigo-950 hover:bg-indigo-900 text-indigo-200 border border-indigo-800 text-xs font-bold transition flex items-center gap-1.5"
             >
               <span>🔍 استعلام اصالت گواهینامه</span>
             </Link>
-            <Link
+            <Link prefetch={false}
               href="/login"
               className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition"
             >
@@ -607,7 +607,7 @@ export default function OpenCoursesClient({
             </div>
 
             <div className="space-y-2 pt-2">
-              <Link
+              <Link prefetch={false}
                 href="/verify-certificate"
                 className="w-full py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs block transition shadow-lg"
               >

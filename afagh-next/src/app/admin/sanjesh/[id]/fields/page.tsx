@@ -207,7 +207,7 @@ export default async function SanjeshFieldsPage({
 
         <div className="mt-3 flex items-center gap-2">
           <button className="btn-primary !py-1.5 text-xs">ذخیرهٔ تطبیق و بازنگاشت داده‌ها</button>
-          <Link href={`/admin/sanjesh/${fileId}/rows`} className="btn-ghost !py-1.5 text-xs">
+          <Link prefetch={false} href={`/admin/sanjesh/${fileId}/rows`} className="btn-ghost !py-1.5 text-xs">
             مرحلهٔ بعد: لیست سنجش ←
           </Link>
         </div>

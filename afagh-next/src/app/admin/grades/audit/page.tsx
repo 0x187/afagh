@@ -99,7 +99,7 @@ export default async function GradeAuditPage({ searchParams }: { searchParams: P
     <div className="space-y-4 p-4" dir="rtl">
       <div className="flex items-center justify-between">
         <h1 className="font-extrabold text-lg">📜 لاگ سراسری تغییرات نمرات (Audit Trail)</h1>
-        <Link href="/admin/students" className="text-xs font-bold text-indigo-700 hover:underline">← بازگشت به پرونده‌ها</Link>
+        <Link prefetch={false} href="/admin/students" className="text-xs font-bold text-indigo-700 hover:underline">← بازگشت به پرونده‌ها</Link>
       </div>
       {/* ── درخواست‌های بازگشایی در انتظار بررسی (دومرحله‌ای) ── */}
       <div className="border border-amber-300 rounded-lg bg-amber-50 p-3 space-y-2">
@@ -142,7 +142,7 @@ export default async function GradeAuditPage({ searchParams }: { searchParams: P
       <form className="flex gap-2">
         <input name="q" defaultValue={q} placeholder="جستجو: کد درس / عنوان درس / شماره دانشجویی / ترم" className="flex-1 max-w-md bg-white border border-slate-300 rounded px-3 py-1.5 text-xs" />
         <button type="submit" className="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-800 text-white text-xs font-bold rounded">جستجو</button>
-        {q && <Link href="/admin/grades/audit" className="px-3 py-1.5 bg-slate-100 border border-slate-300 text-xs rounded">پاک‌سازی</Link>}
+        {q && <Link prefetch={false} href="/admin/grades/audit" className="px-3 py-1.5 bg-slate-100 border border-slate-300 text-xs rounded">پاک‌سازی</Link>}
       </form>
       <div className="border border-slate-300 rounded-lg overflow-x-auto bg-white">
         <table className="w-full text-right text-2xs rt">
@@ -181,8 +181,8 @@ export default async function GradeAuditPage({ searchParams }: { searchParams: P
       <div className="flex items-center justify-between text-xs">
         <span className="text-slate-500">صفحه {page.toLocaleString('fa-IR')}</span>
         <div className="flex gap-2">
-          {page > 1 && <Link href={`/admin/grades/audit?${new URLSearchParams({ ...(q ? { q } : {}), page: String(page - 1) }).toString()}`} className="px-3 py-1.5 bg-white border border-slate-300 rounded font-bold">‹ قبلی</Link>}
-          {hasNext && <Link href={`/admin/grades/audit?${new URLSearchParams({ ...(q ? { q } : {}), page: String(page + 1) }).toString()}`} className="px-3 py-1.5 bg-indigo-700 text-white rounded font-bold">بعدی ›</Link>}
+          {page > 1 && <Link prefetch={false} href={`/admin/grades/audit?${new URLSearchParams({ ...(q ? { q } : {}), page: String(page - 1) }).toString()}`} className="px-3 py-1.5 bg-white border border-slate-300 rounded font-bold">‹ قبلی</Link>}
+          {hasNext && <Link prefetch={false} href={`/admin/grades/audit?${new URLSearchParams({ ...(q ? { q } : {}), page: String(page + 1) }).toString()}`} className="px-3 py-1.5 bg-indigo-700 text-white rounded font-bold">بعدی ›</Link>}
         </div>
       </div>
     </div>

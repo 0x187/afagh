@@ -111,7 +111,7 @@ export default function SecurityGuardScannerPage() {
           به‌صورت سیستمی قرمز می‌شوند.
         </div>
 
-        <Link href="/" className="block text-xs text-indigo-400 hover:underline">← بازگشت به سامانه</Link>
+        <Link prefetch={false} href="/" className="block text-xs text-indigo-400 hover:underline">← بازگشت به سامانه</Link>
       </div>
     </div>
   );

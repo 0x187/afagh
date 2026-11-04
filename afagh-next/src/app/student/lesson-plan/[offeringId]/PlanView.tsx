@@ -33,7 +33,7 @@ export default function PlanView({ offeringId, data }: { offeringId: number; dat
             استاد درس هنوز طرح درس این ارائه را ثبت و منتشر نکرده است. پس از انتشار، برنامه جلسات، اهداف و
             بارم‌بندی ارزشیابی همین‌جا نمایش داده می‌شود.
           </p>
-          <Link
+          <Link prefetch={false}
             href="/student/schedule"
             className="inline-block mt-2 px-4 py-2 rounded-xl bg-indigo-700 hover:bg-indigo-800 text-white font-bold text-xs transition"
           >
@@ -59,7 +59,7 @@ export default function PlanView({ offeringId, data }: { offeringId: number; dat
               {faNum(data.sessions.length)} جلسه · جمع بارم: {faNum(weightsSum)} از ۱۰۰
             </p>
           </div>
-          <Link
+          <Link prefetch={false}
             href="/student/schedule"
             className="px-3.5 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs border border-white/20 transition"
           >

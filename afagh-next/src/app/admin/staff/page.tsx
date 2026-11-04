@@ -255,9 +255,9 @@ export default async function StaffPage() {
       </p>
       <p className="mb-3 rounded-lg bg-indigo-50 p-2.5 text-xs leading-6 text-indigo-900">
         💡 برای <b>تعریف گروه آموزشی</b> و <b>انتخاب مدیر برای هر گروه</b> (از جمله گروه دروس عمومی و مشترک) به{' '}
-        <Link href="/admin/departments" className="font-bold underline">گروه‌های آموزشی و مدیران گروه</Link> بروید.
+        <Link prefetch={false} href="/admin/departments" className="font-bold underline">گروه‌های آموزشی و مدیران گروه</Link> بروید.
         کلید زیر فقط نقش را دستی می‌دهد یا می‌گیرد. برای تعریف نقش (کد/عنوان/مجوزها) به{' '}
-        <Link href="/admin/permissions" className="font-bold underline">مدیریت سطوح دسترسی و نقش‌ها</Link> بروید.
+        <Link prefetch={false} href="/admin/permissions" className="font-bold underline">مدیریت سطوح دسترسی و نقش‌ها</Link> بروید.
       </p>
       <StaffTable
         rows={rows}

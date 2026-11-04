@@ -174,7 +174,7 @@ export default async function CourseFinancePage({
             نمایش همهٔ دروس (نه فقط تعیین‌نشده‌ها)
           </label>
           <button className="btn-primary !py-1.5">اعمال</button>
-          {q && <Link href="/admin/course-finance" className="btn-ghost !py-1.5">پاک‌کردن</Link>}
+          {q && <Link prefetch={false} href="/admin/course-finance" className="btn-ghost !py-1.5">پاک‌کردن</Link>}
         </form>
       </div>
 

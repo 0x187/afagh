@@ -113,7 +113,7 @@ export default function SettingsClient({ universities, faculties, initialCodes, 
               {u.title}
             </button>
           ))}
-          <Link href="/admin/saham" className="mr-auto text-2xs font-bold text-indigo-700 underline">
+          <Link prefetch={false} href="/admin/saham" className="mr-auto text-2xs font-bold text-indigo-700 underline">
             بازگشت به گزارش‌ها ←
           </Link>
         </div>

@@ -115,9 +115,9 @@ export default async function CodesPage() {
 
       <p className="text-center text-xs text-slate-400">
         نگاشت کد قدیمی به کد جدید در{' '}
-        <Link href="/admin/migration" className="text-indigo-600 hover:underline">انتقال داده ← تطبیق کدها</Link>{' '}
+        <Link prefetch={false} href="/admin/migration" className="text-indigo-600 hover:underline">انتقال داده ← تطبیق کدها</Link>{' '}
         انجام می‌شود · ساخت گروه آموزشی در{' '}
-        <Link href="/admin/departments" className="text-indigo-600 hover:underline">گروه‌های آموزشی</Link>{' '}
+        <Link prefetch={false} href="/admin/departments" className="text-indigo-600 hover:underline">گروه‌های آموزشی</Link>{' '}
         · مقطع، دانشکده و رشته را از دکمهٔ «افزودن» همین صفحه بسازید
       </p>
     </div>

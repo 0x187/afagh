@@ -36,7 +36,7 @@ export default function MobileTabBar({
         {items.map(it => {
           const active = it.exact ? pathname === it.href : pathname.startsWith(it.href);
           return (
-            <Link
+            <Link prefetch={false}
               key={it.href}
               href={it.href}
               style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}

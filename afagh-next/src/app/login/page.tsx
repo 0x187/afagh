@@ -85,7 +85,7 @@ export default async function LoginPage(props: { searchParams: Promise<{ u?: str
           )}
           <LoginCard />
           <p className="text-center text-2xs text-emerald-200/60">
-            <Link href="/help?tab=shared" className="hover:underline">📖 راهنمای ورود و حساب‌ها</Link>
+            <Link prefetch={false} href="/help?tab=shared" className="hover:underline">📖 راهنمای ورود و حساب‌ها</Link>
           </p>
         </div>
       </div>
