@@ -69,7 +69,10 @@ export default function FinanceTable({ students }: { students: FinanceStudent[] 
           <col style={{ width: 112 }} />
         </colgroup>
         <thead>
-          <tr className="sticky top-0 z-10 border-b-2 border-slate-300 bg-slate-100/95 text-2xs text-slate-600 backdrop-blur">
+          {/* ⚡ `backdrop-blur` حذف شد: سرستون چسبان روی ۵۰ ردیف، هنگام اسکرول
+              مدام تمام صفحه را دوباره رنگآمیزی میکرد. پسزمینهٔ کدر ساده
+              (`bg-slate-100`) همان خوانایی را میدهد بیآنکه لایهٔ blur بسازد. */}
+          <tr className="sticky top-0 z-10 border-b-2 border-slate-300 bg-slate-100 text-2xs text-slate-600">
             {COLS.map(c => (
               <ClientTh
                 key={c.key}

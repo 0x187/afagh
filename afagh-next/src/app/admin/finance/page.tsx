@@ -83,10 +83,16 @@ export default async function FinanceWorklistPage(props: {
   const search = (sp.q || '').trim();
   const onlyDebtors = sp.debtors === '1';
   const page = Math.max(1, Number(sp.page) || 1);
-  const pageSize = 100;
+  // ⚡ ۵۰ ردیف در هر صفحه (پیشتر ۱۰۰): `FinanceTable` یک کامپوننت کلاینت است،
+  //    پس ردیفها هم بهعنوان props در payloadـ RSC سریال میشوند و هم **دوبار** در
+  //    HTML رندر (جدول دسکتاپ `hidden md:block` + کارتهای موبایل). با ۱۰۰ ردیف
+  //    صفحه ~۶۰۷KB خام و ۱۶۸ boundary استریم داشت و تا دکمهها کامل بیایند ~۱
+  //    ثانیه طول میکشید. نصفکردن سقف، حجم و تعداد boundaryها را نصف میکند بیآنکه
+  //    چیزی از قابلیتها کم شود — صفحهبندی و آمار سربرگ (روی کل داده) سر جایشاناند.
+  const pageSize = 50;
 
-  // کارتابل حالا صفحه‌بندی شده است:
-  //   • students → فقط صفحهٔ جاری (۱۰۰ ردیف) — بار شبکه/پارس ~۱۰برابر کمتر
+  // کارتابل صفحهبندی شده است:
+  //   • students → فقط صفحهٔ جاری (۵۰ ردیف) — بار شبکه/پارس ~۱۰برابر کمتر
   //   • summary  → جمع کل روی همهٔ دانشجویانِ فیلتر‌شده (نوار KPI همچنان درست)
   //   • count    → تعداد کل برای نوار صفحه‌بندی
   const [options, students, summary, count] = await Promise.all([
@@ -120,8 +126,12 @@ export default async function FinanceWorklistPage(props: {
 
   const inputCls =
     'rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500';
+  // ⚡ بدون `backdrop-blur`: هر دکمه پیشتر یک لایهٔ `backdrop-filter` روی گرادیان
+  //    سربرگ میساخت؛ با ۶ دکمه + سرستون چسبان جدول، هر کلیک/اسکرول یک رنگآمیزی
+  //    مجدد تمامصفحهای تحمیل میکرد. `bg-white/10` همان حس شیشهای را میدهد بیآنکه
+  //    لایهٔ کامپوزیت بسازد (همان قرارداد `globals.css` برای هدر و ناوبری).
   const dockCls =
-    'rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-bold text-white backdrop-blur transition hover:bg-white/20';
+    'rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-bold text-white transition-colors hover:bg-white/20';
 
   return (
     <div className="space-y-4" dir="rtl">
