@@ -453,7 +453,7 @@ export async function setLessonPlanRequired(
  * ریشهٔ کندیِ صفحهٔ آموزش. اکنون الگوی «جستجوی سروری + سقف ردیف» این مخزن:
  * آمارِ سربرگ در SQL، جست‌وجو/فیلتر سمتِ سرور و سقفِ سختِ ردیف.
  */
-export const LESSON_PLAN_PAGE_SIZE = 200;
+const LESSON_PLAN_PAGE_SIZE = 200;
 
 export type LessonPlanStatusRow = {
   offeringId: number;
