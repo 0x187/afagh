@@ -112,7 +112,7 @@ function CoreTab({ entities, sourceCode, universityId }: { entities: Entity[]; s
   const [rewriteCodes, setRewriteCodes] = useState(true);
   const [report, setReport] = useState<(ImportReport & { error?: string; willInsert?: number; existing?: number }) | null>(null);
   const cur = entities.find(e => e.id === entity);
-  const uniExtra = universityId === '' ? {} : { universityId: String(universityId) };
+  const uniExtra: Record<string, string> = universityId === '' ? {} : { universityId: String(universityId) };
 
   return (
     <div className="space-y-4">

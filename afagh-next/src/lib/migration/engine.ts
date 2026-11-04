@@ -1111,7 +1111,7 @@ export async function commit(
     // گروه‌بندی ردیف‌ها بر اساس (majorId, degreeLevelId, entryYearFrom, entryYearTo) → یک نسخهٔ چارت
     // roleType = null یعنی در فایل خالی بود ⇒ از نوع درس در بانک دروس خوانده می‌شود
     type ChartRow = { courseCode: string; courseTitle: string | null; units: number | null; recommendedSemester: number | null; roleType: string | null; isRequired: boolean };
-    const groups = new Map<string, { majorId: number; degreeLevelId: number; entryYearFrom: number | null; entryYearTo: number | null; label: string; items: ChartRow[] }>();
+    const groups = new Map<string, { majorId: number; degreeLevelId: number; entryYearFrom: number; entryYearTo: number | null; label: string; items: ChartRow[] }>();
     for (const r of rows) {
       const mCode = norm(String(r.majorCode ?? ''));
       const mName = norm(String(r.majorName ?? ''));

@@ -292,7 +292,8 @@ export async function listVirtualClassroomsAdminAction(termId?: number | null): 
       .orderBy(desc(academic_terms.id), asc(courses.code), asc(course_offerings.groupNumber));
     return { ok: true, rows: rows.map(r => ({
       ...r,
-      isRunning: r.isRunning === 1 || r.isRunning === true,
+      termTitle: r.termTitle ?? '',
+      isRunning: r.isRunning === 1,
       lastSyncedAt: r.lastSyncedAt ? new Date(r.lastSyncedAt).toISOString() : null,
       lastRunningAt: r.lastRunningAt ? new Date(r.lastRunningAt).toISOString() : null,
     })) };
