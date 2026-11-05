@@ -1461,46 +1461,122 @@ html {
 
 
 /* ═══════════════════════════════════════════════════════════════════════
-   چاپ گزارش‌ها — لایهٔ چاپی (ReportPrint) و پنهان‌سازی جدول HTML
-   این قاعده‌ها در حالتِ چاپ (print media) فعال می‌شوند تا گزارش‌های مالی
-   و اداری با سرтанه، جدول، شماره، تاریخ و امضاء چاپ شوند.
+   چاپ گزارشها — «سند ایزوله» (ReportPrint + src/lib/print-report.ts)
+
+   چرا ایزوله: نسخهٔ قبل یک overlay با `position:fixed` داخل همان صفحه چاپ
+   میشد. کروم عناصر fixed را فقط در یک viewport رسم میکند؛ نتیجه نوار تاریک
+   کنار کاغذ، جدول بریده، نبود سربرگ و سرستونهای تکرارنشده بود. حالا کپیِ
+   الگوی چاپی در ریشهٔ body قرار میگیرد و همهٔ فرزندان دیگر body پنهانند.
+
+   حاشیهٔ کاغذ: `@page { margin: 0 }` (در سطح بالا، تزریق رانتایم) سربرگ و
+   پاصفحهٔ خود مرورگر (تاریخ / آدرس سایت / «۱/۲») را حذف میکند، چون کروم
+   آنها را فقط داخل حاشیهٔ @page رسم میکند. حاشیهٔ واقعی با `padding` روی
+   ریشه و `box-decoration-break: clone` روی تکتک صفحات تکرار میشود.
    ═══════════════════════════════════════════════════════════════════════ */
+
+/* الگو فقط منبعِ کلون است؛ روی نمایشگر دیده نمیشود */
+.report-print-template { display: none; }
+
 @media print {
-  /* لایهٔ چاپی را نمایش بده (screen پرزنه است) */
-  .report-print-overlay {
-    display: flex !important;
-    position: fixed !important;
-    inset: 0 !important;
-    z-index: 10000 !important;
-    background: white !important;
-    color: black !important;
-    font-family: Vazirmatn, Tahoma, sans-serif !important;
-    padding: 4mm !important;
-    overflow: auto !important;
-  }
-  /* لایهٔ چاپی در داخل را bloc بزنیم */
-  .report-print-overlay > div {
-    display: block !important;
-    width: 100% !important;
-    max-width: 180mm !important;
-    margin: 0 auto !important;
-    background: white !important;
-    border: 1px solid black !important;
-    padding: 6mm !important;
-    table-layout: fixed !important;
-  }
-  /* جدول HTML اصلی را در چاپ پنهان کن (فقط لایهٔ چاپی نمایش داده شود) */
-  #report-result,
-  header, footer, nav, aside, [role="navigation"], button, .print\:hidden {
-    display: none !important;
-  }
-  body {
+  /* ۱) فقط ریشهٔ چاپی بماند — نوار تاریک، منو، کارتها و دکمهها حذف شوند */
+  html, body {
     background: #ffffff !important;
     color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
   }
-  /* لینک‌ها در چاپ رنگ nadارند (فقط متن) */
-  a {
+  body.printing-report > *:not(#report-print-root) { display: none !important; }
+  body.printing-report #report-print-root {
+    display: block !important;
+    margin: 0 !important;
+    padding: 8mm 8mm 10mm !important;
+    background: #ffffff !important;
     color: #000000 !important;
-    text-decoration: none !important;
+    font-family: Vazirmatn, Tahoma, sans-serif !important;
+    direction: rtl;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .report-print-template { display: none !important; }
+  #report-print-root .report-print-template { display: block !important; }
+  #report-print-root a { color: #000000 !important; text-decoration: none !important; }
+
+  /* ۲) سربرگ سند */
+  #report-print-root .rp-doc { width: 100%; font-size: 8.5pt; line-height: 1.5; color: #000000; }
+  #report-print-root .rp-head {
+    border-bottom: 0.7pt solid #111111;
+    padding-bottom: 3mm;
+    margin-bottom: 4mm;
+  }
+  #report-print-root .rp-brand { font-size: 9pt; font-weight: 700; }
+  #report-print-root .rp-title { font-size: 15pt; font-weight: 800; margin: 1mm 0 0.5mm; }
+  #report-print-root .rp-sub { font-size: 8pt; color: #333333; }
+  #report-print-root .rp-meta {
+    display: flex;
+    justify-content: space-between;
+    gap: 4mm;
+    font-size: 8pt;
+    margin-top: 2mm;
+  }
+
+  /* ۳) جدول: عرض ثابت + colgroup، سرستون تکراری، ردیف نشکند */
+  #report-print-root table.rp-table {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-collapse: collapse !important;
+    table-layout: fixed !important;
+    border: 0.6pt solid #333333 !important;
+    font-size: 8pt;
+  }
+  #report-print-root table.rp-table > thead { display: table-header-group; }
+  #report-print-root table.rp-table > tbody { display: table-row-group; }
+  #report-print-root table.rp-table tr { break-inside: avoid; page-break-inside: avoid; }
+  #report-print-root table.rp-table th,
+  #report-print-root table.rp-table td {
+    border: 0.4pt solid #777777 !important;
+    padding: 1.2mm 1.3mm !important;
+    text-align: right;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+    word-break: normal;
+    hyphens: none;
+    font-size: 8pt;
+    line-height: 1.45;
+    min-width: 0;
+  }
+  #report-print-root table.rp-table th {
+    background: #f0f0f0 !important;
+    font-weight: 800;
+    white-space: normal;
+  }
+  #report-print-root table.rp-table td.rp-num {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  /* ۴) خلاصه و امضاء */
+  #report-print-root .rp-summary {
+    margin-top: 3mm;
+    padding-top: 2mm;
+    border-top: 0.6pt solid #111111;
+    font-size: 8.5pt;
+    font-weight: 700;
+  }
+  #report-print-root .rp-signs {
+    display: flex;
+    justify-content: space-between;
+    gap: 8mm;
+    margin-top: 10mm;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  #report-print-root .rp-sign {
+    flex: 1 1 0;
+    border-top: 0.6pt solid #333333;
+    padding-top: 1.5mm;
+    text-align: center;
+    font-size: 8pt;
   }
 }

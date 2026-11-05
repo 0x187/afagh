@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { exportReport, runReport, type FilterOptions, type ReportResult } from './actions';
 import { LINK_CARDS } from './report-links';
 import { faIncludes } from '@/lib/persian-search';
@@ -200,35 +200,20 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
   };
 
   /**
-   * انتخاب کارت گزارش.
+   * انتخاب کارت گزارش = **فقط انتخاب**؛ هیچ درخواستی به سرور نمی‌رود.
    *
-   * چرا اجرا هم اینجاست: پیش‌تر `pick` فقط `kind` را عوض می‌کرد و هیچ گزارشی
-   * اجرا نمی‌شد؛ از دید کاربر «کلیک روی گزارش هیچ کاری نمی‌کرد» و باید دکمهٔ
-   * جداگانهٔ «اجرای گزارش» را پیدا می‌کرد. حالا کلیک = انتخاب + اجرای فوری.
-   * (kind به‌صورت آرگومان پاس می‌شود چون state تازه بعد از رندر به‌روز می‌شود
-   * و closure اینجا مقدار قبلی را می‌دید.)
+   * چرا: کاربر باید پیش از اجرا بتواند ترم/مقطع/دانشکده/رشته/وضعیت/دامنه و
+   * جست‌وجو را تنظیم کند. نسخهٔ قبل با `void run(1, k)` بلافاصله شروع به
+   * لود می‌کرد (و هنگام ورود با `?kind=...` یک `useEffect` هم اجرای خودکار
+   * داشت)، یعنی فیلترها عملاً بعد از اجرا تعریف می‌شدند و نتیجهٔ اول بیهوده
+   * بود. اجرا فقط با دکمهٔ صریح «▶ اجرای گزارش» (یا Enter در جست‌وجو)
+   * انجام می‌شود.
    */
   const pick = (k: string) => {
     setKind(k);
     setRes(null);
     setErr('');
-    void run(1, k);
   };
-
-  /**
-   * اجرای خودکار در ورود با `?kind=...` (کاشی‌های «گزارش‌های مالی» و
-   * گزارش‌های پرداختی از همین طریق باز می‌شوند). پیش‌تر صفحه فقط باز می‌شد و
-   * کاربر باید دوباره روی کارت و سپس «اجرای گزارش» می‌زد — یعنی «هیچ اتفاقی
-   * نمی‌افتاد».
-   */
-  const autoRan = useRef(false);
-  useEffect(() => {
-    if (autoRan.current || !initialKind) return;
-    if (!visibleCards.some(c => c.kind === initialKind)) return;
-    autoRan.current = true;
-    void run(1, initialKind);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialKind, visibleCards.length]);
 
   const doExport = async () => {
     setExporting(true);
@@ -566,9 +551,18 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
                 <button onClick={doExport} disabled={exporting} className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded disabled:opacity-50 mr-auto">
                   {exporting ? '⏳...' : '📥 خروجی Excel (CSV)'}
                 </button>
-                <button onClick={() => window.print()} className="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-800 text-white font-bold rounded print:hidden">
-                  🖨️ چاپ گزارش
-                </button>
+                <ReportPrint
+                  title={card?.title ?? 'گزارش'}
+                  subtitle={[
+                    card?.needsTerm ? `ترم ${faNum(term)}` : null,
+                    scopeMode === 'term' ? 'فقط همین نیمسال' : 'کل دوره',
+                    `صفحهٔ ${faNum(res.page)} از ${faNum(res.totalPages)}`,
+                  ].filter(Boolean).join('  •  ')}
+                  columns={res.columns}
+                  rows={res.rows}
+                  summary={res.summary}
+                  universityTitle={opts.universities.find(u => u.id === universityId)?.title || 'سامانه جامع آفاق'}
+                />
               </>
             )}
           </div>
@@ -586,7 +580,7 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
           </p>
         ) : !res ? (
           <p className="p-8 text-center text-slate-500 text-sm">
-            یکی از کارت‌های گزارش بالا را بزنید؛ نتایج همان‌جا نمایش داده می‌شود.
+            گزارش «{card?.title}» انتخاب شد. ابتدا فیلترهای بالا (ترم، مقطع، دانشکده، وضعیت، دامنه …) را تنظیم کنید، سپس «▶ اجرای گزارش» را بزنید.
           </p>
         ) : res.rows.length === 0 ? (
           <div className="p-6 text-center">
@@ -627,21 +621,8 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
           </>
         )}
       </div>
-      {/* لایهٔ چاپی — فقط در حالت چاپ نمایش داده شود (table HTML در print مخفی است) */}
-      {res && (
-        <ReportPrint
-          title={card?.title ?? 'گزارش'}
-          subtitle={kind}
-          columns={res.columns}
-          rows={res.rows}
-          summary={res.summary}
-          universityTitle=""
-          reportDate=""
-        />
-      )}
-
       {/* پیوند به صفحات تخصصی — جمع‌شونده در انتهای صفحه */}
-      <div className="bg-white border border-slate-300 rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-slate-300 rounded-xl shadow-sm overflow-hidden print:hidden">
         <button
           onClick={() => setShowLinks(v => !v)}
           className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-extrabold text-slate-600 hover:bg-slate-50"

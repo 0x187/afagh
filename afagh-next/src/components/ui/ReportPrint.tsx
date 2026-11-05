@@ -1,18 +1,50 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { faNum, formatReportCell as fmtCell } from '@/lib/report-format';
+import {
+  cleanupReportPrint,
+  prepareReportPrint,
+  printReportDocument,
+  type ReportPrintOrientation,
+} from '@/lib/print-report';
 
 /**
- * لایهٔ چاپی گزارش — فقط در حالتِ چاپ (print media) نمایش داده می‌شود.
- * وقتی کاربر دکمهٔ چاپ مرورگر را می‌زند، این لایه overlay می‌شود و محتوای
- * ReportResult را با چیدمانِ چاپی (سرтанه، جدول، شماره، تاریخ، امضاء،
- * حاشیهٔ A4) نمایش می‌دهد.
+ * سند چاپی گزارش — **یک کپی ایزوله در ریشهٔ body** چاپ میشود، نه overlay
+ * داخل صفحه. الگوی کار همان `print-transcript.ts` است (نگاه کنید به
+ * `src/lib/print-report.ts`).
  *
- * چرا: گزارش‌های مالی برای حسابرس باید کاغذی، عدد با جداکنندهٔ هزارگان،
- * تاریخ شمسی، جدول ردیف‌به‌ردیف و امضاء داشته باشد. نمایشِ screen (HTML)
- * مناسب-print نیست (سرтанه، رنگ‌های پس‌زمینه، دکمه‌ها، …).
+ * مشکلاتی که این نسخه برطرف میکند (پیشنمایش چاپ گزارش‌های مالی):
+ *   • نوار تاریک عمودی کنار کاغذ  → همهٔ فرزندان body جز ریشهٔ چاپی پنهانند
+ *   • تاریخ/آدرس سایت/«۱/۲» مرورگر → `@page { margin: 0 }`
+ *   • نبود سربرگ و تیتر گزارش    → سربرگ ثابت با نام دانشگاه/تاریخ/تعداد ردیف
+ *   • ستون‌های لهشده و شکسته     → جهت افقی برای جدولهای عریض + `<colgroup>`
+ *   • تکرار نشدن سرستونها       → `thead { display: table-header-group }`
+ *   • اعداد لاتین بیتفکیک       → `faNum` + `formatReportCell`
+ *   • شمارهٔ صفحهٔ ثابت «۱»     → حذف شد (مرورگر خودش شماره میزند)
+ *
+ * تمام قالببندی مخصوص کاغذ در `globals.css` (بلوک `#report-print-root`)
+ * نوشته شده تا در باندل کلاینت کلاسهای `print:...` ناشناخته
+ * (مثل `print:p-6mm`) تولید نشود.
  */
+
+type ReportColumn = { key: string; title: string; format?: string };
+
+/** وزن نسبی پهنای ستونها؛ ستونهای متنی عریضتر، اعداد/تاریخ باریکتر. */
+function columnWeights(columns: ReportColumn[]): number[] {
+  const weight = (c: ReportColumn): number => {
+    if (c.format === 'DATE' || c.format === 'DATETIME') return 1.0;
+    if (c.format === 'NUMBER') return 0.95;
+    if (c.format === 'MONEY') return 1.4;
+    // عناوین بلند متنی (نام، رشته، دانشکده، شرح…) جای بیشتری میخواهند
+    if (/نام|رشته|دانشکده|عنوان|شرح|توضیح|آدرس|درس|استاد/.test(c.title)) return 1.9;
+    return 1.25;
+  };
+  const raw = columns.map(weight);
+  const total = raw.reduce((a, b) => a + b, 0) || 1;
+  return raw.map(w => (w / total) * 100);
+}
+
 export default function ReportPrint({
   title,
   subtitle,
@@ -24,11 +56,11 @@ export default function ReportPrint({
 }: {
   /** عنوان گزارش */
   title: string;
-  /** زیرعنوان */
+  /** زیرعنوان (فیلترهای اعمالشده) */
   subtitle: string;
-  /** ستون‌ها (همان ReportColumn[]) */
-  columns: { key: string; title: string; format?: string }[];
-  /** ردیف‌ها (همان ReportResult.rows[]) */
+  /** ستونها (همان ReportColumn[]) */
+  columns: ReportColumn[];
+  /** ردیفها (همان ReportResult.rows[]) */
   rows: Record<string, unknown>[];
   /** متن خلاصه */
   summary?: string;
@@ -42,92 +74,85 @@ export default function ReportPrint({
     month: 'numeric',
     day: 'numeric',
   });
+  const orientation: ReportPrintOrientation = columns.length >= 7 ? 'landscape' : 'portrait';
+  const widths = useMemo(() => columnWeights(columns), [columns]);
+
+  // مسیر پشتیبان: Ctrl+P / چاپ از منوی مرورگر هم همان سند ایزوله را بگیرد
+  useEffect(() => {
+    const before = () => prepareReportPrint(orientation);
+    const after = () => cleanupReportPrint();
+    window.addEventListener('beforeprint', before);
+    window.addEventListener('afterprint', after);
+    return () => {
+      window.removeEventListener('beforeprint', before);
+      window.removeEventListener('afterprint', after);
+      cleanupReportPrint();
+    };
+  }, [orientation]);
 
   return (
     <>
-      {/* دکمهٔ چاپ — فقط روی نمایش (screen) */}
       <button
         type="button"
-        onClick={() => window.print()}
-        className="rounded-lg bg-indigo-700 px-4 py-2 text-xs font-bold text-white transition hover:bg-indigo-800 print:hidden"
+        onClick={() => printReportDocument(orientation)}
+        title="چاپ / ذخیرهٔ PDF — فقط جدول گزارش، بدون منو و سربرگ مرورگر"
+        className="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-800 text-white font-bold rounded print:hidden"
       >
         🖨️ چاپ گزارش
       </button>
 
-      {/* لایهٔ چاپی — فقط در حالتِ print (screen پرزنه است) */}
-      <div
-        className="report-print-overlay hidden print:!flex print:items-center print:justify-center print:bg-white print:fixed print:inset-0 print:z-[100] print:p-4 print:text-black print:font-[Vazirmatn]"
-      >
-        <div
-          className="hidden print:block print:w-full print:max-w-[180mm] print:p-6mm print:bg-white print:border print:border-black"
-        >
-          {/* سرтанه */}
-          <div className="print:mb-6mm print:flex print:flex-col print:items-start print:gap-1">
-            <div className="print:flex print:items-center print:gap-2 print:font-bold print:text-sm">
-              <span className="print:h-4 print:w-4">🏛️</span>
-              <span>{universityTitle ?? 'سامانه جامع آفاق'}</span>
-            </div>
-            <div className="print:text-xl print:font-black print:leading-tight">{title}</div>
-            {subtitle && <div className="print:text-xs print:text-slate-600">{subtitle}</div>}
-            <div className="print:flex print:gap-4 print:text-xs print:text-slate-600 print:mt-1">
-              <span>تاریخ گزارش: {faDate}</span>
-              <span>صفحه: <span className="print:font-bold">۱</span></span>
+      {/* الگوی چاپی: روی صفحه پنهان است؛ هنگام چاپ کلون شده به ریشهٔ body میرود.
+          از تگهای header/footer/nav/button عمداً استفاده نشده چون قواعد
+          سراسری `@media print` آنها را `display:none` میکنند. */}
+      <div className="report-print-template" aria-hidden="true">
+        <div className="rp-doc">
+          <div className="rp-head">
+            <div className="rp-brand">🏛️ {universityTitle || 'سامانه جامع آفاق'}</div>
+            <div className="rp-title">{title}</div>
+            {subtitle && <div className="rp-sub">{subtitle}</div>}
+            <div className="rp-meta">
+              <span>تاریخ تهیهٔ گزارش: {faDate}</span>
+              <span>تعداد ردیفها: {faNum(rows.length)}</span>
             </div>
           </div>
 
-          {/* جدول */}
-          <table className="print:w-full print:border print:border-collapse print:table-fixed print:mt-4mm print:text-xs print:leading-5">
-            <thead className="print:bg-slate-100 print:text-black print:font-bold print:uppercase print:text-[9px]">
+          <table className="rp-table">
+            <colgroup>
+              {columns.map((c, i) => (
+                <col key={c.key} style={{ width: `${widths[i].toFixed(2)}%` }} />
+              ))}
+            </colgroup>
+            <thead>
               <tr>
-                {columns.map((c) => (
-                  <th
-                    key={c.key}
-                    className="print:p-1mm print:text-right print:border print:border-black print:text-[9px] print:leading-4"
-                  >
-                    {c.title}
-                  </th>
-                ))}
+                {columns.map(c => <th key={c.key} scope="col">{c.title}</th>)}
               </tr>
             </thead>
             <tbody>
               {rows.map((row, i) => (
-                <tr key={i} className="print:bg-white print:text-black print:text-[9px] print:leading-4 print:border-b print:border-black">
-                  {columns.map((c) => (
-                    <td
-                      key={c.key}
-                      className="print:p-1mm print:text-right print:border-b print:border-black/30 print:text-[9px] print:leading-4 print:overflow-wrap-anywhere"
-                      dir={
-                        /^[0-9]/.test(String(row[c.key] ?? ''))
-                          ? 'ltr'
-                          : 'auto'
-                      }
-                    >
-                      {fmtCell(row[c.key], c.format)}
-                    </td>
-                  ))}
+                <tr key={i}>
+                  {columns.map(c => {
+                    const formatted = fmtCell(row[c.key], c.format);
+                    // ستونهای بدون format (کد دانشجو، شماره فیش، …) هم ارقام
+                    // فارسی بگیرند؛ ستونهای DATE/MONEY/NUMBER قبلتر قالب خوردهاند.
+                    const text = c.format ? formatted : faNum(formatted);
+                    const isNumeric = /^[\d\u06F0-\u06F9,.،\s—-]+$/.test(text);
+                    return (
+                      <td key={c.key} dir="auto" className={isNumeric ? 'rp-num' : undefined}>
+                        {text}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>
           </table>
 
-          {/* خلاصه */}
-          {summary && (
-            <div className="print:mt-4mm print:pt-2mm print:border-t print:border-black print:text-xs print:text-slate-700 print:font-bold">
-              {summary}
-            </div>
-          )}
+          {summary && <div className="rp-summary">{summary}</div>}
 
-          {/* امضاء */}
-          <div className="print:mt-8mm print:flex print:justify-between print:text-xs print:text-slate-600">
-            <div className="print:w-1/3 print:border-t print:border-black print:pt-1mm print:text-center">
-              اجرا شده توسط
-            </div>
-            <div className="print:w-1/3 print:border-t print:border-black print:pt-1mm print:text-center">
-              تایید حسابدار
-            </div>
-            <div className="print:w-1/3 print:border-t print:border-black print:pt-1mm print:text-center">
-              مدیر مالی
-            </div>
+          <div className="rp-signs">
+            <div className="rp-sign">تهیهکنندهٔ گزارش</div>
+            <div className="rp-sign">تأیید حسابدار</div>
+            <div className="rp-sign">مدیر مالی</div>
           </div>
         </div>
       </div>
