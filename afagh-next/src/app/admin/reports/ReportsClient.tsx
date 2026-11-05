@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { exportReport, runReport, type FilterOptions, type ReportResult } from './actions';
 import { LINK_CARDS } from './report-links';
 import { faIncludes } from '@/lib/persian-search';
@@ -178,11 +178,12 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
   }, [allowedKinds, scope]);
   const filters = { term, degreeId, facultyId, departmentId, majorId, entryYear, q: q.trim(), nationalCode: nationalCode.trim(), miss, page: 1, universityId, ...extra };
 
-  const run = async (page = 1) => {
+  const run = async (page = 1, kindOverride?: string) => {
+    const k = kindOverride ?? kind;
     setLoading(true);
     setErr('');
     try {
-      setRes(await runReport(kind, { ...filters, page }));
+      setRes(await runReport(k, { ...filters, page }));
       setTimeout(() => {
         document.getElementById('report-result')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 50);
@@ -193,15 +194,36 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
     }
   };
 
+  /**
+   * انتخاب کارت گزارش.
+   *
+   * چرا اجرا هم اینجاست: پیش‌تر `pick` فقط `kind` را عوض می‌کرد و هیچ گزارشی
+   * اجرا نمی‌شد؛ از دید کاربر «کلیک روی گزارش هیچ کاری نمی‌کرد» و باید دکمهٔ
+   * جداگانهٔ «اجرای گزارش» را پیدا می‌کرد. حالا کلیک = انتخاب + اجرای فوری.
+   * (kind به‌صورت آرگومان پاس می‌شود چون state تازه بعد از رندر به‌روز می‌شود
+   * و closure اینجا مقدار قبلی را می‌دید.)
+   */
   const pick = (k: string) => {
     setKind(k);
     setRes(null);
     setErr('');
-    setTimeout(() => {
-      const el = document.getElementById('report-result');
-      void el;
-    }, 0);
+    void run(1, k);
   };
+
+  /**
+   * اجرای خودکار در ورود با `?kind=...` (کاشی‌های «گزارش‌های مالی» و
+   * گزارش‌های پرداختی از همین طریق باز می‌شوند). پیش‌تر صفحه فقط باز می‌شد و
+   * کاربر باید دوباره روی کارت و سپس «اجرای گزارش» می‌زد — یعنی «هیچ اتفاقی
+   * نمی‌افتاد».
+   */
+  const autoRan = useRef(false);
+  useEffect(() => {
+    if (autoRan.current || !initialKind) return;
+    if (!visibleCards.some(c => c.kind === initialKind)) return;
+    autoRan.current = true;
+    void run(1, initialKind);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialKind, visibleCards.length]);
 
   const doExport = async () => {
     setExporting(true);
@@ -512,9 +534,13 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
       <div id="report-result" className="bg-white border border-slate-300 rounded-xl shadow-sm overflow-hidden scroll-mt-4">
         {err ? (
           <p className="p-8 text-center text-rose-700 bg-rose-50 text-sm font-bold">خطا: {err}</p>
+        ) : loading ? (
+          <p className="p-8 text-center text-slate-600 text-sm font-bold" role="status" aria-live="polite">
+            ⏳ در حال اجرای گزارش «{card?.title}»…
+          </p>
         ) : !res ? (
           <p className="p-8 text-center text-slate-500 text-sm">
-            گزارش «{card?.title}» را انتخاب و <b>اجرای گزارش</b> را بزنید.
+            یکی از کارت‌های گزارش بالا را بزنید؛ نتایج همان‌جا نمایش داده می‌شود.
           </p>
         ) : res.rows.length === 0 ? (
           <div className="p-6 text-center">
