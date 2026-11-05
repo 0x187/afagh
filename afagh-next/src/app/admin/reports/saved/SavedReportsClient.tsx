@@ -4,8 +4,12 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { deleteSavedReport, exportSavedReportAction, runSavedReportAction } from './actions';
 import type { SavedReportRow } from './types';
-import { formatReportCell as fmtCell } from '@/lib/report-format';
+import { faNum, formatReportCell as fmtCell } from '@/lib/report-format';
 import { askConfirm } from '@/lib/ui-feedback';
+import ReportPrint from '@/components/ui/ReportPrint';
+
+/** هویت بصری سند چاپی (از سرور؛ نام/آرم دانشگاه + امضاهای تنظیمات) */
+type PrintBrand = { universityTitle: string; universityLogoUrl: string; signers: string[] };
 
 const VIS_FA: Record<string, string> = {
   PRIVATE: '🔒 خصوصی',
@@ -13,7 +17,7 @@ const VIS_FA: Record<string, string> = {
   PUBLIC: '🌐 عمومی',
 };
 
-export default function SavedReportsClient({ reports }: { reports: SavedReportRow[] }) {
+export default function SavedReportsClient({ reports, brand }: { reports: SavedReportRow[]; brand: PrintBrand }) {
   const [active, setActive] = useState<number | null>(null);
   const [result, setResult] = useState<{
     columns: { key: string; title: string; format?: string }[];
@@ -125,11 +129,25 @@ export default function SavedReportsClient({ reports }: { reports: SavedReportRo
 
       {result && active !== null && (
         <div className="card !p-4">
-          <div className="flex items-center justify-between mb-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
             <h2 className="text-sm font-bold text-slate-900">نتیجهٔ گزارش</h2>
-            <span className="text-2xs text-slate-500">
-              {result.total.toLocaleString('fa-IR')} ردیف · صفحهٔ {result.page.toLocaleString('fa-IR')} از {result.totalPages.toLocaleString('fa-IR')}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-2xs text-slate-500">
+                {result.total.toLocaleString('fa-IR')} ردیف · صفحهٔ {result.page.toLocaleString('fa-IR')} از {result.totalPages.toLocaleString('fa-IR')}
+              </span>
+              {result.rows.length > 0 && (
+                <ReportPrint
+                  title={reports.find(r => r.id === active)?.name ?? 'گزارش ساختهای'}
+                  subtitle={`${faNum(result.total)} رکورد`}
+                  columns={result.columns}
+                  rows={result.rows}
+                  summary={result.notes?.length ? result.notes.join(' ') : undefined}
+                  universityTitle={brand.universityTitle}
+                  universityLogoUrl={brand.universityLogoUrl}
+                  signers={brand.signers}
+                />
+              )}
+            </div>
           </div>
 
           {!!result.notes?.length && (

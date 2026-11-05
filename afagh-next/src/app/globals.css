@@ -1475,7 +1475,187 @@ html {
    ═══════════════════════════════════════════════════════════════════════ */
 
 /* الگو فقط منبعِ کلون است؛ روی نمایشگر دیده نمیشود */
+
+/* ═══════════════════════════════════════════════════════════════════════
+   چاپ گزارشها — «سند ایزولۀ صفحبندیشده» (ReportPrint + print-report.ts)
+
+   نسخهٔ دوم: سند در ریشهٔ body کلون میشود، سپس `paginateReportPrint()`
+   آن را به برگههای A4 تقسیم میکند. هر برگه سربرگ و سرستون تکراری،
+   جایگاه امضاهای قابلتنظیم و «صفحۀ N از M» واقعی دارد.
+
+   ⚠ قواعد `#report-print-root …` **عمداً بیرون از `@media print`** نوشته
+   شدهاند: ریشهٔ چاپی پیش از بازشدن دیالوگ، بیرون از دید ولی لایهبندیشده
+   است و همان جا ارتفاع ردیفها اندازهگیری میشود. اگر قواعد فقط در مدیای
+   چاپ اعمال شوند، اندازهگیری با چیدمان نمایشگر انجام میشود و برگهها غلط
+   درمیآیند. داخل `@media print` فقط «پنهانسازی بقیهٔ صفحه» و «آزادکردن
+   ریشه» انجام میشود.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* الگو فقط منبعِ کلون است؛ روی نمایشگر دیده نمیشود */
 .report-print-template { display: none; }
+#report-print-root .report-print-template { display: block; }
+
+/* ابعاد کاغذ — همان مقادیر PAPER در src/lib/print-report.ts */
+#report-print-root[data-rp-orientation="landscape"] { --rp-page-w: 297mm; --rp-page-h: 210mm; --rp-pad: 8mm; --rp-foot: 21mm; }
+#report-print-root[data-rp-orientation="portrait"]  { --rp-page-w: 210mm; --rp-page-h: 297mm; --rp-pad: 9mm; --rp-foot: 21mm; }
+
+/* روی نمایشگر: بیرون از دید ولی لایهبندیشده (برای اندازهگیری) */
+#report-print-root {
+  position: fixed !important;
+  left: -10000px !important;
+  top: 0 !important;
+  width: var(--rp-page-w, 297mm) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: #ffffff !important;
+  color: #000000 !important;
+  font-family: Vazirmatn, Tahoma, sans-serif !important;
+  direction: rtl;
+  visibility: hidden;
+  z-index: -1;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+#report-print-root .rp-doc { width: 100%; font-size: 8.5pt; line-height: 1.5; color: #000000; }
+#report-print-root a { color: #000000 !important; text-decoration: none !important; }
+
+/* ── برگهها ── */
+#report-print-root .rp-page {
+  width: var(--rp-page-w, 297mm);
+  height: calc(var(--rp-page-h, 210mm) - 0.2mm);
+  padding: var(--rp-pad, 8mm);
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+  background: #ffffff;
+  break-after: page;
+  page-break-after: always;
+}
+#report-print-root .rp-page-last { break-after: auto; page-break-after: auto; }
+#report-print-root .rp-page-body { width: 100%; }
+/* پروب اندازهگیری: همان عرض/پادینگ، بیرون از دید، بدون شکست صفحه */
+#report-print-root .rp-probe {
+  position: absolute !important;
+  left: -200000px !important;
+  top: 0 !important;
+  height: auto !important;
+  overflow: visible !important;
+  break-after: auto !important;
+  page-break-after: auto !important;
+}
+
+/* ── سربرگ سند: آرم + نام دانشگاه + عنوان + متا (تاریخ در چپ) ── */
+#report-print-root .rp-head {
+  border-bottom: 0.7pt solid #111111;
+  padding-bottom: 2mm;
+  margin-bottom: 2.5mm;
+}
+#report-print-root .rp-head-row { display: flex; align-items: center; gap: 3mm; }
+#report-print-root .rp-logo {
+  width: 14mm; height: 14mm; flex: 0 0 auto;
+  object-fit: contain; display: block;
+}
+#report-print-root .rp-logo-fallback {
+  font-size: 11mm; line-height: 14mm; text-align: center;
+}
+#report-print-root .rp-brand-block { min-width: 0; }
+#report-print-root .rp-brand { font-size: 11pt; font-weight: 800; }
+#report-print-root .rp-system { font-size: 7.5pt; color: #444444; margin-top: 0.3mm; }
+#report-print-root .rp-title { font-size: 14pt; font-weight: 800; margin: 1.2mm 0 0.5mm; }
+#report-print-root .rp-sub { font-size: 8pt; color: #333333; }
+#report-print-root .rp-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 4mm;
+  font-size: 8pt;
+  margin-top: 2mm;
+}
+/* در برگههای ادامه سربرگ فشردهتر است تا کاغذ هدر نرود */
+#report-print-root .rp-head-repeat .rp-logo { width: 9mm; height: 9mm; }
+#report-print-root .rp-head-repeat .rp-logo-fallback { font-size: 7mm; line-height: 9mm; }
+#report-print-root .rp-head-repeat .rp-brand { font-size: 9pt; }
+#report-print-root .rp-head-repeat .rp-system { display: none; }
+#report-print-root .rp-head-repeat .rp-title { font-size: 11pt; }
+#report-print-root .rp-head-repeat .rp-sub { font-size: 7pt; }
+
+/* ── جدول: عرض ثابت + colgroup، سرستون تکراری، ردیف نشکند ── */
+#report-print-root table.rp-table {
+  width: 100% !important;
+  max-width: 100% !important;
+  border-collapse: collapse !important;
+  table-layout: fixed !important;
+  border: 0.6pt solid #333333 !important;
+  font-size: 8pt;
+}
+#report-print-root table.rp-table > thead { display: table-header-group; }
+#report-print-root table.rp-table > tbody { display: table-row-group; }
+#report-print-root table.rp-table tr { break-inside: avoid; page-break-inside: avoid; }
+#report-print-root table.rp-table th,
+#report-print-root table.rp-table td {
+  border: 0.4pt solid #777777 !important;
+  padding: 1.1mm 1.2mm !important;
+  text-align: right;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  hyphens: none;
+  font-size: 8pt;
+  line-height: 1.4;
+  min-width: 0;
+}
+#report-print-root table.rp-table th {
+  background: #f0f0f0 !important;
+  font-weight: 800;
+  white-space: normal;
+}
+/* ⚠ نسخهٔ قبل white-space:nowrap داشت؛ شمارهٔ فیش/حساب/پیگیری بلند از
+   ستون بیرون میزد و روی ستون تاریخ میافتاد. حالا ارقام بلند میشکنند. */
+#report-print-root table.rp-table td.rp-num {
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  text-align: right;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+#report-print-root table.rp-table td.rp-longnum { word-break: break-all; }
+
+/* ── خلاصهٔ گزارش (فقط برگهٔ آخر) ── */
+#report-print-root .rp-summary {
+  margin-top: 2.5mm;
+  padding-top: 1.5mm;
+  border-top: 0.6pt solid #111111;
+  font-size: 8.5pt;
+  font-weight: 700;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* ── پاصفحهٔ هر برگه: جایگاه امضاها + «صفحۀ N از M» ── */
+#report-print-root .rp-page-foot {
+  position: absolute;
+  left: var(--rp-pad, 8mm);
+  right: var(--rp-pad, 8mm);
+  bottom: var(--rp-pad, 8mm);
+  height: var(--rp-foot, 21mm);
+  border-top: 0.6pt solid #111111;
+  padding-top: 1.5mm;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1mm;
+}
+#report-print-root .rp-page-signs { display: flex; justify-content: space-between; gap: 4mm; }
+#report-print-root .rp-sign {
+  flex: 1 1 0;
+  min-width: 0;
+  border-top: 0.5pt solid #555555;
+  padding-top: 1mm;
+  text-align: center;
+  font-size: 7.5pt;
+  overflow-wrap: anywhere;
+}
+#report-print-root .rp-page-num { text-align: center; font-size: 8pt; font-weight: 800; }
 
 @media print {
   /* ۱) فقط ریشهٔ چاپی بماند — نوار تاریک، منو، کارتها و دکمهها حذف شوند */
@@ -1487,9 +1667,14 @@ html {
   }
   body.printing-report > *:not(#report-print-root) { display: none !important; }
   body.printing-report #report-print-root {
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    visibility: visible !important;
+    width: auto !important;
     display: block !important;
     margin: 0 !important;
-    padding: 8mm 8mm 10mm !important;
+    padding: 0 !important;
     background: #ffffff !important;
     color: #000000 !important;
     font-family: Vazirmatn, Tahoma, sans-serif !important;
@@ -1501,82 +1686,5 @@ html {
   }
   .report-print-template { display: none !important; }
   #report-print-root .report-print-template { display: block !important; }
-  #report-print-root a { color: #000000 !important; text-decoration: none !important; }
-
-  /* ۲) سربرگ سند */
-  #report-print-root .rp-doc { width: 100%; font-size: 8.5pt; line-height: 1.5; color: #000000; }
-  #report-print-root .rp-head {
-    border-bottom: 0.7pt solid #111111;
-    padding-bottom: 3mm;
-    margin-bottom: 4mm;
-  }
-  #report-print-root .rp-brand { font-size: 9pt; font-weight: 700; }
-  #report-print-root .rp-title { font-size: 15pt; font-weight: 800; margin: 1mm 0 0.5mm; }
-  #report-print-root .rp-sub { font-size: 8pt; color: #333333; }
-  #report-print-root .rp-meta {
-    display: flex;
-    justify-content: space-between;
-    gap: 4mm;
-    font-size: 8pt;
-    margin-top: 2mm;
-  }
-
-  /* ۳) جدول: عرض ثابت + colgroup، سرستون تکراری، ردیف نشکند */
-  #report-print-root table.rp-table {
-    width: 100% !important;
-    max-width: 100% !important;
-    border-collapse: collapse !important;
-    table-layout: fixed !important;
-    border: 0.6pt solid #333333 !important;
-    font-size: 8pt;
-  }
-  #report-print-root table.rp-table > thead { display: table-header-group; }
-  #report-print-root table.rp-table > tbody { display: table-row-group; }
-  #report-print-root table.rp-table tr { break-inside: avoid; page-break-inside: avoid; }
-  #report-print-root table.rp-table th,
-  #report-print-root table.rp-table td {
-    border: 0.4pt solid #777777 !important;
-    padding: 1.2mm 1.3mm !important;
-    text-align: right;
-    vertical-align: top;
-    overflow-wrap: anywhere;
-    word-break: normal;
-    hyphens: none;
-    font-size: 8pt;
-    line-height: 1.45;
-    min-width: 0;
-  }
-  #report-print-root table.rp-table th {
-    background: #f0f0f0 !important;
-    font-weight: 800;
-    white-space: normal;
-  }
-  #report-print-root table.rp-table td.rp-num {
-    font-variant-numeric: tabular-nums;
-    white-space: nowrap;
-  }
-
-  /* ۴) خلاصه و امضاء */
-  #report-print-root .rp-summary {
-    margin-top: 3mm;
-    padding-top: 2mm;
-    border-top: 0.6pt solid #111111;
-    font-size: 8.5pt;
-    font-weight: 700;
-  }
-  #report-print-root .rp-signs {
-    display: flex;
-    justify-content: space-between;
-    gap: 8mm;
-    margin-top: 10mm;
-    break-inside: avoid;
-    page-break-inside: avoid;
-  }
-  #report-print-root .rp-sign {
-    flex: 1 1 0;
-    border-top: 0.6pt solid #333333;
-    padding-top: 1.5mm;
-    text-align: center;
-    font-size: 8pt;
-  }
+  #report-print-root .rp-probe { display: none !important; }
 }

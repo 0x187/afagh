@@ -1,4 +1,6 @@
 import { requireRole } from '@/lib/auth';
+import { getCurrentUniversity } from '@/lib/university-scope';
+import { getReportPrintBrand } from '@/lib/report-print-brand';
 import { listSourceMetas } from '../catalog';
 import { getCatalogOptions } from '../saved/actions';
 import { getSavedReport } from '../saved/actions';
@@ -20,7 +22,12 @@ export default async function ReportBuilderPage({
   const initial = Number.isFinite(editId) && editId > 0 ? await getSavedReport(editId) : null;
 
   const sources = listSourceMetas();
-  const options = await getCatalogOptions();
+  const [options, uni] = await Promise.all([
+    getCatalogOptions(),
+    getCurrentUniversity().catch(() => null),
+  ]);
+  // چاپ پیشنمایشِ گزارشساز همان موتور چاپ گزارشهای مالی/آموزشی را میگیرد
+  const brand = await getReportPrintBrand('custom-report', uni?.id);
 
   return (
     <div className="space-y-4">
@@ -33,7 +40,7 @@ export default async function ReportBuilderPage({
         </div>
       </div>
 
-      <BuilderClient sources={sources} options={options} initial={initial} />
+      <BuilderClient sources={sources} options={options} initial={initial} brand={brand} />
     </div>
   );
 }

@@ -131,7 +131,11 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
   const [kind, setKind] = useState<string>(initialKind ?? 'active-term');
   const [cat, setCat] = useState<ReportCat | undefined>(undefined);
   const [search, setSearch] = useState('');
-  const [term, setTerm] = useState(initialTerm || opts.latestTerm);
+  const initialTermCodes = (initialTerm ?? '').split(/[,،\s]+/).map(s => s.trim()).filter(Boolean);
+  const [term, setTerm] = useState(initialTermCodes[0] || opts.latestTerm);
+  /** حالت فیلتر ترم: یک ترم / چند ترم / همهٔ ترمها (بدون فیلتر) */
+  const [termMode, setTermMode] = useState<'one' | 'many' | 'all'>(initialTermCodes.length > 1 ? 'many' : 'one');
+  const [manyTerms, setManyTerms] = useState<string[]>(initialTermCodes.length > 1 ? initialTermCodes : []);
   const [degreeId, setDegreeId] = useState(0);
   const [facultyId, setFacultyId] = useState(0);
   const [departmentId, setDepartmentId] = useState(0);
@@ -181,10 +185,18 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
     if (cat && !visibleCards.some(c => c.cat === cat)) setCat(undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allowedKinds, scope]);
-  const filters = { term, degreeId, facultyId, departmentId, majorId, entryYear, q: q.trim(), nationalCode: nationalCode.trim(), miss, page: 1, universityId, status, scope: scopeMode, ...extra };
+  // «همهٔ ترمها» = term خالی (همهٔ ماژولهای r-*.ts آن را «بدون فیلتر» میگیرند)؛
+  // «چند ترم» = فهرست کدها در f.terms، سرور آنها را جدا اجرا و ادغام میکند.
+  const effectiveTerm = termMode === 'all' ? '' : termMode === 'many' ? (manyTerms[0] ?? '') : term;
+  const multiTerms = termMode === 'many' ? manyTerms.join(',') : undefined;
+  const filters = { term: effectiveTerm, terms: multiTerms, degreeId, facultyId, departmentId, majorId, entryYear, q: q.trim(), nationalCode: nationalCode.trim(), miss, page: 1, universityId, status, scope: scopeMode, ...extra };
 
   const run = async (page = 1, kindOverride?: string) => {
     const k = kindOverride ?? kind;
+    if (termMode === 'many' && manyTerms.length === 0 && page === 1) {
+      setErr('دستکم یک ترم انتخاب کنید، یا حالت «همهٔ ترمها» را بزنید.');
+      return;
+    }
     setLoading(true);
     setErr('');
     try {
@@ -313,12 +325,41 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
               </label>
             )}
             {card?.needsTerm && (
-              <label className="flex items-center gap-1">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <span className="font-bold text-slate-600">ترم:</span>
-                <select value={term} onChange={e => setTerm(e.target.value)} className="bg-slate-50 border border-slate-300 rounded px-2 py-1.5 font-mono" dir="ltr">
-                  {opts.terms.map(t => <option key={t.code} value={t.code}>{t.code}</option>)}
+                <select
+                  value={termMode}
+                  onChange={e => setTermMode(e.target.value === 'many' ? 'many' : e.target.value === 'all' ? 'all' : 'one')}
+                  className="bg-indigo-50 border border-indigo-300 rounded px-2 py-1.5 font-bold"
+                  title="یک ترم، چند ترم بهصورت همزمان، یا همهٔ ترمها بدون فیلتر"
+                >
+                  <option value="one">یک ترم</option>
+                  <option value="many">چند ترم…</option>
+                  <option value="all">همهٔ ترمها</option>
                 </select>
-              </label>
+                {termMode === 'one' && (
+                  <select value={term} onChange={e => setTerm(e.target.value)} className="bg-slate-50 border border-slate-300 rounded px-2 py-1.5 font-mono" dir="ltr">
+                    {opts.terms.map(t => <option key={t.code} value={t.code}>{t.code}</option>)}
+                  </select>
+                )}
+                {termMode === 'many' && (
+                  <div className="w-full flex flex-wrap items-center gap-1.5 rounded border border-slate-200 bg-slate-50 p-2 max-h-28 overflow-y-auto">
+                    <button type="button" onClick={() => setManyTerms(opts.terms.map(t => t.code))} className="px-2 py-1 bg-white border border-slate-300 rounded font-bold text-2xs">انتخاب همه</button>
+                    <button type="button" onClick={() => setManyTerms([])} className="px-2 py-1 bg-white border border-slate-300 rounded font-bold text-2xs">پاک کردن</button>
+                    {opts.terms.map(t => (
+                      <label key={t.code} className="flex items-center gap-1 px-1.5 py-0.5 bg-white border border-slate-200 rounded font-mono text-2xs" dir="ltr">
+                        <input
+                          type="checkbox"
+                          checked={manyTerms.includes(t.code)}
+                          onChange={e => setManyTerms(prev => e.target.checked ? [...prev, t.code] : prev.filter(x => x !== t.code))}
+                        />
+                        {t.title || t.code} ({t.code})
+                      </label>
+                    ))}
+                    <span className="font-extrabold text-indigo-700 text-2xs">{faNum(manyTerms.length)} ترم انتخاب شد</span>
+                  </div>
+                )}
+              </div>
             )}
             <label className="flex items-center gap-1">
               <span className="font-bold text-slate-600">مقطع:</span>
@@ -554,14 +595,22 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
                 <ReportPrint
                   title={card?.title ?? 'گزارش'}
                   subtitle={[
-                    card?.needsTerm ? `ترم ${faNum(term)}` : null,
+                    card?.needsTerm
+                      ? termMode === 'all'
+                        ? 'همهٔ ترمها'
+                        : termMode === 'many'
+                          ? `ترمهای ${manyTerms.map(faNum).join('، ')}`
+                          : `ترم ${faNum(term)}`
+                      : null,
                     scopeMode === 'term' ? 'فقط همین نیمسال' : 'کل دوره',
-                    `صفحهٔ ${faNum(res.page)} از ${faNum(res.totalPages)}`,
+                    `${faNum(res.total)} رکورد`,
                   ].filter(Boolean).join('  •  ')}
                   columns={res.columns}
                   rows={res.rows}
                   summary={res.summary}
-                  universityTitle={opts.universities.find(u => u.id === universityId)?.title || 'سامانه جامع آفاق'}
+                  universityTitle={opts.universityTitle}
+                  universityLogoUrl={opts.universityLogoUrl}
+                  signers={opts.signers}
                 />
               </>
             )}

@@ -40,7 +40,7 @@ export default async function AdminFinanceReportsPage(props: {
   const currentUniversity = await getCurrentUniversity();
   const currentUniversityId = currentUniversity?.id ?? null;
 
-  const opts = await getFilterOptions({ universityId: currentUniversityId });
+  const opts = await getFilterOptions({ universityId: currentUniversityId, signerForm: 'finance-report' });
   const allowed = await allowedReportKinds(ALL_REPORT_KINDS);
 
   return (

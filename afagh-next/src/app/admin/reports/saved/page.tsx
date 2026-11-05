@@ -1,4 +1,6 @@
 import { requireRole } from '@/lib/auth';
+import { getCurrentUniversity } from '@/lib/university-scope';
+import { getReportPrintBrand } from '@/lib/report-print-brand';
 import { listSavedReports } from './actions';
 import SavedReportsClient from './SavedReportsClient';
 
@@ -11,7 +13,12 @@ const RUNNER_ROLES = [
 
 export default async function SavedReportsPage() {
   await requireRole(RUNNER_ROLES);
-  const reports = await listSavedReports();
+  const [reports, uni] = await Promise.all([
+    listSavedReports(),
+    getCurrentUniversity().catch(() => null),
+  ]);
+  // همان سند چاپیِ مراکز گزارش: آرم/نام دانشگاه + امضاهای قابلتنظیم
+  const brand = await getReportPrintBrand('custom-report', uni?.id);
 
   return (
     <div className="space-y-4">
@@ -24,7 +31,7 @@ export default async function SavedReportsPage() {
         </div>
       </div>
 
-      <SavedReportsClient reports={reports} />
+      <SavedReportsClient reports={reports} brand={brand} />
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { getCurrentUniversity, isRealUniversityId } from '@/lib/university-scope
 import { CREDIT_LEDGER_TYPES, DEBT_LEDGER_TYPES } from '@/lib/ledger-balance';
 import { calculateOfficialGpaBreakdown } from '@/lib/regulations-engine';
 import { formatReportCell } from '@/lib/report-format';
+import { getReportPrintBrand } from '@/lib/report-print-brand';
 import {
   NUM,
   PER,
@@ -68,7 +69,7 @@ function reportCenter(kind: string): 'finance' | 'edu' {
   return FINANCE_KINDS.has(kind) ? 'finance' : 'edu';
 }
 
-export async function getFilterOptions({ universityId }: { universityId?: number } = {}): Promise<FilterOptions> {
+export async function getFilterOptions({ universityId, signerForm = 'edu-report' }: { universityId?: number; signerForm?: string } = {}): Promise<FilterOptions> {
   await requireRole(ROLES);
   // 🔒 اگر دانشگاهِ فعال معتبر نباشد (۰ = DENY_UNI یا نامشخص) از «هیچ دانشگاهی»
   // استفاده می‌شود، نه «همهٔ دانشگاه‌ها». پیش‌تر شرط کاملاً حذف می‌شد و فهرست
@@ -100,6 +101,9 @@ export async function getFilterOptions({ universityId }: { universityId?: number
   const years = await db.execute<{ y: number }>(
     sql`SELECT DISTINCT "entryYear" AS y FROM students ${uid ? sql`WHERE "universityId" = ${uid}` : sql``} ORDER BY 1 DESC`,
   );
+  // ── هویت بصری سند چاپی (همان منبع واحدِ گزارشساز/گزارشهای ذخیرهشده) ──
+  const brand = await getReportPrintBrand(signerForm, uid > 0 ? uid : undefined);
+
   return {
     terms: terms.rows,
     degrees: degrees.rows,
@@ -111,6 +115,9 @@ export async function getFilterOptions({ universityId }: { universityId?: number
     universities: (await db.execute<{ id: number; code: string; title: string; kind: string }>(
       sql`SELECT id, code, title, kind FROM universities WHERE "isActive" = 1 ORDER BY id`
     )).rows,
+    universityTitle: brand.universityTitle,
+    universityLogoUrl: brand.universityLogoUrl,
+    signers: brand.signers,
   };
 }
 
@@ -141,7 +148,76 @@ export async function allowedReportKinds(kinds: string[]): Promise<string[] | nu
   );
 }
 
+/** فهرست ترمهای فیلتر «چند ترم» (ویرگول/فاصله جداکننده؛ تکرارها حذف شوند). */
+function parseTermList(f: ReportFilters): string[] {
+  const raw = typeof f.terms === 'string' ? f.terms : '';
+  return Array.from(new Set(raw.split(/[,،\s]+/).map(s => s.trim()).filter(Boolean)));
+}
+
+/** سقف ردیفهای گردآوریشده برای هر ترم، تا اجرای چندترمهای بیتوقف نشود. */
+const MULTI_TERM_CAP = 3000;
+
+/**
+ * نقطهٔ ورود گزارشها.
+ *
+ * حالت عادی (یک ترم / همهٔ ترمها با `term=''`) دقیقاً همان مسیر قدیمی است.
+ * حالت «چند ترم» گزارش را برای تکتک ترمها اجرا میکند، ستون «ترم» به
+ * نتیجه اضافه میکند و ردیفها را یکی کرده، دوباره صفحهبندی مینماید.
+ * مزیت: هیچیک از ~۴۰ محل SQLـای `f.term` در ماژولهای r-*.ts نیاز به
+ * تغییر ندارند (هر اجرا همچنان یک `term` تکی میگیرد).
+ */
 export async function runReport(kind: string, f: ReportFilters): Promise<ReportResult> {
+  const terms = parseTermList(f);
+  if (terms.length > 1) return runReportMultiTerm(kind, f, terms);
+  return executeReport(kind, f);
+}
+
+async function runReportMultiTerm(
+  kind: string,
+  f: ReportFilters,
+  terms: string[],
+): Promise<ReportResult> {
+  await requireRole(ROLES);
+  await assertReportPermission(kind);
+  const uni = await getCurrentUniversity().catch(() => null);
+  if (!isRealUniversityId(uni?.id)) {
+    return {
+      columns: [], rows: [], total: 0, page: 1, per: PER, totalPages: 1,
+      summary: 'دانشگاه فعال شما مشخص نیست؛ اجرای گزارش ممکن نیست.',
+    };
+  }
+  const base: ReportFilters = { ...f, universityId: uni.id, terms: undefined };
+  const merged: Record<string, unknown>[] = [];
+  let columns: ReportColumn[] = [];
+  for (const t of terms) {
+    const first = await executeReport(kind, { ...base, term: t, page: 1 });
+    if (!columns.length && first.columns.length) {
+      columns = first.columns.some(c => c.key === '__term')
+        ? first.columns
+        : [{ key: '__term', title: 'ترم' }, ...first.columns];
+    }
+    const rows = [...first.rows];
+    for (let p = 2; p <= first.totalPages && rows.length < MULTI_TERM_CAP; p++) {
+      const r = await executeReport(kind, { ...base, term: t, page: p });
+      rows.push(...r.rows);
+    }
+    for (const row of rows) merged.push({ ...row, __term: t });
+  }
+  const total = merged.length;
+  const totalPages = Math.max(1, Math.ceil(total / PER));
+  const page = Math.min(Math.max(1, Number(f.page) || 1), totalPages);
+  return {
+    columns: columns.length ? columns : [{ key: '__term', title: 'ترم' }],
+    rows: merged.slice((page - 1) * PER, page * PER),
+    total,
+    page,
+    per: PER,
+    totalPages,
+    summary: `${terms.length.toLocaleString('fa-IR')} ترم (${terms.join('، ')}) — ${total.toLocaleString('fa-IR')} ردیف`,
+  };
+}
+
+async function executeReport(kind: string, f: ReportFilters): Promise<ReportResult> {
   await requireRole(ROLES);
   await assertReportPermission(kind);
   // تفکیک دانشگاه سمت سرورمشتق می‌شود؛ ورودی کلاینت نادیده گرفته می‌شود

@@ -16,7 +16,7 @@ export default async function AdminReportsPage({
   const currentUniversity = await getCurrentUniversity();
   const currentUniversityId = currentUniversity?.id ?? null;
 
-  const opts = await getFilterOptions({ universityId: currentUniversityId });
+  const opts = await getFilterOptions({ universityId: currentUniversityId, signerForm: 'edu-report' });
   const allowed = await allowedReportKinds(ALL_REPORT_KINDS);
 
   // پیش‌تنظیم از لینک بیرونی (مثل دکمهٔ «لیست دانشجویان» در مدیریت جلسات درس)

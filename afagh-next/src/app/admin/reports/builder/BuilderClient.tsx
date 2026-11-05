@@ -11,8 +11,12 @@ import type {
   SavedReportConfig,
   SourceMeta,
 } from '../catalog/types';
-import { formatReportCell as fmtCell } from '@/lib/report-format';
+import { faNum, formatReportCell as fmtCell } from '@/lib/report-format';
 import { faIncludes } from '@/lib/persian-search';
+import ReportPrint from '@/components/ui/ReportPrint';
+
+/** هویت بصری سند چاپی (از سرور؛ نام/آرم دانشگاه + امضاهای تنظیمات) */
+type PrintBrand = { universityTitle: string; universityLogoUrl: string; signers: string[] };
 
 const ROLE_OPTIONS = [
   { code: 'ADMIN', title: 'مدیر سامانه' },
@@ -48,10 +52,12 @@ export default function BuilderClient({
   sources,
   options,
   initial,
+  brand,
 }: {
   sources: SourceMeta[];
   options: CatalogOptions;
   initial: SavedReportRow | null;
+  brand: PrintBrand;
 }) {
   const [sourceKey, setSourceKey] = useState<string>(initial?.sourceKey ?? sources[0]?.key ?? '');
   const [cols, setCols] = useState<Col[]>(initial?.config?.columns ?? []);
@@ -497,11 +503,25 @@ export default function BuilderClient({
       {/* ── پیش‌نمایش ── */}
       {preview && (
         <div className="card !p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="text-sm font-bold text-slate-900">پیش‌نمایش نتیجه</h2>
-            <span className="text-2xs text-slate-500">
-              {preview.total.toLocaleString('fa-IR')} ردیف · صفحهٔ {preview.page.toLocaleString('fa-IR')} از {preview.totalPages.toLocaleString('fa-IR')}
-            </span>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <h2 className="text-sm font-bold text-slate-900">پیشنمایش نتیجه</h2>
+            <div className="flex items-center gap-2">
+              <span className="text-2xs text-slate-500">
+                {preview.total.toLocaleString('fa-IR')} ردیف · صفحهٔ {preview.page.toLocaleString('fa-IR')} از {preview.totalPages.toLocaleString('fa-IR')}
+              </span>
+              {preview.rows.length > 0 && (
+                <ReportPrint
+                  title={name.trim() || 'پیشنمایش گزارش ساختهای'}
+                  subtitle={`${faNum(preview.total)} رکورد`}
+                  columns={preview.columns}
+                  rows={preview.rows}
+                  summary={preview.notes?.length ? preview.notes.join(' ') : undefined}
+                  universityTitle={brand.universityTitle}
+                  universityLogoUrl={brand.universityLogoUrl}
+                  signers={brand.signers}
+                />
+              )}
+            </div>
           </div>
 
           {!!preview.notes?.length && (

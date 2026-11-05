@@ -44,6 +44,7 @@ export const SETTING_GROUPS = [
   'ارزشیابی و هوش تجاری',
   'حضور و غیاب کلاس‌ها',
   'ساعت کلاس و برنامه‌ریزی',
+  'امضاکنندگان فرمها و اسناد',
   'زیرساخت (فقط ENV)',
 ] as const;
 
@@ -60,6 +61,47 @@ export const SETTING_DEFS: SettingDef[] = [
   { key: 'PUBLIC_BASE_URL', env: 'AFAGH_PUBLIC_BASE_URL', group: 'عمومی و نشانی‌ها', label: 'نشانی عمومی سامانه', type: 'url', default: 'http://localhost:8080', help: 'مبنای لینک‌های استعلام مدرک، QR کارت ورود به جلسه و ایمیل‌ها' },
   { key: 'SUPPORT_EMAIL', env: 'AFAGH_SUPPORT_EMAIL', group: 'عمومی و نشانی‌ها', label: 'ایمیل پشتیبانی', type: 'text', default: 'support@example.ac.ir' },
   { key: 'SUPPORT_PHONE', env: 'AFAGH_SUPPORT_PHONE', group: 'عمومی و نشانی‌ها', label: 'تلفن پشتیبانی', type: 'text', default: '' },
+
+  // ── امضاکنندگان فرمها و اسناد ──
+  // هر «فرم» جایگاه امضای خودش را دارد تا مدیر بتواند عناوین سازمانی
+  // (مثلاً «معاون مالی» بهجای «مدیر مالی») را بدون تغییر کد عوض کند.
+  // جداکننده: | یا ویرگول یا سطر جدید؛ خالی = بدون ردیف امضا.
+  {
+    key: 'SIGNERS_FINANCE_REPORTS', env: 'AFAGH_SIGNERS_FINANCE_REPORTS',
+    group: 'امضاکنندگان فرمها و اسناد', label: 'امضاکنندگان گزارشهای مالی', type: 'text',
+    default: 'تهیهکنندهٔ گزارش | تأیید حسابدار | مدیر مالی',
+    help: 'عنوان جایگاههای امضای زیرِ برگههای گزارشهای مالی — با | یا ویرگول جدا کنید (حداکثر ۶ جایگاه)؛ خالی = بدون امضا',
+  },
+  {
+    key: 'SIGNERS_EDU_REPORTS', env: 'AFAGH_SIGNERS_EDU_REPORTS',
+    group: 'امضاکنندگان فرمها و اسناد', label: 'امضاکنندگان گزارشهای آموزشی', type: 'text',
+    default: 'تهیهکنندهٔ گزارش | کارشناس آموزش | معاون آموزشی',
+    help: 'عنوان جایگاههای امضای زیرِ برگههای گزارشهای آموزشی — با | یا ویرگول جدا کنید',
+  },
+  {
+    key: 'SIGNERS_TRANSCRIPT', env: 'AFAGH_SIGNERS_TRANSCRIPT',
+    group: 'امضاکنندگان فرمها و اسناد', label: 'امضاکنندگان کارنامه / ریزنمرات', type: 'text',
+    default: 'مسئول ثبت نمرات | کارشناس آموزش | معاون آموزشی',
+    help: 'برای کارنامهها و ریزنمرات چاپی — با | یا ویرگول جدا کنید',
+  },
+  {
+    key: 'SIGNERS_CERTIFICATES', env: 'AFAGH_SIGNERS_CERTIFICATES',
+    group: 'امضاکنندگان فرمها و اسناد', label: 'امضاکنندگان گواهیها و تاییدیهها', type: 'text',
+    default: 'کارشناس صدور مدرک | مدیر امور دانشجویی',
+    help: 'برای گواهی اشتغال به تحصیل، تاییدیه تحصیلی و پایان تحصیلات — با | یا ویرگول جدا کنید',
+  },
+  {
+    key: 'SIGNERS_CUSTOM_REPORTS', env: 'AFAGH_SIGNERS_CUSTOM_REPORTS',
+    group: 'امضاکنندگان فرمها و اسناد', label: 'امضاکنندگان گزارشهای ساختهای گزارشساز', type: 'text',
+    default: 'تهیهکنندهٔ گزارش | تأیید کارشناس | مدیر واحد',
+    help: 'برای گزارشهای دلخواه ساختهشده در «گزارشساز» و «گزارشهای ذخیرهشده» — با | یا ویرگول جدا کنید',
+  },
+  {
+    key: 'SIGNERS_CARDS', env: 'AFAGH_SIGNERS_CARDS',
+    group: 'امضاکنندگان فرمها و اسناد', label: 'امضاکنندگان کارتها و صورتجلسهها', type: 'text',
+    default: 'مسئول صدور کارت | مدیر امور دانشجویی',
+    help: 'برای کارت دانشجویی، کارت ورود به جلسه و صورتجلسهها — با | یا ویرگول جدا کنید',
+  },
 
   // ── کلاس مجازی ──
   { key: 'BBB_URL', env: 'BIGBLUEBUTTON_URL', group: 'کلاس مجازی (BBB / Moodle)', label: 'نشانی API بیگ‌بلوباتن', type: 'url', default: '', help: 'مثال: https://vc.example.ac.ir/bigbluebutton/api — خالی یعنی سرویس غیرفعال' },
@@ -314,6 +356,28 @@ export async function getSetting(key: string): Promise<string> {
   const fromDb = rows[key];
   if (fromDb !== undefined && fromDb !== '') return fromDb;
   return envOf(def) ?? def.default;
+}
+
+/** نگاشت «کد فرم» → کلید تنظیمات مربوط به جایگاههای امضای همان فرم */
+const SIGNER_KEYS: Record<string, string> = {
+  'finance-report': 'SIGNERS_FINANCE_REPORTS',
+  'edu-report': 'SIGNERS_EDU_REPORTS',
+  'custom-report': 'SIGNERS_CUSTOM_REPORTS',
+  transcript: 'SIGNERS_TRANSCRIPT',
+  certificate: 'SIGNERS_CERTIFICATES',
+  card: 'SIGNERS_CARDS',
+};
+
+/**
+ * برچسبهای امضای یک فرم، از «تنظیمات سامانه».
+ * فرمهای تازه فقط کافی است یک کلید به `SIGNER_KEYS` و یک `SettingDef`
+ * اضافه کنند؛ نیازی به دستکاری کامپوننت چاپ نیست.
+ */
+export async function getFormSigners(form: string): Promise<string[]> {
+  const key = SIGNER_KEYS[form];
+  if (!key) return [];
+  const raw = await getSetting(key).catch(() => '');
+  return raw.split(/[|\n\r,،]+/).map(s => s.trim()).filter(Boolean).slice(0, 6);
 }
 
 export async function getSettings<T extends readonly string[]>(keys: T): Promise<Record<T[number], string>> {

@@ -11,7 +11,14 @@ import { isRealUniversityId } from '@/lib/university-scope';
 export const PER = 50;
 
 export type ReportFilters = {
+  /** کد یک ترم (سازگاری عقبرو با همهٔ ماژولهای r-*.ts)؛ خالی = بدون فیلتر ترم */
   term?: string;
+  /**
+   * فهرست ترمهای انتخابشده، جدا شده با ویرگول (مثلاً «14051,14052»).
+   * وقتی بیش از یک ترم باشد، `runReport` هر ترم را جدا اجرا و نتایج را
+   * با ستون «ترم» ادغام میکند. یکترم/همهترمها همچنان از `term` میگذرند.
+   */
+  terms?: string;
   degreeId?: number;
   facultyId?: number;
   majorId?: number;
@@ -69,6 +76,12 @@ export type FilterOptions = {
   entryYears: number[];
   latestTerm: string;
   universities: { id: number; code: string; title: string; kind: string }[];
+  /** نام دانشگاهِ فعال (پروفایل دانشگاه ← تنظیمات UNIVERSITY_NAME) */
+  universityTitle: string;
+  /** آرم دانشگاهِ فعال (universities.logoUrl ← تنظیمات UNIVERSITY_LOGO) */
+  universityLogoUrl: string;
+  /** برچسب جایگاههای امضای فرم جاری، از «تنظیمات سامانه» */
+  signers: string[];
 };
 
 export const NUM = sql`e."gradeValue"::text ~ '^[0-9]+(\\.[0-9]+)?$'`;
