@@ -139,5 +139,22 @@ ok(adminLayoutSrc.indexOf('<AdminNav') > adminLayoutSrc.indexOf('</header>'),
 ok(/aria-haspopup="dialog"/.test(adminNavSrc) && /aria-expanded/.test(adminNavSrc),
   'تریگر منو aria-haspopup/aria-expanded دارد');
 
+console.log('\n— گزارش‌های پرداختی مالی (r-finance) —');
+const financeR = read(path.join(SRC, 'app', 'admin', 'reports', 'r-finance.ts'));
+const helpers = read(path.join(SRC, 'app', 'admin', 'reports', 'report-helpers.ts'));
+const reportsClient = read(path.join(SRC, 'app', 'admin', 'reports', 'ReportsClient.tsx'));
+const PAY_KINDS = [
+  'total-payments',
+  'student-payments',
+  'term-payments',
+  'accounting-voucher',
+  'term-financial',
+];
+for (const k of PAY_KINDS) {
+  ok(financeR.includes(`kind === '${k}'`), `منطق گزارش «${k}» در r-finance پیاده شده است`);
+  ok(helpers.includes(`'${k}'`), `«${k}» در ALL_REPORT_KINDS ثبت شده است`);
+  ok(reportsClient.includes(`kind: '${k}'`), `کارت «${k}» در مرکز گزارش‌ها موجود است`);
+}
+
 console.log(`\n${fail === 0 ? '✓' : '✗'} ${pass} قبول / ${fail} رد`);
 if (fail > 0) process.exit(1);

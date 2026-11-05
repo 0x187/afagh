@@ -51,6 +51,12 @@ const FINANCE_KINDS = new Set([
   'payroll-overview',
   'bi-teaching-quality',
   'bi-facilities',
+  // گزارش‌های پرداختی/مالی (r-finance) — هم‌ریخت با اسناد رسمی
+  'total-payments',
+  'student-payments',
+  'term-payments',
+  'accounting-voucher',
+  'term-financial',
 ]);
 
 /** نگاشت kind → مرکز: فقط «مالی» جدا می‌شود؛ مابقی آموزشی‌اند */

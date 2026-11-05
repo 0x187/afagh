@@ -174,6 +174,8 @@ export const ALL_REPORT_KINDS: string[] = [
   'graduation-dossiers', 'grade-audit-log',
   // تشکیل کلاس استادان (r-prof-class)
   'prof-formation-summary', 'prof-formation-detail', 'prof-formation-none', 'prof-sessions-unformed',
+  // گزارش‌های پرداختی/مالی هم‌ریخت با اسناد سما (r-finance)
+  'total-payments', 'student-payments', 'term-payments', 'accounting-voucher', 'term-financial',
 ];
 
 /** گیت ماتریس دسترسی برای هر گزارش: ADMIN آزاد، بقیه نیازمند reports:<kind> */

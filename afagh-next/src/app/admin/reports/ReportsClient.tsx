@@ -88,6 +88,12 @@ const CARDS: Card[] = [
   // مالی
   { kind: 'tuition-tariff', cat: 'finance', icon: '💰', title: 'تعرفه تحصیلی', needsTerm: true },
   { kind: 'tuition-statement', cat: 'finance', icon: '🧾', title: 'صورت‌حساب شهریه', needsTerm: true },
+  // ── گزارش‌های پرداختی (هم‌ریخت با اسناد رسمی سما) ──
+  { kind: 'total-payments', cat: 'finance', icon: '📊', title: 'گزارش کل پرداختی دانشجویان' },
+  { kind: 'student-payments', cat: 'finance', icon: '🧾', title: 'گزارش پرداختی دانشجویان (تفصیلی)', needsTerm: true },
+  { kind: 'term-payments', cat: 'finance', icon: '💳', title: 'گزارش مبلغ پرداختی نیمسال', needsTerm: true },
+  { kind: 'accounting-voucher', cat: 'finance', icon: '📑', title: 'سند حسابداری (دفتر روزنامه)', needsTerm: true, customs: [{ key: 'voucherNo', title: 'شماره سند' }] },
+  { kind: 'term-financial', cat: 'finance', icon: '📈', title: 'گزارش مالی نیمسال (تجمیعی)', needsTerm: true },
   // پژوهش
   { kind: 'proposal-cap', cat: 'research', icon: '🎓', title: 'ظرفیت پروپوزال استادان', soon: true },
   { kind: 'pending-requests', cat: 'research', icon: '⏳', title: 'درخواست‌های درانتظار' },
