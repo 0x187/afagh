@@ -1487,6 +1487,7 @@ html {
     background: white !important;
     border: 1px solid black !important;
     padding: 6mm !important;
+    table-layout: fixed !important;
   }
   /* جدول HTML اصلی را در چاپ پنهان کن (فقط لایهٔ چاپی نمایش داده شود) */
   #report-result,
@@ -1496,11 +1497,6 @@ html {
   body {
     background: #ffffff !important;
     color: #000000 !important;
-  }
-  /* تمام المان‌ها در چاپ رنگ سیاه داشته باشند */
-  * {
-    color: #000000 !important;
-    border-color: #000000 !important;
   }
   /* لینک‌ها در چاپ رنگ nadارند (فقط متن) */
   a {

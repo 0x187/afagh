@@ -601,14 +601,14 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
               <table className="w-full text-right text-xs rt">
                 <thead className="bg-slate-100 border-b border-slate-300 font-bold text-slate-700 sticky top-0">
                   <tr>
-                    {res.columns.map(c => <th key={c.key} className="p-2 whitespace-nowrap">{c.title}</th>)}
+                    {res.columns.map(c => <th key={c.key} className="p-2 print:whitespace-normal">{c.title}</th>)}
                   </tr>
                 </thead>
                 <tbody>
                   {res.rows.map((r, i) => (
                     <tr key={i} className="border-b border-slate-200 hover:bg-slate-50">
                       {res.columns.map(c => (
-                        <td key={c.key} className="p-2 whitespace-nowrap font-mono" dir={/^[0-9]/.test(String(r[c.key] ?? '')) ? 'ltr' : 'auto'}>
+                        <td key={c.key} className="p-2 font-mono print:whitespace-normal print:break-words" dir={/^[0-9]/.test(String(r[c.key] ?? '')) ? 'ltr' : 'auto'}>
                           {fmtCell(r[c.key], c.format)}
                         </td>
                       ))}

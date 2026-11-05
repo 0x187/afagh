@@ -76,7 +76,7 @@ export default function ReportPrint({
           </div>
 
           {/* جدول */}
-          <table className="print:w-full print:border print:border-collapse print:mt-4mm print:text-xs print:leading-5">
+          <table className="print:w-full print:border print:border-collapse print:table-fixed print:mt-4mm print:text-xs print:leading-5">
             <thead className="print:bg-slate-100 print:text-black print:font-bold print:uppercase print:text-[9px]">
               <tr>
                 {columns.map((c) => (
@@ -95,7 +95,7 @@ export default function ReportPrint({
                   {columns.map((c) => (
                     <td
                       key={c.key}
-                      className="print:p-1mm print:text-right print:border-b print:border-black/30 print:text-[9px] print:leading-4"
+                      className="print:p-1mm print:text-right print:border-b print:border-black/30 print:text-[9px] print:leading-4 print:overflow-wrap-anywhere"
                       dir={
                         /^[0-9]/.test(String(row[c.key] ?? ''))
                           ? 'ltr'
