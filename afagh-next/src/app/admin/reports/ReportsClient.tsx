@@ -5,6 +5,7 @@ import { exportReport, runReport, type FilterOptions, type ReportResult } from '
 import { LINK_CARDS } from './report-links';
 import { faIncludes } from '@/lib/persian-search';
 import { faNum, formatReportCell as fmtCell } from '@/lib/report-format';
+import ReportPrint from '@/components/ui/ReportPrint';
 
 /** ارقام لاتین → فارسی (بدون تبدیل عدد) */
 type ReportCat = 'students' | 'probation' | 'program' | 'exams' | 'classes' | 'finance' | 'research';
@@ -561,9 +562,14 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
               {loading ? '⏳ در حال اجرا...' : '▶ اجرای گزارش'}
             </button>
             {res && res.rows.length > 0 && (
-              <button onClick={doExport} disabled={exporting} className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded disabled:opacity-50 mr-auto">
-                {exporting ? '⏳...' : '📥 خروجی Excel (CSV)'}
-              </button>
+              <>
+                <button onClick={doExport} disabled={exporting} className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded disabled:opacity-50 mr-auto">
+                  {exporting ? '⏳...' : '📥 خروجی Excel (CSV)'}
+                </button>
+                <button onClick={() => window.print()} className="px-3 py-1.5 bg-indigo-700 hover:bg-indigo-800 text-white font-bold rounded print:hidden">
+                  🖨️ چاپ گزارش
+                </button>
+              </>
             )}
           </div>
         </div>
@@ -571,7 +577,7 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
 
       {/* پیوند به صفحات تخصصی — جمع‌شونده در انتها تا مسیر اجرا→نتیجه تمیز بماند */}
       {/* نتیجه */}
-      <div id="report-result" className="bg-white border border-slate-300 rounded-xl shadow-sm overflow-hidden scroll-mt-4">
+      <div id="report-result" className="bg-white border border-slate-300 rounded-xl shadow-sm overflow-hidden scroll-mt-4 print:hidden">
         {err ? (
           <p className="p-8 text-center text-rose-700 bg-rose-50 text-sm font-bold">خطا: {err}</p>
         ) : loading ? (
@@ -621,6 +627,18 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
           </>
         )}
       </div>
+      {/* لایهٔ چاپی — فقط در حالت چاپ نمایش داده شود (table HTML در print مخفی است) */}
+      {res && (
+        <ReportPrint
+          title={card?.title ?? 'گزارش'}
+          subtitle={kind}
+          columns={res.columns}
+          rows={res.rows}
+          summary={res.summary}
+          universityTitle=""
+          reportDate=""
+        />
+      )}
 
       {/* پیوند به صفحات تخصصی — جمع‌شونده در انتهای صفحه */}
       <div className="bg-white border border-slate-300 rounded-xl shadow-sm overflow-hidden">
