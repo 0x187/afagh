@@ -15,6 +15,11 @@ export const CARDS = [
   { kind: 'term-payments', icon: '💳', title: 'گزارش مبلغ پرداختی نیمسال', needsTerm: true },
   { kind: 'accounting-voucher', icon: '📑', title: 'سند حسابداری (دفتر روزنامه)', needsTerm: true },
   { kind: 'term-financial', icon: '📈', title: 'گزارش مالی نیمسال (تجمیعی)', needsTerm: true },
+  // ── گزارش‌های مدیریتی تجمیعی شهریه ──
+  { kind: 'tuition-overview', icon: '🧮', title: 'مدیریت کلان وضعیت شهریه (هر دانشجو)', needsTerm: true },
+  { kind: 'tuition-faculty-detail', icon: '🏛️', title: 'تفصیلی مالی (دانشکده × مقطع)', needsTerm: true },
+  { kind: 'faculty-financial', icon: '🏢', title: 'گزارش مالی دانشکده‌ها', needsTerm: true },
+  { kind: 'major-financial', icon: '📚', title: 'گزارش مالی نیمسال (مقطع × رشته)', needsTerm: true },
 ];
 
 const CHARGE = sql`sl."transactionType" IN ('TUITION_FIXED','TUITION_VARIABLE','SUBJECT_ADDITIVE','TUITION_CHARGE','CHARGE','TUITION_ADJUST_DEC')`;
@@ -306,7 +311,186 @@ export async function run(kind: string, f: ReportFilters): Promise<ReportResult 
     return r;
   }
 
+  // ══════════════════════════════════════════════════════════════════
+  //  گزارش‌های مدیریتی شهریه (تجمیعی دانشکده / مقطع / رشته / ورودی)
+  //  نگاشت ستون‌ها به واژگان دفتر کل:
+  //    شهریه ثابت   = TUITION_FIXED | TUITION_CHARGE | CHARGE
+  //    شهریه متغیر  = TUITION_VARIABLE | SUBJECT_ADDITIVE
+  //    تعدیل کاهشی  = TUITION_ADJUST_DEC   (به بدهی اضافه می‌شود)
+  //    تخفیف متفرقه = DISCOUNT_FIXED | DISCOUNT_VARIABLE | SUBJECT_DEDUCTIVE | TUITION_ADJUST_INC
+  //    تخفیف پرداخت = TUITION_BATES       (بیتسِ ثبت‌شده هنگام پرداخت)
+  //    مساعده       = LOAN
+  //    پرداختی ترم  = PAYMENT | POS_PAYMENT | SPONSORSHIP
+  // ══════════════════════════════════════════════════════════════════
+  const FIXED = sql`sl."transactionType" IN ('TUITION_FIXED','TUITION_CHARGE','CHARGE')`;
+  const VARIABLE = sql`sl."transactionType" IN ('TUITION_VARIABLE','SUBJECT_ADDITIVE')`;
+  const ADJ_DEC = sql`sl."transactionType" = 'TUITION_ADJUST_DEC'`;
+  const DISC_MISC = sql`sl."transactionType" IN ('DISCOUNT_FIXED','DISCOUNT_VARIABLE','SUBJECT_DEDUCTIVE','TUITION_ADJUST_INC')`;
+  const DISC_PAY = sql`sl."transactionType" = 'TUITION_BATES'`;
+  const ADVANCE = sql`sl."transactionType" = 'LOAN'`;
+  const PAY_ONLY = sql`sl."transactionType" IN ('PAYMENT','POS_PAYMENT','SPONSORSHIP')`;
+
+  const SUM = (cond: ReturnType<typeof sql>) =>
+    sql`COALESCE(SUM(sl.amount) FILTER (WHERE ${cond}), 0)::bigint`;
+
+  /** بدنهٔ مشترک: ستون‌های مالی + فیلتر ترم/دانشگاه */
+  const finBody = () => {
+    const fixed = SUM(FIXED);
+    const variable = SUM(VARIABLE);
+    const adjDec = SUM(ADJ_DEC);
+    const discMisc = SUM(DISC_MISC);
+    const discPay = SUM(DISC_PAY);
+    const advance = SUM(ADVANCE);
+    const paid = SUM(PAY_ONLY);
+    const charge = sql`(${fixed} + ${variable} + ${adjDec})`;
+    const disc = sql`(${discMisc} + ${discPay})`;
+    const balance = sql`(${charge} - ${disc} - ${paid})`;
+    return {
+      cols: sql`${fixed} AS fixed, ${variable} AS variable, ${adjDec} AS adjdec,
+        ${discMisc} AS discmisc, ${discPay} AS discpay, ${disc}::bigint AS disctotal,
+        ${advance} AS advanceamt,
+        ${charge}::bigint AS charge, ${paid} AS paid,
+        ${balance}::bigint AS balance,
+        GREATEST(${balance}, 0)::bigint AS debtor,
+        GREATEST(-(${balance}), 0)::bigint AS creditor`,
+      charge, disc, balance, paid,
+    };
+  };
+
+  const finCols = (extra: { key: string; title: string; format?: 'MONEY' | 'NUMBER' | 'DATE' }[]) => [
+    ...extra,
+    { key: 'fixed', title: 'شهریه ثابت', format: 'MONEY' as const },
+    { key: 'variable', title: 'شهریه متغیر', format: 'MONEY' as const },
+    { key: 'discmisc', title: 'تخفیفات متفرقه', format: 'MONEY' as const },
+    { key: 'discpay', title: 'تخفیفات پرداختی‌ها', format: 'MONEY' as const },
+    { key: 'disctotal', title: 'جمع تخفیفات', format: 'MONEY' as const },
+    { key: 'advanceamt', title: 'مبالغ مساعده', format: 'MONEY' as const },
+    { key: 'charge', title: 'جمع بدهکار', format: 'MONEY' as const },
+    { key: 'paid', title: 'پرداختی این نیمسال', format: 'MONEY' as const },
+    { key: 'debtor', title: 'بدهکار', format: 'MONEY' as const },
+    { key: 'creditor', title: 'بستانکار', format: 'MONEY' as const },
+    { key: 'balance', title: 'مانده کل', format: 'MONEY' as const },
+  ];
+
+  // ── ۶) گزارش مدیریت کلان وضعیت شهریه (یک ردیف برای هر دانشجو) ──
+  if (kind === 'tuition-overview') {
+    const f6 = finBody();
+    const units = sql`(SELECT COUNT(*)::int FROM enrollments en
+      WHERE en."studentId" = s.id
+      ${f.term ? sql`AND en."offeringId" IN (SELECT co.id FROM course_offerings co WHERE co."termId" = (SELECT id FROM academic_terms WHERE "termCode" = ${f.term} LIMIT 1))` : sql``}
+    )`;
+    const from = sql`FROM students s
+      JOIN users u ON u.id = s."userId"
+      LEFT JOIN majors m ON m.id = s."majorId"
+      LEFT JOIN faculties fc ON fc.id = m."facultyId"
+      LEFT JOIN degree_level_configs d ON d.id = s."degreeLevelId"
+      LEFT JOIN student_ledger sl ON sl."studentId" = s.id
+      ${f.term ? sql`AND sl."termId" = (SELECT id FROM academic_terms WHERE "termCode" = ${f.term} LIMIT 1)` : sql``}`;
+    const cols = sql`s."studentCode" AS code, fc.name AS faculty, d.title AS degree,
+      s."entryYear" AS y, ${units} AS units, ${f6.cols}`;
+    const r = await paged(
+      finCols([
+        { key: 'code', title: 'کد دانشجو' },
+        { key: 'faculty', title: 'دانشکده' },
+        { key: 'degree', title: 'مقطع' },
+        { key: 'y', title: 'سال ورودی', format: 'NUMBER' },
+        { key: 'units', title: 'تعداد واحد ثبت‌شده', format: 'NUMBER' },
+      ]),
+      from, [...studentWhere(f), uniCond], cols,
+      sql`ORDER BY fc.name NULLS LAST, s."entryYear", s."studentCode"`, f,
+      sql`s.id, s."studentCode", fc.name, d.title, s."entryYear"`,
+    );
+    r.summary = `${r.total.toLocaleString('fa-IR')} دانشجو${f.term ? ` — نیمسال ${f.term}` : ' — همهٔ ترم‌ها'}`;
+    return r;
+  }
+
+  // ── ۷) گزارش تفصیلی مالی دانشجویان به تفکیک دانشکده و مقطع ──
+  if (kind === 'tuition-faculty-detail') {
+    const f7 = finBody();
+    const from = sql`FROM students s
+      JOIN users u ON u.id = s."userId"
+      LEFT JOIN majors m ON m.id = s."majorId"
+      LEFT JOIN faculties fc ON fc.id = m."facultyId"
+      LEFT JOIN degree_level_configs d ON d.id = s."degreeLevelId"
+      LEFT JOIN student_ledger sl ON sl."studentId" = s.id
+      ${f.term ? sql`AND sl."termId" = (SELECT id FROM academic_terms WHERE "termCode" = ${f.term} LIMIT 1)` : sql``}`;
+    const cols = sql`COALESCE(fc.name, '—') AS faculty, COALESCE(d.title, '—') AS degree,
+      COUNT(DISTINCT s.id)::int AS students, ${f7.cols}`;
+    const r = await paged(
+      finCols([
+        { key: 'faculty', title: 'دانشکده' },
+        { key: 'degree', title: 'مقطع' },
+        { key: 'students', title: 'تعداد دانشجو', format: 'NUMBER' },
+      ]),
+      from, [...studentWhere(f), uniCond], cols,
+      sql`ORDER BY COALESCE(fc.name, '—'), COALESCE(d.title, '—')`, f,
+      sql`fc.name, d.title`,
+    );
+    r.summary = `${r.total.toLocaleString('fa-IR')} ردیف (دانشکده × مقطع)${f.term ? ` — نیمسال ${f.term}` : ''}`;
+    return r;
+  }
+
+  // ── ۸) گزارش مالی دانشکده‌ها (دانشکده × ترم × سال ورودی) ──
+  if (kind === 'faculty-financial') {
+    const f8 = finBody();
+    const from = sql`FROM students s
+      JOIN users u ON u.id = s."userId"
+      LEFT JOIN majors m ON m.id = s."majorId"
+      LEFT JOIN faculties fc ON fc.id = m."facultyId"
+      LEFT JOIN degree_level_configs d ON d.id = s."degreeLevelId"
+      LEFT JOIN student_ledger sl ON sl."studentId" = s.id
+      LEFT JOIN academic_terms t ON t.id = sl."termId"
+      ${f.term ? sql`AND t."termCode" = ${f.term}` : sql``}`;
+    const cols = sql`COALESCE(fc.name, '—') AS faculty, s."entryYear" AS y,
+      COALESCE(t."termCode", '—') AS term,
+      COUNT(DISTINCT s.id)::int AS students, ${f8.cols}`;
+    const r = await paged(
+      finCols([
+        { key: 'faculty', title: 'دانشکده' },
+        { key: 'term', title: 'ترم' },
+        { key: 'y', title: 'سال ورودی', format: 'NUMBER' },
+        { key: 'students', title: 'تعداد دانشجو', format: 'NUMBER' },
+      ]),
+      from, [...studentWhere(f), uniCond], cols,
+      sql`ORDER BY COALESCE(fc.name, '—'), s."entryYear"`, f,
+      sql`fc.name, s."entryYear", t."termCode"`,
+    );
+    r.summary = `${r.total.toLocaleString('fa-IR')} ردیف (دانشکده × ورودی × ترم)${f.term ? ` — نیمسال ${f.term}` : ''}`;
+    return r;
+  }
+
+  // ── ۹) گزارش مالی نیمسال به تفکیک مقطع و رشته (و ورودی) ──
+  if (kind === 'major-financial') {
+    const f9 = finBody();
+    const from = sql`FROM students s
+      JOIN users u ON u.id = s."userId"
+      LEFT JOIN majors m ON m.id = s."majorId"
+      LEFT JOIN faculties fc ON fc.id = m."facultyId"
+      LEFT JOIN degree_level_configs d ON d.id = s."degreeLevelId"
+      LEFT JOIN student_ledger sl ON sl."studentId" = s.id
+      ${f.term ? sql`AND sl."termId" = (SELECT id FROM academic_terms WHERE "termCode" = ${f.term} LIMIT 1)` : sql``}`;
+    const cols = sql`COALESCE(d.title, '—') AS degree, COALESCE(fc.name, '—') AS faculty,
+      COALESCE(m.name, '—') AS major, s."entryYear" AS y,
+      COUNT(DISTINCT s.id)::int AS students, ${f9.cols}`;
+    const r = await paged(
+      finCols([
+        { key: 'degree', title: 'مقطع' },
+        { key: 'faculty', title: 'دانشکده' },
+        { key: 'major', title: 'رشته' },
+        { key: 'y', title: 'سال ورودی', format: 'NUMBER' },
+        { key: 'students', title: 'تعداد دانشجو', format: 'NUMBER' },
+      ]),
+      from, [...studentWhere(f), uniCond], cols,
+      sql`ORDER BY COALESCE(d.title, '—'), COALESCE(fc.name, '—'), COALESCE(m.name, '—'), s."entryYear"`, f,
+      sql`d.title, fc.name, m.name, s."entryYear"`,
+    );
+    r.summary = `${r.total.toLocaleString('fa-IR')} ردیف (مقطع × رشته × ورودی)${f.term ? ` — نیمسال ${f.term}` : ''}`;
+    return r;
+  }
+
   return null;
 }
+
+
 
 

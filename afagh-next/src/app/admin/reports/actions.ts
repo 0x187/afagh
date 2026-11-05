@@ -57,6 +57,10 @@ const FINANCE_KINDS = new Set([
   'term-payments',
   'accounting-voucher',
   'term-financial',
+  'tuition-overview',
+  'tuition-faculty-detail',
+  'faculty-financial',
+  'major-financial',
 ]);
 
 /** نگاشت kind → مرکز: فقط «مالی» جدا می‌شود؛ مابقی آموزشی‌اند */

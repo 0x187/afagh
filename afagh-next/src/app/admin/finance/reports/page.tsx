@@ -15,6 +15,11 @@ const DOCKS: { href: string; icon: string; title: string; desc: string; tone: st
   { href: '/admin/finance/reports?kind=term-payments', icon: '💳', title: 'مبلغ پرداختی نیمسال', desc: 'واحد، پرداختی، شهریه، تخفیف، مانده', tone: 'from-violet-500/15 to-violet-50/60 border-violet-300 hover:border-violet-500' },
   { href: '/admin/finance/reports?kind=accounting-voucher', icon: '📑', title: 'سند حسابداری', desc: 'دفتر روزنامه: بدهکار / بستانکار', tone: 'from-amber-500/15 to-amber-50/60 border-amber-300 hover:border-amber-500' },
   { href: '/admin/finance/reports?kind=term-financial', icon: '📈', title: 'گزارش مالی نیمسال', desc: 'تجمیعی ترم × دانشجو', tone: 'from-teal-500/15 to-teal-50/60 border-teal-300 hover:border-teal-500' },
+  // ── گزارش‌های مدیریتی تجمیعی شهریه ──
+  { href: '/admin/finance/reports?kind=tuition-overview', icon: '🧮', title: 'مدیریت کلان شهریه', desc: 'هر دانشجو: ثابت/متغیر/تخفیف/مانده', tone: 'from-emerald-500/15 to-emerald-50/60 border-emerald-300 hover:border-emerald-500' },
+  { href: '/admin/finance/reports?kind=tuition-faculty-detail', icon: '🏛️', title: 'تفصیلی مالی (دانشکده × مقطع)', desc: 'تجمیع دانشکده و مقطع', tone: 'from-sky-500/15 to-sky-50/60 border-sky-300 hover:border-sky-500' },
+  { href: '/admin/finance/reports?kind=faculty-financial', icon: '🏢', title: 'مالی دانشکده‌ها', desc: 'دانشکده × ترم × ورودی + تعداد دانشجو', tone: 'from-violet-500/15 to-violet-50/60 border-violet-300 hover:border-violet-500' },
+  { href: '/admin/finance/reports?kind=major-financial', icon: '📚', title: 'مالی مقطع × رشته', desc: 'تفکیک مقطع، دانشکده، رشته و ورودی', tone: 'from-amber-500/15 to-amber-50/60 border-amber-300 hover:border-amber-500' },
   { href: '/admin/finance/reports/student-statement', icon: '📄', title: 'صورت‌حساب / کارنامهٔ مالی', desc: 'سند رسمی ترم‌به‌ترم + چاپ PDF', tone: 'from-rose-500/15 to-rose-50/60 border-rose-300 hover:border-rose-500' },
   { href: '/admin/finance', icon: '🗂️', title: 'کارتابل مالی', desc: 'ماندهٔ همهٔ دانشجویان + فیلتر', tone: 'from-indigo-500/15 to-indigo-50/60 border-indigo-300 hover:border-indigo-500' },
   { href: '/admin/tuition', icon: '🧮', title: 'موتور شهریه', desc: 'تعرفه، ضریب و محاسبهٔ شهریه', tone: 'from-slate-500/15 to-slate-50/60 border-slate-300 hover:border-slate-500' },

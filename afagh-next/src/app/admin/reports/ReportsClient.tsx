@@ -94,6 +94,10 @@ const CARDS: Card[] = [
   { kind: 'term-payments', cat: 'finance', icon: '💳', title: 'گزارش مبلغ پرداختی نیمسال', needsTerm: true },
   { kind: 'accounting-voucher', cat: 'finance', icon: '📑', title: 'سند حسابداری (دفتر روزنامه)', needsTerm: true, customs: [{ key: 'voucherNo', title: 'شماره سند' }] },
   { kind: 'term-financial', cat: 'finance', icon: '📈', title: 'گزارش مالی نیمسال (تجمیعی)', needsTerm: true },
+  { kind: 'tuition-overview', cat: 'finance', icon: '🧮', title: 'مدیریت کلان وضعیت شهریه (هر دانشجو)', needsTerm: true },
+  { kind: 'tuition-faculty-detail', cat: 'finance', icon: '🏛️', title: 'تفصیلی مالی (دانشکده × مقطع)', needsTerm: true },
+  { kind: 'faculty-financial', cat: 'finance', icon: '🏢', title: 'گزارش مالی دانشکده‌ها', needsTerm: true },
+  { kind: 'major-financial', cat: 'finance', icon: '📚', title: 'گزارش مالی نیمسال (مقطع × رشته)', needsTerm: true },
   // پژوهش
   { kind: 'proposal-cap', cat: 'research', icon: '🎓', title: 'ظرفیت پروپوزال استادان', soon: true },
   { kind: 'pending-requests', cat: 'research', icon: '⏳', title: 'درخواست‌های درانتظار' },

@@ -149,6 +149,11 @@ const PAY_KINDS = [
   'term-payments',
   'accounting-voucher',
   'term-financial',
+  // گزارش‌های مدیریتی تجمیعی شهریه
+  'tuition-overview',
+  'tuition-faculty-detail',
+  'faculty-financial',
+  'major-financial',
 ];
 for (const k of PAY_KINDS) {
   ok(financeR.includes(`kind === '${k}'`), `منطق گزارش «${k}» در r-finance پیاده شده است`);
