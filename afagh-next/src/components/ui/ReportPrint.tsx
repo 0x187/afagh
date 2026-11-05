@@ -1,17 +1,16 @@
 'use client';
 
 import React from 'react';
-import Link from 'next/link';
 import { faNum, formatReportCell as fmtCell } from '@/lib/report-format';
 
 /**
- * دکمهٔ «چاپ گزارش» — فقط در حالتِ چاپ (screen) دکمه نمایش داده نمی‌شود.
- * وقتی کاربر دکمهٔ چاپ مرورگر را می‌زند، این مكون به‌صورتِ سرäter (overlay)
- * ظاهر می‌شود و محتوای ReportResult را با چیدمانِ چاپی (سرтанه، جدول،
- * شماره، تاریخ، امضاء، حاشیهٔ A4) نمایش می‌دهد.
+ * لایهٔ چاپی گزارش — فقط در حالتِ چاپ (print media) نمایش داده می‌شود.
+ * وقتی کاربر دکمهٔ چاپ مرورگر را می‌زند، این لایه overlay می‌شود و محتوای
+ * ReportResult را با چیدمانِ چاپی (سرтанه، جدول، شماره، تاریخ، امضاء،
+ * حاشیهٔ A4) نمایش می‌دهد.
  *
  * چرا: گزارش‌های مالی برای حسابرس باید کاغذی، عدد با جداکنندهٔ هزارگان،
- * تاریخ شمسی، جدول ردیف‌به‌ردیف و امضاء داشته باشند. نمایشِcreen (HTML)
+ * تاریخ شمسی، جدول ردیف‌به‌ردیف و امضاء داشته باشد. نمایشِ screen (HTML)
  * مناسب-print نیست (سرтанه، رنگ‌های پس‌زمینه، دکمه‌ها، …).
  */
 export default function ReportPrint({
@@ -22,26 +21,22 @@ export default function ReportPrint({
   summary,
   universityTitle,
   reportDate,
-  printOn,
 }: {
-  /** عنوان گزارش (مثل «گزارش денег�� 획득 estudiantes») */
+  /** عنوان گزارش */
   title: string;
-  /** زیرعنوان (مثل «نام کاربری: … | نیمسال: ۱۴۰۳-۱») */
+  /** زیرعنوان */
   subtitle: string;
   /** ستون‌ها (همان ReportColumn[]) */
   columns: { key: string; title: string; format?: string }[];
   /** ردیف‌ها (همان ReportResult.rows[]) */
   rows: Record<string, unknown>[];
-  /** متن خلاصه (مثل «۱۰۰ دانشجو — جمع بدهکار: ۵۰۰٫۰۰۰٫۰۰۰ ریال») */
+  /** متن خلاصه */
   summary?: string;
   /** نام دانشگاه */
   universityTitle?: string;
   /** تاریخ گزارش */
   reportDate?: string;
-  /** آیا لایهٔ چاپ فعال باشد (برای تست) */
-  printOn?: boolean;
 }) {
-  const isPrint = printOn ?? typeof window === 'undefined';
   const faDate = reportDate || new Date().toLocaleDateString('fa-IR', {
     year: 'numeric',
     month: 'numeric',
@@ -50,26 +45,21 @@ export default function ReportPrint({
 
   return (
     <>
-      {/* دکمهٔ چاپ — فقط روی screen */}
-      {!printOn ? (
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="rounded-lg bg-indigo-700 px-4 py-2 text-xs font-bold text-white transition hover:bg-indigo-800 print:hidden"
-        >
-          🖨️ چاپ گزارش
-        </button>
-      ) : null}
-
-      {/* لایهٔ چاپی — فقط در حالتِ print */}
-      <div
-        className={`report-print-overlay print:!flex print:items-center print:justify-center print:bg-white print:fixed print:inset-0 print:z-[100] print:p-4 print:text-black print:font-[Vazirmatn] ${
-          isPrint ? 'block' : 'hidden'
-        }`}
+      {/* دکمهٔ چاپ — فقط روی نمایش (screen) */}
+      <button
+        type="button"
+        onClick={() => window.print()}
+        className="rounded-lg bg-indigo-700 px-4 py-2 text-xs font-bold text-white transition hover:bg-indigo-800 print:hidden"
       >
-        {/* escondido en pantalla pero visible en impresión */}
+        🖨️ چاپ گزارش
+      </button>
+
+      {/* لایهٔ چاپی — فقط در حالتِ print (screen پرزنه است) */}
+      <div
+        className="report-print-overlay hidden print:!flex print:items-center print:justify-center print:bg-white print:fixed print:inset-0 print:z-[100] print:p-4 print:text-black print:font-[Vazirmatn]"
+      >
         <div
-          className="print:block print:w-full print:max-w-[180mm] print:p-6mm print:bg-white print:border print:border-black"
+          className="hidden print:block print:w-full print:max-w-[180mm] print:p-6mm print:bg-white print:border print:border-black"
         >
           {/* سرтанه */}
           <div className="print:mb-6mm print:flex print:flex-col print:items-start print:gap-1">
@@ -130,13 +120,13 @@ export default function ReportPrint({
           {/* امضاء */}
           <div className="print:mt-8mm print:flex print:justify-between print:text-xs print:text-slate-600">
             <div className="print:w-1/3 print:border-t print:border-black print:pt-1mm print:text-center">
-              أجريت من قبل
+              اجرا شده توسط
             </div>
             <div className="print:w-1/3 print:border-t print:border-black print:pt-1mm print:text-center">
               تایید حسابدار
             </div>
             <div className="print:w-1/3 print:border-t print:border-black print:pt-1mm print:text-center">
-              مدیر finances
+              مدیر مالی
             </div>
           </div>
         </div>

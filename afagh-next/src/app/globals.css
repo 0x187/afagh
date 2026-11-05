@@ -1458,3 +1458,53 @@ html {
 .dark .hover\:slate-50\/80:hover { background-color: #1e293b !important; }
 .dark .hover\:white\/80:hover { background-color: #1e293b !important; }
 .dark .md\:indigo-50\/50 { background-color: rgba(49, 46, 129, 0.5) !important; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   چاپ گزارش‌ها — لایهٔ چاپی (ReportPrint) و پنهان‌سازی جدول HTML
+   این قاعده‌ها در حالتِ چاپ (print media) فعال می‌شوند تا گزارش‌های مالی
+   و اداری با سرтанه، جدول، شماره، تاریخ و امضاء چاپ شوند.
+   ═══════════════════════════════════════════════════════════════════════ */
+@media print {
+  /* لایهٔ چاپی را نمایش بده (screen پرزنه است) */
+  .report-print-overlay {
+    display: flex !important;
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 10000 !important;
+    background: white !important;
+    color: black !important;
+    font-family: Vazirmatn, Tahoma, sans-serif !important;
+    padding: 4mm !important;
+    overflow: auto !important;
+  }
+  /* لایهٔ چاپی در داخل را bloc بزنیم */
+  .report-print-overlay > div {
+    display: block !important;
+    width: 100% !important;
+    max-width: 180mm !important;
+    margin: 0 auto !important;
+    background: white !important;
+    border: 1px solid black !important;
+    padding: 6mm !important;
+  }
+  /* جدول HTML اصلی را در چاپ پنهان کن (فقط لایهٔ چاپی نمایش داده شود) */
+  #report-result,
+  header, footer, nav, aside, [role="navigation"], button, .print\:hidden {
+    display: none !important;
+  }
+  body {
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+  /* تمام المان‌ها در چاپ رنگ سیاه داشته باشند */
+  * {
+    color: #000000 !important;
+    border-color: #000000 !important;
+  }
+  /* لینک‌ها در چاپ رنگ nadارند (فقط متن) */
+  a {
+    color: #000000 !important;
+    text-decoration: none !important;
+  }
+}

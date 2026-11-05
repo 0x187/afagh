@@ -249,7 +249,7 @@ export async function run(kind: string, f: ReportFilters): Promise<ReportResult 
       JOIN students s ON s.id = sl."studentId"
       LEFT JOIN users u ON u.id = s."userId"
       ${termJoin}`;
-    const conds = [uniCond];
+    const conds = [...studentWhere(f), uniCond];
     if (f.voucherNo) {
       conds.push(sql`sl."voucherNo" ILIKE ${`%${escapeLikeChars(String(f.voucherNo))}%`} ESCAPE '\\'`);
     }
@@ -304,7 +304,7 @@ export async function run(kind: string, f: ReportFilters): Promise<ReportResult 
         { key: 'charge', title: 'شهریه', format: 'MONEY' },
         { key: 'balance', title: 'مانده', format: 'MONEY' },
       ],
-      from, [uniCond], cols, sql`ORDER BY COALESCE(t."termCode", '—') DESC, s."studentCode"`, f,
+      from, [...studentWhere(f), uniCond], cols, sql`ORDER BY COALESCE(t."termCode", '—') DESC, s."studentCode"`, f,
       sql`t."termCode", s.id, s."studentCode", u."firstName", u."lastName", m.name`,
     );
     r.summary = `${r.total.toLocaleString('fa-IR')} ردیف مالی${f.term ? ` — نیمسال ${f.term}` : ' — همهٔ ترم‌ها'}`;
