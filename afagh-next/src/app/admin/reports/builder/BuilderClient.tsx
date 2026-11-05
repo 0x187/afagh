@@ -487,7 +487,7 @@ export default function BuilderClient({
           <button type="button" onClick={save} disabled={busy || !cols.length || !name.trim()} className="btn btn-primary">
             💾 {initial ? 'ذخیرهٔ تغییرات' : 'ذخیرهٔ گزارش'}
           </button>
-          <Link href="/admin/reports/saved" className="btn btn-ghost">📂 گزارش‌های ذخیره‌شده</Link>
+          <Link prefetch={false} href="/admin/reports/saved" className="btn btn-ghost">📂 گزارش‌های ذخیره‌شده</Link>
           {msg && (
             <span className={`text-xs font-medium ${msg.kind === 'ok' ? 'text-emerald-700' : 'text-rose-600'}`}>{msg.text}</span>
           )}

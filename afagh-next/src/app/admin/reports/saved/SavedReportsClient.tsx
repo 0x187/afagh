@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { deleteSavedReport, exportSavedReportAction, runSavedReportAction } from './actions';
 import type { SavedReportRow } from './types';
 import { formatReportCell as fmtCell } from '@/lib/report-format';
+import { askConfirm } from '@/lib/ui-feedback';
 
 const VIS_FA: Record<string, string> = {
   PRIVATE: '🔒 خصوصی',
@@ -56,7 +57,13 @@ export default function SavedReportsClient({ reports }: { reports: SavedReportRo
   };
 
   const doDelete = async (r: SavedReportRow) => {
-    if (!confirm(`گزارشِ «${r.name}» حذف شود؟`)) return;
+    const ok = await askConfirm({
+      title: 'حذف گزارش ذخیره‌شده',
+      body: `گزارشِ «${r.name}» حذف شود؟`,
+      confirmText: 'حذف کن',
+      danger: true,
+    });
+    if (!ok) return;
     setBusy(true);
     const res = await deleteSavedReport(r.id);
     setBusy(false);
@@ -68,7 +75,7 @@ export default function SavedReportsClient({ reports }: { reports: SavedReportRo
     return (
       <div className="card !p-6 text-center">
         <p className="text-sm text-slate-500">هنوز گزارشی ذخیره نشده است.</p>
-        <Link href="/admin/reports/builder" className="btn btn-primary mt-3">🛠️ ساختِ گزارش تازه</Link>
+        <Link prefetch={false} href="/admin/reports/builder" className="btn btn-primary mt-3">🛠️ ساختِ گزارش تازه</Link>
       </div>
     );
   }
@@ -76,7 +83,7 @@ export default function SavedReportsClient({ reports }: { reports: SavedReportRo
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
-        <Link href="/admin/reports/builder" className="btn btn-primary">🛠️ گزارش‌ساز</Link>
+        <Link prefetch={false} href="/admin/reports/builder" className="btn btn-primary">🛠️ گزارش‌ساز</Link>
       </div>
 
       {err && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{err}</p>}
@@ -107,7 +114,7 @@ export default function SavedReportsClient({ reports }: { reports: SavedReportRo
               </button>
               {r.isOwner && (
                 <>
-                  <Link href={`/admin/reports/builder?edit=${r.id}`} className="btn btn-ghost !px-2.5 !py-1 text-2xs">✏️ ویرایش</Link>
+                  <Link prefetch={false} href={`/admin/reports/builder?edit=${r.id}`} className="btn btn-ghost !px-2.5 !py-1 text-2xs">✏️ ویرایش</Link>
                   <button type="button" onClick={() => doDelete(r)} disabled={busy} className="btn btn-ghost !px-2.5 !py-1 text-2xs !text-rose-600">🗑 حذف</button>
                 </>
               )}
