@@ -161,5 +161,17 @@ for (const k of PAY_KINDS) {
   ok(reportsClient.includes(`kind: '${k}'`), `کارت «${k}» در مرکز گزارش‌ها موجود است`);
 }
 
+console.log('\n— فیلتر وضعیت تحصیلی و دامنهٔ گزارش —');
+const helpersSrc = read(path.join(SRC, 'app', 'admin', 'reports', 'report-helpers.ts'));
+ok(/status\?: string/.test(helpersSrc), 'نوع فیلتر «وضعیت تحصیلی» در ReportFilters تعریف شده است');
+ok(/scope\?: string/.test(helpersSrc), 'نوع فیلتر «دامنه» (کل/ترم) در ReportFilters تعریف شده است');
+ok(/f\.status === 'ALL'|f\.status !== 'ALL'/.test(helpersSrc), 'شرط وضعیت تحصیلی در studentWhere اعمال می‌شود');
+ok(/f\.scope === 'term'/.test(helpersSrc), 'شرط دامنهٔ «فقط همین نیمسال» در studentWhere هست');
+for (const st of ['ACTIVE', 'GRADUATED', 'SUSPENDED', 'WITHDRAWN', 'EXPELLED', 'TRANSFERRED', 'NO_SHOW']) {
+  ok(reportsClient.includes(`value="${st}"`), `گزینهٔ وضعیت «${st}» در UI گزارش‌ها موجود است`);
+}
+ok(reportsClient.includes('value="all"') && reportsClient.includes('value="term"'),
+  'انتخاب‌گر دامنه (کل دوره / فقط همین نیمسال) در UI هست');
+
 console.log(`\n${fail === 0 ? '✓' : '✗'} ${pass} قبول / ${fail} رد`);
 if (fail > 0) process.exit(1);

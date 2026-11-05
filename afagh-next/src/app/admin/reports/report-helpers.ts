@@ -28,6 +28,10 @@ export type ReportFilters = {
   quotaType?: string;
   /** دامنهٔ وضعیت دانشجو: ACTIVE | INACTIVE | ALL (پیش‌فرض ALL) */
   statusScope?: string;
+  /** وضعیت تحصیلیِ دقیق (ACTIVE | GRADUATED | EXPELLED | WITHDRAWN | SUSPENDED | TRANSFERRED | NO_SHOW | DECEASED) */
+  status?: string;
+  /** دامنهٔ گزارش: 'term' = فقط دانشجویانِ فعال در همان نیمسال، 'all' = کل دوره */
+  scope?: string;
   q?: string;
   nationalCode?: string;
   miss?: string;
@@ -97,6 +101,29 @@ export function studentWhere(f: ReportFilters, alias = 's') {
   // دامنهٔ وضعیت: پیش‌فرض «همه» تا با فرم‌های قدیم (فعال/غیرفعال/همه) یکی باشد
   if (f.statusScope === 'ACTIVE') c.push(sql`${a}."status" = 'ACTIVE'`);
   else if (f.statusScope === 'INACTIVE') c.push(sql`${a}."status" <> 'ACTIVE'`);
+  /* ── وضعیت تحصیلیِ دقیق (انتخاب کاربر از منوی گزارش‌ها) ──
+     'ALL' یا خالی = بدون فیلتر. بقیه دقیقاً روی s.status اعمال می‌شود. */
+  if (f.status && f.status !== 'ALL') {
+    c.push(sql`${a}."status" = ${String(f.status)}`);
+  }
+  /* ── دامنه: «کل دوره» یا «فقط همین نیمسال» ──
+     وقتی scope='term' باشد، فقط دانشجویانی می‌آیند که در نیمسال انتخابی
+     «فعالیت» دارند (ثبت‌نام یا ردیف دفتر مالی). بدون این شرط، گزارشِ ترم
+     دانشجویانِ بی‌ارتباطِ ترم‌های دیگر را هم می‌آورد. */
+  if (f.scope === 'term' && f.term) {
+    c.push(sql`(
+      EXISTS (
+        SELECT 1 FROM enrollments en
+          JOIN course_offerings co ON co.id = en."offeringId"
+          JOIN academic_terms t2 ON t2.id = co."termId"
+        WHERE en."studentId" = ${a}.id AND t2."termCode" = ${String(f.term)}
+      ) OR EXISTS (
+        SELECT 1 FROM student_ledger sl2
+          JOIN academic_terms t3 ON t3.id = sl2."termId"
+        WHERE sl2."studentId" = ${a}.id AND t3."termCode" = ${String(f.term)}
+      )
+    )`);
+  }
   if (f.nationalCode) {
     // کدهای ذخیره‌شده انگلیسی‌اند؛ ارقام فارسی ورودی نرمال می‌شود تا کدهای SA/SS هم پیدا شوند.
     // فرار ٪ _ \ تا wildcard تزریقی معنا نگیرد (با ESCAPE '\').

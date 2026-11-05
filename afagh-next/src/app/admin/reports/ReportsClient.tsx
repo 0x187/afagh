@@ -139,6 +139,10 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
   const [q, setQ] = useState('');
   const [nationalCode, setNationalCode] = useState('');
   const [miss, setMiss] = useState('national');
+  /** وضعیت تحصیلی: ALL = همه، وگرنه کد دقیق (ACTIVE/GRADUATED/…) */
+  const [status, setStatus] = useState('ALL');
+  /** دامنه: all = کل دوره، term = فقط نیمسالِ انتخاب‌شده */
+  const [scopeMode, setScopeMode] = useState<'all' | 'term'>('all');
   const [universityId, setUniversityId] = useState(initialUniversityId ?? 0);
   const [extra, setExtra] = useState<Record<string, string>>(initialExtra ?? {});
   const [res, setRes] = useState<ReportResult | null>(null);
@@ -176,7 +180,7 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
     if (cat && !visibleCards.some(c => c.cat === cat)) setCat(undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allowedKinds, scope]);
-  const filters = { term, degreeId, facultyId, departmentId, majorId, entryYear, q: q.trim(), nationalCode: nationalCode.trim(), miss, page: 1, universityId, ...extra };
+  const filters = { term, degreeId, facultyId, departmentId, majorId, entryYear, q: q.trim(), nationalCode: nationalCode.trim(), miss, page: 1, universityId, status, scope: scopeMode, ...extra };
 
   const run = async (page = 1, kindOverride?: string) => {
     const k = kindOverride ?? kind;
@@ -489,6 +493,42 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
                   placeholder="کد ملی..."
                   className="bg-slate-50 border border-slate-300 rounded px-2 py-1.5 w-36 font-mono" dir="ltr"
                 />
+              </label>
+            )}
+            {/* ── وضعیت تحصیلی + دامنهٔ گزارش (همهٔ گزارش‌ها) ── */}
+            {showStudentFilters && (
+              <label className="flex items-center gap-1">
+                <span className="font-bold text-slate-600">وضعیت تحصیلی:</span>
+                <select
+                  value={status}
+                  onChange={e => setStatus(e.target.value)}
+                  className="bg-slate-50 border border-slate-300 rounded px-2 py-1.5"
+                >
+                  <option value="ALL">همهٔ وضعیت‌ها</option>
+                  <option value="ACTIVE">در حال تحصیل</option>
+                  <option value="GRADUATED">فارغ‌التحصیل</option>
+                  <option value="SUSPENDED">محروم از تحصیل</option>
+                  <option value="WITHDRAWN">انصراف</option>
+                  <option value="EXPELLED">اخراج</option>
+                  <option value="TRANSFERRED">انتقالی / میهمان</option>
+                  <option value="NO_SHOW">عدم مراجعه</option>
+                  <option value="DECEASED">فوت</option>
+                  <option value="UNKNOWN">نامشخص</option>
+                </select>
+              </label>
+            )}
+            {showStudentFilters && (
+              <label className="flex items-center gap-1">
+                <span className="font-bold text-slate-600">دامنه:</span>
+                <select
+                  value={scopeMode}
+                  onChange={e => setScopeMode(e.target.value === 'term' ? 'term' : 'all')}
+                  className="bg-slate-50 border border-slate-300 rounded px-2 py-1.5"
+                  title="کل دوره = همهٔ دانشجویان؛ نیمسال = فقط دانشجویانِ فعال در ترم انتخاب‌شده"
+                >
+                  <option value="all">کل دوره</option>
+                  <option value="term">فقط همین نیمسال</option>
+                </select>
               </label>
             )}
             {kind === 'incomplete' && (
