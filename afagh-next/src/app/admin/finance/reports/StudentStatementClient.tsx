@@ -42,6 +42,8 @@ interface StatementRow {
   chequesBounced: number;
   canonicalLoans: number;
   netPayable: number;
+  coursesBasis?: 'TARIFF' | 'LEDGER';
+  tariffGroupCode?: string | null;
   courses?: {
     courseCode: string | null;
     courseTitle: string | null;
@@ -292,6 +294,8 @@ export default function StudentStatementClient({ studentId, studentName, student
             balance: d.balance ?? 0,
             events: [],
             courses: d.courses ?? [],
+            coursesBasis: d.coursesBasis ?? 'LEDGER',
+            tariffGroupCode: d.tariffGroupCode ?? null,
           }))}
           totals={totals}
           showEvents={false}

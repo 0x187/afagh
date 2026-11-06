@@ -52,6 +52,8 @@ export interface TranscriptCourses {
   lines: TranscriptCourseLine[];
   /** منبع وزن‌ها: TARIFF = تعرفهٔ رسمی سال، LEDGER = موتور یکپارچهٔ شهریه */
   basis: 'TARIFF' | 'LEDGER';
+  /** «کد گروه تعرفه» (uPriceCode) سالِ همان نیمسال؛ برای سربرگ ترم */
+  tariffGroupCode?: string | null;
 }
 
 export async function buildTranscriptCourses(
@@ -75,8 +77,10 @@ export async function buildTranscriptCourses(
     ledgerVar.set(key, (ledgerVar.get(key) ?? 0) + toNum(r.amount));
   }
 
+  // فرادادهٔ تعرفه در همان پرسوجوی نرخها پر میشود (پرسوجوی اضافهای نیست).
+  const tariffMeta: { groupCodes: Record<number, string | null> } = { groupCodes: {} };
   const [tariffMap, engineMap, eduRows] = await Promise.all([
-    computeTariffCourseLinesForTerms(studentId, ids),
+    computeTariffCourseLinesForTerms(studentId, ids, tariffMeta),
     computeCourseTuitionForTerms(studentId, ids),
     // اطلاعات آموزشیِ هر درس (نمره/ماهیت/نظری-عملی) — برای انعکاس آنچه
     // کارنامهٔ سیستم قدیمی نشان می‌داد. کلید = (termId, courseCode).
@@ -110,6 +114,7 @@ export async function buildTranscriptCourses(
       : weights.map((w) => Math.round(w));
     out[termId] = {
       basis: tariffLines ? 'TARIFF' : 'LEDGER',
+      tariffGroupCode: tariffMeta.groupCodes[termId] ?? null,
       lines: lines.map((l, i) => {
         const edu = eduMap.get(`${termId}|${String(l.courseCode ?? '').trim()}`);
         // «نوع درس مالی»: خطِ تعرفه خودش maliType دارد (همان کدی که نرخ را ساخته)

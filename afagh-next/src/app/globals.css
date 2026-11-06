@@ -623,9 +623,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-text); bo
   body.printing-portrait .transcript-print-area .tr-term-table th,
   body.printing-portrait .transcript-print-area .tr-term-table td { padding: 1pt 1.5pt !important; }
   body.printing-portrait .transcript-print-area .tr-term-footer { font-size: 7pt; }
-  /* کارنامهٔ مالی در کاغذ عمودی (مثلاً چاپ مرورگر): دو کارت در هر ردیف تا جدول دروس از کادر بیرون نزند */
+  /* کارنامهٔ مالی در کاغذ عمودی: بعد از افزودن «واحد نظری/عملی» و کد نوع درس،
+     جدول ۸ستونه در دو کارتِ ~96mm جا نمیشود؛ یک کارتِ تمامعرض (~194mm) چاپ میشود. */
   @media print and (orientation: portrait) {
-    .transcript-print-area .tr-fin-row { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .transcript-print-area .tr-fin-row { grid-template-columns: minmax(0, 1fr) !important; }
   }
 
   /* ══ کارنامهٔ مالی — چاپ عمودی A4، فشرده و کم‌مصرف ══
@@ -673,18 +674,17 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-text); bo
   .tr-fin-root .tr-fin-totals h3 { font-size: 8pt !important; padding: 0.5mm 2mm !important; }
   .tr-fin-root .tr-breakdown > h3 { font-size: 8pt !important; padding: 0.5mm 2mm !important; }
 
-  /* گرید ترم‌ها در چاپ **دوستونه (۲ کارت در هر ردیف)**: هر <tr> از قبل
-     جفتِ ترم را در یک گرید ۲ستونه می‌ریزد؛ اینجا فقط در چاپ هم ۲ ستونه
-     می‌ماند (قاعدهٔ قبلیِ تک‌ستونه برای رفع بریدگی موقت بود). مراقبتِ شکست:
-     خودِ کارت (term-block) avoid است تا هیچ کارتی وسط صفحه نصف نشود،
-     ولی ردیفِ بیرونی auto تا ردیف‌ها پشت‌سرهم در صفحه جریان بگیرند.
-     نتیجهٔ اندازه‌گیری روی HTML واقعیِ تولیدی: ۹ صفحه → ۵ صفحه. */
-  .tr-fin-root .tr-fin-row { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 1.2mm !important; }
+  /* گرید ترمها در چاپ **تکستونه (یک کارت تمامعرض)**:
+     جدول دروس اکنون ۸ ستون دارد (ردیف/کد/نام/نظری/عملی/نمره/نوع مالی/مبلغ)
+     و سربرگ ترم چهار قلم (نام/وضع/مبنا/کد گروه) دارد؛ دو کارتِ ~96mm خوانا نیست.
+     ردیف بیرونی و خودِ گرید در چاپ آزاد میشکنند تا کارتهای پشتسرهم
+     بین صفحهها تقسیم شوند، ولی هر کارت (term-block) avoid میماند. */
+  .tr-fin-root .tr-fin-row { grid-template-columns: minmax(0, 1fr) !important; gap: 1.2mm !important; break-inside: auto !important; page-break-inside: auto !important; }
   .tr-fin-root .term-block { break-inside: avoid !important; page-break-inside: avoid !important; }
   /* عنوان «ریز ترم‌به‌ترم» از کارت اولش جدا نشود */
   .tr-fin-root .tr-courses-title { break-after: avoid !important; page-break-after: avoid !important; }
   .tr-fin-root .term-block { border-width: 0.6pt !important; border-radius: 1.2mm !important; }
-  /* سربرگ کارت ترم: فشرده ولی خوانا (چیدمانِ ۲کارته فضای عرضی کمتری دارد) */
+  /* سربرگ کارت ترم: فشرده ولی خوانا (چهار قلم باید در یک ردیف چاپ شود) */
   .tr-fin-root .term-block > div:first-child { padding: 0.5mm 1mm !important; }
   .tr-fin-root .term-block h4 { font-size: 7.2pt !important; line-height: 1.25 !important; white-space: normal !important; }
 
@@ -706,7 +706,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-text); bo
   .tr-fin-root .tr-fin-verify p { font-size: 6.5pt !important; line-height: 1.4 !important; }
 
   /* ریز شهریهٔ متغیر دروس */
-  .tr-fin-root .tr-fin-courses { font-size: 6pt !important; }
+  .tr-fin-root .tr-fin-courses { font-size: 6.6pt !important; }
   .tr-fin-root .tr-fin-courses th,
   .tr-fin-root .tr-fin-courses td { padding: 0.25mm 0.6mm !important; }
   .tr-fin-root .tr-fin-courses .tr-course-title { overflow-wrap: anywhere; word-break: break-word; }
@@ -732,6 +732,13 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-text); bo
   .tr-fin-root .tr-signatures { border-top-width: 1pt !important; }
   .tr-fin-root .tr-signatures > div { padding: 1.5mm 3mm 1.5mm !important; font-size: 6.8pt !important; }
   .tr-fin-root .tr-signatures p { margin-bottom: 4mm !important; }
+  /* سربرگ ترم (نام/وضع نیمسال / مبنای نرخ / کد گروه تعرفه) و کد نوع درس مالی
+     باید در خروجی چاپ/PDF حتماً دیده شوند. */
+  .tr-fin-root .tr-term-meta { font-size: 6.4pt !important; line-height: 1.25 !important; }
+  .tr-fin-root .tr-term-meta b { font-weight: 700 !important; }
+  .tr-flat-root .tr-term-meta { font-size: 6.8pt !important; margin-bottom: 1mm !important; }
+  .tr-flat-root .tr-term-meta tr { break-inside: avoid !important; page-break-inside: avoid !important; }
+  .tr-fin-root .tr-mali-code, .tr-flat-root .tr-mali-code { display: inline !important; color: #334155 !important; }
 
   /* ══ کارنامهٔ مالی — مدل دومِ تخت (FinancialTranscriptFlat) ══
      همهٔ قواعد فقط روی .tr-flat-root اعمال می‌شوند تا با مدل کارتی تداخل نکند. */

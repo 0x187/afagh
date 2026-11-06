@@ -100,12 +100,16 @@ ok(
   'print-transcript.ts: کلاسِ «printing-portrait» برای تفکیکِ چیدمانِ عمودی اعمال می‌شود'
 );
 
-// ── ۵) چیدمانِ ۲کارتهٔ کارنامهٔ مالی (مدل کارتی) در چاپ قفل بماند ──
-// هر <tr> از قبل جفتِ ترم را در گرید ۲ستونه می‌ریزد؛ قاعدهٔ چاپ باید ۲ ستونه
-// بماند و خودِ کارت (term-block) avoid باشد تا هیچ کارتی نصف نشود.
+// ── ۵) چیدمانِ تککارتهٔ کارنامهٔ مالی (مدل کارتی) در چاپ قفل بماند ──
+// جدول ریز دروس اکنون ۸ ستون دارد و سربرگ ترم چهار قلم است؛ دو کارتِ
+// ~۹۶mm در A4 عمودی خوانا نیست. هم JSX و هم قاعدهٔ چاپ تکستونهاند.
 ok(
-  /\.tr-fin-root \.tr-fin-row \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\) !important;/.test(globalsCss),
-  'globals.css: گریدِ ترم‌های کارنامهٔ مالی در چاپ ۲ ستونه است (۲ کارت در هر ردیف)'
+  /\.tr-fin-root \.tr-fin-row \{ grid-template-columns: minmax\(0, 1fr\) !important;/.test(globalsCssNoComments),
+  'globals.css: گریدِ ترم‌های کارنامهٔ مالی در چاپ تکستونه است (یک کارت تمامعرض)'
+);
+ok(
+  !/\.tr-fin-root \.tr-fin-row \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\) !important;/.test(globalsCssNoComments),
+  'globals.css: قاعدهٔ ۲ستونهٔ قدیمیِ گریدِ ترم‌ها حذف شده است'
 );
 ok(
   /\.tr-fin-root \.term-block \{ break-inside: avoid !important; page-break-inside: avoid !important; \}/.test(globalsCss),
@@ -115,10 +119,6 @@ ok(
   /\.tr-fin-root \.term-block \{ break-inside: avoid !important/.test(globalsCss)
     && /\.tr-fin-root table\.tr-doc > tbody > tr\.tr-doc-row \{ break-inside: auto !important/.test(globalsCss),
   'globals.css: ردیفِ بیرونی auto است تا کارت‌ها در صفحه جریان بگیرند'
-);
-ok(
-  !/\.tr-fin-root \.tr-fin-row \{ grid-template-columns: minmax\(0, 1fr\) !important/.test(globalsCssNoComments),
-  'globals.css: قاعدهٔ تک‌ستونهٔ قدیمیِ گریدِ ترم‌ها حذف شده است'
 );
 
 // ── ۶) آرمِ دانشگاه در مدل تخت (FinancialTranscriptFlat) باید در سربرگ باشد ──

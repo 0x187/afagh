@@ -104,6 +104,7 @@ export async function GET(request: Request) {
       // ریز دروس ترم (وزن از تعرفهٔ رسمی سال، جمع = شهریهٔ متغیر دفتر کل)
       courses: courses?.lines ?? [],
       coursesBasis: courses?.basis ?? 'LEDGER',
+      tariffGroupCode: courses?.tariffGroupCode ?? null,
     };
   });
 

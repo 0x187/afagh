@@ -104,6 +104,10 @@ export interface TranscriptCourseView {
  */
 const courseTypeLabel = (c: TranscriptCourseView) => courseTypeLabelOf(c);
 
+/** «مبنای نرخ» — یکسان در نوع الف و نوع ب تا دو سند با هم نخوانند. */
+const rateBasisLabel = (t: TranscriptTermView): string =>
+  t.coursesBasis === 'TARIFF' ? 'تعرفهٔ رسمی همان سال' : 'محاسباتی (دفتر کل)';
+
 export interface TranscriptTermView {
   termId: number;
   termTitle: string;
@@ -144,6 +148,8 @@ export interface TranscriptTermView {
    * می‌یابد (جمع دفتر کل، سند معتبر است).
    */
   coursesBasis?: 'TARIFF' | 'LEDGER';
+  /** «کد گروه تعرفه» (uPriceCode) — همان گروهی که نرخ نوع درس مالی از آن آمد */
+  tariffGroupCode?: string | null;
 }
 
 export interface TranscriptTotalsView {
@@ -233,7 +239,7 @@ const TERM_FA: Record<number, string> = { 1: 'مهر', 2: 'بهمن', 3: 'تاب
  */
 function TermTitle({ t }: { t: TranscriptTermView }) {
   const norm = normalizeTermCode(t.termCode);
-  if (!norm) return <>{t.termTitle}</>;
+  if (!norm) return <>{t.termTitle || '—'}</>;
   if (norm.termType === 'EQUIVALENCE') return <>نیمسال معادل‌سازی</>;
   const year = <span dir="ltr">{faDigits(norm.displayYear)}</span>;
   // ترم تابستان در کارنامه با عنوان «دوره تابستانی» آورده می‌شود (درخواست کاربر).
@@ -247,7 +253,7 @@ function TermTitle({ t }: { t: TranscriptTermView }) {
  */
 function termShort(t: TranscriptTermView): ReactNode {
   const norm = normalizeTermCode(t.termCode);
-  if (!norm) return <span className="text-[7.5pt]">{t.termTitle}</span>;
+  if (!norm) return <span className="text-[7.5pt]">{t.termTitle || '—'}</span>;
   if (norm.termType === 'EQUIVALENCE') return <span className="text-[7.5pt]">معادل‌سازی</span>;
   if (norm.termType === 'SUMMER') return <span className="text-[7.5pt]">تابستان <span dir="ltr">{faDigits(norm.displayYear)}</span></span>;
   return (
@@ -387,8 +393,9 @@ export default function FinancialTranscriptFlat({
   // تا با تعریفِ موتور مالی (netPayable) سنت برابر بماند.
   const totalNet = terms.reduce((a, t) => a + t.netPayable, 0);
 
-  // جمعِ واحدهای ریزِ دروس — برای نوارِ پایانی
-  const totalListedUnits = courseRows.reduce((a, r) => a + (Number(r.c.units) || 0), 0);
+  // جمعِ واحدهای نظری/عملیِ ریزِ دروس — برای نوارِ پایانی (ستون «واحد» حذف شد)
+  const totalTheoryUnits = courseRows.reduce((a, r) => a + (Number(r.c.theoreticalUnits) || 0), 0);
+  const totalPracticalUnits = courseRows.reduce((a, r) => a + (Number(r.c.practicalUnits) || 0), 0);
   const totalListedAmount = courseRows.reduce((a, r) => a + (Number(r.c.amount) || 0), 0);
 
   // همهٔ رویدادهای مالی در یک دفترِ پیوسته (مثل دفترِ کل)
@@ -655,13 +662,37 @@ export default function FinancialTranscriptFlat({
                 <div className="tr-fin-block break-inside-avoid mt-3">
                   <h3 className="tr-fin-block-title border-b-2 border-slate-900 pb-0.5 text-[8.5pt] font-black">
                     ریزِ شهریهٔ متغیرِ دروس
-                    <span className="tr-print-hide ms-2 text-[7pt] font-medium text-slate-500">
-                      (وزنِ مبنا:{' '}
-                      {terms.some(t => t.coursesBasis === 'TARIFF')
-                        ? 'تعرفهٔ رسمی همان سال — نظری×نرخ + عملی×نرخِ نوع درس؛ تخصیص‌یافته به جمع دفتر کل'
-                        : 'محاسباتی — مبنای سند، جمع دفتر کل است'})
-                    </span>
                   </h3>
+                  {/* مدل تخت سربرگِ کارت ندارد؛ نام کامل نیمسال + وضع نیمسال +
+                      مبنای نرخ + کد گروه تعرفه در همین جدول میآید و چاپ میشود. */}
+                  {terms.length > 0 && (
+                    <table className="tr-term-meta w-full border-collapse text-[7.5pt]">
+                      <colgroup>
+                        <col style={{ width: '40%' }} />
+                        <col style={{ width: '20%' }} />
+                        <col style={{ width: '22%' }} />
+                        <col style={{ width: '18%' }} />
+                      </colgroup>
+                      <thead>
+                        <tr className="bg-slate-50">
+                          <th className="border border-slate-400 px-0.5 py-0.5 text-center font-bold">نام نیمسال</th>
+                          <th className="border border-slate-400 px-0.5 py-0.5 text-center font-bold">وضع نیمسال</th>
+                          <th className="border border-slate-400 px-0.5 py-0.5 text-center font-bold">مبنای نرخ</th>
+                          <th className="border border-slate-400 px-0.5 py-0.5 text-center font-bold">کد گروه تعرفه</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {terms.map((t) => (
+                          <tr key={t.termId} className="border-b border-slate-200">
+                            <td className="border border-slate-200 px-0.5 py-0.5 text-center"><TermTitle t={t} /></td>
+                            <td className="border border-slate-200 px-0.5 py-0.5 text-center">{t.statusTitle || '—'}</td>
+                            <td className="border border-slate-200 px-0.5 py-0.5 text-center">{rateBasisLabel(t)}</td>
+                            <td className="border border-slate-200 px-0.5 py-0.5 text-center font-mono" dir="ltr">{t.tariffGroupCode || '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
                   {courseRows.length === 0 ? (
                     <p className="border border-slate-300 bg-slate-50 py-3 text-center text-[8pt] text-slate-500">
                       ریزِ شهریهٔ متغیر برای این دانشجو ثبت نشده است.
@@ -670,14 +701,13 @@ export default function FinancialTranscriptFlat({
                     <table className="tr-fin-table w-full border-collapse text-[7.5pt]">
                       <colgroup>
                         <col style={{ width: '4%' }} />
-                        <col style={{ width: '10%' }} />
-                        <col style={{ width: '8%' }} />
-                        <col style={{ width: '26%' }} />
+                        <col style={{ width: '11%' }} />
                         <col style={{ width: '9%' }} />
-                        <col style={{ width: '12%' }} />
+                        <col style={{ width: '27%' }} />
                         <col style={{ width: '7%' }} />
-                        <col style={{ width: '7%' }} />
-                        <col style={{ width: '6%' }} />
+                        <col style={{ width: '15%' }} />
+                        <col style={{ width: '8%' }} />
+                        <col style={{ width: '8%' }} />
                         <col style={{ width: '11%' }} />
                       </colgroup>
                       <thead>
@@ -687,10 +717,9 @@ export default function FinancialTranscriptFlat({
                           <th className="border border-slate-400 px-0.5 py-0.5 text-center font-bold">کد درس</th>
                           <th className="border border-slate-400 px-0.5 py-0.5 font-bold">عنوان درس</th>
                           <th className="border border-slate-400 px-0.5 py-0.5 text-center font-bold">نمره</th>
-                          <th className="border border-slate-400 px-0.5 py-0.5 text-center font-bold">نوع درس</th>
+                          <th className="border border-slate-400 px-0.5 py-0.5 text-center font-bold">نوع درس مالی</th>
                           <th className="border border-slate-400 px-0.5 py-0.5 text-center font-bold">واحد نظری</th>
                           <th className="border border-slate-400 px-0.5 py-0.5 text-center font-bold">واحد عملی</th>
-                          <th className="border border-slate-400 px-0.5 py-0.5 text-center font-bold">واحد</th>
                           <th className="border border-slate-400 px-0.5 py-0.5 text-center font-bold">مبلغ متغیر (ریال)</th>
                         </tr>
                       </thead>
@@ -705,12 +734,11 @@ export default function FinancialTranscriptFlat({
                             <td className="border border-slate-200 px-0.5 py-0.5 text-center">
                               {courseTypeLabel(r.c)}
                               {r.c.maliType != null && (
-                                <span className="tr-print-hide ms-1 font-mono text-[6pt] text-slate-400">{fa(r.c.maliType)}</span>
+                                <span className="tr-mali-code ms-1 font-mono font-bold text-slate-700">({fa(r.c.maliType)})</span>
                               )}
                             </td>
                             <td className="border border-slate-200 px-0.5 py-0.5 text-center font-mono">{fa(r.c.theoreticalUnits ?? 0)}</td>
                             <td className="border border-slate-200 px-0.5 py-0.5 text-center font-mono">{fa(r.c.practicalUnits ?? 0)}</td>
-                            <td className="border border-slate-200 px-0.5 py-0.5 text-center font-mono font-bold">{fa(r.c.units)}</td>
                             <td className="border border-slate-200 px-0.5 py-0.5 text-left font-bold">{fa(r.c.amount)}</td>
                           </tr>
                         ))}
@@ -718,7 +746,7 @@ export default function FinancialTranscriptFlat({
                       <tfoot>
                         <tr className="border-t-2 border-slate-900 bg-slate-50 font-black">
                           <td colSpan={8} className="border border-slate-300 px-1 py-0.5 text-center">
-                            جمع ریزِ دروس ({fa(courseRows.length)} ردیف — {fa(totalListedUnits)} واحد)
+                            جمع ریزِ دروس ({fa(courseRows.length)} ردیف — نظری {fa(totalTheoryUnits)} · عملی {fa(totalPracticalUnits)} واحد)
                           </td>
                           <td className="border border-slate-300 px-0.5 py-0.5 text-left">{fa(totalListedAmount)}</td>
                         </tr>
@@ -750,7 +778,7 @@ export default function FinancialTranscriptFlat({
                     <thead>
                       <tr className="bg-slate-100 text-slate-800">
                         <th className="border border-slate-400 px-0.5 py-0.5 text-center font-bold">نیمسال</th>
-                        <th className="border border-slate-400 px-0.5 py-0.5 text-center font-bold">وضعیت</th>
+                        <th className="border border-slate-400 px-0.5 py-0.5 text-center font-bold">وضع نیمسال</th>
                         <th className="border border-slate-400 px-0.5 py-0.5 text-center font-bold">شهریه (بدهی)</th>
                         <th className="border border-slate-400 px-0.5 py-0.5 text-center font-bold">ثابت</th>
                         <th className="border border-slate-400 px-0.5 py-0.5 text-center font-bold">متغیر</th>

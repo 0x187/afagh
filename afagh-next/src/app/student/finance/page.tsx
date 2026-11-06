@@ -126,6 +126,7 @@ export default async function StudentFinancePage({ searchParams }: { searchParam
     ...t,
     courses: courseMap[t.termId]?.lines ?? [],
     coursesBasis: courseMap[t.termId]?.basis,
+    tariffGroupCode: courseMap[t.termId]?.tariffGroupCode ?? null,
   }));
 
   const remindDays = Math.max(0, Math.round(toNum(remindDaysRaw) || 0));

@@ -27,6 +27,10 @@ const fa = (n: number | null | undefined) => Number(n || 0).toLocaleString('fa-I
  */
 const courseTypeLabel = (c: TranscriptCourseView) => courseTypeLabelOf(c);
 
+/** «مبنای نرخ» — یکسان در نوع الف و نوع ب تا دو سند با هم نخوانند. */
+const rateBasisLabel = (t: TranscriptTermView): string =>
+  t.coursesBasis === 'TARIFF' ? 'تعرفهٔ رسمی همان سال' : 'محاسباتی (دفتر کل)';
+
 /**
  * تاریخ شمسی خوانا؛ تهی → خط تیره.
  *
@@ -129,6 +133,8 @@ export interface TranscriptTermView {
    * می‌یابد (جمع دفتر کل، سند معتبر است).
    */
   coursesBasis?: 'TARIFF' | 'LEDGER';
+  /** «کد گروه تعرفه» (uPriceCode) — همان گروهی که نرخ نوع درس مالی از آن آمد */
+  tariffGroupCode?: string | null;
 }
 
 export interface TranscriptTotalsView {
@@ -218,7 +224,7 @@ const TERM_FA: Record<number, string> = { 1: 'مهر', 2: 'بهمن', 3: 'تاب
  */
 function TermTitle({ t }: { t: TranscriptTermView }) {
   const norm = normalizeTermCode(t.termCode);
-  if (!norm) return <>{t.termTitle}</>;
+  if (!norm) return <>{t.termTitle || '—'}</>;
   if (norm.termType === 'EQUIVALENCE') return <>نیمسال معادل‌سازی</>;
   const year = <span dir="ltr">{faDigits(norm.displayYear)}</span>;
   // ترم تابستان در کارنامه با عنوان «دوره تابستانی» آورده می‌شود (درخواست کاربر).
@@ -333,9 +339,10 @@ export default function FinancialTranscript({
   const grand = balanceBadge(totals.balance);
   const isFinance = viewerRole === 'FINANCE' || viewerRole === 'ADMIN';
 
-  // دو ترم در هر ردیف — همان تعداد ستون چاپ عمودی A4 تا هیچ خانه‌ای خالی نماند
+  // یک ترم در هر ردیف — جدول ۸ستونۀ ریز دروس و سربرگ ۴قلمی ترم در A4
+  // عمودی فقط در یک کارت تمامعرض خوانا است (دو کارتِ ~۹۶mm جا نمیشود).
   const chunks: TranscriptTermView[][] = [];
-  for (let i = 0; i < terms.length; i += 2) chunks.push(terms.slice(i, i + 2));
+  for (let i = 0; i < terms.length; i += 1) chunks.push(terms.slice(i, i + 1));
 
   // ماندهٔ قبلی (انتقالی) هر ترم = جمعِ ماندهٔ همهٔ ترم‌های پیش از آن (به ترتیب زمانی)
   const priorByTermId = new Map<number, number>();
@@ -561,49 +568,55 @@ export default function FinancialTranscript({
               چرا؟ پیش‌تر **کل** سند در یک `<tr>` جا می‌گرفت. Chrome ردیفِ
               بسیار بلندِ جدول را بین صفحه‌ها نمی‌شکند؛ نتیجه این بود که محتوای
               بعد از صفحهٔ اول بریده می‌شد یا از کادر بیرون می‌زد — همان
-              «چاپِ به‌هم‌ریخته»ای که کاربر گزارش کرد. با یک <tr> برای هر جفت
+              «چاپِ به‌هم‌ریخته»ای که کاربر گزارش کرد. با یک <tr> برای هر
               ترم، شکستنِ صفحه بینِ ردیف‌ها انجام می‌شود و هیچ کارتی نصف نمی‌شود. */}
           {chunks.map((group, gi) => (
             <tr key={`terms-${gi}`} className="tr-doc-row">
               <td className="tr-doc-cell">
                 <div className="px-4 pb-2">
-                <div className="tr-fin-row break-inside-avoid grid gap-2 sm:grid-cols-2">
+                <div className="tr-fin-row break-inside-avoid grid grid-cols-1 gap-2">
                   {group.map((t) => {
                     const b = balanceBadge(t.balance);
                     return (
                       <div key={t.termId} className="term-block break-inside-avoid overflow-hidden rounded-lg border border-slate-700">
                         <div className="flex items-center justify-between gap-1 border-b border-slate-700 bg-slate-100 px-2 py-1.5">
                           <div className="min-w-0">
+                            <div className="text-[8px] font-medium text-slate-500">نام نیمسال</div>
                             <h4 className="text-2xs font-black text-slate-900"><TermTitle t={t} /></h4>
-                            {t.statusTitle ? (
-                              <p className="mt-px text-[9px] font-medium text-slate-600">
-                                وضعیت: <span className="font-bold text-slate-800">{t.statusTitle}</span>
-                              </p>
-                            ) : null}
                           </div>
                           <span className={`shrink-0 rounded-full border px-1.5 py-px text-[9px] font-black ${b.cls}`}>{b.text}</span>
+                        </div>
+                        {/* سربرگ ترم: وضع نیمسال + مبنای نرخ + کد گروه تعرفه.
+                            «وضع نیمسال» همیشه چاپ میشود (حتی اگر داده نداشته باشد)
+                            تا کارشناس مالی بداند فیلد وجود دارد و خالی است. */}
+                        <div className="tr-term-meta grid grid-cols-3 gap-1 border-b border-slate-200 bg-white px-2 py-1 text-[9px] leading-tight">
+                          <div className="min-w-0"><span className="text-slate-500">وضع نیمسال: </span><b className="font-bold text-slate-800">{t.statusTitle || '—'}</b></div>
+                          <div className="min-w-0"><span className="text-slate-500">مبنای نرخ: </span><b className="font-bold text-slate-800">{rateBasisLabel(t)}</b></div>
+                          <div className="min-w-0"><span className="text-slate-500">کد گروه تعرفه: </span><b className="font-mono font-bold text-slate-800" dir="ltr">{t.tariffGroupCode || '—'}</b></div>
                         </div>
                         {t.courses && t.courses.length > 0 && (
                           <div className="border-t border-slate-200">
                             <p className="bg-slate-50 px-2 py-1 text-[9px] font-black text-slate-700">ریز شهریه متغیر دروس</p>
                             <table className="tr-term-table tr-fin-courses w-full border-collapse text-[9px] rt" style={{ tableLayout: 'fixed' }}>
                               <colgroup>
-                                <col style={{ width: '6%' }} />
-                                <col style={{ width: '14%' }} />
-                                <col style={{ width: '27%' }} />
-                                <col style={{ width: '6%' }} />
-                                <col style={{ width: '9%' }} />
-                                <col style={{ width: '16%' }} />
-                                <col style={{ width: '22%' }} />
+                                <col style={{ width: '5%' }} />
+                                <col style={{ width: '11%' }} />
+                                <col style={{ width: '23%' }} />
+                                <col style={{ width: '8%' }} />
+                                <col style={{ width: '8%' }} />
+                                <col style={{ width: '7%' }} />
+                                <col style={{ width: '21%' }} />
+                                <col style={{ width: '17%' }} />
                               </colgroup>
                               <thead>
                                 <tr className="bg-slate-50 text-slate-600">
                                   <th className="border-t border-slate-200 px-1 py-0.5 text-center font-bold">ردیف</th>
                                   <th className="border-t border-slate-200 px-1 py-0.5 text-center font-bold">کد درس</th>
                                   <th className="border-t border-slate-200 px-1 py-0.5 font-bold">نام درس</th>
-                                  <th className="border-t border-slate-200 px-1 py-0.5 text-center font-bold">واحد</th>
+                                  <th className="border-t border-slate-200 px-1 py-0.5 text-center font-bold">واحد نظری</th>
+                                  <th className="border-t border-slate-200 px-1 py-0.5 text-center font-bold">واحد عملی</th>
                                   <th className="border-t border-slate-200 px-1 py-0.5 text-center font-bold">نمره</th>
-                                  <th className="border-t border-slate-200 px-1 py-0.5 text-center font-bold">نوع درس</th>
+                                  <th className="border-t border-slate-200 px-1 py-0.5 text-center font-bold">نوع درس مالی</th>
                                   <th className="border-t border-slate-200 px-1 py-0.5 text-center font-bold">مبلغ متغیر</th>
                                 </tr>
                               </thead>
@@ -613,17 +626,18 @@ export default function FinancialTranscript({
                                     <td className="px-1 py-0.5 text-center text-slate-500">{fa(i + 1)}</td>
                                     <td className="px-1 py-0.5 text-center font-mono" dir="ltr">{c.courseCode || '—'}</td>
                                     <td className="tr-course-title px-1 py-0.5 font-medium">{c.courseTitle || '—'}</td>
-                                    <td className="px-1 py-0.5 text-center font-mono">{fa(c.units)}</td>
+                                    <td className="px-1 py-0.5 text-center font-mono">{fa(c.theoreticalUnits ?? 0)}</td>
+                                    <td className="px-1 py-0.5 text-center font-mono">{fa(c.practicalUnits ?? 0)}</td>
                                     <td className="px-1 py-0.5 text-center font-mono">{c.grade != null ? fa(c.grade) : '—'}</td>
                                     <td className="px-1 py-0.5 text-center">
                                       {courseTypeLabel(c)}
-                                      {c.maliType != null ? <span className="tr-print-hide font-mono text-[7px] text-slate-400"> {fa(c.maliType)}</span> : null}
+                                      {c.maliType != null ? <span className="tr-mali-code ms-1 font-mono font-bold text-slate-700">({fa(c.maliType)})</span> : null}
                                     </td>
                                     <td className="px-1 py-0.5 text-left font-bold">{fa(c.amount)}</td>
                                   </tr>
                                 ))}
                                 <tr className="border-t border-slate-200 bg-slate-50/60">
-                                  <td colSpan={6} className="px-1 py-0.5 font-black">جمع متغیر دروس</td>
+                                  <td colSpan={7} className="px-1 py-0.5 font-black">جمع متغیر دروس</td>
                                   <td className="px-1 py-0.5 text-left font-black">{fa(t.courses.reduce((a, c) => a + (Number(c.amount) || 0), 0))}</td>
                                 </tr>
                               </tbody>

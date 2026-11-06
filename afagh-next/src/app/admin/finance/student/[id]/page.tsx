@@ -109,6 +109,7 @@ const fin = await getStudentFinance(studentId, {
     ...t,
     courses: courseMap[t.termId]?.lines ?? [],
     coursesBasis: courseMap[t.termId]?.basis,
+    tariffGroupCode: courseMap[t.termId]?.tariffGroupCode ?? null,
   }));
 
   // نوع الف = کارتی · نوع ب = تخت — هر دو دقیقاً یک قرارداد پراپ دارند
