@@ -34,24 +34,42 @@ type FinanceEvent struct {
 	Amount float64 `json:"amount"`
 	DateMs *int64  `json:"dateMs"`
 	Sign   int     `json:"sign"`
+	// Deposit metadata (migrations 0119/0121) — real bank deposit info.
+	DepositType       *string `json:"depositType,omitempty"`
+	DatedByDeposit    bool    `json:"datedByDeposit,omitempty"`
+	PayerName         *string `json:"payerName,omitempty"`
+	PayerNationalCode *string `json:"payerNationalCode,omitempty"`
+	ReceiptNo         *string `json:"receiptNo,omitempty"`
+	VoucherNo         *string `json:"voucherNo,omitempty"`
+	PayTypeCode       *int64  `json:"payTypeCode,omitempty"`
+	AccountNo         *string `json:"accountNo,omitempty"`
+	CardNo            *string `json:"cardNo,omitempty"`
+	BankName          *string `json:"bankName,omitempty"`
+	RecorderName      *string `json:"recorderName,omitempty"`
+	LegacyRem         *string `json:"legacyRem,omitempty"`
 }
 
 // FinanceTerm is one term's statement.
 type FinanceTerm struct {
-	TermID         int64          `json:"termId"`
-	TermTitle      string         `json:"termTitle"`
-	TermCode       *string        `json:"termCode"`
-	Charges        float64        `json:"charges"`
-	Discounts      float64        `json:"discounts"`
-	Sponsorships   float64        `json:"sponsorships"`
-	Payments       float64        `json:"payments"`
-	ChequesCleared float64        `json:"chequesCleared"`
-	ChequesPending float64        `json:"chequesPending"`
-	ChequesBounced float64        `json:"chequesBounced"`
-	Loans          float64        `json:"loans"`
-	NetPayable     float64        `json:"netPayable"`
-	Balance        float64        `json:"balance"`
-	Events         []FinanceEvent `json:"events"`
+	TermID                   int64          `json:"termId"`
+	TermTitle                string         `json:"termTitle"`
+	TermCode                 *string        `json:"termCode"`
+	StatusTitle              *string        `json:"statusTitle"`
+	Charges                  float64        `json:"charges"`
+	TuitionFixed             float64        `json:"tuitionFixed"`
+	TuitionVariable          float64        `json:"tuitionVariable"`
+	Discounts                float64        `json:"discounts"`
+	Sponsorships             float64        `json:"sponsorships"`
+	SponsorshipsFromDeposits float64        `json:"sponsorshipsFromDeposits"`
+	CharityCoverage          float64        `json:"charityCoverage"`
+	Payments                 float64        `json:"payments"`
+	ChequesCleared           float64        `json:"chequesCleared"`
+	ChequesPending           float64        `json:"chequesPending"`
+	ChequesBounced           float64        `json:"chequesBounced"`
+	Loans                    float64        `json:"loans"`
+	NetPayable               float64        `json:"netPayable"`
+	Balance                  float64        `json:"balance"`
+	Events                   []FinanceEvent `json:"events"`
 }
 
 // FinanceCheque is a cheque.
@@ -216,23 +234,48 @@ func (s *Service) buildFinance(ctx context.Context, userID int64, me *Record, te
 		trows.Close()
 	}
 
-	// Finance ledger.
+	// Finance ledger — chronological by the real deposit date when present,
+	// falling back to createdAt (migrated rows share one import day).
 	ledger := []finance.LedgerTxn{}
 	lrows, err := s.Pool.Query(ctx, `
-		select id, "termId", "transactionType", amount::float8, description, "createdAt"
-		  from student_ledger where "studentId" = $1 order by "createdAt"`, me.ID)
+		select id, "termId", "transactionType", amount::float8, description, "createdAt",
+		       "depositDate", "depositType", "payerName", "payerNationalCode",
+		       "receiptNo", "voucherNo", "payTypeCode", "accountNo", "cardNo",
+		       "bankName", "branchName", "recorderCode", "recorderName", "legacyRem"
+		  from student_ledger where "studentId" = $1
+		 order by coalesce("depositDate", "createdAt"), id`, me.ID)
 	if err != nil {
 		return nil, err
 	}
 	for lrows.Next() {
 		var t finance.LedgerTxn
-		if err := lrows.Scan(&t.ID, &t.TermID, &t.TransactionType, &t.Amount, &t.Description, &t.CreatedAt); err != nil {
+		if err := lrows.Scan(&t.ID, &t.TermID, &t.TransactionType, &t.Amount, &t.Description, &t.CreatedAt,
+			&t.DepositDate, &t.DepositType, &t.PayerName, &t.PayerNationalCode,
+			&t.ReceiptNo, &t.VoucherNo, &t.PayTypeCode, &t.AccountNo, &t.CardNo,
+			&t.BankName, &t.BranchName, &t.RecorderCode, &t.RecorderName, &t.LegacyRem); err != nil {
 			lrows.Close()
 			return nil, err
 		}
 		ledger = append(ledger, t)
 	}
 	lrows.Close()
+
+	// Student's term states (from student_term_states) — shown per term in the
+	// finance transcript. Priority: statusTitle → normalized → source title.
+	termStatuses := map[string]string{}
+	tsrows, err := s.Pool.Query(ctx, `
+		select "termId", coalesce(nullif("statusTitle",''), nullif("normalizedStatusTitle",''), nullif("sourceStatusTitle",''))
+		  from student_term_states where "studentId" = $1 and "termId" is not null`, me.ID)
+	if err == nil {
+		for tsrows.Next() {
+			var termID int64
+			var title string
+			if err := tsrows.Scan(&termID, &title); err == nil && title != "" {
+				termStatuses[itoa64(termID)] = title
+			}
+		}
+		tsrows.Close()
+	}
 
 	// Discounts/coverages → term adjustments.
 	termCharges := map[int64]float64{}
@@ -362,6 +405,7 @@ func (s *Service) buildFinance(ctx context.Context, userID int64, me *Record, te
 	statements := finance.BuildTranscript(finance.TranscriptInput{
 		Ledger: ledger, Discounts: discountApplied, Sponsorships: sponsorApplied,
 		Cheques: cheques, Loans: loans, TermTitles: termTitles, TermCodes: termCodes,
+		TermStatuses: termStatuses,
 	})
 
 	// Filter by the selected term (cookie).
@@ -380,14 +424,24 @@ func (s *Service) buildFinance(ctx context.Context, userID int64, me *Record, te
 		}
 		term := FinanceTerm{
 			TermID: st.TermID, TermTitle: st.TermTitle, TermCode: st.TermCode,
-			Charges: st.Charges, Discounts: st.Discounts, Sponsorships: st.Sponsorships,
+			StatusTitle: st.StatusTitle,
+			Charges:     st.Charges, TuitionFixed: st.TuitionFixed, TuitionVariable: st.TuitionVariable,
+			Discounts: st.Discounts, Sponsorships: st.Sponsorships,
+			SponsorshipsFromDeposits: st.SponsorshipsFromDeposits, CharityCoverage: st.CharityCoverage,
 			Payments: st.Payments, ChequesCleared: st.ChequesCleared,
 			ChequesPending: st.ChequesPending, ChequesBounced: st.ChequesBounced,
 			Loans: st.Loans, NetPayable: st.NetPayable, Balance: st.Balance,
 			Events: []FinanceEvent{},
 		}
 		for _, e := range st.Events {
-			term.Events = append(term.Events, FinanceEvent{Kind: e.Kind, Label: e.Label, Amount: e.Amount, DateMs: e.DateMs, Sign: e.Sign})
+			term.Events = append(term.Events, FinanceEvent{
+				Kind: e.Kind, Label: e.Label, Amount: e.Amount, DateMs: e.DateMs, Sign: e.Sign,
+				DepositType: e.DepositType, DatedByDeposit: e.DatedByDeposit,
+				PayerName: e.PayerName, PayerNationalCode: e.PayerNationalCode,
+				ReceiptNo: e.ReceiptNo, VoucherNo: e.VoucherNo, PayTypeCode: e.PayTypeCode,
+				AccountNo: e.AccountNo, CardNo: e.CardNo, BankName: e.BankName,
+				RecorderName: e.RecorderName, LegacyRem: e.LegacyRem,
+			})
 		}
 		resp.Terms = append(resp.Terms, term)
 	}

@@ -434,15 +434,38 @@ export async function uploadRequestAttachment(file: File): Promise<{ key: string
 
 // ───────────────────────── Financial affairs ─────────────────────────
 
-export type FinanceEvent = { kind: string; label: string; amount: number; dateMs: number | null; sign: number };
+export type FinanceEvent = {
+  kind: string;
+  label: string;
+  amount: number;
+  dateMs: number | null;
+  sign: number;
+  depositType?: string | null;
+  datedByDeposit?: boolean;
+  payerName?: string | null;
+  payerNationalCode?: string | null;
+  receiptNo?: string | null;
+  voucherNo?: string | null;
+  payTypeCode?: number | null;
+  accountNo?: string | null;
+  cardNo?: string | null;
+  bankName?: string | null;
+  recorderName?: string | null;
+  legacyRem?: string | null;
+};
 
 export type FinanceTerm = {
   termId: number;
   termTitle: string;
   termCode: string | null;
+  statusTitle?: string | null;
   charges: number;
+  tuitionFixed: number;
+  tuitionVariable: number;
   discounts: number;
   sponsorships: number;
+  sponsorshipsFromDeposits: number;
+  charityCoverage: number;
   payments: number;
   chequesCleared: number;
   chequesPending: number;

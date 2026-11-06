@@ -17,9 +17,19 @@ const EVENT_KIND: Record<string, string> = {
   DISCOUNT: 'تخفیف',
   SPONSOR: 'پوشش بنیاد',
   PAYMENT: 'پرداخت',
+  CHARITY: 'پوشش خیرین',
   CHEQUE: 'چک',
   LOAN: 'وام',
 };
+
+// SAMA pay_type codes → Persian labels (payment docs meta).
+const PAY_TYPE_LABELS: Record<number, string> = {
+  0: 'نامشخص', 1: 'نقدی', 2: 'چک', 3: 'کارت‌خوان', 4: 'انتقال', 6: 'ساتنا',
+  7: 'سپرده', 8: 'سایر', 102: 'اینترنتی سامان', 108: 'درگاه بانکی',
+  157: 'آنلاین سامان', 201: 'دستگاه کارت‌خوان',
+};
+
+const last4 = (v: string) => v.slice(-4);
 
 function TermBlock({ term }: { term: FinanceTerm }) {
   return (
@@ -28,6 +38,7 @@ function TermBlock({ term }: { term: FinanceTerm }) {
         <p className="text-xs font-black">
           {term.termTitle || 'بدون ترم'}
           {term.termCode ? <span className="ms-2 font-mono text-[10px] text-slate-500" dir="ltr">({term.termCode})</span> : null}
+          {term.statusTitle ? <span className="ms-2 rounded bg-indigo-100 px-1.5 py-px text-[9px] font-bold text-indigo-800 dark:bg-indigo-950 dark:text-indigo-200">وضع نیمسال: {term.statusTitle}</span> : null}
         </p>
         <span className={`text-xs font-black ${term.balance > 0 ? 'text-rose-700 dark:text-rose-300' : 'text-emerald-700 dark:text-emerald-300'}`}>
           مانده: {faRial(term.balance)}
@@ -47,7 +58,25 @@ function TermBlock({ term }: { term: FinanceTerm }) {
           ) : (
             term.events.map((e, i) => (
               <tr key={i} className="border-b border-slate-200 last:border-0 dark:border-slate-800">
-                <td className="p-1.5 font-medium">{e.label}</td>
+                <td className="p-1.5 font-medium">
+                  {e.label}
+                  {e.depositType ? (
+                    <span className="mx-1 inline-block whitespace-nowrap rounded border border-sky-300 bg-sky-50 px-1 py-px align-middle text-[9px] font-bold text-sky-800 dark:border-sky-700 dark:bg-sky-950 dark:text-sky-200">
+                      {e.depositType}
+                    </span>
+                  ) : null}
+                  {(e.receiptNo || e.payerName || e.accountNo || e.voucherNo || e.payTypeCode != null || e.recorderName || e.legacyRem) ? (
+                    <span className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0 text-[9px] leading-tight text-slate-500">
+                      {e.receiptNo ? <span><b>فیش:</b> <span dir="ltr" className="font-mono">{faDigits(e.receiptNo)}</span></span> : null}
+                      {e.payerName ? <span><b>پرداخت‌کننده:</b> {e.payerName}</span> : null}
+                      {e.accountNo ? <span><b>حساب:</b> <span dir="ltr" className="font-mono">{faDigits(last4(e.accountNo))}</span></span> : null}
+                      {e.payTypeCode != null ? <span><b>نوع:</b> {PAY_TYPE_LABELS[e.payTypeCode] ?? e.payTypeCode}</span> : null}
+                      {e.voucherNo ? <span><b>سند:</b> <span dir="ltr" className="font-mono">{faDigits(e.voucherNo)}</span></span> : null}
+                      {e.recorderName ? <span><b>ثبت:</b> {e.recorderName}</span> : null}
+                      {e.legacyRem ? <span className="block w-full truncate" title={e.legacyRem}><b>یادداشت اصل:</b> {e.legacyRem}</span> : null}
+                    </span>
+                  ) : null}
+                </td>
                 <td className="p-1.5 text-center text-slate-500">{EVENT_KIND[e.kind] ?? e.kind}</td>
                 <td className={`p-1.5 text-left font-mono font-bold ${e.sign > 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'}`}>
                   {e.sign > 0 ? '+' : '−'}{faNumber(e.amount)}
@@ -58,7 +87,7 @@ function TermBlock({ term }: { term: FinanceTerm }) {
         </tbody>
         <tfoot>
           <tr className="border-t border-slate-300 bg-slate-50 text-[10px] font-bold dark:border-slate-700 dark:bg-slate-800/60">
-            <td className="p-1.5" colSpan={2}>بدهی / تخفیف / پرداخت</td>
+            <td className="p-1.5" colSpan={2}>بدهی (ثابت {faNumber(term.tuitionFixed)} / متغیر {faNumber(term.tuitionVariable)}) / تخفیف و پوشش / پرداخت</td>
             <td className="p-1.5 text-left font-mono" dir="ltr">
               {faNumber(term.charges)} / {faNumber(term.discounts + term.sponsorships)} / {faNumber(term.payments)}
             </td>
