@@ -41,6 +41,7 @@ SESSION-COMPRESSED.md
 
 # ── بازنویسی Go/React (فاز ۰) ──
 backend-go/backend-go-dev
+backend-go/bin/
 backend-go/vendor/
 frontend-react/dist/
 
