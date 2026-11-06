@@ -1,6 +1,6 @@
 # تاریخچهٔ کامل کامیت‌های مخزن آفاق
 
-این سند **۱٬۰۰۱ کامیت نخست** مخزن را از نخستین کامیت (2026-08-29) تا کامیت `22d0b9c` (2026-10-31) نگه می‌دارد. ۶ کامیت پایانی (پس از `22d0b9c`) نیز در بخش «آخرین کامیت‌ها» در انتهای سند، همراه با ترجمهٔ انگلیسی، اضافه شده‌اند. موضوع هر کامیت عیناً از گیت گرفته شده است و ترتیب، قدیمی‌ترین به جدیدترین است. برای دیدن فایل‌های تغییرکردهٔ هر کامیت: `git show <hash> --stat`.
+این سند **۱٬۰۰۱ کامیت نخست** مخزن را از نخستین کامیت (2026-08-29) تا کامیت `e12248c` (2026-10-31) نگه می‌دارد. ۶ کامیت پایانی (پس از `e12248c`) نیز در بخش «آخرین کامیت‌ها» در انتهای سند، همراه با ترجمهٔ انگلیسی، اضافه شده‌اند. موضوع هر کامیت عیناً از گیت گرفته شده است و ترتیب، قدیمی‌ترین به جدیدترین است. برای دیدن فایل‌های تغییرکردهٔ هر کامیت: `git show <hash> --stat`.
 
 > به‌روزشدهٔ 2026-11-06: پیام همهٔ کامیت‌های دورهٔ بازنویسی در خود گیت به انگلیسی ترجمه شد (بازنویسی تاریخچه با filter-branch) و هش‌های همین سند با هش‌های جدید همگام شده‌اند؛ ستون «موضوع فارسی (اصلی)» فقط پیام‌های پیش از ترجمه را نگه می‌دارد. کامیت‌های بعد از 2026-11-01 (داکیومنت، کیفیت، همگامسازی origin و موج ۱ مالی) در `git log` موجودند.
 
@@ -1138,120 +1138,120 @@ _بلوغ سامانه: BI، کلاس ادغامی، ارزشیابی، تخصی
 - `50dbcf8` — feat(rewrite): phase 2 (2/4) — scheduling core and conflict detection in Go
 - `65e10b2` — feat(rewrite): phase 2 (3/4 and 4/4) — GPA aggregation, tuition resolver and PII crypto in Go
 - `48465e1` — feat(rewrite): phase 2 complete — finance rules in Go (payment/transcript/cheque triggers)
-- `22c50f3` — feat(rewrite): phase 3 (slice 1) — student weekly schedule in Go + React
-- `1972ec4` — feat(rewrite): phase 3 (slice 2) — student dashboard, transcript and exam card
-- `5b3e824` — feat(rewrite): phase 3 (slice 3) — full enrollment with the waiting-room engine
+- `7e57300` — feat(rewrite): phase 3 (slice 1) — student weekly schedule in Go + React
+- `ad02717` — feat(rewrite): phase 3 (slice 2) — student dashboard, transcript and exam card
+- `1c0b1dd` — feat(rewrite): phase 3 (slice 3) — full enrollment with the waiting-room engine
 
 #### 2026-10-27 — ۱۶ کامیت
 
-- `c6dddda` — feat(rewrite): phase 3 — enrollment confirmation slip with signed QR
-- `e19bde2` — feat(rewrite): phase 3 — virtual classes, documents and student lesson plan
-- `da08501` — feat(rewrite): phase 3 — student service desk and request workflow
-- `302158f` — feat(rewrite): phase 3 — student finance transcript with cheques, loans and QR
-- `58c0a11` — feat(rewrite): phase 3 — curriculum, finance, graduation and thesis
-- `0a011e1` — feat(rewrite): phase 4 (slice 1) — professor dashboard, schedule, contract, documents, class messages and attendance hours
-- `04ec061` — feat(rewrite): phase 4 (slice 2) — professor attendance
-- `63cb7da` — feat(rewrite): phase 4 (slice 3) — grades, evaluation, performance and professor lesson plan
-- `920a45f` — feat(rewrite): phase 5 — department head panel
-- `1522627` — feat(rewrite): phase 6 (slice 1) — admin dashboard, students, faculties and staff
-- `43d2d2c` — feat(rewrite): phase 6 (slice 2) — enrollment window, offering targeting and evaluation rounds
-- `a3617c7` — feat(rewrite): phase 6 (slice 3) — class weekly board with filters and print
-- `53ed8a0` — feat(rewrite): phase 6 (slice 4) — system settings with save and reset to defaults
-- `80839ae` — feat(rewrite): phase 6 (slice 5) — exams inbox: sessions, halls, offering links and seat assignment
-- `ebdbbe4` — feat(rewrite): phase 6 (slice 6) — manual attendance approval and class-holding control inbox
-- `d2a3176` — feat(rewrite): phase 7 (slice 1) — admin finance inbox + course finance type
+- `7561adf` — feat(rewrite): phase 3 — enrollment confirmation slip with signed QR
+- `b259416` — feat(rewrite): phase 3 — virtual classes, documents and student lesson plan
+- `a21fe8e` — feat(rewrite): phase 3 — student service desk and request workflow
+- `79c5ff5` — feat(rewrite): phase 3 — student finance transcript with cheques, loans and QR
+- `a6058fb` — feat(rewrite): phase 3 — curriculum, finance, graduation and thesis
+- `ad5ff6b` — feat(rewrite): phase 4 (slice 1) — professor dashboard, schedule, contract, documents, class messages and attendance hours
+- `e06d817` — feat(rewrite): phase 4 (slice 2) — professor attendance
+- `8e38ed9` — feat(rewrite): phase 4 (slice 3) — grades, evaluation, performance and professor lesson plan
+- `ae88756` — feat(rewrite): phase 5 — department head panel
+- `84d38bf` — feat(rewrite): phase 6 (slice 1) — admin dashboard, students, faculties and staff
+- `142e0a1` — feat(rewrite): phase 6 (slice 2) — enrollment window, offering targeting and evaluation rounds
+- `2483ead` — feat(rewrite): phase 6 (slice 3) — class weekly board with filters and print
+- `5825e90` — feat(rewrite): phase 6 (slice 4) — system settings with save and reset to defaults
+- `12b51b9` — feat(rewrite): phase 6 (slice 5) — exams inbox: sessions, halls, offering links and seat assignment
+- `176fc46` — feat(rewrite): phase 6 (slice 6) — manual attendance approval and class-holding control inbox
+- `26f90a5` — feat(rewrite): phase 7 (slice 1) — admin finance inbox + course finance type
 
 #### 2026-10-28 — ۷ کامیت
 
-- `476a841` — feat(rewrite): phase 7 (slice 2) — professor payroll engine + approval chain
-- `dcb546e` — feat(rewrite): phase 7 (slice 3) — finance engine catalogs + POS terminal
-- `301b3ee` — feat(rewrite): phase 8 (slice 1) — workflow inbox + event bus + tuition engine
-- `d3d40e2` — feat(rewrite): phase 8 (slice 2) — discipline committee + education council
-- `2a749a9` — feat(rewrite): phase 9 (slice 1) — public verification of signed documents (verify-*)
-- `1892a75` — feat(rewrite): phase 9 (slice 2) — public verification of student card, degree and certificate
-- `cd1c94e` — feat(rewrite): phase 9 (slice 3) — open courses catalog and public registration
+- `12daaf0` — feat(rewrite): phase 7 (slice 2) — professor payroll engine + approval chain
+- `ef15582` — feat(rewrite): phase 7 (slice 3) — finance engine catalogs + POS terminal
+- `138d0ce` — feat(rewrite): phase 8 (slice 1) — workflow inbox + event bus + tuition engine
+- `924246f` — feat(rewrite): phase 8 (slice 2) — discipline committee + education council
+- `a71b484` — feat(rewrite): phase 9 (slice 1) — public verification of signed documents (verify-*)
+- `ffef605` — feat(rewrite): phase 9 (slice 2) — public verification of student card, degree and certificate
+- `a70285b` — feat(rewrite): phase 9 (slice 3) — open courses catalog and public registration
 
 #### 2026-10-29 — ۵ کامیت
 
-- `f8bce79` — feat(rewrite): phase 10 (slice 1) — cron jobs + multi-channel notification delivery
-- `6b74478` — feat(rewrite): phase 10 (slice 2) — electronic document archive (MinIO)
-- `4b8ff1a` — docs(rewrite): phase 11 — status document, parity audit and the Next switch/retirement guide
-- `4385019` — feat(rewrite): phase 12 (slice 1) — duty assignments, teaching roles, manual offering role, formula coverage
-- `d965a1a` — feat(rewrite): phase 12 (slice 2) — teaching pay decrees
+- `d2fbfb1` — feat(rewrite): phase 10 (slice 1) — cron jobs + multi-channel notification delivery
+- `b2618c6` — feat(rewrite): phase 10 (slice 2) — electronic document archive (MinIO)
+- `bf89993` — docs(rewrite): phase 11 — status document, parity audit and the Next switch/retirement guide
+- `749d640` — feat(rewrite): phase 12 (slice 1) — duty assignments, teaching roles, manual offering role, formula coverage
+- `dbf4325` — feat(rewrite): phase 12 (slice 2) — teaching pay decrees
 
 #### 2026-10-30 — ۴۲ کامیت
 
-- `1b15859` — feat(rewrite): phase 12 (slice 3) — regulations, payslip objections, professor portal payslip
-- `5d3791b` — feat(rewrite): phase 12 (slice 4) — exam payments + thesis ledger
-- `6676885` — feat(rewrite): phase 12 (slice 5) — term coefficients and subject amounts with CRUD
-- `ab75886` — docs(rewrite): record status after phase 12 (payroll addenda + finance coefficients/subject amounts)
-- `ab56a9c` — feat(rewrite): phase 12 (slice 6) — finance posting time control + per-student special formula
-- `337d8b8` — feat(rewrite): phase 12 (slice 7) — welfare funds (funds and loan assignment)
-- `6001e47` — docs(rewrite): record status after phase 12 slices 6-7
-- `7f60bcb` — feat(rewrite): phase 12 (slice 8) — finance reports center + student statement/finance transcript
-- `f7e087e` — docs(rewrite): record phase 12 slice 8 (finance reports + statement)
-- `defcaca` — feat(rewrite): phase 12 (slice 9) — scheduled warnings + multi-channel cron delivery
-- `4c295f2` — feat(rewrite): phase 12 (slice 10) — graduation desk, parallel clearance and document issuance
-- `dde2cd6` — docs(rewrite): record phase 12 slices 9-10 (warnings and graduation)
-- `9eb6bd6` — feat(rewrite): phase 12 (slice 11) — student card (issue/renew/revoke/print QR) + photo route
-- `e41cd6e` — feat(rewrite): phase 12 (slice 12) — sanjesh admissions + dormitory residence card
-- `61795f9` — docs(rewrite): record phase 12 slices 11-12 (student card, admissions, dormitory)
-- `3d8e0a7` — feat(rewrite): phase 12 (slice 13) — enrollment approval and confirmation-slip issuance
-- `a304cac` — feat(rewrite): phase 12 (slice 14) — course merging and equivalence clusters
-- `e2ff17f` — feat(rewrite): phase 12 (slice 15) — expert manual enrollment (single/bulk) with regulation gates
-- `0182e0d` — feat(rewrite): phase 12 (slice 16) — student transfer between groups of a course
-- `a1c32f7` — docs(rewrite): record phase 12 slices 13-16 (approval/manual enrollment/merge/transfer)
-- `65a4376` — feat(rewrite): phase 12 (slice 17) — tuition engine and annual variable tariff (full UI)
-- `3d2ff0a` — feat(rewrite): phase 12 (slice 18) — defense scheduling desk and thesis defense result recording
-- `3488702` — feat(admin): open courses — course definition, participants, payments, grades, certificates with public verification
-- `58e9773` — feat(admin): lesson-plan monitoring, SAMA regulation review and two-step approval
-- `45a4df4` — feat(admin): course bank management and grade status codes
-- `1be5f17` — feat(admin): evaluation business-intelligence dashboard
-- `0a56a51` — feat(admin): previous-major import from a fixed-width sanjesh file
-- `6da01cb` — feat(admin): education reports center (core 16 reports)
-- `8acc31d` — feat(reports): class/room reports and supplementary lists
-- `d45ea2c` — feat(reports): exam and professor reports
-- `c0bf78f` — feat(reports): student status and operations reports
-- `b602ad4` — feat(reports): proposal and defense reports
-- `f9a34a3` — feat(reports): education council and certificates reports
-- `2f7afb5` — docs: update the reports-center remaining list
-- `8c67579` — feat(reports): complete the remaining report families of the reports center
-- `e0554cf` — feat(admin): category tiles /admin/c/[group]
-- `6399f25` — feat(admin): syllabus/curriculum catalog + category tiles
-- `d0d18a5` — feat(admin): notification templates + test message
-- `ef251e7` — feat: messenger (connection/tokens/poll worker), remaining crons and public pages
-- `8214cbf` — feat(admin): codes center — list/stats/row edit/CSV
-- `4a534cf` — feat(admin): data migration + equity report + sajjad hub
-- `f073aed` — docs(status): the Next list is empty — phase 12 finished, phase 13 ready
+- `c517c7f` — feat(rewrite): phase 12 (slice 3) — regulations, payslip objections, professor portal payslip
+- `8821978` — feat(rewrite): phase 12 (slice 4) — exam payments + thesis ledger
+- `7dadbcb` — feat(rewrite): phase 12 (slice 5) — term coefficients and subject amounts with CRUD
+- `ae5a798` — docs(rewrite): record status after phase 12 (payroll addenda + finance coefficients/subject amounts)
+- `42b7541` — feat(rewrite): phase 12 (slice 6) — finance posting time control + per-student special formula
+- `eefcc69` — feat(rewrite): phase 12 (slice 7) — welfare funds (funds and loan assignment)
+- `2360245` — docs(rewrite): record status after phase 12 slices 6-7
+- `f3d0ac9` — feat(rewrite): phase 12 (slice 8) — finance reports center + student statement/finance transcript
+- `fa97901` — docs(rewrite): record phase 12 slice 8 (finance reports + statement)
+- `19f1084` — feat(rewrite): phase 12 (slice 9) — scheduled warnings + multi-channel cron delivery
+- `ed23135` — feat(rewrite): phase 12 (slice 10) — graduation desk, parallel clearance and document issuance
+- `1932652` — docs(rewrite): record phase 12 slices 9-10 (warnings and graduation)
+- `64bd2d3` — feat(rewrite): phase 12 (slice 11) — student card (issue/renew/revoke/print QR) + photo route
+- `5dd5f25` — feat(rewrite): phase 12 (slice 12) — sanjesh admissions + dormitory residence card
+- `446d667` — docs(rewrite): record phase 12 slices 11-12 (student card, admissions, dormitory)
+- `566534d` — feat(rewrite): phase 12 (slice 13) — enrollment approval and confirmation-slip issuance
+- `2754d66` — feat(rewrite): phase 12 (slice 14) — course merging and equivalence clusters
+- `0d9eb1b` — feat(rewrite): phase 12 (slice 15) — expert manual enrollment (single/bulk) with regulation gates
+- `cc5579c` — feat(rewrite): phase 12 (slice 16) — student transfer between groups of a course
+- `51ac069` — docs(rewrite): record phase 12 slices 13-16 (approval/manual enrollment/merge/transfer)
+- `9567f1f` — feat(rewrite): phase 12 (slice 17) — tuition engine and annual variable tariff (full UI)
+- `2a668ee` — feat(rewrite): phase 12 (slice 18) — defense scheduling desk and thesis defense result recording
+- `cda31de` — feat(admin): open courses — course definition, participants, payments, grades, certificates with public verification
+- `f6d6cca` — feat(admin): lesson-plan monitoring, SAMA regulation review and two-step approval
+- `3d6e1a0` — feat(admin): course bank management and grade status codes
+- `b349253` — feat(admin): evaluation business-intelligence dashboard
+- `d88f406` — feat(admin): previous-major import from a fixed-width sanjesh file
+- `72d9c4e` — feat(admin): education reports center (core 16 reports)
+- `4f0b202` — feat(reports): class/room reports and supplementary lists
+- `15e03f5` — feat(reports): exam and professor reports
+- `9c50198` — feat(reports): student status and operations reports
+- `ef717f2` — feat(reports): proposal and defense reports
+- `ffb397d` — feat(reports): education council and certificates reports
+- `af5d061` — docs: update the reports-center remaining list
+- `73b8200` — feat(reports): complete the remaining report families of the reports center
+- `18dba04` — feat(admin): category tiles /admin/c/[group]
+- `9a1498c` — feat(admin): syllabus/curriculum catalog + category tiles
+- `09769fd` — feat(admin): notification templates + test message
+- `80152cb` — feat: messenger (connection/tokens/poll worker), remaining crons and public pages
+- `b2cce0f` — feat(admin): codes center — list/stats/row edit/CSV
+- `c2f5356` — feat(admin): data migration + equity report + sajjad hub
+- `c9146aa` — docs(status): the Next list is empty — phase 12 finished, phase 13 ready
 
 #### 2026-10-31 — ۷ کامیت
 
-- `66e2b7e` — feat(admin): remaining small pages + alias routes
-- `9a9e014` — feat(admin): scheduling suite, regulations center and edu-expert assignment
-- `009e2c1` — feat(admin): last 6 pages — broadcast message, bypass, class sessions, exam handover, offering editor, conflict resolution
-- `bd4682c` — docs(status): final parity audit — 145 Next routes, zero remaining, migration complete
-- `eacd483` — feat: public exam-handover page + payroll simulator
-- `120b46f` — docs(status): full history of the 85 migration commits (445 files, +135k lines)
-- `22d0b9c` — docs(status): exact migration line and file statistics
+- `ee070df` — feat(admin): remaining small pages + alias routes
+- `08723e9` — feat(admin): scheduling suite, regulations center and edu-expert assignment
+- `bb9a198` — feat(admin): last 6 pages — broadcast message, bypass, class sessions, exam handover, offering editor, conflict resolution
+- `3821854` — docs(status): final parity audit — 145 Next routes, zero remaining, migration complete
+- `052f366` — feat: public exam-handover page + payroll simulator
+- `f2097ed` — docs(status): full history of the 85 migration commits (445 files, +135k lines)
+- `e12248c` — docs(status): exact migration line and file statistics
 
-## آخرین کامیت‌ها — ترجمهٔ انگلیسی (پس از `22d0b9c`)
+## آخرین کامیت‌ها — ترجمهٔ انگلیسی (پس از `e12248c`)
 
 | بازه | کامیت‌ها | فایل‌ها | خطوط |
 |---|---:|---:|---:|
-| `22d0b9c..ff95030` | ۶ | ۲۴ | +۴٬۳۳۹ / −۲۵۸ |
+| `e12248c..8d30ced` | ۶ | ۲۴ | +۴٬۳۳۹ / −۲۵۸ |
 
 | # | کامیت | تاریخ | موضوع (انگلیسی، پیام فعلی گیت) | English subject (سند پیشین) |
 |---|---|---|---|---|
-| ۱ | `7e1e945` | 2026-11-01 | docs: complete history of the repository's 1,001 commits (the Next.js era + the rewrite) | docs: complete history of 1,001 commits (Next.js era + Go/React rewrite) |
-| ۲ | `b27c354` | 2026-11-01 | feat: admin classroom manager + mobile bottom bar (port of the final Next commits) | feat: admin settings classroom manager + mobile bottom navigation (port of the final Next.js commits) |
-| ۳ | `7539b60` | 2026-11-01 | feat(admin): scheduling suite enrichment + regulations center + sequence repair | feat(admin): richer scheduling suite and regulations center + sequence repair |
-| ۴ | `b46feba` | 2026-11-01 | feat(mobile): admin module tiles in a three-column mobile layout (aligned with Next) | feat(mobile): three-column admin module tiles on mobile (aligned with Next.js) |
-| ۵ | `52db051` | 2026-11-01 | feat(admin): scheduling smart suggestions + unit caps and the professor attendance form | feat(admin): scheduling smart suggestions + weekly unit caps and professor availability form |
-| ۶ | `ff95030` | 2026-11-01 | fix(security): university scope, race-free delete, input hardening and cleanup with English docs | fix(security): university scoping, race-free classroom deletion, input hardening, and cleanup with English documentation |
+| ۱ | `465af21` | 2026-11-01 | docs: complete history of the repository's 1,001 commits (the Next.js era + the rewrite) | docs: complete history of 1,001 commits (Next.js era + Go/React rewrite) |
+| ۲ | `775f39c` | 2026-11-01 | feat: admin classroom manager + mobile bottom bar (port of the final Next commits) | feat: admin settings classroom manager + mobile bottom navigation (port of the final Next.js commits) |
+| ۳ | `469af10` | 2026-11-01 | feat(admin): scheduling suite enrichment + regulations center + sequence repair | feat(admin): richer scheduling suite and regulations center + sequence repair |
+| ۴ | `1f80f6f` | 2026-11-01 | feat(mobile): admin module tiles in a three-column mobile layout (aligned with Next) | feat(mobile): three-column admin module tiles on mobile (aligned with Next.js) |
+| ۵ | `462c9c0` | 2026-11-01 | feat(admin): scheduling smart suggestions + unit caps and the professor attendance form | feat(admin): scheduling smart suggestions + weekly unit caps and professor availability form |
+| ۶ | `8d30ced` | 2026-11-01 | fix(security): university scope, race-free delete, input hardening and cleanup with English docs | fix(security): university scoping, race-free classroom deletion, input hardening, and cleanup with English documentation |
 
 ### نتیجهٔ بررسی این ۶ کامیت
 
 - هر شش کامیت بازبینی شدند؛ تاریخچه/پیام اصلی دست‌نخورده ماند و ترجمه فقط در همین سند ثبت شد.
-- کامیت‌های `b27c354`، `7539b60` و `52db051` با فراخوانی واقعی API و بررسی مرورگری (مدیر کلاس‌ها، نوار موبایل، تب‌های برنامه‌ریزی و آیین‌نامه) تست شدند.
-- کامیت `ff95030` شامل رفع اسکوپ دانشگاه، حذف بدون مسابقه، سخت‌سازی ورودی/خطا و تست‌های واحد است؛ جزئیات در [`docs/CODE-REVIEW-2026-11-01.md`](./CODE-REVIEW-2026-11-01.md).
+- کامیت‌های `775f39c`، `469af10` و `462c9c0` با فراخوانی واقعی API و بررسی مرورگری (مدیر کلاس‌ها، نوار موبایل، تب‌های برنامه‌ریزی و آیین‌نامه) تست شدند.
+- کامیت `8d30ced` شامل رفع اسکوپ دانشگاه، حذف بدون مسابقه، سخت‌سازی ورودی/خطا و تست‌های واحد است؛ جزئیات در [`docs/CODE-REVIEW-2026-11-01.md`](./CODE-REVIEW-2026-11-01.md).
 - در زمان ثبت این بخش: `go vet`/`go test` و `tsc`/`vite build`/۲۸ تست Vitest سبز بودند و هیچ فایل تغییرنیافتهٔ ثبت‌نشده وجود نداشت.
