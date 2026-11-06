@@ -75,6 +75,8 @@ export async function GET(request: Request) {
       termId: s.termId,
       termCode: termCodeById.get(s.termId) ?? '',
       termTitle: s.termTitle,
+      // وضعیت نیمسال دانشجو (از student_term_states — می‌تواند تهی باشد)
+      statusTitle: s.statusTitle ?? null,
       // تفکیک سما (نمایشی — از ردیف‌های خام همان ترم تحصیلی)
       tuitionFixed: get('TUITION_FIXED'),
       tuitionVariable: get('TUITION_VARIABLE'),
@@ -90,6 +92,8 @@ export async function GET(request: Request) {
       charges: s.charges,
       discounts: s.discounts,
       sponsorships: s.sponsorships,
+      sponsorshipsFromDeposits: s.sponsorshipsFromDeposits ?? 0,
+      charityCoverage: s.charityCoverage ?? 0,
       canonicalPayments: s.payments,
       chequesCleared: s.chequesCleared,
       chequesPending: s.chequesPending,
@@ -100,6 +104,7 @@ export async function GET(request: Request) {
       // ریز دروس ترم (وزن از تعرفهٔ رسمی سال، جمع = شهریهٔ متغیر دفتر کل)
       courses: courses?.lines ?? [],
       coursesBasis: courses?.basis ?? 'LEDGER',
+      tariffGroupCode: courses?.tariffGroupCode ?? null,
     };
   });
 

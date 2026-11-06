@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { and, desc, eq, isNull, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { course_offerings, courses, grade_change_log, process_definitions, student_requests, students, users } from '@/db/schema';
@@ -10,6 +11,7 @@ import { revalidatePath } from 'next/cache';
 import Link from 'next/link';
 import RequestActionButtons from './RequestActionButtons';
 import AdminMakeupRequestsCard from './AdminMakeupRequestsCard';
+import PanelHero, { HeroStatsRow, HeroStatsSkeleton } from '@/components/PanelHero';
 
 async function warmupAction() {
   'use server';
@@ -63,8 +65,21 @@ function InboxTh({
   const active = sortKey === col;
   return (
     <th className="p-2.5">
+      {/* ⚠ `prefetch={false}` حیاتی است — این را حذف نکنید.
+          Next.js App Router به‌طور پیش‌فرض هر <Link prefetch={false}> داخلِ viewport را
+          prefetch می‌کند و هر prefetch یک **رندرِ کاملِ RSC** از همان صفحه است،
+          با همهٔ کوئری‌های دیتابیس. این جدول ۵ سرستونِ مرتب‌سازی دارد، پس
+          باز کردنِ /admin پنج رندرِ کاملِ موازی شلیک می‌کرد.
+          اندازه‌گیریِ واقعی با HAR روی سرورِ تولید: چهار درخواست
+          `?sort=track|name|proc|status` در یک میلی‌ثانیه، هر کدام ~۱.۱۶ ثانیه
+          ⇒ حدود ۵ ثانیه کارِ سرور فقط برای prefetch. پیامدش این بود که یک
+          endpoint بی‌هزینه مثلِ `/api/version` هم ۴.۲ ثانیه منتظر می‌ماند،
+          چون سرور اشباع شده بود.
+          مرتب‌سازی یک کنشِ صریحِ کاربر است، نه ناوبری؛ پیش‌واکشی‌اش هیچ سودی
+          ندارد و فقط ظرفیتِ سرور را می‌سوزاند. */}
       <Link
         href={href(col)}
+        prefetch={false}
         title="مرتب‌سازی"
         className={`font-bold hover:text-indigo-700 whitespace-nowrap ${active ? 'text-indigo-700' : ''}`}
       >
@@ -74,6 +89,37 @@ function InboxTh({
         </span>
       </Link>
     </th>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   اسکلتون‌های استریم — هم‌اندازه با محتوای واقعی تا هنگام پر شدنِ کارت‌ها
+   چیدمان نپرد (بدون CLS).
+   ───────────────────────────────────────────────────────────────────────────── */
+function CardSkeleton({ lines = 2 }: { lines?: number }) {
+  return (
+    <div className="card">
+      <div className="h-4 w-48 animate-pulse rounded bg-slate-200" />
+      {Array.from({ length: lines }).map((_, i) => (
+        <div key={i} className="mt-2 h-3 w-full animate-pulse rounded bg-slate-100" />
+      ))}
+    </div>
+  );
+}
+
+function TableSkeleton() {
+  return (
+    <div className="card !p-0">
+      <div className="border-b border-slate-100 px-4 py-3">
+        <div className="h-4 w-64 animate-pulse rounded bg-slate-200" />
+        <div className="mt-2 h-3 w-40 animate-pulse rounded bg-slate-100" />
+      </div>
+      <div className="space-y-2 p-4">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="h-8 w-full animate-pulse rounded bg-slate-100" />
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -88,6 +134,7 @@ export default async function AdminHome({
   const { getUserPermissionCodes } = await import('@/lib/permissions-enforcer');
   const permissionCodes = await getUserPermissionCodes(user.id).catch(() => []);
   const groups = groupedModules(user.roles, permissionCodes);
+  const moduleCount = groups.reduce((s, g) => s + g.modules.length, 0);
 
   // ── مرتب‌سازی ستونی کارتابل از URL (?sort=col&dir=asc|desc — پیش‌فرض: جدیدترین) ──
   const SORTABLE: Record<string, 'track' | 'name' | 'status' | 'created' | 'proc'> = {
@@ -101,119 +148,57 @@ export default async function AdminHome({
     return '/admin';
   };
 
-  let total = 0;
-  let counts: { status: string; n: number }[] = [];
-  let inbox: any[] = [];
-  let wr: Awaited<ReturnType<typeof waitingRoomStats>> | null = null;
-  // 🔴 فعالیت زندهٔ نمرات (۳۰ دقیقهٔ اخیر) — قابل خاموش/روشن از تنظیمات مدیر
-  let gradeLive: { actor: string; role: string | null; studentCode: string; course: string; grade: string | null; at: Date | null }[] = [];
-  let showGradeLive = false;
-
-  if (isEdu) {
-    ensureWorker();
-    wr = await waitingRoomStats();
-    // دانشگاه فعال — فقط درخواست‌های همین دانشگاه + رکوردهای سراسری (universityId=null)
-    const uniId = (await getCurrentUniversity()).id;
-    const uniScope = or(eq(student_requests.universityId, uniId), isNull(student_requests.universityId));
-    counts = await db
-      .select({ status: student_requests.status, n: sql<number>`count(*)::int` })
-      .from(student_requests)
-      .where(uniScope)
-      .groupBy(student_requests.status);
-    total = counts.reduce((s, c) => s + c.n, 0);
-
-    const orderBy = !sortKey
-      ? [desc(student_requests.id)]
-      : sortKey === 'track'
-        ? (sortDir === 'asc' ? [student_requests.trackingCode] : [desc(student_requests.trackingCode)])
-        : sortKey === 'name'
-          ? (sortDir === 'asc' ? [users.lastName, users.firstName] : [desc(users.lastName), desc(users.firstName)])
-          : sortKey === 'status'
-            ? (sortDir === 'asc' ? [student_requests.status] : [desc(student_requests.status)])
-            : sortKey === 'created'
-              ? (sortDir === 'asc' ? [student_requests.createdAt] : [desc(student_requests.createdAt)])
-              : (sortDir === 'asc' ? [process_definitions.title] : [desc(process_definitions.title)]);
-
-    inbox = await db
-      .select({
-        id: student_requests.id,
-        track: student_requests.trackingCode,
-        status: student_requests.status,
-        created: student_requests.createdAt,
-        formData: student_requests.formData,
-        name: users.firstName,
-        family: users.lastName,
-        code: students.studentCode,
-        procTitle: process_definitions.title,
-      })
-      .from(student_requests)
-      .innerJoin(students, eq(students.id, student_requests.studentId))
-      .innerJoin(users, eq(users.id, students.userId))
-      .leftJoin(process_definitions, eq(process_definitions.id, student_requests.processId))
-      .where(uniScope)
-      .orderBy(...(orderBy as never[]))
-      .limit(20);
-
-    showGradeLive = (user.roles.includes('ADMIN') || user.roles.includes('EDU_EXPERT') || user.roles.includes('VICE_EDU'))
-      && await getBool('GRADE_EDIT_NOTIFY_BOARD').catch(() => true);
-    if (showGradeLive) {
-      const rows = await db
-        .select({
-          actorFirst: users.firstName,
-          actorLast: users.lastName,
-          actorRole: grade_change_log.actorRole,
-          studentCode: students.studentCode,
-          courseTitle: courses.title,
-          courseCode: courses.code,
-          grade: grade_change_log.newGradeValue,
-          at: grade_change_log.createdAt,
-        })
-        .from(grade_change_log)
-        .leftJoin(users, eq(users.id, grade_change_log.actorUserId))
-        .leftJoin(students, eq(students.id, grade_change_log.studentId))
-        .leftJoin(course_offerings, eq(course_offerings.id, grade_change_log.offeringId))
-        .leftJoin(courses, eq(courses.id, course_offerings.courseId))
-        .where(and(
-          sql`${grade_change_log.createdAt} > now() - interval '30 minutes'`,
-          or(eq(students.universityId, uniId), isNull(students.universityId)),
-        ))
-        .orderBy(desc(grade_change_log.id))
-        .limit(10)
-        .catch(() => []);
-      gradeLive = rows.map(r => ({
-        actor: `${r.actorFirst || ''} ${r.actorLast || ''}`.trim() || '—',
-        role: r.actorRole,
-        studentCode: r.studentCode || '—',
-        course: r.courseTitle || r.courseCode || '—',
-        grade: r.grade,
-        at: r.at,
-      }));
-    }
-  }
-
+  /* ⚡ معماریِ این صفحه — «رندرِ تدریجی» (Streaming):
+     پیش‌تر همهٔ کوئری‌ها (آمار، کارتابل، نمراتِ زنده، Redis، کلاس جبرانی) با
+     `await` پشتِ هم اجرا می‌شدند و تا پایانِ آخرین کوئری **هیچ چیز** رندر
+     نمی‌شد؛ کاربر فقط اسکلتون می‌دید و صفحه «به‌شدت کند» حس می‌شد.
+     حالا فقط بخشِ سبک (ویترین + کاشی‌های دسته) قبل از اولین flush محاسبه
+     می‌شود و هر کارتِ سنگین داخل `<Suspense>` جدا استریم می‌شود: صفحه بلافاصله
+     می‌آید و کارت‌ها یکی‌یکی پر می‌شوند. */
   return (
     <div className="space-y-5">
+      {/* ═══ ویترینِ صفحهٔ اول ═══ */}
+      <PanelHero
+        tone="indigo"
+        icon="🧭"
+        eyebrow="کارتابل مدیریت"
+        title="داشبورد مدیریت جامع"
+        subtitle={`${moduleCount.toLocaleString('fa-IR')} ماژول در دسترسِ نقش شما — برای ورود به هر حوزه، دستهٔ مربوط را انتخاب کنید.`}
+        statsSlot={
+          isEdu ? (
+            <Suspense fallback={<HeroStatsSkeleton count={5} />}>
+              <HeroStatsSection />
+            </Suspense>
+          ) : undefined
+        }
+      />
+
       {/* ═══ دسته‌های کلی — کلیک = صفحهٔ کاشی‌های همان دسته ═══ */}
       <section>
-        <div className="flex items-center justify-between mb-3">
-          <h1 className="font-extrabold text-slate-800 text-base sm:text-lg">دسته‌بندی سامانه</h1>
-          <span className="text-xs text-slate-500">{groups.reduce((s, g) => s + g.modules.length, 0)} ماژول در دسترس نقش شما</span>
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3.5">
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5 lg:grid-cols-4">
           {groups.map(g => (
             <Link
               key={g.group.key}
               href={`/admin/c/${g.group.key}`}
-              className="group h-full p-3 sm:p-4 rounded-2xl bg-white border border-slate-200 shadow-sm hover:shadow-xl hover:-translate-y-0.5 transition-all flex items-start gap-2.5 sm:gap-3"
+              prefetch={false}
+              className="group relative flex h-full items-start gap-3 overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-lg sm:p-4"
             >
-              <div className="w-10 h-10 sm:w-11 sm:h-11 shrink-0 rounded-xl bg-indigo-50 border border-indigo-100 flex items-center justify-center text-xl sm:text-2xl group-hover:scale-110 transition-transform">
+              {/* نوارِ رنگیِ بالای کارت — فقط در hover ظاهر می‌شود؛ نشانهٔ «قابل کلیک» */}
+              <span
+                aria-hidden
+                className="absolute inset-x-0 top-0 h-0.5 origin-right scale-x-0 bg-gradient-to-l from-indigo-500 via-violet-500 to-fuchsia-500 transition-transform duration-200 group-hover:scale-x-100"
+              />
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 text-white shadow-sm transition-transform group-hover:scale-105 [&>svg]:h-5 [&>svg]:w-5">
                 {g.group.icon}
               </div>
-              <div className="min-w-0">
-                <h3 className="font-extrabold text-[12px] sm:text-sm leading-tight text-slate-800">{g.group.title}</h3>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-[12px] font-extrabold leading-tight text-slate-800 sm:text-sm">{g.group.title}</h3>
                 {/* توضیح دسته فقط از sm به بالا — در موبایل کارت را بی‌دلیل بلند می‌کرد */}
-                <p className="hidden sm:block text-[11px] text-slate-500 mt-1 leading-5">{g.group.desc}</p>
-                <p className="text-[10px] text-indigo-600 mt-1 font-bold">{g.modules.length} ماژول ←</p>
+                <p className="mt-1 hidden text-2xs leading-5 text-slate-500 sm:block">{g.group.desc}</p>
+                <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-3xs font-black text-indigo-700">
+                  {g.modules.length.toLocaleString('fa-IR')} ماژول
+                  <span aria-hidden className="transition-transform group-hover:-translate-x-0.5">←</span>
+                </span>
               </div>
             </Link>
           ))}
@@ -222,143 +207,279 @@ export default async function AdminHome({
 
       {isEdu && (
         <>
-          {/* کارت‌های خلاصه وضعیت کل سیستم */}
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-            <div className="card text-center">
-              <p className="text-2xl font-bold text-indigo-700">{total}</p>
-              <p className="text-xs text-slate-500">کل درخواست‌ها</p>
-            </div>
-            {['SUBMITTED', 'IN_REVIEW', 'APPROVED', 'REJECTED'].map(k => {
-              const n = counts.find(c => c.status === k)?.n ?? 0;
-              return (
-                <div key={k} className="card text-center">
-                  <p className="text-2xl font-bold text-slate-700">{n}</p>
-                  <p className="text-xs text-slate-500">{stFa[k]}</p>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* کارتابل درخواست‌های کلاس جبرانی اساتید */}
-          <AdminMakeupRequestsCard />
+          {/* کارتابل درخواست‌های کلاس جبرانی اساتید (کوئریِ سنگین — مستقل استریم می‌شود) */}
+          <Suspense fallback={<CardSkeleton lines={3} />}>
+            <AdminMakeupRequestsCard />
+          </Suspense>
 
           {/* 🔴 فعالیت زندهٔ نمرات — چه کسی هم‌اکنون/اخیراً نمره تغییر داده است */}
-          {showGradeLive && (
-            <div className="card border-red-300">
-              <div className="flex items-center justify-between mb-2">
-                <h2 className="font-bold text-slate-800">🔴 فعالیت زندهٔ نمرات (۳۰ دقیقهٔ اخیر)</h2>
-                <span className="text-xs text-slate-500">{gradeLive.length} تغییر</span>
-              </div>
-              {gradeLive.length === 0 ? (
-                <p className="text-xs text-slate-400">در ۳۰ دقیقهٔ اخیر تغییری در نمرات ثبت نشده است.</p>
-              ) : (
-                <ul className="text-xs space-y-1.5">
-                  {gradeLive.map((g, i) => (
-                    <li key={i} className="flex flex-wrap items-center gap-x-2 border-b border-slate-100 pb-1.5">
-                      <b>{g.actor}</b>
-                      {g.role && <span className="text-slate-500">({g.role})</span>}
-                      <span>دانشجو <span className="font-mono" dir="ltr">{g.studentCode}</span></span>
-                      <span className="text-slate-600">{g.course}</span>
-                      <span>→ <b className="font-mono">{g.grade ?? '—'}</b></span>
-                      <span className="text-slate-400 mr-auto">
-                        {g.at ? new Date(g.at).toLocaleString('fa-IR', { hour: '2-digit', minute: '2-digit' }) : ''}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
+          <Suspense fallback={null}>
+            <GradeLiveSection roles={user.roles} />
+          </Suspense>
 
           {/* وضعیت موتور صف Redis */}
-          {wr && (
-            <div className={'card flex flex-wrap items-center justify-between gap-3 ' + (wr.up ? 'border-emerald-300' : 'border-red-300')}>
-              <div>
-                <h2 className="font-bold">اتاق انتظار Redis (§۶۹۰۶)</h2>
-                <p className="text-xs text-slate-500">
-                  {wr.up
-                    ? 'فعال — ' + wr.warmedOfferings + ' کلاس گرم‌شده · صف ثبت نهایی: ' + wr.queueLength + ' درخواست'
-                    : 'Redis در دسترس نیست — موتور به شمارش SQL برمی‌گردد (حالت تداوم)'}
-                </p>
-              </div>
-              <form action={warmupAction}>
-                <button className="btn-primary !py-1.5 text-xs">گرم‌کردن مجدد ظرفیت‌ها (شب قبل §۱۰۰۶)</button>
-              </form>
-            </div>
-          )}
+          <Suspense fallback={<CardSkeleton lines={1} />}>
+            <RedisSection />
+          </Suspense>
 
           {/* جدول کارتابل گردش کار و اقدامات دانشجویی */}
-          <div className="card">
-            <div className="flex items-center justify-between mb-3 border-b border-slate-100 pb-2">
-              <h2 className="font-bold text-slate-800">کارتابل رسیدگی به درخواست‌های دانشجویی (شورای آموزشی)</h2>
-              <span className="text-xs text-slate-500">{inbox.length} پرونده اخیر</span>
-            </div>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-right text-sm rt">
-                <thead>
-                  <tr className="text-xs text-slate-500 border-b border-slate-200">
-                    <InboxTh label="کد رهگیری" col="track" sortKey={sortKey} sortDir={sortDir} href={sortHref} />
-                    <InboxTh label="دانشجو" col="name" sortKey={sortKey} sortDir={sortDir} href={sortHref} />
-                    <InboxTh label="موضوع / درس" col="proc" sortKey={sortKey} sortDir={sortDir} href={sortHref} />
-                    <InboxTh label="وضعیت" col="status" sortKey={sortKey} sortDir={sortDir} href={sortHref} />
-                    <InboxTh label="زمان" col="created" sortKey={sortKey} sortDir={sortDir} href={sortHref} />
-                    <th className="p-2.5 text-left">اقدام شورا</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {inbox.length === 0 && (
-                    <tr>
-                      <td colSpan={6} className="p-6 text-center text-slate-400">
-                        درخواستی در کارتابل موجود نیست.
-                      </td>
-                    </tr>
-                  )}
-                  {inbox.map(r => {
-                    let extra: any = {};
-                    try {
-                      if (r.formData) extra = JSON.parse(r.formData);
-                    } catch (_) {}
-
-                    return (
-                      <tr key={r.id} className="border-t border-slate-100 hover:bg-slate-50/70 transition-colors">
-                        <td className="p-2.5 font-mono text-xs font-bold text-slate-700" dir="ltr">
-                          {r.track}
-                        </td>
-                        <td className="p-2.5">
-                          <p className="font-semibold text-slate-800">{r.name} {r.family}</p>
-                          <p className="text-[11px] font-mono text-slate-400" dir="ltr">{r.code}</p>
-                        </td>
-                        <td className="p-2.5">
-                          <p className="text-xs font-medium text-slate-700">
-                            {extra.offeringTitle ? `اخذ درس ${extra.offeringTitle}` : (r.procTitle || 'کمیسیون موارد خاص')}
-                          </p>
-                          {extra.reasons && (
-                            <p className="text-[10px] text-amber-700 mt-0.5 truncate max-w-[200px]" title={extra.reasons.join('، ')}>
-                              {extra.reasons.join('، ')}
-                            </p>
-                          )}
-                        </td>
-                        <td className="p-2.5">
-                          <span className={'inline-block text-[11px] px-2 py-0.5 rounded-full font-medium ' + (stColor[r.status] ?? '')}>
-                            {stFa[r.status] ?? r.status}
-                          </span>
-                        </td>
-                        <td className="p-2.5 text-xs text-slate-500">
-                          {r.created ? new Date(r.created).toLocaleString('fa-IR', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
-                        </td>
-                        <td className="p-2.5 text-left">
-                          <RequestActionButtons requestId={r.id} status={r.status} />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
+          <Suspense fallback={<TableSkeleton />}>
+            <InboxSection sortKey={sortKey} sortDir={sortDir} sortHref={sortHref} />
+          </Suspense>
         </>
       )}
+    </div>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   بخش‌های استریم‌شده — هر کدام مستقل، تا کندیِ یکی بقیه را معطل نکند.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/** آمارِ درخواست‌ها — داخل ویترین، با اسکلتونِ هم‌اندازه. */
+async function HeroStatsSection() {
+  const uniId = (await getCurrentUniversity()).id;
+  const uniScope = or(eq(student_requests.universityId, uniId), isNull(student_requests.universityId));
+  const counts = await db
+    .select({ status: student_requests.status, n: sql<number>`count(*)::int` })
+    .from(student_requests)
+    .where(uniScope)
+    .groupBy(student_requests.status)
+    .catch(() => [] as { status: string; n: number }[]);
+  const total = counts.reduce((s, c) => s + c.n, 0);
+
+  return (
+    <HeroStatsRow
+      stats={[
+        { label: 'کل درخواست‌ها', value: total.toLocaleString('fa-IR'), tone: 'text-indigo-700', title: 'همهٔ درخواست‌های ثبت‌شدهٔ این دانشگاه' },
+        ...(['SUBMITTED', 'IN_REVIEW', 'APPROVED', 'REJECTED'] as const).map(k => ({
+          label: stFa[k],
+          value: (counts.find(c => c.status === k)?.n ?? 0).toLocaleString('fa-IR'),
+          title: `درخواست‌های ${stFa[k]}`,
+        })),
+      ]}
+    />
+  );
+}
+
+/** فعالیت زندهٔ نمرات — اگر از تنظیمات خاموش باشد یا نقش اجازه نداشته باشد، هیچ چیز رندر نمی‌شود. */
+async function GradeLiveSection({ roles }: { roles: string[] }) {
+  const canSee = roles.some(r => ['ADMIN', 'EDU_EXPERT', 'VICE_EDU'].includes(r));
+  if (!canSee) return null;
+  const show = await getBool('GRADE_EDIT_NOTIFY_BOARD').catch(() => true);
+  if (!show) return null;
+
+  const uniId = (await getCurrentUniversity()).id;
+  const rows = await db
+    .select({
+      actorFirst: users.firstName,
+      actorLast: users.lastName,
+      actorRole: grade_change_log.actorRole,
+      studentCode: students.studentCode,
+      courseTitle: courses.title,
+      courseCode: courses.code,
+      grade: grade_change_log.newGradeValue,
+      at: grade_change_log.createdAt,
+    })
+    .from(grade_change_log)
+    .leftJoin(users, eq(users.id, grade_change_log.actorUserId))
+    .leftJoin(students, eq(students.id, grade_change_log.studentId))
+    .leftJoin(course_offerings, eq(course_offerings.id, grade_change_log.offeringId))
+    .leftJoin(courses, eq(courses.id, course_offerings.courseId))
+    .where(and(
+      sql`${grade_change_log.createdAt} > now() - interval '30 minutes'`,
+      or(eq(students.universityId, uniId), isNull(students.universityId)),
+    ))
+    .orderBy(desc(grade_change_log.id))
+    .limit(10)
+    .catch(() => []);
+
+  const gradeLive = rows.map(r => ({
+    actor: `${r.actorFirst || ''} ${r.actorLast || ''}`.trim() || '—',
+    role: r.actorRole,
+    studentCode: r.studentCode || '—',
+    course: r.courseTitle || r.courseCode || '—',
+    grade: r.grade,
+    at: r.at,
+  }));
+
+  return (
+    <div className="card border-red-300">
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
+        <h2 className="text-sm font-extrabold text-slate-900">🔴 فعالیت زندهٔ نمرات</h2>
+        <span className="ui-chip !border-red-200 !bg-red-50 !text-red-700 dark:!border-red-900 dark:!bg-red-950 dark:!text-red-200">
+          {gradeLive.length} تغییر در ۳۰ دقیقهٔ اخیر
+        </span>
+      </div>
+      {gradeLive.length === 0 ? (
+        <p className="text-xs text-slate-400">در ۳۰ دقیقهٔ اخیر تغییری در نمرات ثبت نشده است.</p>
+      ) : (
+        <ul className="text-xs space-y-1.5">
+          {gradeLive.map((g, i) => (
+            <li key={i} className="flex flex-wrap items-center gap-x-2 border-b border-slate-100 pb-1.5">
+              <b>{g.actor}</b>
+              {g.role && <span className="text-slate-500">({g.role})</span>}
+              <span>دانشجو <span className="font-mono" dir="ltr">{g.studentCode}</span></span>
+              <span className="text-slate-600">{g.course}</span>
+              <span>→ <b className="font-mono">{g.grade ?? '—'}</b></span>
+              <span className="text-slate-400 mr-auto">
+                {g.at ? new Date(g.at).toLocaleString('fa-IR', { hour: '2-digit', minute: '2-digit' }) : ''}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
+/** وضعیت موتور صف Redis — با محافظِ زمانی در `waitingRoomStats` تا Redisِ خاموش صفحه را نخواباند. */
+async function RedisSection() {
+  ensureWorker();
+  const wr = await waitingRoomStats();
+  return (
+    <div className={'card flex flex-wrap items-center justify-between gap-3 ' + (wr.up ? 'border-emerald-300' : 'border-red-300')}>
+      <div className="flex min-w-0 items-start gap-2.5">
+        <span
+          aria-hidden
+          className={`mt-1 h-2.5 w-2.5 shrink-0 rounded-full ${wr.up ? 'bg-emerald-500' : 'bg-red-500'}`}
+          style={wr.up ? { boxShadow: '0 0 0 4px rgba(16,185,129,.15)' } : { boxShadow: '0 0 0 4px rgba(239,68,68,.15)' }}
+        />
+        <div className="min-w-0">
+          <h2 className="text-sm font-extrabold text-slate-900">اتاق انتظار Redis (§۶۹۰۶)</h2>
+          <p className="mt-0.5 text-2xs font-bold text-slate-500">
+            {wr.up
+              ? `فعال — ${wr.warmedOfferings} کلاس گرم‌شده · صف ثبت نهایی: ${wr.queueLength} درخواست`
+              : 'Redis در دسترس نیست — موتور به شمارش SQL برمی‌گردد (حالت تداوم)'}
+          </p>
+        </div>
+      </div>
+      <form action={warmupAction}>
+        <button className="btn-primary !py-1.5 text-xs">گرم‌کردن مجدد ظرفیت‌ها (شب قبل §۱۰۰۶)</button>
+      </form>
+    </div>
+  );
+}
+
+/** کارتابلِ رسیدگی — سنگین‌ترین بخش (۳ join + سورتِ سمت سرور). */
+async function InboxSection({
+  sortKey,
+  sortDir,
+  sortHref,
+}: {
+  sortKey: string | null;
+  sortDir: 'asc' | 'desc';
+  sortHref: (col: string) => string;
+}) {
+  const uniId = (await getCurrentUniversity()).id;
+  const uniScope = or(eq(student_requests.universityId, uniId), isNull(student_requests.universityId));
+
+  const orderBy = !sortKey
+    ? [desc(student_requests.id)]
+    : sortKey === 'track'
+      ? (sortDir === 'asc' ? [student_requests.trackingCode] : [desc(student_requests.trackingCode)])
+      : sortKey === 'name'
+        ? (sortDir === 'asc' ? [users.lastName, users.firstName] : [desc(users.lastName), desc(users.firstName)])
+        : sortKey === 'status'
+          ? (sortDir === 'asc' ? [student_requests.status] : [desc(student_requests.status)])
+          : sortKey === 'created'
+            ? (sortDir === 'asc' ? [student_requests.createdAt] : [desc(student_requests.createdAt)])
+            : (sortDir === 'asc' ? [process_definitions.title] : [desc(process_definitions.title)]);
+
+  const inbox = await db
+    .select({
+      id: student_requests.id,
+      track: student_requests.trackingCode,
+      status: student_requests.status,
+      created: student_requests.createdAt,
+      formData: student_requests.formData,
+      name: users.firstName,
+      family: users.lastName,
+      code: students.studentCode,
+      procTitle: process_definitions.title,
+    })
+    .from(student_requests)
+    .innerJoin(students, eq(students.id, student_requests.studentId))
+    .innerJoin(users, eq(users.id, students.userId))
+    .leftJoin(process_definitions, eq(process_definitions.id, student_requests.processId))
+    .where(uniScope)
+    .orderBy(...(orderBy as never[]))
+    .limit(20)
+    .catch(() => [] as any[]);
+
+  return (
+    <div className="card !p-0">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
+        <div className="min-w-0">
+          <h2 className="text-sm font-extrabold text-slate-900">کارتابل رسیدگی به درخواست‌های دانشجویی</h2>
+          <p className="mt-0.5 text-2xs font-bold text-slate-500">شورای آموزشی · {inbox.length} پروندهٔ اخیر</p>
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-right text-sm rt">
+          <thead>
+            <tr className="text-xs text-slate-500 border-b border-slate-200">
+              <InboxTh label="کد رهگیری" col="track" sortKey={sortKey} sortDir={sortDir} href={sortHref} />
+              <InboxTh label="دانشجو" col="name" sortKey={sortKey} sortDir={sortDir} href={sortHref} />
+              <InboxTh label="موضوع / درس" col="proc" sortKey={sortKey} sortDir={sortDir} href={sortHref} />
+              <InboxTh label="وضعیت" col="status" sortKey={sortKey} sortDir={sortDir} href={sortHref} />
+              <InboxTh label="زمان" col="created" sortKey={sortKey} sortDir={sortDir} href={sortHref} />
+              <th className="p-2.5 text-left">اقدام شورا</th>
+            </tr>
+          </thead>
+          <tbody>
+            {inbox.length === 0 && (
+              <tr>
+                <td colSpan={6} className="px-4 py-10 text-center">
+                  <p className="text-2xl" aria-hidden>🗂️</p>
+                  <p className="mt-1 text-xs font-bold text-slate-500">درخواستی در کارتابل موجود نیست.</p>
+                  <p className="mt-0.5 text-3xs font-bold text-slate-400">درخواست‌های تازه پس از ثبت دانشجو همین‌جا دیده می‌شوند.</p>
+                </td>
+              </tr>
+            )}
+            {inbox.map(r => {
+              let extra: any = {};
+              try {
+                if (r.formData) extra = JSON.parse(r.formData);
+              } catch (_) {}
+
+              return (
+                <tr key={r.id} className="border-t border-slate-100 hover:bg-slate-50/70 transition-colors">
+                  <td className="p-2.5 font-mono text-xs font-bold text-slate-700" dir="ltr">
+                    {r.track}
+                  </td>
+                  <td className="p-2.5">
+                    <p className="font-semibold text-slate-800">{r.name} {r.family}</p>
+                    <p className="text-2xs font-mono text-slate-400" dir="ltr">{r.code}</p>
+                  </td>
+                  <td className="p-2.5">
+                    <p className="text-xs font-medium text-slate-700">
+                      {extra.offeringTitle ? `اخذ درس ${extra.offeringTitle}` : (r.procTitle || 'کمیسیون موارد خاص')}
+                    </p>
+                    {extra.reasons && (
+                      <p className="text-3xs text-amber-700 mt-0.5 truncate max-w-[200px]" title={extra.reasons.join('، ')}>
+                        {extra.reasons.join('، ')}
+                      </p>
+                    )}
+                  </td>
+                  <td className="p-2.5">
+                    <span className={'inline-block text-2xs px-2 py-0.5 rounded-full font-medium ' + (stColor[r.status] ?? '')}>
+                      {stFa[r.status] ?? r.status}
+                    </span>
+                  </td>
+                  <td className="p-2.5 text-xs text-slate-500">
+                    {r.created ? new Date(r.created).toLocaleString('fa-IR', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
+                  </td>
+                  <td className="p-2.5 text-left">
+                    <RequestActionButtons requestId={r.id} status={r.status} />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

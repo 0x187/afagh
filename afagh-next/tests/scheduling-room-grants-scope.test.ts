@@ -1,0 +1,298 @@
+/**
+ * گاردهای «سهمیهٔ سالن» و سلامتِ کدِ فارسی.
+ *
+ * سه دسته باگ که همه در یک روز واقعاً رخ دادند و هیچ تستی نگرفتشان:
+ *
+ * ۱) نشتی بین‌دانشگاهی: `copyRoomQuotasFromPreviousTermAction` بدون فیلترِ
+ *    دانشگاه، سهمیهٔ سالن‌های همهٔ دانشگاه‌ها را به ترم جاری کپی می‌کرد.
+ *    `upsertRoomGrantAction` هم هر classroomId را بدون بررسی دامنه می‌پذیرفت.
+ *    چون `universityEq` در حالت شناسهٔ نامعتبر `1 = 0` می‌دهد (fail-closed)،
+ *    نبودِ این شرط یعنی «همه‌چیز مجاز» — نه «هیچ‌چیز».
+ *
+ * ۲) پیام خطای بلعیده‌شده: در حلقهٔ «لغو همهٔ سهمیه‌ها»، پیام خطا داخل حلقه
+ *    ست می‌شد و بلافاصله بعد از حلقه با پیام موفقیت بازنویسی می‌شد؛ کاربر
+ *    فکر می‌کرد همه‌چیز درست بوده. دقیقاً همان الگویی که «لغو همه» در
+ *    پذیرش را خراب کرده بود.
+ *
+ * ۳) متن فارسیِ به‌هم‌ریخته (mojibake): کامنت‌های `schema.ts` با کدگذاری غلط
+ *    کامیت شده بودند (`OOU+ UcU,O3 …`). چشم انسان این را می‌بیند، تایپ‌چک
+ *    و بیلد نه — پس باید تست بگیرد.
+ */
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import path from 'node:path';
+
+const HERE = path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'));
+const SRC = path.join(HERE, '..', 'src');
+
+let pass = 0;
+let fail = 0;
+function ok(label: string, cond: boolean, hint = '') {
+  if (cond) { pass++; console.log(`  ✓ ${label}`); }
+  else { fail++; console.log(`  ✗ ${label}${hint ? ` — ${hint}` : ''}`); }
+}
+const read = (rel: string) => readFileSync(path.join(HERE, '..', rel), 'utf8');
+
+// ── ۱) دامنهٔ دانشگاه در اکشن‌های سهمیهٔ سالن ─────────────────────────────
+const ACTIONS = read('src/app/admin/scheduling/actions.ts');
+// همهٔ فایل‌های منبع یک‌جا خوانده می‌شوند — نه دم‌ودست هر بخش. دلیلش این است که
+// در همین فایل یک بار `CORE` بعد از محل استفاده تعریف شد و کل تست با
+// «Cannot access 'CORE' before initialization» مرد. همان دام TDZ که در
+// کامپوننت‌های کلاینت هم هست؛ `tsc` هم نمی‌گیرد.
+const DEPT = read('src/app/admin/scheduling/components/DeptRoomsTab.tsx');
+const ROOMS = read('src/app/admin/settings/ClassroomManager.tsx');
+const CORE = read('src/app/admin/scheduling/planning-core.ts');
+const ENGINE = read('src/lib/scheduling-engine.ts');
+
+/** بدنهٔ یک تابع async را از روی نامش جدا می‌کند (تا سراغ تابع بعدی نرود). */
+function fnBody(src: string, name: string): string {
+  const at = src.indexOf(`export async function ${name}`);
+  if (at < 0) return '';
+  const next = src.indexOf('\nexport ', at + 10);
+  return src.slice(at, next < 0 ? src.length : next);
+}
+
+const copyBody = fnBody(ACTIONS, 'copyRoomQuotasFromPreviousTermAction');
+ok('copyRoomQuotas: تابع وجود دارد', copyBody.length > 0);
+ok(
+  'copyRoomQuotas: به سالن‌ها join می‌کند تا دامنه قابل بررسی باشد',
+  /innerJoin\(classrooms, eq\(classrooms\.id, scheduling_room_grants\.classroomId\)\)/.test(copyBody),
+);
+ok(
+  'copyRoomQuotas: فیلتر دانشگاه روی سالن اعمال می‌شود',
+  /universityEq\(classrooms\.universityId, uid\)/.test(copyBody),
+);
+ok(
+  'copyRoomQuotas: ردیف تازه universityId می‌گیرد',
+  /universityId:\s*uid\s*\?\?\s*null/.test(copyBody),
+);
+ok(
+  'copyRoomQuotas: «ترم قبل» بر پایهٔ مقایسهٔ شناسه است، نه ایندکس آرایه',
+  /terms\.find\(t => t\.id < termId\)/.test(copyBody) && !/findIndex\(t => t\.id === termId\)/.test(copyBody),
+);
+ok(
+  'copyRoomQuotas: نوع بازگشتی صریح دارد (narrowing کلاینت)',
+  /Promise<\{ ok: true; copied: number \} \| \{ ok: false; error: string \}>/.test(copyBody),
+);
+
+const upsertBody = fnBody(ACTIONS, 'upsertRoomGrantAction');
+ok('upsertRoomGrant: تابع وجود دارد', upsertBody.length > 0);
+ok(
+  'upsertRoomGrant: مالکیت سالن بررسی می‌شود',
+  /universityEq\(classrooms\.universityId, uid\)/.test(upsertBody),
+);
+ok(
+  'upsertRoomGrant: سالنِ خارج از دامنه رد می‌شود',
+  /در دامنهٔ دانشگاه شما نیست/.test(upsertBody),
+);
+ok(
+  'upsertRoomGrant: دیگر import پویا ندارد (db/schema در بالای فایل هست)',
+  !/await import\('@\/db'\)/.test(upsertBody),
+);
+ok(
+  'upsertRoomGrant: نوع بازگشتی صریح دارد',
+  /Promise<\{ ok: true \} \| \{ ok: false; error: string \}>/.test(upsertBody),
+);
+
+const allocBody = fnBody(ACTIONS, 'allocateRoomQuotasAction');
+ok(
+  'allocateRoomQuotasAction: نوع بازگشتی discriminated است',
+  /Promise<\{ ok: true; grants: number \} \| \{ ok: false; error: string \}>/.test(allocBody),
+);
+
+// موتور هم باید literal برگرداند، وگرنه اتحادِ `ok` به boolean گشاد می‌شود
+// و `res.grants` در کلاینت خطای تایپ می‌دهد (که با NEXT_SKIP_TYPE_CHECK پنهان می‌ماند).
+ok(
+  'engine: allocateRoomQuotas نوع literal دارد',
+  /allocateRoomQuotas\([^)]*\): Promise<\{ ok: true; grants: number \}>/.test(ENGINE),
+);
+ok(
+  'engine: releaseRoomShift نوع literal دارد',
+  /releaseRoomShift\([^)]*\): Promise<\{ ok: true \}>/s.test(ENGINE),
+);
+ok(
+  'engine: borrowReleasedShift نوع literal دارد',
+  /borrowReleasedShift\([^)]*\): Promise<\{ ok: true \}>/s.test(ENGINE),
+);
+
+// ── ۲) پیام خطا نباید با پیام موفقیت بازنویسی شود ─────────────────────────
+ok(
+  'لغو همه: خطای اولین ردیفِ ناموفق نگه داشته می‌شود',
+  /let firstErr: string \| null = null/.test(DEPT) && /firstErr = res\?\.error/.test(DEPT),
+);
+ok(
+  'لغو همه: پیام نهایی هر دو حالت را پوشش می‌دهد',
+  /setMsg\(firstErr\s*\?/.test(DEPT),
+);
+ok(
+  'لغو همه: setMsg بی‌قید بعد از حلقه نمانده باشد',
+  !/setMsg\(`✅ \$\{faNum\(okCount\)\} سهمیه لغو شد\.`\);/.test(DEPT),
+);
+
+// شناسهٔ ردیف نباید جای «کد گروه» جا بزند. ۴ گروه «دروس عمومی و مشترک»
+// دانشگاه‌های ۲..۵ کد رسمی ندارند؛ قبلاً `(#103)` نشان داده می‌شد و کاربر
+// فکر می‌کرد کد رسمی است.
+ok(
+  'کد گروه: fallback به شناسهٔ ردیف حذف شده',
+  !/departmentCode \?\? d\.id/.test(DEPT) && !/departmentCode \?\? id/.test(DEPT),
+);
+ok(
+  'کد گروه: وقتی کد نیست فقط نام نمایش داده می‌شود',
+  /d\.departmentCode \? `\$\{d\.name\} \(\$\{d\.departmentCode\}\)` : d\.name/.test(DEPT),
+);
+ok(
+  'کد گروه: هر دو منوی انتخاب از همان برچسب مشترک استفاده می‌کنند',
+  (DEPT.match(/\{deptLabel\(d\)\}/g) ?? []).length >= 2,
+);
+
+// ── ۵) هم‌ترازی ساختاری جدول پیکربندی کلاس‌ها ──────────────────────────────
+// جدول با CSS Grid ساخته می‌شود، نه <table>: هر ردیف `<Cell>` است و عرض
+// ستون‌ها از الگوی `grid-template-columns` می‌آید. اگر خانه‌ای اضافه شود ولی
+// الگو و `HEADERS` به‌روز نشوند، خانه‌های آخر به سطر دوم می‌ریزند و ستون
+// «عملیات» (دکمهٔ ذخیره) از جای خودش بیرون می‌افتد. این دقیقاً باگ «سالن
+// امتحان» بود: ۱۲ خانه در شبکهٔ ۱۰ ستونی.
+
+const rowForm = ROOMS.slice(ROOMS.indexOf('function RowForm'), ROOMS.indexOf('const LBL_TB'));
+const cellCount = (rowForm.match(/<Cell label=/g) ?? []).length;
+
+const colsMatch = ROOMS.match(/md:grid-cols-\[([^\]]+)\]/);
+const trackCount = colsMatch ? colsMatch[1].split('_').length : 0;
+
+const headersBlock = ROOMS.slice(ROOMS.indexOf('const HEADERS'), ROOMS.indexOf('/** رقم‌های فارسی'));
+const headerCount = (headersBlock.match(/\{ label: '/g) ?? []).length;
+
+ok('جدول کلاس‌ها: الگوی ستون‌ها پیدا شد', trackCount > 0, `trackCount=${trackCount}`);
+ok('جدول کلاس‌ها: سرستون‌ها پیدا شدند', headerCount > 0, `headerCount=${headerCount}`);
+ok(
+  'جدول کلاس‌ها: تعداد خانه‌های ردیف = تعداد ستون‌های شبکه',
+  cellCount === trackCount,
+  `خانه=${cellCount} ستون=${trackCount}`,
+);
+ok(
+  'جدول کلاس‌ها: تعداد سرستون‌ها = تعداد ستون‌های شبکه',
+  headerCount === trackCount,
+  `سرستون=${headerCount} ستون=${trackCount}`,
+);
+ok(
+  'جدول کلاس‌ها: هر دو ستون سالن امتحان سرستون دارند',
+  /label: 'سالن امتحان'/.test(headersBlock) && /label: 'ظرفیت امتحان'/.test(headersBlock),
+);
+ok(
+  'جدول کلاس‌ها: مرتب‌سازی سالن امتحان پیاده شده',
+  /case 'examHall': return r\.isExamHall \?\? 0;/.test(ROOMS),
+);
+
+// ── ۶) توضیح «چرا این سالن سهمیه ندارد» ──────────────────────────────────
+// موتور `allocateRoomQuotas` دانشکده‌به‌دانشکده کار می‌کند و دانشکدهٔ بدون
+// دانشجوی فعال را کامل رد می‌کند. قبلاً کارت فقط «بدون سهمیهٔ ثبت‌شده»
+// می‌نوشت و کاربر فکر می‌کرد خراب است.
+ok(
+  'بدون سهمیه: تعداد دانشجوی دانشکده از سرور می‌آید',
+  /SELECT d\."facultyId" AS fac, count\(st\.id\)::int AS n/.test(ACTIONS) &&
+    /facultyStudents: r\.facultyId == null \? 0 : \(studentsByFaculty\.get\(r\.facultyId\) \?\? 0\)/.test(ACTIONS),
+);
+ok(
+  'بدون سهمیه: facultyStudents در خروجی اکشن هست',
+  /facultyStudents: c\.facultyStudents/.test(ACTIONS),
+);
+ok(
+  'بدون سهمیه: facultyStudents از mapClassrooms عبور می‌کند',
+  /facultyStudents: r\.facultyStudents \?\? 0/.test(CORE),
+);
+ok(
+  'بدون سهمیه: سه حالتِ دلیل پوشش داده شده',
+  /دانشکده ندارد، پس در تخصیص خودکار شرکت نمی‌کند/.test(DEPT) &&
+    /دانشجوی فعال ندارد، پس تخصیص خودکار برایش سهمیه نساخت/.test(DEPT) &&
+    /شیفتی در نظر نگرفت/.test(DEPT),
+);
+ok(
+  'بدون سهمیه: از داخل همان کارت می‌توان سهمیه ثبت کرد',
+  /add-\$\{room\.id\}/.test(DEPT) && /upsertRoomGrantAction\(\{ termId: selectedTermId, classroomId: room\.id/.test(DEPT),
+);
+ok(
+  'بدون سهمیه: متن بی‌توضیح حذف شده',
+  !/بدون سهمیهٔ ثبت‌شده<\/p>/.test(DEPT),
+);
+
+// ── ۷) «گروه مسئول» اتاق (classrooms.departmentId) ────────────────────────
+// باشگاه‌ها و استخر مالِ «گروه مشترک تربیت بدنی» هستند، نه دانشکده‌ای که در آن
+// ثبت شده‌اند. بدون این ستون، موتور تخصیص سهمیهٔ باشگاه را در توزیع ظرفیت‌محور
+// دانشکده به گروه حقوق یا حسابداری می‌داد.
+ok(
+  'گروه مسئول: سالن‌های دارای مسئول مستقیم به همان گروه می‌روند',
+  /select id, "departmentId" from classrooms\s+where "departmentId" is not null/.test(ENGINE) &&
+    /departmentId: Number\(r\.departmentId\), shift: 'MORNING'/.test(ENGINE) &&
+    /departmentId: Number\(r\.departmentId\), shift: 'EVENING'/.test(ENGINE),
+);
+ok(
+  'گروه مسئول: سالن‌های دارای مسئول از استخر ظرفیت‌محور بیرون می‌مانند',
+  /where "facultyId" = \$\{f\.id\} and "departmentId" is null/.test(ENGINE),
+);
+// «گروه مسئول» باید مالکیت را تحمیل کند. باشگاه تختي سهمیهٔ RELEASED به نام
+// «حقوق» داشت و با onConflictDoNothing دست‌نخورده می‌ماند — یعنی تنظیم جدید
+// روی سالن‌هایی که از قبل سهمیه داشتند هیچ اثری نمی‌گذاشت.
+ok(
+  'گروه مسئول: مالکیت صریح بر سهمیهٔ قبلی اولویت دارد',
+  /enforceOwner: true/.test(ENGINE) && /onConflictDoUpdate\(\{\s*target: \[scheduling_room_grants\.termId/.test(ENGINE),
+);
+ok(
+  'گروه مسئول: status با اجرای دوباره صفر نمی‌شود',
+  !/set: \{ ownerDepartmentId: g\.departmentId, status:/.test(ENGINE),
+);
+ok(
+  'گروه مسئول: ستون در جدول کلاس‌ها هست',
+  /<Cell label="گروه مسئول">/.test(ROOMS) && /label: 'گروه مسئول'/.test(ROOMS),
+);
+ok(
+  'گروه مسئول: در فرم افزودن هم هست',
+  /گروه مسئول \(اختیاری\)/.test(ROOMS) && /name="departmentId"/.test(ROOMS),
+);
+ok(
+  'گروه مسئول: اکشن آن را ذخیره می‌کند',
+  /departmentId,\s*\n\s*\/\*\*/.test(read('src/app/admin/settings/actions.ts')) ||
+    /^\s*departmentId,$/m.test(read('src/app/admin/settings/actions.ts')),
+);
+ok(
+  'گروه مسئول: دامنهٔ دانشگاه در اکشن بررسی می‌شود',
+  /گروه انتخاب‌شده متعلق به دانشگاه فعال نیست/.test(read('src/app/admin/settings/actions.ts')),
+);
+ok(
+  'گروه مسئول: صفحهٔ تنظیمات فهرست گروه‌ها را پاس می‌دهد',
+  /departments=\{departmentsOfUni\}/.test(read('src/app/admin/settings/page.tsx')),
+);
+
+// ── ۳) کد رشته در کارت فاز ۰ نباید خالی رندر شود ──────────────────────────
+const SCOPE = read('src/app/admin/scheduling/components/ProgramScopeTab.tsx');
+ok(
+  'فاز ۰: کد رشته به‌صورت شرطی رندر می‌شود (پرانتز خالی نمی‌ماند)',
+  /p\.code \?/.test(SCOPE) && !/<span className="text-slate-500 font-mono text-xs">\(\{p\.code\}\)<\/span>/.test(SCOPE),
+);
+ok(
+  'فاز ۰: ماتریس رشته واقعاً code را برمی‌گرداند',
+  /return \{ id: p\.id, title: p\.title, code: p\.code \?\? ''/.test(CORE),
+);
+
+// ── ۴) هیچ فایل منبعی متن فارسیِ به‌هم‌ریخته نداشته باشد ────────────────────
+function walk(dir: string, out: string[] = []): string[] {
+  for (const name of readdirSync(dir)) {
+    const p = path.join(dir, name);
+    const st = statSync(p);
+    if (st.isDirectory()) walk(p, out);
+    else if (/\.(ts|tsx|sql)$/.test(name)) out.push(p);
+  }
+  return out;
+}
+// امضای mojibake فارسی: بایت‌های UTF-8 که با کدگذاری غلط خوانده شده‌اند.
+const MOJIBAKE = /O�|UcU,|OOU\+|U\.O[^a-zA-Z]|O1O[UO]|U�O/;
+const dirty: string[] = [];
+for (const file of walk(SRC)) {
+  const text = readFileSync(file, 'utf8');
+  if (MOJIBAKE.test(text)) dirty.push(path.relative(path.join(HERE, '..'), file));
+}
+ok(
+  'هیچ فایل src متن فارسیِ به‌هم‌ریخته ندارد',
+  dirty.length === 0,
+  dirty.length ? `آلوده: ${dirty.slice(0, 5).join(', ')}` : '',
+);
+
+console.log(`\n${fail === 0 ? '✅' : '❌'} scheduling-room-grants-scope: ${pass} passed, ${fail} failed`);
+if (fail > 0) process.exit(1);

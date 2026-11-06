@@ -14,6 +14,10 @@
 
 import { Document, Packer, Paragraph, TextRun, Table, TableRow, TableCell, WidthType, AlignmentType } from 'docx';
 import { saveAs } from 'file-saver';
+import { csvQuote } from './csv-injection';
+
+// سازگاری عقب‌رو: مصرف‌کنندگان قبلی از همین ماژول import می‌کردند.
+export { csvFormulaPrefix } from './csv-injection';
 
 export type ExportFormat = 'csv' | 'docx' | 'txt';
 
@@ -32,18 +36,11 @@ export interface ExportData {
 }
 
 /**
- * گارد تزریق فرمول CSV (OWASP CSV Injection):
- * اگر مقدار با = + - @ | تب یا CR شروع شود (پس از trim چپ)، با ' پیشوند
- * می‌شود تا Excel/LibreOffice آن را فرمول اجرا نکند، سپس نقل‌قول دوتایی.
+ * یک سلول متن را با گارد فرمول + نقل‌قول CSV برمی‌گرداند.
+ * گاردِ تزریق در `csv-injection.ts` متمرکز است (تک‌منبع با مسیر سروری).
  */
-export function csvFormulaPrefix(s: string): string {
-  return /^[=+\-@|\t\r]/.test(s.trimStart()) ? `'${s}` : s;
-}
-
-/** یک سلول متن را با گارد فرمول + نقل‌قول CSV برمی‌گرداند. */
 export function csvCell(v: unknown): string {
-  const str = csvFormulaPrefix(String(v ?? ''));
-  return `"${str.replace(/"/g, '""')}"`;
+  return csvQuote(v);
 }
 
 /** Generate CSV string */

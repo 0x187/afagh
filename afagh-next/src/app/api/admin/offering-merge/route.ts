@@ -28,6 +28,8 @@ type OfferingRow = {
   mergeKey: string | null;
 };
 
+type GroupSource = 'manual' | 'auto' | 'split' | 'solo';
+
 async function guard() {
   try {
     const role = await requireRole([...ALLOWED]);
@@ -104,11 +106,39 @@ export async function GET(req: NextRequest) {
       },
     );
 
+    // طبقه‌بندی منبع هر گروه (دستی / خودکار / جدا / تکی) برای فیلتر تب‌ها
+    const annotated = groups.map(g => ({
+      key: g.key,
+      merged: g.merged,
+      source: (g.key == null ? 'solo' : g.key.startsWith('K:') ? 'manual' : g.key.startsWith('SOLO:') ? 'split' : 'auto') as GroupSource,
+      members: g.members,
+    }));
+
+    // scope=manual → فقط ادغام دستی (آنچه موتور نتوانست خودکار ادغام کند — تب پیش‌فرض)
+    // scope=other  → بقیه (خودکار / جدا / تکی) — تب دوم
+    const rawScope = (searchParams.get('scope') ?? 'all') as string;
+    const effectiveScope: 'all' | 'manual' | 'other' =
+      rawScope === 'manual' || rawScope === 'other' ? rawScope : 'all';
+
+    const filtered =
+      effectiveScope === 'manual'
+        ? annotated.filter(g => g.source === 'manual')
+        : effectiveScope === 'other'
+        ? annotated.filter(g => g.source !== 'manual')
+        : annotated;
+
+    const manualCount = annotated.filter(g => g.source === 'manual').length;
+    const otherCount = annotated.length - manualCount;
+
     return NextResponse.json({
-      groups: groups.map(g => ({
+      scope: effectiveScope,
+      total: annotated.length,
+      manualCount,
+      otherCount,
+      groups: filtered.map(g => ({
         key: g.key,
         merged: g.merged,
-        source: g.key == null ? 'solo' : g.key.startsWith('K:') ? 'manual' : g.key.startsWith('SOLO:') ? 'split' : 'auto',
+        source: g.source,
         totalEnrolled: g.members.reduce((s, m) => s + Number(m.enrolledCount ?? 0), 0),
         members: g.members.map(m => ({
           offeringId: m.offeringId,

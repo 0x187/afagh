@@ -14,10 +14,12 @@ export type ResourceType = 'page' | 'api' | 'field' | 'action' | 'button';
 
 interface PermissionCache {
   userPermissions: Map<number, Set<string>>;
+  /** مجوزهایی که صرفاً از نقش‌های «سفارشی» (isSystem=0) آمده‌اند — مبنای نمایش لینک داشبورد مدیریت */
+  userCustomPermissions: Map<number, Set<string>>;
   lastRefresh: number;
 }
 
-const cache: PermissionCache = { userPermissions: new Map(), lastRefresh: 0 };
+const cache: PermissionCache = { userPermissions: new Map(), userCustomPermissions: new Map(), lastRefresh: 0 };
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
 /**
@@ -32,6 +34,7 @@ export async function refreshPermissionCache(): Promise<void> {
   const rows = await db.select({
     userId: user_roles.userId,
     permissionCode: permissions.code,
+    isSystemRole: roles.isSystem,
   })
     .from(user_roles)
     .innerJoin(roles, eq(roles.id, user_roles.roleId))
@@ -39,11 +42,21 @@ export async function refreshPermissionCache(): Promise<void> {
     .innerJoin(permissions, eq(permissions.id, role_permissions.permissionId));
 
   const newMap = new Map<number, Set<string>>();
+  // مجوزهای آمده از نقش‌های سفارشی (isSystem=0) — تنها مبنای نمایش لینک داشبورد مدیریت.
+  // نقش‌های سیستمی (ADMIN/EDU_EXPERT/…/DEP_HEAD/PROFESSOR/STUDENT) هرکدام مجوزهای
+  // پیش‌فرض خود را دارند؛ اگر این‌ها هم شمرده شوند، هر «مدیر گروه» یا «استاد» لینک
+  // مدیریت می‌گیرد — که باگ گزارش‌شده بود. پس فقط isSystem=0 شمرده می‌شود.
+  const newCustomMap = new Map<number, Set<string>>();
   for (const row of rows) {
     if (!newMap.has(row.userId)) newMap.set(row.userId, new Set());
     newMap.get(row.userId)!.add(row.permissionCode);
+    if (row.isSystemRole === 0) {
+      if (!newCustomMap.has(row.userId)) newCustomMap.set(row.userId, new Set());
+      newCustomMap.get(row.userId)!.add(row.permissionCode);
+    }
   }
   cache.userPermissions = newMap;
+  cache.userCustomPermissions = newCustomMap;
   cache.lastRefresh = Date.now();
 }
 
@@ -65,6 +78,22 @@ export async function hasPermission(userId: number, permissionCode: PermissionCo
 export async function getUserPermissionCodes(userId: number): Promise<string[]> {
   const perms = await getUserPermissions(userId);
   return [...perms].sort();
+}
+
+/**
+ * فقط مجوزهایی که از نقش‌های «سفارشی» (isSystem=0) آمده‌اند.
+ *
+ * چرا جدا از getUserPermissionCodes؟ چون نقش‌های سیستمی (ADMIN، EDU_EXPERT،
+ * DEP_HEAD، PROFESSOR، STUDENT، …) هرکدام مجوزهای پیش‌فرض دارند و اگر آن‌ها هم
+ * شمرده شوند، هر «مدیر گروه» یا «استاد» لینک «داشبورد مدیریت» می‌گیرد — همان
+ * باگی که گزارش شد. نمایش لینک مدیریت باید فقط بر پایهٔ مجوزهای سفارشی باشد
+ * (نقش‌هایی که ادمین خودش ساخته و مجوز داده)، نه مجوزهای ذاتیِ نقش سیستمی.
+ */
+export async function getUserCustomPermissionCodes(userId: number): Promise<string[]> {
+  if (Date.now() - cache.lastRefresh > CACHE_TTL_MS || cache.userPermissions.size === 0) {
+    await refreshPermissionCache();
+  }
+  return [...(cache.userCustomPermissions.get(userId) ?? new Set<string>())].sort();
 }
 
 /** نتیجهٔ گارد ترکیبی «نقش یاهمجوز» — همان شکل SessionUser + مجوزهای کاربر */
@@ -237,10 +266,14 @@ export async function checkPerm(userId: number, key: PermissionKey): Promise<boo
 /** Clear cache (call after role/permission changes) */
 export function clearPermissionCache(): void {
   cache.userPermissions.clear();
+  cache.userCustomPermissions.clear();
   cache.lastRefresh = 0;
 }
 
-/** Targeted invalidation — remove only the given users from the cache Map */
+/** Targeted invalidation — remove only the given users from the cache Maps */
 export async function invalidatePermissionCacheFor(userIds: number[]): Promise<void> {
-  for (const id of userIds) cache.userPermissions.delete(id);
+  for (const id of userIds) {
+    cache.userPermissions.delete(id);
+    cache.userCustomPermissions.delete(id);
+  }
 }

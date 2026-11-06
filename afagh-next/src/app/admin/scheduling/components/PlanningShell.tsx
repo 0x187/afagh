@@ -8,6 +8,7 @@ import { usePlanning } from '../PlanningProvider';
 import PlanningToast from './PlanningToast';
 import PlanningHeader from './PlanningHeader';
 import PlanningTabsBar from './PlanningTabsBar';
+import ProgramScopeTab from './ProgramScopeTab';
 import CurriculumAssignTab from './CurriculumAssignTab';
 import ProfessorQuotasTab from './ProfessorQuotasTab';
 import DeptRoomsTab from './DeptRoomsTab';
@@ -25,6 +26,7 @@ export default function PlanningShell() {
       <PlanningHeader />
       <PlanningTabsBar />
 
+      {activeMainTab === 'PROGRAM_SCOPE' && <ProgramScopeTab />}
       {activeMainTab === 'CURRICULUM_ASSIGN' && <CurriculumAssignTab />}
       {activeMainTab === 'PROF_QUOTAS' && <ProfessorQuotasTab />}
       {activeMainTab === 'DEPT_ROOMS' && <DeptRoomsTab />}

@@ -9,7 +9,7 @@
 // گروه آموزشی و تفکیک واحد نظری/عملی در انتقال از بین می‌رفت و کاتالوگ جدید
 // برای شهریه و برنامه‌ریزی درسی ناقص می‌ماند.
 
-import { norm, num } from './normalize';
+import { codeOf, norm, num } from './normalize';
 
 /** خوانندهٔ ستون: فهرست نامک‌ها → مقدار سلول (رشتهٔ خالی اگر ستون نبود) */
 /**
@@ -34,6 +34,12 @@ export type ParsedCourseRow = {
   deptCode: string | null;
   /** «کد مقطع» — بر عنوان مقطع مقدم است */
   degreeCode: string | null;
+  /** متن خام «پیش‌نیاز» از جدول دروس قدیمی (تبدیل به course_rules در commit) */
+  prereqText: string | null;
+  /** متن خام «هم‌نیاز» */
+  coreqText: string | null;
+  /** متن خام «دروس هم‌ارز / معادل» */
+  equivText: string | null;
 };
 
 export type CourseRowResult =
@@ -52,6 +58,10 @@ export const COURSE_ALIASES = {
   degreeCode: ['کد مقطع', 'کد مقطع تحصیلی', 'degree_code', 'degree_level_code'],
   department: ['نام گروه آموزشی', 'گروه آموزشی', 'گروه', 'گروه درسی', 'دپارتمان', 'department', 'dept'],
   departmentCode: ['کد گروه آموزشی', 'کد گروه', 'department_code', 'dept_code'],
+  // ── سه ستونی که در مهاجرت قبلی از دست می‌رفتند ──
+  prereq: ['پیش نیاز', 'پیش‌نیاز', 'پیشنیاز', 'پیش نیازها', 'پیش‌نیازها', 'دروس پیش نیاز', 'دروس پیش‌نیاز', 'prereq', 'prerequisite', 'prerequisites', 'pre_requisite'],
+  coreq: ['هم نیاز', 'هم‌نیاز', 'همنیاز', 'هم نیازها', 'هم‌نیازها', 'دروس هم نیاز', 'co requisite', 'corequisite', 'coreq', 'co_requisite'],
+  equiv: ['هم ارز', 'هم‌ارز', 'همارز', 'دروس هم ارز', 'دروس هم‌ارز', 'معادل', 'دروس معادل', 'درس معادل', 'equivalent', 'equivalent_courses', 'equivalents'],
 } as const;
 
 /** درس‌هایی که ماهیتاً عملی‌اند — برای وقتی فایل تفکیک واحد ندارد */
@@ -72,14 +82,18 @@ export function parseCourseRow(get: CellReader): CourseRowResult {
   const warnings: string[] = [];
   const A = COURSE_ALIASES;
 
-  const code = get([...A.code]);
+  const code = codeOf(get([...A.code]));
   const title = get([...A.title]);
   const rawUnits = get([...A.units], { exact: true });
   const type = get([...A.type]);
   const degreeName = get([...A.degree]);
   const deptName = get([...A.department]);
-  const deptCode = get([...A.departmentCode]);
-  const degreeCode = get([...A.degreeCode]);
+  // سه ستون قواعد — اگر در فایل نباشند رشتهٔ خالی برمی‌گردد (بدون خطا)
+  const prereqText = get([...A.prereq]) || null;
+  const coreqText = get([...A.coreq]) || null;
+  const equivText = get([...A.equiv]) || null;
+  const deptCode = codeOf(get([...A.departmentCode]));
+  const degreeCode = codeOf(get([...A.degreeCode]));
 
   let theory = num(get([...A.theory]));
   let practical = num(get([...A.practical]));
@@ -121,6 +135,9 @@ export function parseCourseRow(get: CellReader): CourseRowResult {
       deptName: deptName || null,
       deptCode: deptCode || null,
       degreeCode: degreeCode || null,
+      prereqText,
+      coreqText,
+      equivText,
     },
   };
 }

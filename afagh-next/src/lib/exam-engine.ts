@@ -36,7 +36,8 @@ import {
 import { resolveSamaGradeStatusCode } from '@/lib/resolve-sama-code';
 import { getNumber } from '@/lib/settings';
 import { createLogger } from '@/lib/logger';
-import { auditChain, type AuditTx } from '@/lib/audit-chain';
+import { auditChain } from '@/lib/audit-chain';
+import { advisoryLock } from '@/lib/advisory-lock';
 import { decideAppealOutcome, scoreFromComponents, validateCheckIns } from '@/lib/exam-core';
 import type { ExamCheckIn, ExamCheckInInput } from '@/lib/exam-core';
 import type { RubricWeights } from '@/app/professor/grades/types';
@@ -113,11 +114,6 @@ function valuesSql(rows: ReturnType<typeof sql>[]): ReturnType<typeof sql.join> 
   return sql.join(rows, sql`, `);
 }
 
-/** قفل توافقی (advisory) برای مراحل رقابتی — تا پایان تراکنش نگه داشته می‌شود */
-async function advisoryLock(tx: AuditTx, ns: string, a: number, b = 0) {
-  // کلید ۶۴ بیتی بدون overflow (برخلاف ضرب در ۱۰۰۰۰ که برای شناسه‌های بزرگ سرریز می‌شود)
-  await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`${ns}:${a}:${b}`}, 0))`);
-}
 
 // ─────────────────── محدودسازی دانشگاه (tenant scoping) ───────────────────
 //
@@ -1046,45 +1042,65 @@ export async function answerExamAppeal(
 // ─────────────────────────── نمای کلی چرخه (برای تست و داشبورد) ───────────────────────────
 
 export async function examChainOverview(sessionId: number, universityId: number) {
-  const [attendance] = await db
-    .select({ issued: count() })
-    .from(exam_attendances)
-    .where(eq(exam_attendances.examId, sessionId));
-  const [present] = await db
-    .select({ n: count() })
-    .from(exam_attendances)
-    .where(and(eq(exam_attendances.examId, sessionId), eq(exam_attendances.isPresent, 1)));
-  const [minutes] = await db
-    .select({ n: count() })
-    .from(exam_minutes)
-    .where(and(eq(exam_minutes.sessionId, sessionId), eq(exam_minutes.isSignedAndFinalized, 1)));
-  const packets = await db
-    .select({ handoverStatus: exam_course_packets.handoverStatus, n: count() })
-    .from(exam_course_packets)
-    .where(eq(exam_course_packets.examId, sessionId))
-    .groupBy(exam_course_packets.handoverStatus);
-  const [collected] = await db
-    .select({ n: count() })
-    .from(course_exam_sessions)
-    .where(and(eq(course_exam_sessions.isFullyCollected, 1), eq(course_exam_sessions.universityId, universityId)));
-  const deliveries = await db
-    .select({ status: instructor_deliveries.status, n: count() })
-    .from(instructor_deliveries)
-    .where(eq(instructor_deliveries.universityId, universityId))
-    .groupBy(instructor_deliveries.status);
-  const [finalized] = await db
-    .select({ n: count() })
-    .from(enrollments)
-    .where(and(eq(enrollments.gradeStatus, 'FINALIZED'), inArray(enrollments.offeringId,
-      db.select({ id: course_offerings.id }).from(course_offerings).where(eq(course_offerings.termId,
-        db.select({ termId: exam_sessions.termId }).from(exam_sessions).where(eq(exam_sessions.id, sessionId))
-      ))
-    )));
-  const appeals = await db
-    .select({ status: grade_appeals.status, n: count() })
-    .from(grade_appeals)
-    .where(eq(grade_appeals.universityId, universityId))
-    .groupBy(grade_appeals.status);
+  // این هشت کوئری هیچ وابستگی‌ای به هم ندارند؛ پیش‌تر پشت سر هم اجرا می‌شدند
+  // (هشت رفت‌وبرگشتِ شبکه پشتِ هم). حالا موازی می‌روند تا زمان پاسخ داشبورد
+  // به کندترین کوئری کاهش یابد — بدون تغییر در نتیجه.
+  const [
+    attendanceRows,
+    presentRows,
+    minutesRows,
+    packets,
+    collectedRows,
+    deliveries,
+    finalizedRows,
+    appeals,
+  ] = await Promise.all([
+    db
+      .select({ issued: count() })
+      .from(exam_attendances)
+      .where(eq(exam_attendances.examId, sessionId)),
+    db
+      .select({ n: count() })
+      .from(exam_attendances)
+      .where(and(eq(exam_attendances.examId, sessionId), eq(exam_attendances.isPresent, 1))),
+    db
+      .select({ n: count() })
+      .from(exam_minutes)
+      .where(and(eq(exam_minutes.sessionId, sessionId), eq(exam_minutes.isSignedAndFinalized, 1))),
+    db
+      .select({ handoverStatus: exam_course_packets.handoverStatus, n: count() })
+      .from(exam_course_packets)
+      .where(eq(exam_course_packets.examId, sessionId))
+      .groupBy(exam_course_packets.handoverStatus),
+    db
+      .select({ n: count() })
+      .from(course_exam_sessions)
+      .where(and(eq(course_exam_sessions.isFullyCollected, 1), eq(course_exam_sessions.universityId, universityId))),
+    db
+      .select({ status: instructor_deliveries.status, n: count() })
+      .from(instructor_deliveries)
+      .where(eq(instructor_deliveries.universityId, universityId))
+      .groupBy(instructor_deliveries.status),
+    db
+      .select({ n: count() })
+      .from(enrollments)
+      .where(and(eq(enrollments.gradeStatus, 'FINALIZED'), inArray(enrollments.offeringId,
+        db.select({ id: course_offerings.id }).from(course_offerings).where(eq(course_offerings.termId,
+          db.select({ termId: exam_sessions.termId }).from(exam_sessions).where(eq(exam_sessions.id, sessionId))
+        ))
+      ))),
+    db
+      .select({ status: grade_appeals.status, n: count() })
+      .from(grade_appeals)
+      .where(eq(grade_appeals.universityId, universityId))
+      .groupBy(grade_appeals.status),
+  ]);
+
+  const [attendance] = attendanceRows;
+  const [present] = presentRows;
+  const [minutes] = minutesRows;
+  const [collected] = collectedRows;
+  const [finalized] = finalizedRows;
 
   return {
     sessionId,

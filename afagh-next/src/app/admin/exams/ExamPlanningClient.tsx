@@ -80,7 +80,7 @@ const examCourseColumns: CardColumn<ExamCourse>[] = [
         <span className="text-slate-400 font-bold">بسته ثبت نشده</span>
       ) : (
         <span
-          className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+          className={`px-2 py-0.5 rounded-full text-3xs font-black ${
             c.isFullyCollected ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
           }`}
         >
@@ -246,8 +246,8 @@ export default function ExamPlanningClient({ initial, universityId }: { initial:
     try {
       const r = await scheduleExamSlotAction({ termId: selectedTermId, offeringId, examDate: isoToJalali(d.date), startTime: d.start, endTime: end, universityId });
       showToast(r.ok ? r.message : r.error, r.ok ? 'success' : 'error');
-      if (!r.ok && (r as any).status === 'OVERFLOW' && (r as any).splitOptions?.length) {
-        showToast(`💡 ${(r as any).splitOptions.map((o: any) => o.label).join(' یا ')}`, 'error');
+      if (!r.ok && r.status === 'OVERFLOW' && r.splitOptions?.length) {
+        showToast(`💡 ${r.splitOptions.map(o => o.label).join(' یا ')}`, 'error');
       }
       if (r.ok) { reload(selectedTermId); reloadPlanning(selectedTermId); }
     } finally { setBusyPlanning(false); }
@@ -284,7 +284,8 @@ export default function ExamPlanningClient({ initial, universityId }: { initial:
   const handleChainOverview = async (sessionId: number) => {
     const r = await examChainOverviewAction({ sessionId });
     if (!r.ok) { showToast(r.error ?? 'خطا', 'error'); return; }
-    showToast('زنجیرهٔ تحویل: ' + JSON.stringify((r as any).data ?? (r as any).overview ?? r), 'success');
+    // نتیجهٔ کامل زنجیره (حضور/صورت‌جلسه/بسته‌ها/تحویل/اعتراض) — بدون کلید اضافی
+    showToast('زنجیرهٔ تحویل: ' + JSON.stringify(r), 'success');
   };
 
   const tabs: { id: ExamTab; label: string; badge: string }[] = [
@@ -311,7 +312,7 @@ export default function ExamPlanningClient({ initial, universityId }: { initial:
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-400 text-slate-950">ماژول امتحانات — اداره آموزش</span>
+              <span className="px-2.5 py-0.5 rounded-full text-2xs font-bold bg-amber-400 text-slate-950">ماژول امتحانات — اداره آموزش</span>
               <span className="text-xs text-indigo-200">{currentTerm?.title}{isLoading ? ' — در حال بارگذاری…' : ''}</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">📝 کارتابل یکپارچهٔ مدیریت و تخصیص امتحانات</h1>
@@ -327,7 +328,7 @@ export default function ExamPlanningClient({ initial, universityId }: { initial:
             </select>
           </label>
         </div>
-        <p className="text-[11px] text-indigo-200 leading-relaxed bg-white/5 rounded-xl p-3 border border-white/10">
+        <p className="text-2xs text-indigo-200 leading-relaxed bg-white/5 rounded-xl p-3 border border-white/10">
           منبع داده: جدول‌های واقعی <b>exam_sessions</b> (سشن‌های ترم)، <b>schedules</b> با نوع EXAM (درس‌های امتحانی)،
           <b> exam_halls</b> و <b>invigilators</b>؛ عملیات صدور حضور/صورت‌جلسه/تحویل از موتور exam-engine با زنجیرهٔ حسابرسی.
         </p>
@@ -344,7 +345,7 @@ export default function ExamPlanningClient({ initial, universityId }: { initial:
             }`}
           >
             <span>{t.label}</span>
-            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+            <span className={`px-1.5 py-0.5 rounded-full text-3xs font-bold ${
               activeTab === t.id ? 'bg-white/15 text-white' : 'bg-slate-100 text-slate-700'
             }`}>{t.badge}</span>
           </button>
@@ -386,7 +387,7 @@ export default function ExamPlanningClient({ initial, universityId }: { initial:
                           {s.proctors.map((p, i) => (
                             <div key={i} className="flex items-center justify-between gap-2">
                               <span className="font-bold text-slate-800">{p.name}</span>
-                              <span className="text-[10px] text-slate-500">{(ATT_LABELS[p.attendanceStatus] ?? ATT_LABELS.PENDING).label}</span>
+                              <span className="text-3xs text-slate-500">{(ATT_LABELS[p.attendanceStatus] ?? ATT_LABELS.PENDING).label}</span>
                             </div>
                           ))}
                         </div>
@@ -399,7 +400,7 @@ export default function ExamPlanningClient({ initial, universityId }: { initial:
                       <button
                         onClick={() => handleIssueAttendance(s.id)}
                         disabled={busySessionId === s.id}
-                        className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-[11px] disabled:opacity-50"
+                        className="px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-2xs disabled:opacity-50"
                       >
                         {busySessionId === s.id ? '⏳…' : '📤 صدور حضور و غیاب'}
                       </button>
@@ -444,12 +445,12 @@ export default function ExamPlanningClient({ initial, universityId }: { initial:
                     <td className="p-2.5 border border-slate-200 text-center font-mono font-bold">
                       {c.examDate ? `${faNum(c.examDate)} — ${faNum(c.startTime)} تا ${faNum(c.endTime)}` : '—'}
                     </td>
-                    <td className="p-2.5 border border-slate-200 text-center font-bold">{c.roomName} <span className="text-[10px] text-slate-400">({c.buildingName})</span></td>
+                    <td className="p-2.5 border border-slate-200 text-center font-bold">{c.roomName} <span className="text-3xs text-slate-400">({c.buildingName})</span></td>
                     <td className="p-2.5 border border-slate-200 text-center">
                       {c.expectedSheets === 0 && c.deliveredSheets === 0 ? (
                         <span className="text-slate-400 font-bold">بسته ثبت نشده</span>
                       ) : (
-                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                        <span className={`px-2 py-0.5 rounded-full text-3xs font-black ${
                           c.isFullyCollected ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
                         }`}>
                           {faNum(c.deliveredSheets)} از {faNum(c.expectedSheets)} برگه {c.isFullyCollected ? '✓ جمع‌آوری کامل' : 'در جریان'}
@@ -484,13 +485,13 @@ export default function ExamPlanningClient({ initial, universityId }: { initial:
               <div key={h.id} className="p-4 rounded-2xl border border-slate-200 bg-slate-50/60 space-y-1.5">
                 <div className="flex items-center justify-between">
                   <h4 className="font-extrabold text-slate-900 text-sm">{h.name}</h4>
-                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-900">
+                  <span className="text-3xs font-black px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-900">
                     ظرفیت {faNum(h.totalCapacity)}
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 font-bold">{h.buildingName ?? '—'}</p>
                 {h.rowsCount && h.colsCount && (
-                  <p className="text-[11px] text-slate-600 font-bold">چیدمان: {faNum(h.rowsCount)} ردیف × {faNum(h.colsCount)} ستون</p>
+                  <p className="text-2xs text-slate-600 font-bold">چیدمان: {faNum(h.rowsCount)} ردیف × {faNum(h.colsCount)} ستون</p>
                 )}
               </div>
             ))}
@@ -513,18 +514,18 @@ export default function ExamPlanningClient({ initial, universityId }: { initial:
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <span className="font-black text-slate-900 text-xs">سشن {faNum(s.id)} — {faNum(s.examDate)} ({faNum(s.startTime)} تا {faNum(s.endTime)})</span>
                   <div className="flex items-center gap-1.5">
-                    <span className="text-[10px] font-bold text-slate-500">{faNum(s.proctors.length)} مراقب</span>
+                    <span className="text-3xs font-bold text-slate-500">{faNum(s.proctors.length)} مراقب</span>
                     <button
                       onClick={() => handleProctorClockIn(s.id)}
                       disabled={busySessionId === s.id}
-                      className="px-2.5 py-1 rounded-lg bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-[10px] disabled:opacity-50"
+                      className="px-2.5 py-1 rounded-lg bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-3xs disabled:opacity-50"
                     >
                       🕐 ورود مراقبین
                     </button>
                     <button
                       onClick={() => handleChainOverview(s.id)}
                       disabled={busySessionId === s.id}
-                      className="px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-800 text-white font-extrabold text-[10px] disabled:opacity-50"
+                      className="px-2.5 py-1 rounded-lg bg-slate-700 hover:bg-slate-800 text-white font-extrabold text-3xs disabled:opacity-50"
                     >
                       🔗 زنجیرهٔ تحویل
                     </button>
@@ -532,7 +533,7 @@ export default function ExamPlanningClient({ initial, universityId }: { initial:
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {s.proctors.map((p, i) => (
-                    <span key={i} className={`px-2.5 py-1 rounded-full text-[10px] font-bold ${(ATT_LABELS[p.attendanceStatus] ?? ATT_LABELS.PENDING).cls}`}>
+                    <span key={i} className={`px-2.5 py-1 rounded-full text-3xs font-bold ${(ATT_LABELS[p.attendanceStatus] ?? ATT_LABELS.PENDING).cls}`}>
                       {p.name} — {ROLE_LABELS[p.role] ?? p.role}
                     </span>
                   ))}
@@ -562,10 +563,10 @@ export default function ExamPlanningClient({ initial, universityId }: { initial:
                   <div key={key} className="p-3.5 rounded-xl border border-amber-300 bg-amber-50/60 space-y-1">
                     <div className="flex items-center justify-between">
                       <span className="font-black text-amber-900 text-xs">⏱️ {faNum(list[0].examDate)} ساعت {faNum(list[0].startTime)}</span>
-                      <span className="text-[10px] font-bold text-amber-700">{faNum(list.length)} درس هم‌زمان</span>
+                      <span className="text-3xs font-bold text-amber-700">{faNum(list.length)} درس هم‌زمان</span>
                     </div>
                     {list.map(c => (
-                      <div key={c.offeringId} className="text-[11px] font-bold text-slate-700">
+                      <div key={c.offeringId} className="text-2xs font-bold text-slate-700">
                         {c.courseCode} — {c.courseTitle} (گروه {faNum(c.groupNumber)}) · {c.professorName}
                       </div>
                     ))}
@@ -587,7 +588,7 @@ export default function ExamPlanningClient({ initial, universityId }: { initial:
               <button
                 onClick={handleGenerateSeats}
                 disabled={busyPlanning}
-                className="px-3 py-2 rounded-lg bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-[11px] disabled:opacity-50"
+                className="px-3 py-2 rounded-lg bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-2xs disabled:opacity-50"
               >
                 🪑 تخصیص صندلی همهٔ سشن‌ها (فاز ۱۰)
               </button>
@@ -598,7 +599,7 @@ export default function ExamPlanningClient({ initial, universityId }: { initial:
                   {label}:
                   <input
                     type="date"
-                    value={(zoneForm as any)[k]}
+                    value={zoneForm[k]}
                     onChange={e => setZoneForm({ ...zoneForm, [k]: e.target.value })}
                     className="mt-1 w-full border border-slate-300 rounded-lg p-2 font-bold text-left"
                     dir="ltr"
@@ -648,15 +649,15 @@ export default function ExamPlanningClient({ initial, universityId }: { initial:
                           <div className="w-full bg-slate-200 rounded-full h-2.5 overflow-hidden">
                             <div className={`h-full ${r.status === 'OVERFLOW' ? 'bg-rose-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min(r.usagePercent, 100)}%` }} />
                           </div>
-                          <span className="text-[10px] font-bold text-slate-500">{faNum(r.usagePercent)}٪</span>
+                          <span className="text-3xs font-bold text-slate-500">{faNum(r.usagePercent)}٪</span>
                         </td>
                         <td className="p-2.5 border border-slate-200 text-center">
                           {r.status === 'OVERFLOW' ? (
-                            <span className="text-[10px] font-black text-rose-700">
+                            <span className="text-3xs font-black text-rose-700">
                               🔴 سرریز — {r.splitOptions.length > 0 ? r.splitOptions.map(o => o.label).join(' / ') : 'شیفت‌بندی دستی لازم است'}
                             </span>
                           ) : (
-                            <span className="text-[10px] font-black text-emerald-700">🟢 ظرفیت کافی</span>
+                            <span className="text-3xs font-black text-emerald-700">🟢 ظرفیت کافی</span>
                           )}
                         </td>
                       </tr>
@@ -681,12 +682,12 @@ export default function ExamPlanningClient({ initial, universityId }: { initial:
                     <div className="flex items-center justify-between flex-wrap gap-2">
                       <span className="font-black text-slate-900 text-xs">
                         {c.courseCode} — {c.courseTitle} <span className="text-slate-400">(گروه {faNum(c.groupNumber)})</span>
-                        {c.examDate && <span className="mr-2 text-[10px] text-indigo-700">رزرو: {faNum(c.examDate)} {faNum(c.startTime)}</span>}
+                        {c.examDate && <span className="mr-2 text-3xs text-indigo-700">رزرو: {faNum(c.examDate)} {faNum(c.startTime)}</span>}
                       </span>
                       <button
                         onClick={() => handleSuggestSlots(c.offeringId)}
                         disabled={busyPlanning}
-                        className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-[10px] disabled:opacity-50"
+                        className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-extrabold text-3xs disabled:opacity-50"
                       >
                         💡 ۴ پیشنهاد طلایی
                       </button>
@@ -710,7 +711,7 @@ export default function ExamPlanningClient({ initial, universityId }: { initial:
                       </div>
                     )}
                     <div className="flex items-end gap-2 flex-wrap">
-                      <label className="text-[11px] font-bold text-slate-600">
+                      <label className="text-2xs font-bold text-slate-600">
                         تاریخ:
                         <input
                           type="date"
@@ -720,7 +721,7 @@ export default function ExamPlanningClient({ initial, universityId }: { initial:
                           dir="ltr"
                         />
                       </label>
-                      <label className="text-[11px] font-bold text-slate-600">
+                      <label className="text-2xs font-bold text-slate-600">
                         ساعت شروع:
                         <select
                           value={slotDraft[c.offeringId]?.start ?? '08:00'}
@@ -733,7 +734,7 @@ export default function ExamPlanningClient({ initial, universityId }: { initial:
                       <button
                         onClick={() => handleScheduleSlot(c.offeringId, c.courseCode)}
                         disabled={busyPlanning}
-                        className="px-3.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-[11px] disabled:opacity-50"
+                        className="px-3.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-2xs disabled:opacity-50"
                       >
                         📌 رزرو شیفت
                       </button>
@@ -757,7 +758,7 @@ export default function ExamPlanningClient({ initial, universityId }: { initial:
                   <div key={cl.clusterId} className="p-3 rounded-xl border border-slate-200 flex items-center justify-between gap-3 flex-wrap">
                     <div>
                       <span className="font-black text-slate-900 text-xs">{cl.clusterTitle}</span>
-                      <span className="ms-2 text-[10px] font-bold text-slate-500">
+                      <span className="ms-2 text-3xs font-bold text-slate-500">
                         {faNum(cl.courseCount)} درس هم‌ارز · {faNum(cl.demand)} دانشجو
                         {cl.scheduledSlot && <span className="text-indigo-700"> · رزرو: {faNum(cl.scheduledSlot.examDate)} {faNum(cl.scheduledSlot.startTime)}</span>}
                       </span>
@@ -780,7 +781,7 @@ export default function ExamPlanningClient({ initial, universityId }: { initial:
                       <button
                         onClick={() => handleUnifiedCluster(cl.clusterId, cl.clusterTitle)}
                         disabled={busyPlanning}
-                        className="px-3.5 py-1.5 rounded-lg bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-[11px] disabled:opacity-50"
+                        className="px-3.5 py-1.5 rounded-lg bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-2xs disabled:opacity-50"
                       >
                         🧩 ثبت امتحان تجمیعی
                       </button>

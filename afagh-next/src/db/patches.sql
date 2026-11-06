@@ -337,3 +337,186 @@ UPDATE "departments" AS d SET "universityId" = 1 WHERE d."universityId" IS NULL
 UPDATE "curriculum_versions" AS v SET "universityId" = COALESCE(m."universityId", 1)
   FROM "majors" m WHERE m.id = v."majorId" AND v."universityId" IS NULL;
 
+
+-- ── قواعد پیش‌نیاز از «جدول دروس» (مهاجرت از سیستم قدیمی) ──
+-- متن خام ستون «پیش‌نیاز» روی خودِ درس نگه داشته می‌شود؛ چون course_rules
+-- مقیّد به نسخهٔ برنامه است و یک درس می‌تواند در چند نسخه باشد.
+ALTER TABLE IF EXISTS "courses" ADD COLUMN IF NOT EXISTS "prereqText" text;
+
+-- ── «تعداد واحد گذراندهٔ لازم» و «ترم لازم» از تعریف درس در سیستم قدیمی ──
+-- این دو ستون در خروجی‌های متنی سما نبودند (فقط پیش‌نیاز/هم‌نیاز/هم‌ارز بود)،
+-- پس داده‌شان دستی/از فایل دیگری پر می‌شود و در درخت قاعده به
+-- unitsPassed / minSemester ترجمه می‌شوند.
+ALTER TABLE IF EXISTS "courses" ADD COLUMN IF NOT EXISTS "prereqMinUnits" integer;
+ALTER TABLE IF EXISTS "courses" ADD COLUMN IF NOT EXISTS "prereqMinTerm" integer;
+
+-- ── اعتراض به نمره (دانشجو → کارشناس آموزش) ──
+CREATE TABLE IF NOT EXISTS "grade_objections" (
+  "id" serial PRIMARY KEY,
+  "studentId" integer NOT NULL REFERENCES "students"("id"),
+  "enrollmentId" integer NOT NULL REFERENCES "enrollments"("id"),
+  "termId" integer REFERENCES "academic_terms"("id"),
+  "courseCode" varchar(30),
+  "courseTitle" varchar(200),
+  "gradeAtObjection" numeric(6,2),
+  "requestText" text NOT NULL,
+  "status" varchar(20) NOT NULL DEFAULT 'PENDING',
+  "reviewerId" integer REFERENCES "staff"("id"),
+  "reviewerNote" text,
+  "resolvedAt" timestamp,
+  "createdAt" timestamp DEFAULT now(),
+  "updatedAt" timestamp DEFAULT now(),
+  "universityId" integer REFERENCES "universities"("id")
+);
+
+-- ═══════════════════════════════════════════════════════════════════════════
+--  ایندکس‌های عملکردی برای صفحهٔ اول و کارتابل‌ها
+--  ───────────────────────────────────────────────────────────────────────────
+--  چرا: جدول `student_requests` فقط ایندکسِ `status` داشت، ولی همهٔ کوئری‌های
+--  کارتابل با `WHERE universityId = X OR universityId IS NULL` و
+--  `ORDER BY id DESC LIMIT 20` اجرا می‌شوند؛ بدون ایندکس روی `universityId`
+--  این‌ها به اسکنِ کاملِ جدول می‌افتادند و همان چیزی می‌شد که کاربر «کندیِ
+--  شدیدِ صفحهٔ اول» توصیف کرد.
+--
+--  ⚠ `CONCURRENTLY` عمداً استفاده نشده: `apply-patches.mjs` کلِ این فایل را در
+--  یک تراکنش اجرا می‌کند و `CREATE INDEX CONCURRENTLY` داخل تراکنش خطا می‌دهد.
+--  `IF NOT EXISTS` هم اجرای مکرر در هر دیپلوی را بی‌خطر می‌کند.
+-- ═══════════════════════════════════════════════════════════════════════════
+CREATE INDEX IF NOT EXISTS "idx_req_uni_created" ON "student_requests" ("universityId", "id" DESC);
+CREATE INDEX IF NOT EXISTS "idx_req_uni_status"  ON "student_requests" ("universityId", "status");
+CREATE INDEX IF NOT EXISTS "idx_req_student"     ON "student_requests" ("studentId");
+CREATE INDEX IF NOT EXISTS "idx_req_process"     ON "student_requests" ("processId");
+
+-- فهرست درخواست‌های دانشجو و کارتابل‌های شخصی بر اساسِ وضعیت
+CREATE INDEX IF NOT EXISTS "idx_req_student_status" ON "student_requests" ("studentId", "status");
+
+-- ═══════════════════════════════════════════════════════════════════════════
+--  ایندکس‌های «گلوگاهِ حقوق و مالی» — پروفایلِ pg_stat_activity روی سرور
+--  ───────────────────────────────────────────────────────────────────────────
+--  دو کوئری‌ای که در پروفایلِ واقعی بیشترین زمان را می‌گرفتند:
+--
+--    ۱) select s.id as "staffId", count(e.id) as "pendingGrades" ...   → ۱ تا ۵ ثانیه
+--    ۲) select l."transactionType", l.amount::float8 ...               → ۰.۶۶ ثانیه
+--
+--  علتِ ریشه‌ای (نه تئوری — با `\di` روی دیتابیس تأیید شد):
+--
+--    • جدولِ `offering_professors` با **۱۶۰ ارجاع در کد** هیچ ایندکسی روی
+--      `offeringId` نداشت. تنها ایندکسش `(role, staffId)` بود که برای
+--      `where "offeringId" = X` بی‌فایده است. نتیجه: هر جست‌وجوی «اساتیدِ این
+--      ارائه» یک Seq Scan روی کلِ جدول.
+--
+--    • `course_offerings` هیچ ایندکسی روی `professorId` نداشت، در حالی که
+--      کارتابلِ استاد، حقوق، عملکردِ استاد و صورت‌جلسه‌ها همه با
+--      `where "professorId" = X` فیلتر می‌کنند.
+--
+--    • `student_ledger` ایندکسِ `universityId` نداشت؛ صفحاتِ مالی با
+--      `where ("universityId" = X or "universityId" is null)` می‌خوانند.
+--
+--  ⚠ `CONCURRENTLY` باز هم استفاده نشده (توضیحش بالاتر: تراکنشِ واحد).
+--    ساختنِ این ایندکس‌ها روی چند صد هزار ردیف در حدِ چند ثانیه است و چون
+--    زیرِ `pg_advisory_lock` اجرا می‌شود، هم‌زمانیِ دو دیپلوی مشکلی نمی‌سازد.
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- ۱) اساتیدِ هر ارائه (جهتِ «ارائه → استاد») و برعکس (جهتِ «استاد → ارائه»).
+--    هر دو جهت لازم است: کارتابلِ استاد از دومی می‌خواند، حقوق/گلوگاه از اولی.
+CREATE INDEX IF NOT EXISTS "idx_op_offering_staff" ON "offering_professors" ("offeringId", "staffId");
+CREATE INDEX IF NOT EXISTS "idx_op_staff_offering" ON "offering_professors" ("staffId", "offeringId");
+
+-- ۲) ارائه‌های یک استاد در یک ترم (کارتابلِ استاد، حقوق، صورت‌جلسه).
+CREATE INDEX IF NOT EXISTS "idx_co_prof_term" ON "course_offerings" ("professorId", "termId");
+
+-- ۳) گلوگاهِ «نمراتِ قطعی‌نشده» — ایندکسِ جزئی.
+--    فقط ثبت‌نام‌های REGISTERED که نمره‌شان FINALIZED نیست ایندکس می‌شوند؛
+--    یعنی در عمل چند هزار ردیف، نه کلِ جدول. کوئریِ گلوگاه دقیقاً همین شرط را
+--    دارد، پس PostgreSQL می‌تواند فقط همین ایندکس را بخواند و به جدول دست نزند.
+--    (`coalesce` تابعِ IMMUTABLE است، پس در predicate مجاز است.)
+CREATE INDEX IF NOT EXISTS "idx_enr_pending_grade"
+  ON "enrollments" ("offeringId")
+  WHERE "status" = 'REGISTERED' AND coalesce("gradeStatus", '') <> 'FINALIZED';
+
+-- ۴) دفتر مالی: «آخرین تراکنش‌های دانشگاه» با `order by id desc limit 10`.
+--    ترتیبِ نزولیِ `id` داخلِ خودِ ایندکس است تا Sort حذف شود.
+CREATE INDEX IF NOT EXISTS "idx_ledger_uni_id" ON "student_ledger" ("universityId", "id" DESC);
+
+-- ۵) تفکیکِ وصولی بر اساسِ نوع واریز: `where "transactionType"='PAYMENT'`
+--    به‌همراهِ محدودهٔ دانشگاه.
+CREATE INDEX IF NOT EXISTS "idx_ledger_uni_type" ON "student_ledger" ("universityId", "transactionType", "depositType");
+
+-- ۶) ایندکسِ پوششی برای تجمیعِ سراسریِ دفتر مالی.
+--    دو کوئری در سامانه ذاتاً به کلِ دفتر نیاز دارند و با `limit` کوچک نمی‌شوند،
+--    چون باید **رتبه‌بندی** کنند:
+--      • «تعداد دانشجویان بدهکار» (صفحهٔ کارت دانشجویی، بخشِ blocked)
+--      • «۱۲ دانشجوی بیشترین بدهی» (صفحهٔ امور مالی، بخشِ debtors)
+--    هر دو به شکلِ `sum(case when "transactionType" in (...) then amount ...)
+--    group by "studentId"` هستند. `idx_student_ledger_student` فقط `studentId`
+--    را دارد، پس PostgreSQL برای خواندنِ `amount` و `transactionType` مجبور به
+--    مراجعه به heap است (۳۴۳٬۰۹۷ ردیف در پروفایلِ تولید).
+--    با این ایندکس، همان تجمیع به **index-only scan** تبدیل می‌شود و به جدول
+--    دست نمی‌زند. هزینهٔ نوشتنش ناچیز است چون دفتر مالی نسبتاً کم‌نوشت است.
+CREATE INDEX IF NOT EXISTS "idx_ledger_balance_cover"
+  ON "student_ledger" ("studentId", "transactionType", "amount");
+
+-- ۷) ایندکسِ پوششی برای محاسبهٔ «دفعهٔ تدریس» (payroll-engine، کوئری ۹).
+--    آن کوئری سابقهٔ تدریسِ هر (استاد، درس) را از **همهٔ** ارائه‌های فعالِ
+--    همهٔ ترم‌ها می‌سازد: `where "isActive" = 1` روی کلِ course_offerings،
+--    بدونِ محدودیتِ ترم (چون باید تاریخچه را بشمارد). در پروفایل ۵۴۲.۹۱۵ms بود.
+--    ستون‌های هر سه در ایندکس هستند، پس شاخهٔ اولِ union به index-only scan
+--    تبدیل می‌شود و به heap دست نمی‌زند. جزئی است تا فقط ارائه‌های فعال را
+--    دربر بگیرد (ارائه‌های غیرفعال/حذف‌شده حجمِ بی‌فایده‌اند).
+CREATE INDEX IF NOT EXISTS "idx_co_active_history"
+  ON "course_offerings" ("courseId", "termId", "professorId")
+  WHERE "isActive" = 1;
+
+-- ═══════════════════════════════════════════════════════════════════════════
+--  تنظیمِ autovacuum برای جدول‌های داغ — جلوگیری از «کندیِ تدریجی»
+--  ───────────────────────────────────────────────────────────────────────────
+--  روی سرورِ تولید دیده شد که `last_autovacuum` برای `enrollments` (۶۹۱٬۹۵۳
+--  ردیف) و `student_ledger` (۴۰۹٬۲۷۸ ردیف) **خالی** بود؛ یعنی autovacuum هرگز
+--  روی این‌ها اجرا نشده بود.
+--
+--  چرا این مهم است (و چرا کندی «یک‌شبه» ظاهر می‌شود):
+--    • پیش‌فرضِ PostgreSQL `autovacuum_vacuum_scale_factor = 0.2` است، یعنی
+--      وکیوم تا وقتی ۲۰٪ ردیف‌ها مرده نشوند شروع نمی‌شود — روی `enrollments`
+--      یعنی حدود ۱۳۸٬۰۰۰ ردیفِ مرده. عملاً هرگز.
+--    • تا وقتی visibility map تازه نشده، هیچ `Index Only Scan` واقعاً
+--      «only» نیست؛ PostgreSQL برای هر ردیف به heap مراجعه می‌کند. یعنی
+--      به‌جای یک اسکنِ ترتیبی، هزاران دسترسیِ تصادفی.
+--    • نتیجه: تجمیع‌های کل‌جدولی (مثلِ شمارشِ بدهکاران) به‌تدریج کندتر
+--      می‌شوند تا جایی که کاربر می‌گوید «دیروز این‌قدر کند نبود».
+--
+--  با ۲٪، وکیوم روی `enrollments` بعد از ~۱۳٬۸۰۰ تغییر فعال می‌شود — یعنی
+--  visibility map همیشه تازه می‌ماند و ایندکس‌ها واقعاً index-only می‌شوند.
+--  `autovacuum_analyze_scale_factor = 0.01` هم آمارِ بهینه‌ساز را تازه نگه
+--  می‌دارد تا پلن‌ها با رشدِ داده از دست نروند.
+--
+--  ⚠ `ALTER TABLE ... SET (...)` خودش idempotent است؛ اجرای مکرر بی‌خطر.
+-- ═══════════════════════════════════════════════════════════════════════════
+ALTER TABLE "enrollments"      SET (autovacuum_vacuum_scale_factor = 0.02, autovacuum_analyze_scale_factor = 0.01);
+ALTER TABLE "student_ledger"   SET (autovacuum_vacuum_scale_factor = 0.02, autovacuum_analyze_scale_factor = 0.01);
+ALTER TABLE "course_offerings" SET (autovacuum_vacuum_scale_factor = 0.02, autovacuum_analyze_scale_factor = 0.01);
+ALTER TABLE "students"         SET (autovacuum_vacuum_scale_factor = 0.02, autovacuum_analyze_scale_factor = 0.01);
+ALTER TABLE "offering_professors" SET (autovacuum_vacuum_scale_factor = 0.05, autovacuum_analyze_scale_factor = 0.02);
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- ۱۳) ایندکسِ سادهٔ `enrollments("offeringId")` — بزرگ‌ترین سوراخِ باقی‌مانده.
+--
+--  وضعیتِ پیش از این: تنها ایندکس‌هایی که `offeringId` را در خود داشتند
+--  این‌ها بودند:
+--    • `uq_enrollments ("studentId","offeringId")` — ستونِ اول `studentId` است،
+--      پس برای `where "offeringId" = X` بی‌فایده است (پیشوندِ ایندکس نیست).
+--    • `idx_enr_pending_grade ("offeringId") WHERE "status"='REGISTERED' AND
+--      coalesce("gradeStatus",'') <> 'FINALIZED'` — جزئی است و فقط همان شرط
+--      را پوشش می‌دهد.
+--
+--  نتیجه: هر کوئری‌ای که با `offeringId` تنها فیلتر کند (فهرستِ دانشجویانِ
+--  کلاس، برگهٔ نمره، لیستِ گیرندگانِ پیام، انتقالِ گروهی، شمارشِ دانشجوی هر
+--  ارائه) روی ۶۹۱٬۹۵۳ ردیف / ۱۲۹ مگابایت **اسکنِ ترتیبی** می‌زد. بیش از ۱۴۰
+--  ارجاع در کد به همین الگو وجود دارد.
+--
+--  ایندکسِ جزئیِ فعلی عمداً دست‌نخورده می‌ماند: کوچک است و برای کوئریِ
+--  «نمراتِ قطعی‌نشده» که در هر بازدیدِ کارتابل اجرا می‌شود هنوز بهترین گزینه
+--  است. این ایندکسِ جدید نقشهٔ عمومی است.
+--
+--  هزینهٔ ساخت: یک‌بار، چند ثانیه، ~۱۵ مگابایت.
+-- ═══════════════════════════════════════════════════════════════════════════
+CREATE INDEX IF NOT EXISTS "idx_enr_offering" ON "enrollments" ("offeringId");

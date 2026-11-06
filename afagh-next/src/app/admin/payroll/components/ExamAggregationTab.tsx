@@ -27,7 +27,7 @@ export default function ExamAggregationTab({ state, api }: Props) {
                 <h2 className="font-black text-slate-900 text-base">
                   📦 تجمیع اوراق امتحانات چندسالنه، تحویل با QR و بازگشت به بایگانی (No Sheet, No Pay!)
                 </h2>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-900 border border-indigo-200">
+                <span className="px-2.5 py-0.5 rounded-full text-3xs font-black bg-indigo-100 text-indigo-900 border border-indigo-200">
                   الگوی سد تجمیعی (Barrier Synchronization)
                 </span>
               </div>
@@ -42,7 +42,7 @@ export default function ExamAggregationTab({ state, api }: Props) {
             <h4 className="font-black text-amber-300">
               🔗 زنجیره ۴ مرحله‌ای ممیزی اوراق امتحانی و تسویه حساب مالی اساتید:
             </h4>
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 pt-1 text-[11px] text-indigo-100">
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-2 pt-1 text-2xs text-indigo-100">
               <div className="bg-white/10 p-2.5 rounded-xl border border-white/10">
                 <b>۱. تجمیع بسته‌ها در مخزن:</b> بررسی تمام سالن‌ها. تا آخرین برگه نرسد، پیامکی برای استاد ارسال نمی‌شود.
               </div>
@@ -86,7 +86,7 @@ export default function ExamAggregationTab({ state, api }: Props) {
                     {/* Multi-hall Barrier Status */}
                     <td className="p-3 text-center">
                       <span
-                        className={`px-2.5 py-1 rounded-xl text-[10px] font-black ${
+                        className={`px-2.5 py-1 rounded-xl text-3xs font-black ${
                           agg.isFullyCollected
                             ? 'bg-emerald-100 text-emerald-800'
                             : 'bg-amber-100 text-amber-900 animate-pulse'
@@ -103,11 +103,11 @@ export default function ExamAggregationTab({ state, api }: Props) {
                     {/* SMS Status */}
                     <td className="p-3 text-center">
                       {agg.notificationSent ? (
-                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-3xs">
                           ✓ پیامک ارسال شد
                         </span>
                       ) : (
-                        <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-[10px]">
+                        <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-600 text-3xs">
                           قفل (منتظر سایر سالن‌ها)
                         </span>
                       )}
@@ -117,7 +117,7 @@ export default function ExamAggregationTab({ state, api }: Props) {
                     <td className="p-3 text-center">
                       {agg.pickupQrStatus === 'PICKED_UP_BY_PROF' ? (
                         <div>
-                          <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-950 font-bold text-[10px]">
+                          <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-950 font-bold text-3xs">
                             ✓ تحویل به استاد با QR
                           </span>
                           <span className="text-[9px] text-slate-500 block font-mono mt-0.5">
@@ -125,18 +125,18 @@ export default function ExamAggregationTab({ state, api }: Props) {
                           </span>
                         </div>
                       ) : (
-                        <span className="text-slate-400 text-[10px]">در انتظار تجمیع</span>
+                        <span className="text-slate-400 text-3xs">در انتظار تجمیع</span>
                       )}
                     </td>
 
                     {/* Physical Archive Return Gate */}
                     <td className="p-3 text-center">
                       {agg.papersReturnedToArchive ? (
-                        <span className="px-2.5 py-1 rounded-xl bg-emerald-600 text-white font-black text-[10px] shadow-xs">
+                        <span className="px-2.5 py-1 rounded-xl bg-emerald-600 text-white font-black text-3xs shadow-xs">
                           ✓ تحویل بایگانی شد (تسویه مالی آزاد)
                         </span>
                       ) : (
-                        <span className="px-2.5 py-1 rounded-xl bg-rose-100 text-rose-800 font-black text-[10px]">
+                        <span className="px-2.5 py-1 rounded-xl bg-rose-100 text-rose-800 font-black text-3xs">
                           ⛔ دست استاد (تسویه مالی قفل)
                         </span>
                       )}
@@ -161,7 +161,7 @@ export default function ExamAggregationTab({ state, api }: Props) {
                               `✓ اوراق تصحیح‌شده درس «${agg.courseTitle}» با موفقیت در بایگانی تحویل گرفته شد و قفل تسویه مالی ۶۰٪ آزاد گردید.`
                             );
                           }}
-                          className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] shadow-xs"
+                          className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-black text-3xs shadow-xs"
                         >
                           تایید دریافت اوراق در بایگانی 📥
                         </button>

@@ -11,7 +11,14 @@ import { isRealUniversityId } from '@/lib/university-scope';
 export const PER = 50;
 
 export type ReportFilters = {
+  /** کد یک ترم (سازگاری عقبرو با همهٔ ماژولهای r-*.ts)؛ خالی = بدون فیلتر ترم */
   term?: string;
+  /**
+   * فهرست ترمهای انتخابشده، جدا شده با ویرگول (مثلاً «14051,14052»).
+   * وقتی بیش از یک ترم باشد، `runReport` هر ترم را جدا اجرا و نتایج را
+   * با ستون «ترم» ادغام میکند. یکترم/همهترمها همچنان از `term` میگذرند.
+   */
+  terms?: string;
   degreeId?: number;
   facultyId?: number;
   majorId?: number;
@@ -28,6 +35,10 @@ export type ReportFilters = {
   quotaType?: string;
   /** دامنهٔ وضعیت دانشجو: ACTIVE | INACTIVE | ALL (پیش‌فرض ALL) */
   statusScope?: string;
+  /** وضعیت تحصیلیِ دقیق (ACTIVE | GRADUATED | EXPELLED | WITHDRAWN | SUSPENDED | TRANSFERRED | NO_SHOW | DECEASED) */
+  status?: string;
+  /** دامنهٔ گزارش: 'term' = فقط دانشجویانِ فعال در همان نیمسال، 'all' = کل دوره */
+  scope?: string;
   q?: string;
   nationalCode?: string;
   miss?: string;
@@ -65,6 +76,12 @@ export type FilterOptions = {
   entryYears: number[];
   latestTerm: string;
   universities: { id: number; code: string; title: string; kind: string }[];
+  /** نام دانشگاهِ فعال (پروفایل دانشگاه ← تنظیمات UNIVERSITY_NAME) */
+  universityTitle: string;
+  /** آرم دانشگاهِ فعال (universities.logoUrl ← تنظیمات UNIVERSITY_LOGO) */
+  universityLogoUrl: string;
+  /** برچسب جایگاههای امضای فرم جاری، از «تنظیمات سامانه» */
+  signers: string[];
 };
 
 export const NUM = sql`e."gradeValue"::text ~ '^[0-9]+(\\.[0-9]+)?$'`;
@@ -97,6 +114,29 @@ export function studentWhere(f: ReportFilters, alias = 's') {
   // دامنهٔ وضعیت: پیش‌فرض «همه» تا با فرم‌های قدیم (فعال/غیرفعال/همه) یکی باشد
   if (f.statusScope === 'ACTIVE') c.push(sql`${a}."status" = 'ACTIVE'`);
   else if (f.statusScope === 'INACTIVE') c.push(sql`${a}."status" <> 'ACTIVE'`);
+  /* ── وضعیت تحصیلیِ دقیق (انتخاب کاربر از منوی گزارش‌ها) ──
+     'ALL' یا خالی = بدون فیلتر. بقیه دقیقاً روی s.status اعمال می‌شود. */
+  if (f.status && f.status !== 'ALL') {
+    c.push(sql`${a}."status" = ${String(f.status)}`);
+  }
+  /* ── دامنه: «کل دوره» یا «فقط همین نیمسال» ──
+     وقتی scope='term' باشد، فقط دانشجویانی می‌آیند که در نیمسال انتخابی
+     «فعالیت» دارند (ثبت‌نام یا ردیف دفتر مالی). بدون این شرط، گزارشِ ترم
+     دانشجویانِ بی‌ارتباطِ ترم‌های دیگر را هم می‌آورد. */
+  if (f.scope === 'term' && f.term) {
+    c.push(sql`(
+      EXISTS (
+        SELECT 1 FROM enrollments en
+          JOIN course_offerings co ON co.id = en."offeringId"
+          JOIN academic_terms t2 ON t2.id = co."termId"
+        WHERE en."studentId" = ${a}.id AND t2."termCode" = ${String(f.term)}
+      ) OR EXISTS (
+        SELECT 1 FROM student_ledger sl2
+          JOIN academic_terms t3 ON t3.id = sl2."termId"
+        WHERE sl2."studentId" = ${a}.id AND t3."termCode" = ${String(f.term)}
+      )
+    )`);
+  }
   if (f.nationalCode) {
     // کدهای ذخیره‌شده انگلیسی‌اند؛ ارقام فارسی ورودی نرمال می‌شود تا کدهای SA/SS هم پیدا شوند.
     // فرار ٪ _ \ تا wildcard تزریقی معنا نگیرد (با ESCAPE '\').
@@ -172,6 +212,12 @@ export const ALL_REPORT_KINDS: string[] = [
   'student-card', 'study-cert', 'edu-confirm', 'grad-cert', 'military-defer',
   'finance-worklist', 'payroll-overview', 'bi-teaching-quality', 'bi-facilities',
   'graduation-dossiers', 'grade-audit-log',
+  // تشکیل کلاس استادان (r-prof-class)
+  'prof-formation-summary', 'prof-formation-detail', 'prof-formation-none', 'prof-sessions-unformed',
+  // گزارش‌های پرداختی/مالی هم‌ریخت با اسناد سما (r-finance)
+  'total-payments', 'student-payments', 'term-payments', 'accounting-voucher', 'term-financial',
+  // گزارش‌های مدیریتی تجمیعی شهریه (دانشکده/مقطع/رشته/ورودی)
+  'tuition-overview', 'tuition-faculty-detail', 'faculty-financial', 'major-financial',
 ];
 
 /** گیت ماتریس دسترسی برای هر گزارش: ADMIN آزاد، بقیه نیازمند reports:<kind> */

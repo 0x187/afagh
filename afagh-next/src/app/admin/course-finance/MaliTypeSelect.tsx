@@ -65,7 +65,7 @@ export default function MaliTypeSelect({
           </option>
         ))}
       </select>
-      {err && <span className="text-[10px] text-rose-700">{err}</span>}
+      {err && <span className="text-3xs text-rose-700">{err}</span>}
     </div>
   );
 }

@@ -11,9 +11,10 @@
  *   facultyNames / departmentNames / filterMajorsByTree / filterBankCourses / visibleBank / allBankSelected
  */
 import {
-  allBankSelected, BANK_VISIBLE_LIMIT, buildRuleTree, CURRICULUM_TABS, departmentNames, faDate,
+  allBankSelected, BANK_VISIBLE_LIMIT, buildRuleTree, CURRICULUM_TABS, departmentNames, dependencyWarningText,
+  dependencyWarnings, dependencyWarningsMap, EXTRA_ROLE_LABELS, faDate,
   faNum, facultyNames, filterBankCourses, filterMajorsByTree, groupBySemester, isOverflowSemester,
-  leafCourseCodesOf, leafTotalOf, overflowSemesters, resolveTab, ROLE_LABELS, semLabel,
+  leafCourseCodesOf, leafTotalOf, overflowSemesters, resolveTab, roleLabel, ROLE_LABELS, ROLE_TARGET_KEYS, semLabel,
   semesterUnitTotal, STATUS_UI, TABS, termGrid, typeSummaryRows, unitsByRoleMap, validateMinGrade,
   visibleBank,
 } from '../src/app/admin/curriculum/curriculum-core.ts';
@@ -52,7 +53,9 @@ console.log('۲) ثابت‌های نمایشی');
 eq('پنج وضعیت چرخهٔ حیات', Object.keys(STATUS_UI), ['DRAFT', 'REVIEW', 'APPROVED', 'PUBLISHED', 'ARCHIVED']);
 eq('برچسب فارسی منتشرشده', STATUS_UI.PUBLISHED.label, 'منتشرشده');
 eq('وضعیت ناشناخته در STATUS_UI نیست (فایل رندرکننده fallback دارد)', STATUS_UI.NOPE === undefined, true);
-eq('هفت نقش درس، به همان ترتیب جدول', Object.keys(ROLE_LABELS), ['CORE', 'MAJOR', 'ELECTIVE', 'GENERAL', 'THESIS', 'INTERNSHIP', 'WORKSHOP']);
+// از کامیت f83f070 «تخصصی» نقش مستقل SPECIALIZED گرفت و از «اصلی» جدا شد ⇒ هشت نقش؛
+// مهاجرت ۰۱۲۹ «جبرانی» (COMPENSATORY) را به نقش‌های رسمی افزود ⇒ نه نقش.
+eq('نه نقش درس (شامل جبرانی)، به همان ترتیب', Object.keys(ROLE_LABELS), ['CORE', 'MAJOR', 'SPECIALIZED', 'ELECTIVE', 'GENERAL', 'THESIS', 'INTERNSHIP', 'WORKSHOP', 'COMPENSATORY']);
 eq('پنج تب', TABS.map(t => t.key), ['CATALOG', 'COURSES', 'SEMESTERS', 'VERIFY', 'TRANSFER']);
 eq('CURRICULUM_TABS از TABS مشتق می‌شود', CURRICULUM_TABS, TABS.map(t => t.key));
 
@@ -176,6 +179,57 @@ eq('همه انتخاب نشده‌اند', allBankSelected(bb, new Set([101])),
 eq('همه انتخاب شده‌اند', allBankSelected(bb, new Set([101, 202, 303])), true);
 eq('فیلتر خالی → «همه انتخاب شده» نه', allBankSelected([], new Set()), false);
 eq('انتخاب‌های خارج از فیلتر مزاحم نیستند', allBankSelected([bb[0]], new Set([101, 202])), true);
+
+console.log('۱۰) هشدار پیش‌نیاز/هم‌نیاز در چارت');
+const dc = (id: number, code: string, sem: number | null) => ({
+  courseId: id, code, title: code, units: 3, roleType: 'CORE',
+  isRequired: 1, isElective: 0, isGraduationRequired: 0, recommendedSemester: sem,
+  minGrade: null, passGradeStatusCode: null, failGradeStatusCode: null,
+});
+const dRule = (id: number, type: string, codes: string[]) => ({ courseId: id, ruleType: type, logicTree: buildRuleTree(codes, 'AND')! });
+const w1 = dependencyWarnings([dc(1, 'A', 2), dc(2, 'B', null)], [dRule(1, 'PREREQ', ['B'])]);
+eq('پیش‌نیاز بی‌ترم → unassigned', w1.length === 1 && w1[0].unassigned.includes('B') && !w1[0].impossibleTerm, true);
+const w2 = dependencyWarnings([dc(1, 'A', 3)], [dRule(1, 'PREREQ', ['Z'])]);
+eq('پیش‌نیاز ناموجود → missing', w2[0].missing.includes('Z'), true);
+const w3 = dependencyWarnings([dc(1, 'A', 1), dc(2, 'B', 2)], [dRule(1, 'PREREQ', ['B'])]);
+eq('ترم ۱ با پیش‌نیاز → impossibleTerm', w3[0].impossibleTerm, true);
+const w4 = dependencyWarnings([dc(1, 'A', 3), dc(2, 'B', 5)], [dRule(1, 'PREREQ', ['B'])]);
+eq('پیش‌نیاز در ترم دیرتر → badOrder', w4[0].badOrder.includes('B'), true);
+const w5 = dependencyWarnings([dc(1, 'A', 3), dc(2, 'B', 1)], [dRule(1, 'PREREQ', ['B'])]);
+eq('پیش‌نیاز در ترم زودتر → بدون هشدار', w5.length, 0);
+const w6 = dependencyWarnings([dc(1, 'A', 2), dc(2, 'B', 2)], [dRule(1, 'COREQ', ['B'])]);
+eq('هم‌نیاز هم‌ترم → بدون هشدار', w6.length, 0);
+const w7 = dependencyWarnings([dc(1, 'A', 4), dc(2, 'B', 2)], [dRule(1, 'COREQ', ['B'])]);
+eq('هم‌نیاز در ترم زودتر (یا هم‌ترم) → بدون هشدار', w7.length, 0);
+const w8 = dependencyWarnings([dc(1, 'A', 3), dc(2, 'B', 5)], [dRule(1, 'COREQ', ['B'])]);
+eq('هم‌نیاز در ترم بعدتر → badOrder', w8.length === 1 && w8[0].badOrder.includes('B'), true);
+eq('متن هشدار هم‌نیاز بعدتر شامل «هم‌نیاز»', dependencyWarningText(w8[0]).includes('هم‌نیاز'), true);
+const wm = dependencyWarningsMap([dc(1, 'A', 1), dc(2, 'B', 2)], [dRule(1, 'PREREQ', ['B'])]);
+eq('نگاشت بر اساس courseId', wm.get(1)?.length, 1);
+eq('متن هشدار شامل «ترم ۱»', dependencyWarningText(w3[0]).includes('ترم ۱'), true);
+
+console.log('\n۱۱) انواع درسِ «سهم واحد» — جبرانی و انواعِ خارج از enum');
+eq('برچسب نقش شناخته‌شده', roleLabel('GENERAL'), 'عمومی');
+eq('جبرانی برچسب فارسی دارد', roleLabel('COMPENSATORY'), 'جبرانی');
+eq('کلید ناشناخته بدون تغییر برمی‌گردد', roleLabel('CUSTOM_TYPE'), 'CUSTOM_TYPE');
+eq('جبرانی در فهرست انواعِ سهم واحد هست', ROLE_TARGET_KEYS.includes('COMPENSATORY'), true);
+eq('فهرست انواع = نقش‌های چارت + انواعِ خارجی (اکنون صفر)', ROLE_TARGET_KEYS.length, Object.keys(ROLE_LABELS).length + Object.keys(EXTRA_ROLE_LABELS).length);
+// مهاجرت ۰۱۲۹: جبرانی اکنون نقشِ رسمیِ نهمِ چارت است (CHECK دیتابیس ۹ مقدار
+// را می‌پذیرد)؛ پس در ROLE_LABELS هست و از EXTRA_ROLE_LABELS خارج شد.
+eq('جبرانی اکنون نقش رسمیِ چارت است (مهاجرت ۰۱۲۹)', 'COMPENSATORY' in ROLE_LABELS, true);
+eq('EXTRA_ROLE_LABELS اکنون خالی است (جبرانی به نقش‌های چارت رفت)', Object.keys(EXTRA_ROLE_LABELS).join(','), '');
+
+const dcRole = (id: number, code: string, role: string, units = 3) => ({
+  courseId: id, code, title: code, units, roleType: role,
+  isRequired: 1, isElective: 0, isGraduationRequired: 0, recommendedSemester: 1,
+  minGrade: null, passGradeStatusCode: null, failGradeStatusCode: null,
+});
+const sumC = typeSummaryRows([dcRole(1, 'G1', 'GENERAL'), dcRole(2, 'C1', 'COMPENSATORY', 2)]);
+eq('نوع جبرانی در جمع‌بندی می‌آید', sumC.some(r => r.role === 'COMPENSATORY' && r.units === 2), true);
+eq('جبرانی بعد از نقش‌های چارت مرتب می‌شود', sumC[sumC.length - 1].role, 'COMPENSATORY');
+// رشتهٔ بدون درس عمومی: هیچ ردیف GENERAL ساخته نمی‌شود (نه صفرِ ساختگی)
+const sumNoGen = typeSummaryRows([dcRole(1, 'M1', 'MAJOR')]);
+eq('رشتهٔ بدون عمومی → ردیف عمومی ندارد', sumNoGen.some(r => r.role === 'GENERAL'), false);
 
 console.log(`\nنتیجه: ${pass} موفق، ${fail} ناموفق`);
 process.exit(fail === 0 ? 0 : 1);

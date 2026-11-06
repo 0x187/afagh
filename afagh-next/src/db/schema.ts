@@ -271,7 +271,148 @@ export const sanjesh_mappings = pgTable('sanjesh_mappings', {
   sanjeshQuota: varchar('sanjeshQuota', { length: 50 }),
   internalQuotaCode: integer('internalQuotaCode'),
   universityId: integer('universityId').references((): AnyPgColumn => universities.id),
-});
+  /** تهی ⇒ نگاشت سراسری؛ مقدار‌دار ⇒ override همان فایل سنجش */
+  fileId: integer('fileId').references((): AnyPgColumn => sanjesh_files.id, { onDelete: 'cascade' }),
+  note: varchar('note', { length: 200 }),
+}, (t) => [
+  index('idx_sanjesh_mappings_file').on(t.fileId),
+]);
+
+/* ════════════════════════════════════════════════════════════════════════
+   ماژول «تبدیل اطلاعات سازمان سنجش» (مهاجرت 0128)
+   اصل: هیچ داده‌ای از فایل سنجش دور ریخته نمی‌شود — ستون‌های نگاشت‌نشده هم
+   در `dataJson` با کلید شمارهٔ ستون ذخیره می‌شوند.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/** قالب ساختار فایل — **کاربر می‌تواند تعریف/ویرایش کند** (نه فقط قالب‌های کد) */
+export const sanjesh_templates = pgTable('sanjesh_templates', {
+  id: serial('id').primaryKey(),
+  key: varchar('key', { length: 60 }).notNull(),
+  title: varchar('title', { length: 200 }).notNull(),
+  examKind: varchar('examKind', { length: 20 }).notNull(),
+  examYear: integer('examYear').notNull(),
+  columnCount: integer('columnCount').notNull(),
+  pdfRowCount: integer('pdfRowCount'),
+  /** [{ colIndex, sanjeshTitle, charCount, targetField }] */
+  columnsJson: jsonb('columnsJson').notNull(),
+  /** { gender: [{ value, label, internalValue }], … } */
+  decodeTablesJson: jsonb('decodeTablesJson').notNull().default({}),
+  expandedRowsJson: jsonb('expandedRowsJson').notNull().default([]),
+  notes: text('notes'),
+  isBuiltin: boolean('isBuiltin').notNull().default(false),
+  verifiedWithRealFile: boolean('verifiedWithRealFile').notNull().default(false),
+  isActive: boolean('isActive').notNull().default(true),
+  universityId: integer('universityId').references((): AnyPgColumn => universities.id),
+  createdByUserId: integer('createdByUserId').references(() => users.id),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+}, (t) => [
+  // کلید در دامنهٔ هر دانشگاه یکتاست؛ قالب سراسری (NULL) با COALESCE→۰
+  uniqueIndex('uq_sanjesh_templates_key').on(sql`COALESCE(${t.universityId}, 0)`, t.key),
+  index('idx_sanjesh_templates_kind_year').on(t.examKind, t.examYear),
+  index('idx_sanjesh_templates_uni').on(t.universityId),
+]);
+
+/** یک فایل بارگذاری‌شده (یک آزمون/یک سال) */
+export const sanjesh_files = pgTable('sanjesh_files', {
+  id: serial('id').primaryKey(),
+  universityId: integer('universityId').references((): AnyPgColumn => universities.id),
+  termId: integer('termId').references(() => academic_terms.id),
+  degreeLevelId: integer('degreeLevelId').references(() => degree_level_configs.id),
+  templateId: integer('templateId').references(() => sanjesh_templates.id),
+  templateKey: varchar('templateKey', { length: 60 }),
+  title: varchar('title', { length: 200 }).notNull(),
+  examKind: varchar('examKind', { length: 20 }),
+  examYear: integer('examYear'),
+  fileName: varchar('fileName', { length: 255 }),
+  fileSize: integer('fileSize'),
+  fileHash: varchar('fileHash', { length: 64 }),
+  encoding: varchar('encoding', { length: 20 }),
+  columnCount: integer('columnCount').notNull().default(0),
+  rowCount: integer('rowCount').notNull().default(0),
+  /** DRAFT | FIELDS_READY | VALUED | STAGED | DONE */
+  status: varchar('status', { length: 20 }).notNull().default('DRAFT'),
+  warningsJson: jsonb('warningsJson').notNull().default([]),
+  uploadedByUserId: integer('uploadedByUserId').references(() => users.id),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+}, (t) => [
+  index('idx_sanjesh_files_status').on(t.status),
+  index('idx_sanjesh_files_term').on(t.termId),
+  index('idx_sanjesh_files_hash').on(t.fileHash),
+]);
+
+/** تطبیق فیلدها: شمارهٔ ستون ↔ فیلد مقصد */
+export const sanjesh_file_fields = pgTable('sanjesh_file_fields', {
+  id: serial('id').primaryKey(),
+  fileId: integer('fileId').notNull().references(() => sanjesh_files.id, { onDelete: 'cascade' }),
+  /** از فایل والد به ارث می‌رسد تا دامنه‌بندی بدون JOIN ممکن باشد */
+  universityId: integer('universityId').references((): AnyPgColumn => universities.id),
+  colIndex: integer('colIndex').notNull(),
+  sanjeshTitle: varchar('sanjeshTitle', { length: 200 }).notNull(),
+  charCount: integer('charCount').notNull().default(0),
+  /** تهی ⇒ نگاشت‌نشده (مدیر باید تعیین کند) */
+  targetField: varchar('targetField', { length: 60 }),
+  sampleValue: text('sampleValue'),
+  observedLength: integer('observedLength'),
+  isMapped: boolean('isMapped').notNull().default(false),
+}, (t) => [
+  unique('uq_sanjesh_file_fields').on(t.fileId, t.colIndex),
+  index('idx_sanjesh_file_fields_file').on(t.fileId),
+  index('idx_sanjesh_file_fields_uni').on(t.universityId),
+]);
+
+/** دادهٔ خام هر داوطلب — کامل و بی‌کم‌وکاست */
+export const sanjesh_file_rows = pgTable('sanjesh_file_rows', {
+  id: serial('id').primaryKey(),
+  fileId: integer('fileId').notNull().references(() => sanjesh_files.id, { onDelete: 'cascade' }),
+  /** از فایل والد به ارث می‌رسد؛ این جدول PII کامل دارد */
+  universityId: integer('universityId').references((): AnyPgColumn => universities.id),
+  rowNo: integer('rowNo').notNull(),
+  /** خط اصلی فایل، بدون هیچ دستکاری */
+  rawLine: text('rawLine').notNull(),
+  /** { fields: {targetField: value}, columns: {"1": "…"}, meta: {…} } */
+  dataJson: jsonb('dataJson').notNull(),
+  nationalCode: varchar('nationalCode', { length: 10 }),
+  nationalCodeEnc: text('nationalCodeEnc'),
+  nationalCodeBlindIndex: text('nationalCodeBlindIndex'),
+  nationalCodeValid: boolean('nationalCodeValid').notNull().default(false),
+  applicantNo: varchar('applicantNo', { length: 40 }),
+  uniqueId: varchar('uniqueId', { length: 40 }),
+  fullName: varchar('fullName', { length: 200 }),
+  rowHash: varchar('rowHash', { length: 16 }),
+  studentId: integer('studentId').references((): AnyPgColumn => students.id),
+  /** PENDING | MATCHED | DUPLICATE | INVALID | IGNORED */
+  matchStatus: varchar('matchStatus', { length: 20 }).notNull().default('PENDING'),
+  matchNote: text('matchNote'),
+  matchedAt: timestamp('matchedAt'),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+}, (t) => [
+  unique('uq_sanjesh_file_rows').on(t.fileId, t.rowNo),
+  index('idx_sanjesh_file_rows_file').on(t.fileId),
+  index('idx_sanjesh_file_rows_nc').on(t.nationalCode),
+  index('idx_sanjesh_file_rows_nc_blind').on(t.nationalCodeBlindIndex),
+  index('idx_sanjesh_file_rows_status').on(t.matchStatus),
+  index('idx_sanjesh_file_rows_hash').on(t.fileId, t.rowHash),
+  index('idx_sanjesh_file_rows_uni').on(t.universityId),
+]);
+
+/** جدول براورد: کد سنجش ↔ عنوان/کد داخلی (fileId تهی ⇒ سراسری) */
+export const sanjesh_value_maps = pgTable('sanjesh_value_maps', {
+  id: serial('id').primaryKey(),
+  fileId: integer('fileId').references(() => sanjesh_files.id, { onDelete: 'cascade' }),
+  universityId: integer('universityId').references((): AnyPgColumn => universities.id),
+  field: varchar('field', { length: 60 }).notNull(),
+  sanjeshValue: varchar('sanjeshValue', { length: 100 }).notNull(),
+  sanjeshLabel: varchar('sanjeshLabel', { length: 200 }),
+  internalValue: varchar('internalValue', { length: 60 }),
+  internalLabel: varchar('internalLabel', { length: 200 }),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+}, (t) => [
+  unique('uq_sanjesh_value_maps').on(t.fileId, t.field, t.sanjeshValue),
+  index('idx_sanjesh_value_maps_field').on(t.field),
+  index('idx_sanjesh_value_maps_uni').on(t.universityId),
+]);
 
 export const admissions_staging = pgTable('admissions_staging', {
   id: serial('id').primaryKey(),
@@ -294,8 +435,14 @@ export const admissions_staging = pgTable('admissions_staging', {
   studentId: integer('studentId'),
   decisionNote: text('decisionNote'),
   universityId: integer('universityId').references((): AnyPgColumn => universities.id),
+  // ── پیوند با فایل سنجش (مهاجرت 0128) ──
+  fileId: integer('fileId'),
+  rowNo: integer('rowNo'),
+  assignedStudentCode: varchar('assignedStudentCode', { length: 14 }),
+  matchedAt: timestamp('matchedAt'),
 }, (t) => [
   index('idx_adm_stg_nc_blind').on(t.nationalCodeBlindIndex),
+  index('idx_adm_stg_file').on(t.fileId, t.rowNo),
 ]);
 
 export const student_id_formulas = pgTable('student_id_formulas', {
@@ -309,6 +456,23 @@ export const student_id_formulas = pgTable('student_id_formulas', {
   // جلوگیری از رقابت روی شمارنده: هر مقطع فقط یک ردیف فرمول — مبنای onConflictDoNothing
   uqDegreeLevel: unique('student_id_formulas_degreeLevelId_unique').on(t.degreeLevelId)
 }));
+
+/**
+ * کتابخانهٔ «مدل‌های فرمول» (مهاجرت 0132).
+ * کارشناس چند الگو می‌سازد و هنگام تعریف فرمولِ هر مقطع یکی را انتخاب می‌کند.
+ * خودِ فرمولِ فعال همچنان در `student_id_formulas` می‌ماند؛ این جدول فقط الگوست.
+ */
+export const student_id_formula_models = pgTable('student_id_formula_models', {
+  id: serial('id').primaryKey(),
+  universityId: integer('universityId').references((): AnyPgColumn => universities.id),
+  title: varchar('title', { length: 150 }).notNull(),
+  formula: varchar('formula', { length: 255 }).notNull(),
+  note: varchar('note', { length: 200 }),
+  isActive: boolean('isActive').notNull().default(true),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+}, (t) => [
+  index('idx_formula_models_uni').on(t.universityId),
+]);
 
 export const educational_regulations = pgTable('educational_regulations', {
   id: serial('id').primaryKey(),
@@ -343,6 +507,11 @@ export const students = pgTable('students', {
   // واحدهای جبرانیِ تعیین‌شده توسط مدیر گروه؛ به سقف واحد همان ترم اضافه می‌شود
   // (مثلاً سقف ۲۰ + ۶ جبرانی = ۲۶) و در «کف واحد» شمرده نمی‌شود.
   compensatoryUnits: integer('compensatoryUnits').notNull().default(0),
+  // ── منبع پذیرش (مهاجرت 0130): اعلام‌شده از سنجش یا ثبت متفرقه ──
+  admissionSource: varchar('admissionSource', { length: 20 }).default('LEGACY'), // SANJESH | MANUAL | LEGACY
+  sanjeshFileId: integer('sanjeshFileId'),
+  sanjeshRowNo: integer('sanjeshRowNo'),
+  manualReason: text('manualReason'),
   /** رشتهٔ قبلی (از سازمان سنجش) — برای تشخیص جبرانی در صفحهٔ مدیر گروه */
   previousMajorCode: varchar('previousMajorCode', { length: 20 }),
   previousMajorTitle: varchar('previousMajorTitle', { length: 150 }),
@@ -464,6 +633,38 @@ export const student_term_states = pgTable('student_term_states', {
   universityId: integer('universityId').references((): AnyPgColumn => universities.id),
 }, (t) => ({ uq: unique('uq_student_term_states').on(t.studentId, t.termId) }));
 
+/**
+ * جدول مرجع «وضعیت‌های نیمسال» — بازتولید دقیق از دیتابیس قدیمی سما (فایل
+ * «وضعيت نيمسال.txt»). هر ردیف، یکی از ۶۷ وضعیتِ نیمسال (کد ۰ تا ۶۶) را با
+ * پرچم‌های مالی/ثبت‌نامی‌اش تعریف می‌کند (فعال در ترم، محاسبه در سنوات، شمارش
+ * در سال‌های مالی، شمول شهریه، اثر در رتبه/معدل، …). ردیف‌های مربوط‌به هر
+ * دانشجو در `student_term_states` قرار دارند و از طریق `sourceStatusCode`
+ * (کدِ سما) به این جدول ربط می‌خورند. ستون `studentTermTypeId` پیوند به نوع
+ * ترمِ دانشجو در سما است (در خروجیِ مبدأ در ستون آخر آمده بود).
+ *
+ * این جدول دادهٔ شخصی/مالی ندارد ⇒ معاف از سخت‌سازی RLS. مهاجرت: ۰۱۲۰.
+ */
+export const term_status_types = pgTable('term_status_types', {
+  id: serial('id').primaryKey(),
+  code: integer('code').notNull().unique(),
+  title: varchar('title', { length: 150 }).notNull(),
+  activeInTerm: boolean('active_in_term').notNull().default(false),
+  countInYears: boolean('count_in_years').notNull().default(false),
+  allowRegister: boolean('allow_register').notNull().default(false),
+  latinTitle: varchar('latin_title', { length: 150 }),
+  standardCode: varchar('standard_code', { length: 20 }),
+  includedTuition: boolean('included_tuition').notNull().default(false),
+  rotbehEffect: boolean('rotbeh_effect').notNull().default(false),
+  useRating: boolean('use_rating').notNull().default(false),
+  allowTermStatusChangeTermEnter: boolean('allow_term_status_change_term_enter').notNull().default(false),
+  effectFinancialYears: boolean('effect_financial_years').notNull().default(false),
+  includeTermPriceMabSubject: boolean('include_term_price_mab_subject').notNull().default(false),
+  isGraduateStatus: boolean('is_graduate_status').notNull().default(false),
+  studentTermTypeId: integer('student_term_type_id'),
+  source: varchar('source', { length: 20 }).notNull().default('SAMA'),
+  createdAt: timestamp('created_at').defaultNow(),
+});
+
 export const staff = pgTable('staff', {
   id: serial('id').primaryKey(),
   userId: integer('userId').notNull().unique().references(() => users.id),
@@ -551,6 +752,21 @@ export const courses = pgTable('courses', {
   courseIsActive: integer('courseIsActive').default(1),                // فعال/غیرفعال
   emergencyWithdrawal: integer('emergencyWithdrawal').default(0),       // حذف اضطراری مجاز
   coRequisites: varchar('coRequisites', { length: 200 }),              // همنیاز (کدها جداشده با کاما)
+  /**
+   * متن خام ستون «پیش‌نیاز» از جدول دروس سیستم قدیمی.
+   * چرا لازم است: قواعد پیش‌نیاز در `course_rules` **مقیّد به نسخهٔ برنامه**
+   * هستند، ولی منبعِ اصلی داده «جدول دروس» است (سراسری). متن خام این‌جا
+   * نگه داشته می‌شود و با «همگام‌سازی» به course_rules هر نسخه ترجمه می‌شود
+   * (`src/lib/requisite-sync.ts`) — بدون این ستون، مهاجرت دوباره لازم بود.
+   */
+  prereqText: text('prereqText'),
+  /**
+   * «تعداد واحد گذراندهٔ لازم» برای اخذ این درس — از تعریف درس در سیستم قدیم.
+   * در درخت قاعده به شرط `unitsPassed` ترجمه می‌شود.
+   */
+  prereqMinUnits: integer('prereqMinUnits'),
+  /** «ترم لازم» — حداقل ترمی که این درس می‌تواند اخذ/ارائه شود (به شرط `minSemester` ترجمه می‌شود) */
+  prereqMinTerm: integer('prereqMinTerm'),
   facesHours: numeric('facesHours', { precision: 3, scale: 1 }),       // ساعات چهره‌به‌چهره
   /** کدهای دروس هم‌ارز (جداشده با کاما) — مثال: '101,102,103' */
   equivalentCourseCodes: text('equivalentCourseCodes'),
@@ -647,7 +863,7 @@ export const curriculum_courses = pgTable('curriculum_courses', {
 }, (t) => ({
   uqCourse: unique('uq_curriculum_courses_version_course').on(t.curriculumVersionId, t.courseId),
   semIdx: index('curriculum_courses_semester_idx').on(t.curriculumVersionId, t.recommendedSemester),
-  roleCheck: check('curriculum_courses_role_check', sql`${t.roleType} in ('CORE','MAJOR','ELECTIVE','GENERAL','THESIS','INTERNSHIP','WORKSHOP')`),
+  roleCheck: check('curriculum_courses_role_check', sql`${t.roleType} in ('CORE','MAJOR','SPECIALIZED','ELECTIVE','GENERAL','THESIS','INTERNSHIP','WORKSHOP','COMPENSATORY')`),
 }));
 
 /**
@@ -786,6 +1002,10 @@ export const classrooms = pgTable('classrooms', {
   code: varchar('code', { length: 30 }),
   capacity: integer('capacity').notNull(),
   roomType: varchar('roomType', { length: 30 }),
+  /** آیا این کلاس «سالن امتحان» است؟ (۱ = بله، ۰ = خیر) */
+  isExamHall: integer('isExamHall').notNull().default(0),
+  /** ظرفیت امتحان کلاس؛ اگر خالی باشد از ظرفیت عادی کلاس استفاده می‌شود */
+  examCapacity: integer('examCapacity'),
   buildingName: varchar('buildingName', { length: 100 }),
   // ── طبقه (Floor) — نمایش در پوستر سردر کلاسی (درخواست کاربر R-AA) ──
   floor: varchar('floor', { length: 20 }),
@@ -1346,6 +1566,27 @@ export const student_requests = pgTable('student_requests', {
   universityId: integer('universityId').references((): AnyPgColumn => universities.id),
 });
 
+// ── اعتراض به نمره (دانشجو → کارشناس آموزش) ──
+// دانشجو در بازهٔ زمانی اعتراض (تنظیم GRADE_OBJECTION_DEADLINE) می‌تواند به
+// نمرهٔ یک درسِ قطعی اعتراض کند؛ کارشناس بررسی و نتیجه را ثبت می‌کند.
+export const grade_objections = pgTable('grade_objections', {
+  id: serial('id').primaryKey(),
+  studentId: integer('studentId').notNull().references(() => students.id),
+  enrollmentId: integer('enrollmentId').notNull().references(() => enrollments.id),
+  termId: integer('termId').references(() => academic_terms.id),
+  courseCode: varchar('courseCode', { length: 30 }),
+  courseTitle: varchar('courseTitle', { length: 200 }),
+  gradeAtObjection: numeric('gradeAtObjection', { precision: 6, scale: 2 }),
+  requestText: text('requestText').notNull(),
+  status: varchar('status', { length: 20 }).notNull().default('PENDING'), // PENDING, REVIEWED, ACCEPTED, REJECTED
+  reviewerId: integer('reviewerId').references(() => staff.id),
+  reviewerNote: text('reviewerNote'),
+  resolvedAt: timestamp('resolvedAt'),
+  createdAt: timestamp('createdAt').defaultNow(),
+  updatedAt: timestamp('updatedAt').defaultNow(),
+  universityId: integer('universityId').references((): AnyPgColumn => universities.id),
+});
+
 export const request_step_logs = pgTable('request_step_logs', {
   id: serial('id').primaryKey(),
   requestId: integer('requestId').notNull().references(() => student_requests.id),
@@ -1437,9 +1678,34 @@ export const student_ledger = pgTable('student_ledger', {
   description: text('description'),
   referenceId: integer('referenceId'),
   universityId: integer('universityId').references((): AnyPgColumn => universities.id),
+  // ── فیلدهای قابل گزارش/فیلتر برای بخش مالی (مهاجرت ۰۱۱۹) ──
+  // نوع واریز (نقدی/آنلاین/چک/کارت‌خوان/وام...). ردیف‌های منتقل‌شده از سیستم
+  // قدیمی از متنِ description پر می‌شوند (scripts/backfill-deposit-type.sql).
+  depositType: varchar('depositType', { length: 50 }),
+  // تاریخ واریز واقعی. در مهاجرت از سیستم قدیمی منتقل نشده → NULL می‌ماند.
+  depositDate: timestamp('depositDate'),
+  // ── مستندسازت پرداختِ مهاجرت‌یافته از سیستم قدیمی (سما) ──
+  // پر می‌شوند توسط scripts/backfill-legacy-payment-provenance.mjs (مهاجرت ۰۱۲۱).
+  // کلید اتصال: referenceId = StdPays.stdpaysId.
+  // نکتهٔ RLS: جدول از پیش RLS دارد (ستون studentId)؛ افزودن این ستون‌ها
+  // هیچ تغییری در سیاست نمی‌دهد و سخت‌گیری fail-closed رعایت می‌شود.
+  payerName: varchar('payerName', { length: 120 }),         // VW_StdPays.NAME (پرداخت‌کننده)
+  payerNationalCode: varchar('payerNationalCode', { length: 12 }), // VW_StdPays.NationalCode
+  receiptNo: varchar('receiptNo', { length: 40 }),          // StdPays.Fish_no (شماره فیش)
+  voucherNo: varchar('voucherNo', { length: 80 }),          // StdPays.SanadNumber (شماره سند)
+  payTypeCode: integer('payTypeCode'),                      // StdPays.pay_type (کد نوع پرداخت سما)
+  accountNo: varchar('accountNo', { length: 30 }),          // StdPays.Acc_No (شماره حساب وصولی دانشگاه)
+  cardNo: varchar('cardNo', { length: 30 }),               // استخراج‌شده از StdPays.Rem (شماره کارت پرداخت‌کننده)
+  bankName: varchar('bankName', { length: 60 }),            // StdPays.BankName
+  branchName: varchar('branchName', { length: 60 }),        // StdPays.BranchName
+  recorderCode: integer('recorderCode'),                    // StdPays.userCode (ثبت‌کننده)
+  recorderName: varchar('recorderName', { length: 120 }),   // Users.FullName
+  legacyRem: text('legacyRem'),                              // StdPays.Rem (یادداشت آزاد اصل — شامل کارت/بانک/حساب)
   createdAt: timestamp('createdAt').defaultNow()
 }, (t) => [
   index('idx_student_ledger_fin_term').on(t.financialTermId),
+  // فیلترِ گزارشِ تفکیک وصولی بر اساس نوع واریز (مهاجرت ۰۱۱۹).
+  index('idx_student_ledger_deposit_type').on(t.depositType),
   /* هر گزارش/صفحه‌ای که «بدهی یک دانشجو» یا «گردش حساب» را می‌خواند با
      studentId فیلتر می‌کند؛ بدون این ایندکس هر چنین کوئری‌ای اسکن کامل
      ۳۴۳ هزار ردیف بود (باگ ۵۰۴ کارت دانشجویی — ۱۸ اکتبر ۲۰۲۶). */
@@ -1700,6 +1966,8 @@ export const student_class_attendance = pgTable('student_class_attendance', {
   sessionId: integer('sessionId').notNull().references(() => class_sessions.id),
   enrollmentId: integer('enrollmentId').notNull().references(() => enrollments.id),
   status: varchar('status', { length: 10 }).notNull(),
+  /** فقط برای وضعیت LATE: مدت تأخیر به دقیقه (۱..۶۰) */
+  lateMinutes: integer('lateMinutes'),
   UNIQUE: text('UNIQUE'),
   universityId: integer('universityId').references((): AnyPgColumn => universities.id),
 });
@@ -2195,12 +2463,16 @@ export const staff_roles = pgTable('staff_roles', {
 export const virtual_classrooms = pgTable('virtual_classrooms', {
   id: serial('id').primaryKey(),
   courseOfferingId: integer('courseOfferingId').notNull(),
-  bbbMeetingId: varchar('bbbMeetingId', { length: 100 }).notNull().unique(),
+  bbbMeetingId: varchar('bbbMeetingId', { length: 100 }).notNull(),
   meetingName: varchar('meetingName', { length: 255 }).notNull(),
   moderatorPw: varchar('moderatorPw', { length: 50 }).notNull(),
   attendeePw: varchar('attendeePw', { length: 50 }).notNull(),
   isRunning: integer('isRunning').default(0),
   currentAttendanceCount: integer('currentAttendanceCount').default(0),
+  /** آخرین بار که وضعیت این جلسه از سرور BBB خوانده شد */
+  lastSyncedAt: timestamp('lastSyncedAt'),
+  /** آخرین زمانی که جلسه «در حال برگزاری» دیده شد (برای گزارش «برگزار شده») */
+  lastRunningAt: timestamp('lastRunningAt'),
   moodleCourseId: integer('moodleCourseId'),
   createdAt: timestamp('createdAt').defaultNow(),
   universityId: integer('universityId').references((): AnyPgColumn => universities.id),
@@ -3593,3 +3865,45 @@ export const expert_scopes = pgTable('expert_scopes', {
   uq: unique('uq_expert_scopes').on(t.userId, t.scopeType, t.scopeId, t.universityId),
   ux: index('idx_expert_scopes_user').on(t.userId),
 }));
+
+/**
+ * ══════════════════════════════════════════════════════════════════════
+ *  گزارش‌ساز — گزارش‌های ذخیره‌شده (Saved Reports)
+ * ══════════════════════════════════════════════════════════════════════
+ *  در این سامانه «گزارش» کد نیست؛ پیکربندیِ آن داده است: منبع، ستون‌ها،
+ *  شرط‌ها، گروه‌بندی و ترتیب. هر مدیر می‌تواند گزارشی بسازد، به آن نام بدهد
+ *  و آن را (خصوصی یا اشتراکی) در اختیار دیگران بگذارد تا اجرا کنند.
+ *
+ *  چرا config از نوع jsonb است و نه ستون‌های جداگانه؟
+ *  شکلِ گزارش پیوسته تغییر می‌کند (ستون تازه، شرط تازه، تجمیع تازه)؛ با jsonb
+ *  افزودن قابلیت تازه به گزارش‌ساز هیچ مهاجرتِ اسکیمایی نمی‌خواهد.
+ *
+ *  🔒 این جدول دادهٔ دانشجویی نگه نمی‌دارد (آن در student_ledger است)؛ فقط
+ *  «تعریفِ گزارش» است. هیچ SQL آزادی اینجا ذخیره نمی‌شود: «کدام ستون» و
+ *  «با چه عملگری» از کاتالوگِ کد (src/app/admin/reports/catalog) می‌آید و
+ *  فقط «مقدارِ» فیلتر به‌صورت bind parameter به موتور اجرا می‌رود.
+ */
+export const saved_reports = pgTable('saved_reports', {
+  id: serial('id').primaryKey(),
+  /** دانشگاهِ مالک — اسکوپ fail-closed در لایهٔ اپ + RLS */
+  universityId: integer('universityId').notNull().references(() => universities.id),
+  /** نامی که سازنده برای گزارش گذاشته */
+  name: varchar('name', { length: 150 }).notNull(),
+  description: text('description'),
+  /** کلید منبع از کاتالوگ (مثلاً finance-ledger) */
+  sourceKey: varchar('sourceKey', { length: 60 }).notNull(),
+  /** { columns: [...], filters: [...], groupBy: [...], orderBy: [...] } */
+  config: jsonb('config').notNull().default('{}'),
+  /** PRIVATE (فقط مالک) | ROLE (اعضای نقش‌های مجاز) | PUBLIC (همه) */
+  visibility: varchar('visibility', { length: 20 }).notNull().default('PRIVATE'),
+  /** کدِ نقش‌های مجاز — وقتی visibility = ROLE */
+  allowedRoles: jsonb('allowedRoles').notNull().default('[]'),
+  ownerUserId: integer('ownerUserId').notNull().references(() => users.id),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+}, (t) => [
+  index('idx_saved_reports_uni').on(t.universityId),
+  index('idx_saved_reports_owner').on(t.ownerUserId),
+  // نامِ گزارش در هر دانشگاه یکتاست تا دو گزارش هم‌نام مبهم نشوند
+  uniqueIndex('uq_saved_reports_uni_name').on(t.universityId, t.name),
+]);

@@ -34,11 +34,11 @@ const KIND_BADGE: Record<ConflictPair['kind'] | 'MIXED', { label: string; cls: s
 function SlotLine({ s }: { s: ConflictSlot }) {
   return (
     <div className="leading-5">
-      <span className="font-mono text-[11px] text-slate-500" dir="ltr">
+      <span className="font-mono text-2xs text-slate-500" dir="ltr">
         {s.courseCode}
       </span>{' '}
       <span className="text-[12px]">{s.courseTitle}</span>
-      <span className="text-[11px] text-slate-500">
+      <span className="text-2xs text-slate-500">
         {' '}
         • گروه {fa(s.groupNumber)} • {fa(s.enrolledCount)} نفر
         {s.roomName ? ` • ${s.roomName}` : ''}
@@ -181,7 +181,7 @@ export default function ScheduleConflictsClient({ terms }: { terms: Term[] }) {
       <button
         onClick={() => onMergeGroup(g)}
         disabled={busy || g.slots.length < 2}
-        className="rounded bg-violet-600 px-2 py-1 text-[11px] font-bold text-white hover:bg-violet-500 disabled:opacity-50"
+        className="rounded bg-violet-600 px-2 py-1 text-2xs font-bold text-white hover:bg-violet-500 disabled:opacity-50"
         title="همهٔ دروسِ این بازه به‌عنوان یک جلسهٔ ادغامی ثبت می‌شوند"
       >
         ادغام {g.slots.length > 2 ? `(${fa(g.slots.length)} درس)` : ''}
@@ -189,7 +189,7 @@ export default function ScheduleConflictsClient({ terms }: { terms: Term[] }) {
       <select
         defaultValue=""
         onChange={(e) => e.target.value && onAcceptGroup(g, e.target.value)}
-        className="rounded border px-1.5 py-1 text-[11px] bg-white dark:bg-slate-800"
+        className="rounded border px-1.5 py-1 text-2xs bg-white dark:bg-slate-800"
         title="پذیرش کلِ این مسئله با ذکر دلیل"
       >
         <option value="">پذیرش…</option>
@@ -199,9 +199,9 @@ export default function ScheduleConflictsClient({ terms }: { terms: Term[] }) {
           </option>
         ))}
       </select>
-      <Link
+      <Link prefetch={false}
         href="/admin/offering-editor"
-        className="rounded border border-slate-400 px-2 py-1 text-[11px] hover:bg-slate-100 dark:hover:bg-slate-800"
+        className="rounded border border-slate-400 px-2 py-1 text-2xs hover:bg-slate-100 dark:hover:bg-slate-800"
       >
         اصلاح
       </Link>
@@ -217,7 +217,7 @@ export default function ScheduleConflictsClient({ terms }: { terms: Term[] }) {
         <span className="flex flex-wrap items-center gap-1.5">
           {g.entities.map((e) => (
             <span key={`${e.kind}:${e.id}`} className="flex items-center gap-1">
-              <span className={`rounded-full border px-1.5 py-0.5 text-[10px] ${KIND_BADGE[e.kind].cls}`}>
+              <span className={`rounded-full border px-1.5 py-0.5 text-3xs ${KIND_BADGE[e.kind].cls}`}>
                 {KIND_BADGE[e.kind].label}
               </span>
               <span>{e.name}</span>
@@ -231,7 +231,7 @@ export default function ScheduleConflictsClient({ terms }: { terms: Term[] }) {
       label: 'زمان',
       subtitle: true,
       render: (g) => (
-        <span className="font-mono text-[11px]" dir="ltr">
+        <span className="font-mono text-2xs" dir="ltr">
           {g.dayName} {minutesToHm(g.windowFrom)}–{minutesToHm(g.windowTo)}
           {g.likelyMerged ? ' · احتمالاً یک جلسه' : ''}
         </span>
@@ -370,7 +370,7 @@ export default function ScheduleConflictsClient({ terms }: { terms: Term[] }) {
                             {g.entities.map((e) => (
                               <div key={`${e.kind}:${e.id}`} className="flex items-center gap-1">
                                 <span
-                                  className={`rounded-full border px-1.5 py-0.5 text-[10px] ${KIND_BADGE[e.kind].cls}`}
+                                  className={`rounded-full border px-1.5 py-0.5 text-3xs ${KIND_BADGE[e.kind].cls}`}
                                 >
                                   {KIND_BADGE[e.kind].label}
                                 </span>
@@ -380,7 +380,7 @@ export default function ScheduleConflictsClient({ terms }: { terms: Term[] }) {
                           </div>
                           {g.likelyMerged && (
                             <span
-                              className="mt-1 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800"
+                              className="mt-1 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-3xs font-bold text-amber-800"
                               title="همان استاد، همان سالن و اختلافِ ساعت کمتر از ۲۰ دقیقه — به‌احتمالِ زیاد یک جلسه است"
                             >
                               احتمالاً یک جلسه
@@ -390,7 +390,7 @@ export default function ScheduleConflictsClient({ terms }: { terms: Term[] }) {
                         <td className="p-2 whitespace-nowrap">{g.dayName}</td>
                         <td className="p-2 whitespace-nowrap font-mono" dir="ltr">
                           {minutesToHm(g.windowFrom)}–{minutesToHm(g.windowTo)}
-                          <div className="text-[10px] text-slate-400">
+                          <div className="text-3xs text-slate-400">
                             هم‌پوشانی {minutesToHm(g.overlapFrom)}–{minutesToHm(g.overlapTo)}
                           </div>
                         </td>
@@ -401,7 +401,7 @@ export default function ScheduleConflictsClient({ terms }: { terms: Term[] }) {
                             ))}
                           </div>
                           {g.slots.length > 2 && (
-                            <div className="mt-1 text-[10px] text-slate-400">
+                            <div className="mt-1 text-3xs text-slate-400">
                               {fa(g.slots.length)} درس در یک بازه — یک مسئله، نه {fa(g.pairs.length)} مسئله.
                             </div>
                           )}
@@ -412,16 +412,16 @@ export default function ScheduleConflictsClient({ terms }: { terms: Term[] }) {
                         <td className="p-2">
                           {rev ? (
                             <div className="space-y-1">
-                              <span className="inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800">
+                              <span className="inline-block rounded bg-emerald-100 px-1.5 py-0.5 text-3xs font-bold text-emerald-800">
                                 {CONFLICT_REASON_LABELS[rev.reasonCode ?? 'OTHER'] ?? rev.reasonCode}
                               </span>
-                              <div className="text-[10px] text-slate-400">
+                              <div className="text-3xs text-slate-400">
                                 {rev.reviewedByName ?? ''} {rev.reviewedAt ?? ''}
                               </div>
                               <button
                                 onClick={() => onUndoGroup(g)}
                                 disabled={busy}
-                                className="rounded border px-2 py-0.5 text-[10px] hover:bg-slate-100 dark:hover:bg-slate-800"
+                                className="rounded border px-2 py-0.5 text-3xs hover:bg-slate-100 dark:hover:bg-slate-800"
                               >
                                 بازگردانی
                               </button>
@@ -465,7 +465,7 @@ export default function ScheduleConflictsClient({ terms }: { terms: Term[] }) {
         </>
       )}
 
-      <p className="text-[11px] leading-6 text-slate-500">
+      <p className="text-2xs leading-6 text-slate-500">
         هر ردیف یک <b>مسئله</b> است، نه یک جفت: اگر استاد در یک بازه پنج درس داشته باشد، همه در یک ردیف
         فهرست می‌شوند. برچسبِ «احتمالاً یک جلسه» یعنی همان استاد، همان سالن و اختلافِ ساعت کمتر از ۲۰ دقیقه —
         با یک کلیک «ادغام» کلِ آن بازه یک جلسهٔ ادغامی می‌شود (چیزی خودکار پنهان نمی‌شود؛ تصمیم با شماست).
@@ -477,7 +477,7 @@ export default function ScheduleConflictsClient({ terms }: { terms: Term[] }) {
           </>
         ) : null}{' '}
         تداخلِ امتحانی و تداخلِ برنامهٔ دانشجویان در{' '}
-        <Link href="/admin/reports" className="text-indigo-600 underline">
+        <Link prefetch={false} href="/admin/reports" className="text-indigo-600 underline">
           مرکز گزارش‌ها
         </Link>{' '}
         قابل مشاهده است.
@@ -497,7 +497,7 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: 'ro
           : 'border-slate-200 bg-slate-50 text-slate-800';
   return (
     <div className={`rounded-xl border px-3 py-2 ${cls}`}>
-      <p className="text-[10px] opacity-80">{label}</p>
+      <p className="text-3xs opacity-80">{label}</p>
       <p className="font-mono text-base font-bold" dir="ltr">{value}</p>
     </div>
   );

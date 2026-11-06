@@ -7,7 +7,7 @@
  */
 'use server';
 
-import { asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, sql, type SQL } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/db';
 import {
@@ -22,6 +22,7 @@ import {
   users,
 } from '@/db/schema';
 import { getSessionUser, getStaffByUser, requireRole } from '@/lib/auth';
+import { faLikePattern, normCol } from '@/lib/persian-search';
 
 const COURSE_MODES = ['THEORY', 'PRACTICAL', 'COMBINED'] as const;
 const SESSION_KINDS = ['THEORY', 'PRACTICAL', 'COMBINED'] as const;
@@ -444,7 +445,17 @@ export async function setLessonPlanRequired(
   }
 }
 
-export async function listLessonPlanStatus(universityId: number): Promise<{
+/**
+ * سقفِ ردیف‌های هر پاسخِ «پایش طرح درس».
+ *
+ * ⚠ نسخهٔ پیشین «همهٔ» ارائه‌های دانشگاه را بدون سقف برمی‌گرداند؛ برای
+ * دانشگاهی با ده‌ها هزار ارائه یعنی ~۲MB payload در هر بارِ بازکردن صفحه —
+ * ریشهٔ کندیِ صفحهٔ آموزش. اکنون الگوی «جستجوی سروری + سقف ردیف» این مخزن:
+ * آمارِ سربرگ در SQL، جست‌وجو/فیلتر سمتِ سرور و سقفِ سختِ ردیف.
+ */
+const LESSON_PLAN_PAGE_SIZE = 200;
+
+export type LessonPlanStatusRow = {
   offeringId: number;
   courseTitle: string;
   professorName: string;
@@ -452,11 +463,62 @@ export async function listLessonPlanStatus(universityId: number): Promise<{
   sessionsCount: number;
   weightsSum: number;
   updatedAt: Date | null;
-}[]> {
-  await requireRole(['ADMIN']);
+};
+
+export async function listLessonPlanStatus(
+  universityId: number,
+  opts?: { query?: string; status?: string; limit?: number; offset?: number },
+): Promise<{
+  rows: LessonPlanStatusRow[];
+  /** همهٔ ارائه‌های دانشگاه (بدون فیلتر) — برای سربرگ */
+  total: number;
+  /** تعدادِ ثبت‌نهایی (بدون فیلتر) — برای سربرگ */
+  submitted: number;
+  /** تعدادِ نتایجِ فیلترِ فعلی — برای صفحه‌بندی */
+  filtered: number;
+}> {
+  await requireRole(['ADMIN', 'EDU_EXPERT', 'VICE_EDU']);
   const uid = Number(universityId);
   if (!Number.isInteger(uid) || uid <= 0) throw new Error('شناسهٔ دانشگاه نامعتبر است.');
 
+  const limit = Math.min(Math.max(1, Math.trunc(Number(opts?.limit) || LESSON_PLAN_PAGE_SIZE)), 500);
+  const offset = Math.max(0, Math.trunc(Number(opts?.offset) || 0));
+
+  // ── شرط‌ها: دانشگاه (همیشه) + جست‌وجوی سروری + وضعیت ──
+  const conds: SQL[] = [eq(course_offerings.universityId, uid)];
+  const q = String(opts?.query ?? '').trim();
+  if (q) {
+    const like = faLikePattern(q);
+    // هر دو سمت نرمال می‌شوند تا «ي/ی» و «ك/ک» بخورد (همان قرارداد جست‌وجوی مخزن)
+    conds.push(
+      sql`(${normCol(courses.title)} ILIKE ${like} ESCAPE '\\' OR ${normCol(sql`${users.firstName} || ' ' || ${users.lastName}`)} ILIKE ${like} ESCAPE '\\')`,
+    );
+  }
+  const want = String(opts?.status ?? '').toUpperCase();
+  if (want === 'DRAFT' || want === 'SUBMITTED') conds.push(sql`${lesson_plans.status} = ${want}`);
+  else if (want === 'NONE') conds.push(sql`${lesson_plans.status} IS NULL`);
+  const where = and(...conds);
+
+  // ── آمارِ سربرگ در SQL — مستقل از فیلترها و ارزان ──
+  const [stats] = await db
+    .select({
+      total: sql<number>`count(*)::int`,
+      submitted: sql<number>`count(*) FILTER (WHERE ${lesson_plans.status} = 'SUBMITTED')::int`,
+    })
+    .from(course_offerings)
+    .leftJoin(lesson_plans, eq(lesson_plans.offeringId, course_offerings.id))
+    .where(eq(course_offerings.universityId, uid));
+
+  const [fRow] = await db
+    .select({ n: sql<number>`count(*)::int` })
+    .from(course_offerings)
+    .innerJoin(courses, eq(courses.id, course_offerings.courseId))
+    .leftJoin(staff, eq(staff.id, course_offerings.professorId))
+    .leftJoin(users, eq(users.id, staff.userId))
+    .leftJoin(lesson_plans, eq(lesson_plans.offeringId, course_offerings.id))
+    .where(where);
+
+  // ── فقط یک صفحه از ردیف‌ها ──
   const offs = await db
     .select({
       offeringId: course_offerings.id,
@@ -472,9 +534,12 @@ export async function listLessonPlanStatus(universityId: number): Promise<{
     .leftJoin(staff, eq(staff.id, course_offerings.professorId))
     .leftJoin(users, eq(users.id, staff.userId))
     .leftJoin(lesson_plans, eq(lesson_plans.offeringId, course_offerings.id))
-    .where(eq(course_offerings.universityId, uid))
-    .orderBy(asc(course_offerings.id));
+    .where(where)
+    .orderBy(asc(course_offerings.id))
+    .limit(limit)
+    .offset(offset);
 
+  // جمعِ جلسات/بارم فقط برای «همین صفحه» — نه همهٔ طرح‌های دانشگاه
   const planIds = offs.map(o => o.planId).filter((v): v is number => v !== null);
   const countByPlan = new Map<number, number>();
   const sumByPlan = new Map<number, number>();
@@ -493,7 +558,7 @@ export async function listLessonPlanStatus(universityId: number): Promise<{
     for (const r of sums) sumByPlan.set(r.planId, r.s === null ? 0 : Number(r.s));
   }
 
-  return offs.map(o => ({
+  const rows: LessonPlanStatusRow[] = offs.map(o => ({
     offeringId: o.offeringId,
     courseTitle: o.courseTitle,
     professorName: `${o.professorFirst ?? ''} ${o.professorLast ?? ''}`.trim() || '—',
@@ -502,4 +567,11 @@ export async function listLessonPlanStatus(universityId: number): Promise<{
     weightsSum: o.planId == null ? 0 : (sumByPlan.get(o.planId) ?? 0),
     updatedAt: o.updatedAt,
   }));
+
+  return {
+    rows,
+    total: Number(stats?.total ?? 0),
+    submitted: Number(stats?.submitted ?? 0),
+    filtered: Number(fRow?.n ?? 0),
+  };
 }

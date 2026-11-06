@@ -168,11 +168,40 @@ function resolveLimit(options: TermListOptions): number | null | undefined {
   return options.limit === undefined ? TERM_SWITCHER_LIMIT : options.limit;
 }
 
+/**
+ * ── کشِ کوتاه‌مدتِ فهرستِ ترم‌ها (۳۰ ثانیه) ──────────────────────────────────
+ *
+ * چرا: `loadOrderedTerms` یک کوئری روی `academic_terms` است و در **هر** بارگذاری
+ * صفحهٔ پنل‌ها (سربرگ + صفحه + سوییچر نیمسال) چند بار تکرار می‌شد. فهرستِ ترم‌ها
+ * عملاً ثابت است و فقط وقتی مدیر ترم/دانشگاه را عوض می‌کند تغییر می‌کند؛ پس
+ * نگه‌داشتنِ آن برای ۳۰ ثانیه هم درست است و هم چند رفت‌وبرگشتِ دیتابیس را از
+ * مسیرِ هر ناوبری حذف می‌کند.
+ *
+ * ⚠ چرا TTL و نه کشِ دائمی: تغییراتِ مدیریتی (افزودن ترم، عوض‌کردن «ترم جاری»)
+ * باید حداکثر تا نیم دقیقه بعد دیده شوند — بدون نیاز به ری‌استارت یا
+ * `revalidateTag`. کلید شاملِ دانشگاه و گزینه‌هاست تا نتایج قاطی نشوند.
+ */
+const TERM_CACHE_TTL_MS = 30_000;
+const TERM_CACHE_MAX = 120;
+const termCache = new Map<string, { at: number; data: TermScope[] }>();
+
+function termCacheKey(universityId: number | null | undefined, options: TermListOptions): string {
+  return `${universityId ?? 0}|${options.includeSpecial === true ? 1 : 0}|${options.limit === undefined ? 'd' : String(options.limit)}`;
+}
+
+/** پاک‌کردنِ کشِ ترم‌ها — پس از عملیاتِ مدیریتی که فهرست را عوض می‌کند. */
+export function invalidateTermCache(): void {
+  termCache.clear();
+}
+
 async function loadOrderedTerms(
   universityId: number | null | undefined,
   options: TermListOptions = {},
 ): Promise<TermScope[]> {
   if (!universityId) return [];
+  const key = termCacheKey(universityId, options);
+  const hit = termCache.get(key);
+  if (hit && Date.now() - hit.at < TERM_CACHE_TTL_MS) return hit.data;
   try {
     const rows = await db
       .select({
@@ -203,8 +232,13 @@ async function loadOrderedTerms(
       sortOrder: r.sortOrder,
     }));
     const effective = pickEffectiveTerm(ordered, new Date());
-    if (!effective) return ordered;
-    return ordered.map((r) => (r.id === effective.id ? { ...r, isEffectiveCurrent: true } : r));
+    const result = !effective
+      ? ordered
+      : ordered.map((r) => (r.id === effective.id ? { ...r, isEffectiveCurrent: true } : r));
+    // ذخیره در کشِ کوتاه‌مدت (با سقفِ اندازه تا حافظه در طولِ عمرِ پروسه رشد نکند)
+    if (termCache.size >= TERM_CACHE_MAX) termCache.clear();
+    termCache.set(key, { at: Date.now(), data: result });
+    return result;
   } catch {
     return [];
   }

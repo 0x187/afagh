@@ -11,8 +11,10 @@
 //  برخلاف export-utils.ts که سمت کلاینت docx واقعی با کتابخانهٔ docx می‌سازد).
 //
 //  ▸ RTL و فارسی: dir="rtl" + متا charset + فونت وزیرمتن/تاهوما.
-//  ▸ گارد تزریق فرمول CSV هم اینجا هست تا مسیر سروری خروجی هم ایمن باشد.
+//  ▸ گارد تزریق فرمول CSV از `csv-injection.ts` می‌آید (تک‌منبع با مسیر کلاینت).
 // ══════════════════════════════════════════════════════════════════════
+
+import { csvQuote } from './csv-injection';
 
 /** مای‌تایپ فایل Word (HTML قدیمی) */
 export const DOC_CONTENT_TYPE = 'application/msword';
@@ -146,17 +148,12 @@ export function buildPlainText(input: ExportDocInput): string {
 }
 
 /**
- * گارد تزریق فرمول CSV (OWASP CSV Injection) — همان قرارداد export-utils:
- * مقداری که با = + - @ | تب یا CR شروع شود، با ' پیوند می‌خورد.
+ * یک سلول CSV: گارد فرمول (مشترک با export-utils از `csv-injection`) +
+ * نقل‌قول دوتایی. عدد در این مسیر با `faMoney` قالب می‌گیرد (برخلاف مسیر
+ * کلاینت که مقدار خام را می‌گذارد).
  */
-export function csvFormulaPrefix(s: string): string {
-  return /^[=+\-@|\t\r]/.test(s.trimStart()) ? `'${s}` : s;
-}
-
-/** یک سلول CSV: گارد فرمول + نقل‌قول دوتایی */
 export function csvCell(v: unknown): string {
-  const s = typeof v === 'number' ? faMoney(v) : String(v ?? '');
-  return `"${csvFormulaPrefix(s).replace(/"/g, '""')}"`;
+  return csvQuote(typeof v === 'number' ? faMoney(v) : v);
 }
 
 /** ساخت CSV (برای format=csv در مسیر سروری خروجی) */

@@ -3,6 +3,7 @@
 import React, { useState, useTransition } from 'react';
 import Link from 'next/link';
 import type { ExamCardData } from '@/lib/verification';
+import QrSvg from '@/components/QrSvg';
 import { submitCourseEvaluationAction } from './actions';
 
 // ==========================================
@@ -211,7 +212,7 @@ export default function ExamCardClient({ user, publicBaseUrl, examTicket, examTi
                 <h3 className="font-black text-sm">۱. چک‌پوینت تسویه حساب مالی</h3>
               </div>
               <span
-                className={`text-[11px] px-2.5 py-0.5 rounded-full font-black ${
+                className={`text-2xs px-2.5 py-0.5 rounded-full font-black ${
                   isFinancialCleared ? 'bg-emerald-200 text-emerald-900' : 'bg-rose-200 text-rose-900'
                 }`}
               >
@@ -226,10 +227,10 @@ export default function ExamCardClient({ user, publicBaseUrl, examTicket, examTi
             </p>
 
             {!isFinancialCleared && (
-              <div className="rounded-xl border border-rose-300 bg-rose-50 p-2.5 text-[11px] font-bold leading-5 text-rose-900">
+              <div className="rounded-xl border border-rose-300 bg-rose-50 p-2.5 text-2xs font-bold leading-5 text-rose-900">
                 پرداخت از طریق امور مالی دانشگاه انجام و در دفتر کل ثبت می‌شود؛ پس از ثبت تراکنش، این گیت به‌صورت
                 خودکار سبز می‌شود. برای پیگیری، درخواست «تسویهٔ مالی» ثبت کنید.
-                <Link href="/student/requests" className="mt-1 block text-rose-700 underline">ثبت درخواست تسویه ←</Link>
+                <Link prefetch={false} href="/student/requests" className="mt-1 block text-rose-700 underline">ثبت درخواست تسویه ←</Link>
               </div>
             )}
           </div>
@@ -248,7 +249,7 @@ export default function ExamCardClient({ user, publicBaseUrl, examTicket, examTi
                 <h3 className="font-black text-sm">۲. چک‌پوینت ارزشیابی هوشمند اساتید</h3>
               </div>
               <span
-                className={`text-[11px] px-2.5 py-0.5 rounded-full font-black ${
+                className={`text-2xs px-2.5 py-0.5 rounded-full font-black ${
                   isAllEvaluated ? 'bg-emerald-200 text-emerald-900' : 'bg-amber-200 text-amber-900'
                 }`}
               >
@@ -263,7 +264,7 @@ export default function ExamCardClient({ user, publicBaseUrl, examTicket, examTi
             </p>
 
             {evaluationWindow && (
-              <p className={`mb-2 rounded-xl border px-3 py-2 text-[11px] font-bold ${
+              <p className={`mb-2 rounded-xl border px-3 py-2 text-2xs font-bold ${
                 evaluationWindow.open
                   ? 'border-emerald-300 bg-emerald-100/60 text-emerald-900'
                   : 'border-rose-300 bg-rose-50 text-rose-800'
@@ -272,7 +273,7 @@ export default function ExamCardClient({ user, publicBaseUrl, examTicket, examTi
               </p>
             )}
 
-            <div className="text-[11px] font-bold text-slate-500">
+            <div className="text-2xs font-bold text-slate-500">
               ارزشیابی پیش از آزمون انجام می‌شود و استاد تا پس از نهایی شدن نمرات هیچ دسترسی‌ای به نظرات ندارد.
             </div>
           </div>
@@ -335,6 +336,18 @@ export default function ExamCardClient({ user, publicBaseUrl, examTicket, examTi
                   <span className="px-3.5 py-1.5 rounded-xl bg-slate-100 text-slate-600 font-black text-xs border border-slate-300">
                     ارزشیابی در حساب دمو ثبت نمی‌شود
                   </span>
+                ) : !(evaluationWindow?.open ?? false) ? (
+                  /* پنجرهٔ ارزشیابی تعیین نشده/بسته است → دکمهٔ همان درس قفل می‌شود.
+                     پیش‌تر فقط یک نوار وضعیت بالای صفحه بود و دکمه فعال می‌ماند؛
+                     دانشجو فرم را پر می‌کرد و آخر کار خطای سرور می‌گرفت. */
+                  <button
+                    type="button"
+                    disabled
+                    title={evaluationWindow?.message ?? 'زمان ارزشیابی برای این ترم تعیین نشده است — تا تعیین مهلت، دکمهٔ ارزشیابی قفل است.'}
+                    className="px-3.5 py-1.5 rounded-xl bg-slate-100 text-slate-500 font-black text-xs border border-slate-300 cursor-not-allowed flex items-center gap-1.5"
+                  >
+                    <span>🔒 ارزشیابی قفل است</span>
+                  </button>
                 ) : (
                   <button
                     onClick={() => {
@@ -400,19 +413,19 @@ export default function ExamCardClient({ user, publicBaseUrl, examTicket, examTi
           {/* Student Profile Info Grid */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3.5 rounded-xl border border-slate-300 text-xs">
             <div>
-              <span className="text-slate-500 block text-[11px]">نام و نام خانوادگی:</span>
+              <span className="text-slate-500 block text-2xs">نام و نام خانوادگی:</span>
               <strong className="text-slate-900 text-sm font-black">{card?.fullName ?? user.name}</strong>
             </div>
             <div>
-              <span className="text-slate-500 block text-[11px]">شماره دانشجویی:</span>
+              <span className="text-slate-500 block text-2xs">شماره دانشجویی:</span>
               <strong className="font-mono text-slate-900 text-sm font-black" dir="ltr">{card?.studentCode ?? '—'}</strong>
             </div>
             <div>
-              <span className="text-slate-500 block text-[11px]">کد ملی داوطلب (ماسک‌شده):</span>
+              <span className="text-slate-500 block text-2xs">کد ملی داوطلب (ماسک‌شده):</span>
               <strong className="font-mono text-slate-900 text-sm font-black" dir="ltr">{card?.nationalIdMasked ?? '—'}</strong>
             </div>
             <div>
-              <span className="text-slate-500 block text-[11px]">رشته تحصیلی:</span>
+              <span className="text-slate-500 block text-2xs">رشته تحصیلی:</span>
               <strong className="text-slate-900 text-sm font-black">{card?.majorName ?? '—'}</strong>
             </div>
           </div>
@@ -460,10 +473,10 @@ export default function ExamCardClient({ user, publicBaseUrl, examTicket, examTi
                 <span className="text-base">🔐</span>
                 <h4 className="font-black text-emerald-400">کد امنیتی و بارکد اختصاصی آزمون:</h4>
               </div>
-              <p className="text-slate-300 font-mono text-[10px] break-all" dir="ltr">
+              <p className="text-slate-300 font-mono text-3xs break-all" dir="ltr">
                 {examTicket ? examTicket.token : 'AFAGH-EXAM-NOT-ISSUED'}
               </p>
-              <p className="text-[10px] text-slate-400">
+              <p className="text-3xs text-slate-400">
                 این بارکد توسط مراقب سالن با اسکنر QR-Code در ورودی جلسه جهت ثبت حضور و احراز هویت اسکن خواهد شد.
               </p>
             </div>
@@ -471,9 +484,12 @@ export default function ExamCardClient({ user, publicBaseUrl, examTicket, examTi
             <div className="p-2 bg-white rounded-xl text-slate-950 text-center shadow flex flex-col items-center justify-center">
               {examTicket ? (
                 ticketQr ? (
-                  <span className="[&>svg]:rounded-lg [&>svg]:bg-white [&>svg]:w-28 [&>svg]:h-28 print:[&>svg]:w-32 print:[&>svg]:h-32" dangerouslySetInnerHTML={{ __html: ticketQr }} />
+                  <QrSvg
+                    svg={ticketQr}
+                    className="[&>svg]:rounded-lg [&>svg]:bg-white [&>svg]:w-28 [&>svg]:h-28 print:[&>svg]:w-32 print:[&>svg]:h-32"
+                  />
                 ) : (
-                  <span className="text-[10px] text-slate-400">QR در دسترس نیست</span>
+                  <span className="text-3xs text-slate-400">QR در دسترس نیست</span>
                 )
               ) : (
                 <div className="flex h-[75px] w-[75px] flex-col items-center justify-center rounded-lg border border-amber-500/60 bg-amber-950/40 text-center text-[8px] font-bold leading-3 text-amber-200">
@@ -484,7 +500,7 @@ export default function ExamCardClient({ user, publicBaseUrl, examTicket, examTi
             </div>
           </div>
 
-          <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-300 text-[10px] text-amber-950 font-bold leading-relaxed">
+          <div className="p-2.5 bg-amber-50 rounded-xl border border-amber-300 text-3xs text-amber-950 font-bold leading-relaxed">
             ⚠️ <strong>نکات مهم امتحانات:</strong> همراه داشتن پرینت این کارت و کارت شناسایی معتبر الزامی است. همراه داشتن تلفن همراه، ساعت هوشمند و یادداشت تقلب تخلف محسوب شده و صورت‌جلسه انضباطی تنظیم خواهد شد.
           </div>
         </div>

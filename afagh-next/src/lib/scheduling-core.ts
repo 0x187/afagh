@@ -323,6 +323,10 @@ export const SCORE = {
   capacityGood: 10,     // مازاد ۱۶..۴۰ نفر
   capacityOver: -60,    // ظرفیت کلاس کمتر از نیاز (هرگز پیشنهاد نمی‌شود)
   gapAllowed: 40,       // مازاد بی‌معنا (بیش از ۴۰ نفر) → ۰
+  // ── فشرده‌سازی برنامهٔ استاد: روزِ پشت‌سرهم، بدون ساعت خالی ──
+  adjacentBlock: 45,    // اسلات دقیقاً چسبیده به یک کلاس موجود همان روز
+  sameDay: 20,          // همان روزی که استاد از قبل کلاس دارد (کمتر رفت‌وآمد)
+  internalGap: -35,     // به‌ازای هر ساعت خالیِ ایجادشده بین دو کلاس همان روز
 } as const;
 
 export interface SlotScoreInput {
@@ -332,6 +336,12 @@ export interface SlotScoreInput {
   inAvailableWindow: boolean;
   roomCapacity: number;
   requiredCapacity: number;
+  /** اسلات دقیقاً به ابتدا/انتهای یک بلوک کلاسِ موجودِ همان روز چسبیده است */
+  adjacentToExisting?: boolean;
+  /** استاد در همان روز کلاس دیگری دارد */
+  dayAlreadyUsed?: boolean;
+  /** تعداد ساعت‌های خالیِ جدیدی که این انتخاب بین کلاس‌های همان روز می‌سازد */
+  gapsCreated?: number;
 }
 
 export function calculateSlotScore(p: SlotScoreInput): { score: number; reasons: string[] } {
@@ -374,7 +384,43 @@ export function calculateSlotScore(p: SlotScoreInput): { score: number; reasons:
     reasons.push('تناسب قابل قبول ظرفیت');
   }
 
+  // فاکتور ۴: فشرده‌سازی روز استاد — «پشت سر هم، بدون ساعت خالی»
+  if (p.adjacentToExisting) {
+    score += SCORE.adjacentBlock;
+    reasons.push('چسبیده به کلاس قبلی/بعدیِ همان روز (بدون ساعت خالی)');
+  }
+  if (p.dayAlreadyUsed) {
+    score += SCORE.sameDay;
+    reasons.push('همان روزِ کلاس‌های دیگر استاد (کمتر رفت‌وآمد)');
+  }
+  const gaps = Math.max(0, Number(p.gapsCreated ?? 0));
+  if (gaps > 0) {
+    score += SCORE.internalGap * gaps;
+    reasons.push(`${gaps} ساعت خالی بین کلاس‌های همان روز ایجاد می‌کند`);
+  }
+
   return { score, reasons };
+}
+
+/**
+ * شمارش «ساعت‌های خالیِ داخلی» یک روز.
+ *
+ * خروجی = تعداد فاصله‌های ≥ minGap دقیقه‌ای بین دو بلوک کلاسِ همان روز.
+ * مثال: ۸–۱۰ و ۱۲–۱۴ ⇒ یک ساعت خالی (۱۰–۱۲) ⇒ ۱.
+ * همان چیزی که کاربر می‌گوید نباید باشد: «اول ۸ پر بشه، ۱۰ خالی باشه، بعد
+ * ۱۲ دوباره با یک رشتهٔ دیگر درس بدن».
+ */
+export function countInternalGaps(
+  blocks: { start: number; end: number }[],
+  minGap = 30,
+): number {
+  if (blocks.length < 2) return 0;
+  const sorted = [...blocks].sort((x, y) => x.start - y.start);
+  let gaps = 0;
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i].start - sorted[i - 1].end >= minGap) gaps++;
+  }
+  return gaps;
 }
 
 // ─────────────────────────── پیش‌بینی تقاضا ───────────────────────────

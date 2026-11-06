@@ -42,11 +42,11 @@ type Term = { id: number; termCode: string; termTitle: string };
 const fa = (n: number) => Number(n || 0).toLocaleString('fa-IR');
 const inputCls =
   'w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500';
-const labelCls = 'flex flex-col gap-1 text-[11px] font-medium text-slate-600';
+const labelCls = 'flex flex-col gap-1 text-2xs font-medium text-slate-600';
 const btnCls =
   'rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50';
 const ghostBtn =
-  'rounded border border-slate-300 bg-slate-50 hover:bg-slate-100 px-2 py-0.5 text-[11px] font-medium text-slate-600';
+  'rounded border border-slate-300 bg-slate-50 hover:bg-slate-100 px-2 py-0.5 text-2xs font-medium text-slate-600';
 
 export default function RulesClient(props: {
   discountTypes: DiscountType[];
@@ -157,15 +157,15 @@ export default function RulesClient(props: {
               <label className={labelCls}>سقف درصد مجاز (خالی = بدون سقف)<input name="maxPercent" type="number" min={0} max={100} step="0.5" defaultValue={editingDiscount?.maxPercent ?? ''} className={inputCls} /></label>
               <label className={`${labelCls} sm:col-span-2`}>یادداشت<input name="note" defaultValue={editingDiscount?.note ?? ''} className={inputCls} /></label>
               <div className="flex flex-wrap items-center gap-3 sm:col-span-3">
-                <label className="flex items-center gap-1.5 text-[11px] text-slate-700">
+                <label className="flex items-center gap-1.5 text-2xs text-slate-700">
                   <input type="checkbox" name="requiresApproval" defaultChecked={editingDiscount?.requiresApproval ?? true} className="accent-emerald-700" />
                   نیازمند تأیید کارشناس مالی
                 </label>
-                <label className="flex items-center gap-1.5 text-[11px] text-slate-700">
+                <label className="flex items-center gap-1.5 text-2xs text-slate-700">
                   <input type="checkbox" name="requiresDocument" defaultChecked={editingDiscount?.requiresDocument ?? false} className="accent-emerald-700" />
                   نیازمند مستندات
                 </label>
-                <label className="flex items-center gap-1.5 text-[11px] text-slate-700">
+                <label className="flex items-center gap-1.5 text-2xs text-slate-700">
                   <input type="checkbox" name="isActive" defaultChecked={editingDiscount?.isActive ?? true} className="accent-emerald-700" />
                   فعال
                 </label>
@@ -185,7 +185,7 @@ export default function RulesClient(props: {
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs rt">
                 <thead>
-                  <tr className="border-b border-slate-200 text-[11px] text-slate-500">
+                  <tr className="border-b border-slate-200 text-2xs text-slate-500">
                     <th className="p-2">کد</th><th className="p-2">عنوان</th><th className="p-2">نوع</th>
                     <th className="p-2">پیش‌فرض</th><th className="p-2">سقف</th><th className="p-2">وضعیت</th><th className="p-2">عملیات</th>
                   </tr>
@@ -199,7 +199,7 @@ export default function RulesClient(props: {
                       <td className="p-2">{d.kind === 'PERCENT' ? `${fa(d.defaultPercent)}٪` : fa(d.defaultAmount)}</td>
                       <td className="p-2 text-slate-500">{d.maxPercent === null ? '—' : `${fa(d.maxPercent)}٪`}</td>
                       <td className="p-2">
-                        <span className={`rounded px-1.5 py-0.5 text-[10px] ${d.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                        <span className={`rounded px-1.5 py-0.5 text-3xs ${d.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
                           {d.isActive ? 'فعال' : 'غیرفعال'}
                         </span>
                       </td>
@@ -255,7 +255,7 @@ export default function RulesClient(props: {
               </label>
               <label className={`${labelCls} sm:col-span-2`}>اطلاعات تماس<input name="contactInfo" defaultValue={editingSponsor?.contactInfo ?? ''} className={inputCls} /></label>
               <label className={`${labelCls} sm:col-span-2`}>یادداشت<input name="note" defaultValue={editingSponsor?.note ?? ''} className={inputCls} /></label>
-              <label className="flex items-end gap-1.5 pb-1.5 text-[11px] text-slate-700">
+              <label className="flex items-end gap-1.5 pb-1.5 text-2xs text-slate-700">
                 <input type="checkbox" name="isActive" defaultChecked={editingSponsor?.isActive ?? true} className="accent-emerald-700" />
                 فعال
               </label>
@@ -272,7 +272,7 @@ export default function RulesClient(props: {
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs rt">
                 <thead>
-                  <tr className="border-b border-slate-200 text-[11px] text-slate-500">
+                  <tr className="border-b border-slate-200 text-2xs text-slate-500">
                     <th className="p-2">کد</th><th className="p-2">عنوان</th><th className="p-2">تسویه</th>
                     <th className="p-2">تماس</th><th className="p-2">وضعیت</th><th className="p-2">عملیات</th>
                   </tr>
@@ -285,7 +285,7 @@ export default function RulesClient(props: {
                       <td className="p-2 text-slate-600">{s.settlementMethod === 'REIMBURSE' ? 'بازپرداخت' : 'مستقیم'}</td>
                       <td className="p-2 text-slate-500">{s.contactInfo || '—'}</td>
                       <td className="p-2">
-                        <span className={`rounded px-1.5 py-0.5 text-[10px] ${s.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                        <span className={`rounded px-1.5 py-0.5 text-3xs ${s.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
                           {s.isActive ? 'فعال' : 'غیرفعال'}
                         </span>
                       </td>
@@ -362,7 +362,7 @@ export default function RulesClient(props: {
               <label className={labelCls}>هر واحد عملی<input name="perUnitPractical" type="number" min={0} defaultValue={editingFormula?.perUnitPractical ?? 0} className={inputCls} /></label>
               <label className={labelCls}>هر واحد عمومی<input name="perUnitGeneral" type="number" min={0} defaultValue={editingFormula?.perUnitGeneral ?? 0} className={inputCls} /></label>
               <label className={`${labelCls} sm:col-span-2`}>یادداشت<input name="note" defaultValue={editingFormula?.note ?? ''} className={inputCls} /></label>
-              <label className="flex items-end gap-1.5 pb-1.5 text-[11px] text-slate-700">
+              <label className="flex items-end gap-1.5 pb-1.5 text-2xs text-slate-700">
                 <input type="checkbox" name="isActive" defaultChecked={editingFormula?.isActive ?? true} className="accent-emerald-700" />
                 فعال
               </label>
@@ -379,7 +379,7 @@ export default function RulesClient(props: {
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs rt">
                 <thead>
-                  <tr className="border-b border-slate-200 text-[11px] text-slate-500">
+                  <tr className="border-b border-slate-200 text-2xs text-slate-500">
                     <th className="p-2">اولویت</th><th className="p-2">عنوان</th><th className="p-2">مقطع</th>
                     <th className="p-2">رشته</th><th className="p-2">ورودی</th><th className="p-2">ثابت</th>
                     <th className="p-2">نظری</th><th className="p-2">عملی</th><th className="p-2">عمومی</th>
@@ -390,7 +390,7 @@ export default function RulesClient(props: {
                   {props.formulas.map((f) => (
                     <tr key={f.id} className="border-b border-slate-100 last:border-0">
                       <td className="p-2 text-slate-600">{fa(f.priority)}</td>
-                      <td className="p-2 font-medium text-slate-800">{f.title}<span className="mr-1 text-[10px] text-slate-400">{f.code}</span></td>
+                      <td className="p-2 font-medium text-slate-800">{f.title}<span className="mr-1 text-3xs text-slate-400">{f.code}</span></td>
                       <td className="p-2 text-slate-600">{f.degreeLevelId ? props.degrees.find((d) => d.id === f.degreeLevelId)?.title || '—' : 'همه'}</td>
                       <td className="p-2 text-slate-600">{f.majorId ? props.majorsOptions.find((m) => m.id === f.majorId)?.title || '—' : 'همه'}</td>
                       <td className="p-2 text-slate-600">
@@ -403,7 +403,7 @@ export default function RulesClient(props: {
                       <td className="p-2">{fa(f.perUnitPractical)}</td>
                       <td className="p-2">{fa(f.perUnitGeneral)}</td>
                       <td className="p-2">
-                        <span className={`rounded px-1.5 py-0.5 text-[10px] ${f.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                        <span className={`rounded px-1.5 py-0.5 text-3xs ${f.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
                           {f.isActive ? 'فعال' : 'غیرفعال'}
                         </span>
                       </td>
@@ -460,15 +460,15 @@ export default function RulesClient(props: {
               <label className={labelCls}>تعداد اقساط پیش‌فرض<input name="defaultInstallments" type="number" min={1} defaultValue={editingLoan?.defaultInstallments ?? 1} className={inputCls} /></label>
               <label className={`${labelCls} sm:col-span-2`}>یادداشت<input name="note" defaultValue={editingLoan?.note ?? ''} className={inputCls} /></label>
               <div className="flex flex-wrap items-center gap-3 sm:col-span-3">
-                <label className="flex items-center gap-1.5 text-[11px] text-slate-700">
+                <label className="flex items-center gap-1.5 text-2xs text-slate-700">
                   <input type="checkbox" name="isInterestFree" defaultChecked={editingLoan?.isInterestFree ?? true} className="accent-emerald-700" />
                   بدون کارمزد
                 </label>
-                <label className="flex items-center gap-1.5 text-[11px] text-slate-700">
+                <label className="flex items-center gap-1.5 text-2xs text-slate-700">
                   <input type="checkbox" name="requiresApproval" defaultChecked={editingLoan?.requiresApproval ?? true} className="accent-emerald-700" />
                   نیازمند تأیید
                 </label>
-                <label className="flex items-center gap-1.5 text-[11px] text-slate-700">
+                <label className="flex items-center gap-1.5 text-2xs text-slate-700">
                   <input type="checkbox" name="isActive" defaultChecked={editingLoan?.isActive ?? true} className="accent-emerald-700" />
                   فعال
                 </label>
@@ -486,7 +486,7 @@ export default function RulesClient(props: {
             <div className="overflow-x-auto">
               <table className="w-full text-right text-xs rt">
                 <thead>
-                  <tr className="border-b border-slate-200 text-[11px] text-slate-500">
+                  <tr className="border-b border-slate-200 text-2xs text-slate-500">
                     <th className="p-2">کد</th><th className="p-2">عنوان</th><th className="p-2">نهاد</th>
                     <th className="p-2">پیش‌فرض</th><th className="p-2">سقف</th><th className="p-2">اقساط</th>
                     <th className="p-2">کارمزد</th><th className="p-2">وضعیت</th><th className="p-2">عملیات</th>
@@ -503,7 +503,7 @@ export default function RulesClient(props: {
                       <td className="p-2">{fa(l.defaultInstallments)}</td>
                       <td className="p-2 text-slate-600">{l.isInterestFree ? 'ندارد' : 'دارد'}</td>
                       <td className="p-2">
-                        <span className={`rounded px-1.5 py-0.5 text-[10px] ${l.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                        <span className={`rounded px-1.5 py-0.5 text-3xs ${l.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
                           {l.isActive ? 'فعال' : 'غیرفعال'}
                         </span>
                       </td>
@@ -637,7 +637,7 @@ function CoefficientTab(props: {
           </label>
           <label className={labelCls}>یادداشت<input name="note" defaultValue={props.editing?.note ?? ''} className={inputCls} /></label>
         </div>
-        <p className="mt-1 text-[11px] text-slate-500">
+        <p className="mt-1 text-2xs text-slate-500">
           ضریب ۱.۰۰ = بدون تغییر. مثلاً ۱.۱۰ = افزایش ۱۰٪ نسبت به نیمسال قبل.
         </p>
         <div className="mt-3 flex gap-2">
@@ -658,7 +658,7 @@ function CoefficientTab(props: {
         <div className="overflow-x-auto">
           <table className="w-full text-right text-xs rt">
             <thead>
-              <tr className="border-b border-slate-200 text-[11px] text-slate-500">
+              <tr className="border-b border-slate-200 text-2xs text-slate-500">
                 <th className="p-2">نیمسال</th><th className="p-2">ضریب متغیر</th><th className="p-2">ضریب ثابت</th>
                 <th className="p-2">یادداشت</th><th className="p-2">عملیات</th>
               </tr>
@@ -766,12 +766,12 @@ function SubjectFeeTab(props: {
             </select>
           </label>
           <label className={`${labelCls} sm:col-span-2`}>یادداشت<input name="note" defaultValue={props.editing?.note ?? ''} className={inputCls} /></label>
-          <label className="flex items-end gap-1.5 pb-1.5 text-[11px] text-slate-700">
+          <label className="flex items-end gap-1.5 pb-1.5 text-2xs text-slate-700">
             <input type="checkbox" name="isActive" defaultChecked={props.editing?.isActive ?? true} className="accent-emerald-700" />
             فعال
           </label>
         </div>
-        <p className="mt-1 text-[11px] text-slate-500">
+        <p className="mt-1 text-2xs text-slate-500">
           مثال: هزینه بیمه = ۵۰,۰۰۰ ریال ثابت. حق نظارت = ۲٪ از شهریه متغیر.
         </p>
         <div className="mt-3 flex gap-2">
@@ -792,7 +792,7 @@ function SubjectFeeTab(props: {
         <div className="overflow-x-auto">
           <table className="w-full text-right text-xs rt">
             <thead>
-              <tr className="border-b border-slate-200 text-[11px] text-slate-500">
+              <tr className="border-b border-slate-200 text-2xs text-slate-500">
                 <th className="p-2">کد</th><th className="p-2">عنوان</th><th className="p-2">نوع</th>
                 <th className="p-2">مبلغ ثابت</th><th className="p-2">درصد متغیر</th><th className="p-2">اعمال روی</th>
                 <th className="p-2">وضعیت</th><th className="p-2">عملیات</th>
@@ -804,7 +804,7 @@ function SubjectFeeTab(props: {
                   <td className="p-2 text-slate-500">{s.code}</td>
                   <td className="p-2 font-medium text-slate-800">{s.title}</td>
                   <td className="p-2">
-                    <span className={`rounded px-1.5 py-0.5 text-[10px] ${s.kind === 'ADDITIVE' ? 'bg-amber-50 text-amber-700' : 'bg-sky-50 text-sky-700'}`}>
+                    <span className={`rounded px-1.5 py-0.5 text-3xs ${s.kind === 'ADDITIVE' ? 'bg-amber-50 text-amber-700' : 'bg-sky-50 text-sky-700'}`}>
                       {s.kind === 'ADDITIVE' ? 'افزایشی' : 'کاهشی'}
                     </span>
                   </td>
@@ -812,7 +812,7 @@ function SubjectFeeTab(props: {
                   <td className="p-2">{s.variablePercent > 0 ? `${s.variablePercent}٪` : '—'}</td>
                   <td className="p-2 text-slate-600">{s.appliesTo === 'BOTH' ? 'ثابت+متغیر' : s.appliesTo === 'FIXED' ? 'ثابت' : 'متغیر'}</td>
                   <td className="p-2">
-                    <span className={`rounded px-1.5 py-0.5 text-[10px] ${s.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
+                    <span className={`rounded px-1.5 py-0.5 text-3xs ${s.isActive ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'}`}>
                       {s.isActive ? 'فعال' : 'غیرفعال'}
                     </span>
                   </td>

@@ -21,10 +21,10 @@ import { CurriculumProvider } from './CurriculumProvider';
 import CurriculumShell from './components/CurriculumShell';
 
 export default function CurriculumManagerClient({
-  initial, tab, version, detail,
-}: { initial: CurriculumWorkspace; tab?: string | null; version?: number | null; detail?: VersionDetail | null }) {
+  initial, tab, version, detail, universityTitle,
+}: { initial: CurriculumWorkspace; tab?: string | null; version?: number | null; detail?: VersionDetail | null; universityTitle?: string }) {
   return (
-    <CurriculumProvider initial={initial} tab={tab} version={version} detail={detail}>
+    <CurriculumProvider initial={initial} tab={tab} version={version} detail={detail} universityTitle={universityTitle}>
       <CurriculumShell />
     </CurriculumProvider>
   );

@@ -44,7 +44,7 @@ export default async function DocumentsPage() {
         </p>
       )}
       {docs.map(d => (
-        <Link key={d.id} href={'/professor/documents/' + d.id} className="flex items-center justify-between rounded-xl bg-slate-50 p-3 text-sm hover:bg-slate-100">
+        <Link prefetch={false} key={d.id} href={'/professor/documents/' + d.id} className="flex items-center justify-between rounded-xl bg-slate-50 p-3 text-sm hover:bg-slate-100">
           <div>
             <p className="font-medium">{d.title}</p>
             <p className="text-xs text-slate-500">

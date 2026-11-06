@@ -23,7 +23,7 @@ type BankCourse = {
   weeklyTheoryHours: string | null; weeklyPracticalHours: string | null;
   isThesis: number | null; hasProject: number | null; internshipUnits: string | null;
   minPassedMark: string | null; defaultAcceptMarkState: string | null; defaultRejectMarkState: string | null;
-  courseIsActive: number | null; emergencyWithdrawal: number | null; coRequisites: string | null; facesHours: string | null;
+  courseIsActive: number | null; emergencyWithdrawal: number | null; coRequisites: string | null; prereqText: string | null; facesHours: string | null;
   equivalentCourseCodes: string | null;
 };
 
@@ -53,7 +53,7 @@ type Props = {
   initialMajors: MajorSimple[];
 };
 
-const COURSE_TYPES = ['عمومی', 'پایه', 'اصلی', 'تخصصی', 'اختیاری'];
+const COURSE_TYPES = ['عمومی', 'پایه', 'اصلی', 'تخصصی', 'اختیاری', 'جبرانی', 'کارورزی', 'پروژه', 'پایان‌نامه', 'کارگاهی'];
 const COURSE_NATURES = ['نظری', 'عملی', 'نظری-عملی', 'کارگاهی', 'کارآموزی', 'پروژه', 'پایان‌نامه', 'رساله', 'معرفی به استاد', 'خودخوان'];
 const OFFERING_SCOPES = [
   { value: 'DEPARTMENTAL', label: 'گروهی (DEPARTMENTAL)' },
@@ -257,9 +257,13 @@ export default function GradeCodesClient({
         courseIsActive: fd.get('courseIsActive') === 'on' ? 1 : 0,
         emergencyWithdrawal: fd.get('emergencyWithdrawal') === 'on' ? 1 : 0,
         coRequisites: String(fd.get('coRequisites') || '') || null,
+        prereqText: String(fd.get('prereqText') || '') || null,
         facesHours: Number(fd.get('facesHours') || 0) || null,
         equivalentCourseCodes: String(fd.get('equivalentCourseCodes') || '') || null,
       };
+      // در حالت ویرایش، فیلد «کد» غیرفعال است و در FormData نمی‌آید؛
+      // فرستادن رشتهٔ خالی باعث رد شدن اعتبارسنجی و ذخیره‌نشدن می‌شد.
+      if (!payload.code) delete payload.code;
 
       const isEdit = !!editingCourse;
       let url = '/api/admin/curriculum/bank';
@@ -404,16 +408,16 @@ export default function GradeCodesClient({
                         <td className="p-1.5 border border-slate-200 text-center font-black">{c.units}</td>
                         <td className="p-1.5 border border-slate-200 text-center">{c.theoreticalUnits}</td>
                         <td className="p-1.5 border border-slate-200 text-center">{c.practicalUnits}</td>
-                        <td className="p-1.5 border border-slate-200 text-center text-[10px]">{c.courseNature || '—'}</td>
-                        <td className="p-1.5 border border-slate-200 text-center text-[10px]">{c.courseType || '—'}</td>
-                        <td className="p-1.5 border border-slate-200 text-center text-[10px]">{c.departmentName || '—'}</td>
-                        <td className="p-1.5 border border-slate-200 text-center text-[10px]">{c.degreeLevelTitle || '—'}</td>
-                        <td className="p-1.5 border border-slate-200 text-center text-[10px]">
+                        <td className="p-1.5 border border-slate-200 text-center text-3xs">{c.courseNature || '—'}</td>
+                        <td className="p-1.5 border border-slate-200 text-center text-3xs">{c.courseType || '—'}</td>
+                        <td className="p-1.5 border border-slate-200 text-center text-3xs">{c.departmentName || '—'}</td>
+                        <td className="p-1.5 border border-slate-200 text-center text-3xs">{c.degreeLevelTitle || '—'}</td>
+                        <td className="p-1.5 border border-slate-200 text-center text-3xs">
                           {c.defaultAcceptMarkState ? (
                             <span className="bg-emerald-50 text-emerald-700 px-1 rounded font-bold" title="کد قبولی">{c.defaultAcceptMarkState}</span>
                           ) : '—'}
                         </td>
-                        <td className="p-1.5 border border-slate-200 text-center text-[10px]">
+                        <td className="p-1.5 border border-slate-200 text-center text-3xs">
                           {c.defaultRejectMarkState ? (
                             <span className="bg-red-50 text-red-700 px-1 rounded font-bold" title="کد مردودی">{c.defaultRejectMarkState}</span>
                           ) : '—'}
@@ -484,13 +488,13 @@ export default function GradeCodesClient({
                             <td className="p-2 border border-slate-200 text-center font-black">{c.units}</td>
                             <td className="p-2 border border-slate-200 text-center font-bold">{c.recommendedSemester ?? '—'}</td>
                             <td className="p-2 border border-slate-200 text-center">
-                              <select value={c.passGradeStatusCode ?? ''} onChange={e => updateCode(c.courseId, 'passGradeStatusCode', e.target.value)} disabled={saving === c.courseId} className="border border-slate-300 rounded px-1.5 py-1 text-[11px] font-bold bg-white max-w-[180px] disabled:opacity-50" title={gradeStatusTitleOf(c.passGradeStatusCode) ?? 'پیش‌فرض: 1'}>
+                              <select value={c.passGradeStatusCode ?? ''} onChange={e => updateCode(c.courseId, 'passGradeStatusCode', e.target.value)} disabled={saving === c.courseId} className="border border-slate-300 rounded px-1.5 py-1 text-2xs font-bold bg-white max-w-[180px] disabled:opacity-50" title={gradeStatusTitleOf(c.passGradeStatusCode) ?? 'پیش‌فرض: 1'}>
                                 <option value="">پیش‌فرض (1)</option>
                                 {GRADE_STATUS_CODES.filter(g => g.passed).map(g => <option key={g.code} value={g.code}>{gradeStatusOptionLabel(g)}</option>)}
                               </select>
                             </td>
                             <td className="p-2 border border-slate-200 text-center">
-                              <select value={c.failGradeStatusCode ?? ''} onChange={e => updateCode(c.courseId, 'failGradeStatusCode', e.target.value)} disabled={saving === c.courseId} className="border border-slate-300 rounded px-1.5 py-1 text-[11px] font-bold bg-white max-w-[180px] disabled:opacity-50" title={gradeStatusTitleOf(c.failGradeStatusCode) ?? 'پیش‌فرض: 2'}>
+                              <select value={c.failGradeStatusCode ?? ''} onChange={e => updateCode(c.courseId, 'failGradeStatusCode', e.target.value)} disabled={saving === c.courseId} className="border border-slate-300 rounded px-1.5 py-1 text-2xs font-bold bg-white max-w-[180px] disabled:opacity-50" title={gradeStatusTitleOf(c.failGradeStatusCode) ?? 'پیش‌فرض: 2'}>
                                 <option value="">پیش‌فرض (2)</option>
                                 {GRADE_STATUS_CODES.filter(g => !g.passed).map(g => <option key={g.code} value={g.code}>{gradeStatusOptionLabel(g)}</option>)}
                               </select>
@@ -636,7 +640,7 @@ export default function GradeCodesClient({
                 <div key={gi} className="border border-slate-200 rounded-xl overflow-hidden">
                   <div className="bg-slate-900 text-white px-4 py-2.5 text-xs font-extrabold flex items-center justify-between">
                     <span>{g.title}</span>
-                    <span className="bg-amber-600/30 text-amber-200 px-2 py-0.5 rounded-full text-[10px]">{g.courses.length} درس</span>
+                    <span className="bg-amber-600/30 text-amber-200 px-2 py-0.5 rounded-full text-3xs">{g.courses.length} درس</span>
                   </div>
                   <div className="overflow-x-auto">
                     <table className="w-full border-collapse text-xs rt">
@@ -661,7 +665,7 @@ export default function GradeCodesClient({
                             <td className="p-1.5 border border-slate-200 text-right font-bold">{c.courseTitle}</td>
                             <td className="p-1.5 border border-slate-200 text-center">{c.units ?? '—'}</td>
                             <td className="p-1.5 border border-slate-200 text-center">
-                              <span className="bg-slate-100 px-1.5 py-0.5 rounded text-[10px]">{c.roleType}</span>
+                              <span className="bg-slate-100 px-1.5 py-0.5 rounded text-3xs">{c.roleType}</span>
                             </td>
                             <td className="p-1.5 border border-slate-200 text-center">{c.isRequired ? '✓' : ''}</td>
                             <td className="p-1.5 border border-slate-200 text-center font-bold">{c.minGrade ?? 'پیش‌فرض'}</td>
@@ -733,7 +737,8 @@ export default function GradeCodesClient({
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1">نوع درس</label>
                   <select name="courseType" defaultValue={editingCourse?.courseType ?? 'تخصصی'} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold bg-white">
-                    {COURSE_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+                    {/* نوعِ فعلی اگر در فهرست استاندارد نبود هم نمایش داده می‌شود تا با ذخیره، اشتباهی عوض نشود */}
+                    {[...new Set([...COURSE_TYPES, editingCourse?.courseType].filter((t): t is string => !!t && t.trim() !== ''))].map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div>
@@ -838,6 +843,22 @@ export default function GradeCodesClient({
                     <input type="checkbox" name="courseIsActive" defaultChecked={editingCourse ? editingCourse.courseIsActive !== 0 : true} className="w-4 h-4 accent-emerald-600" /> فعال
                   </label>
                 </div>
+              </div>
+
+              {/* ردیف ۶.۵: پیش‌نیاز — منبع قواعد چارت */}
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">پیش‌نیاز (کدها)</label>
+                <input
+                  name="prereqText"
+                  dir="ltr"
+                  defaultValue={editingCourse?.prereqText ?? ''}
+                  placeholder="مثلاً 1100|27007  یا  (27003|17003)&27002"
+                  className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm font-bold bg-white"
+                />
+                <p className="mt-1 text-3xs text-slate-500 leading-5">
+                  <b>|</b> یعنی «یا» (دروس هم‌ارز — یکی کافی است) · <b>&amp;</b> یا <b>کاما</b> یعنی «و» (همه لازم‌اند) · پرانتز مجاز است.
+                  بعد از ذخیره، در ماژول «برنامهٔ درسی» دکمهٔ <b>♻️ بازسازی قواعد</b> را بزن تا در چارت‌ها اعمال شود.
+                </p>
               </div>
 
               {/* ردیف ۷: همنیاز + ساعات چهره‌به‌چهره */}

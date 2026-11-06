@@ -1,18 +1,29 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { ENTRY_METHODS } from '@/lib/entry-methods';
+import { bestSuggestion } from '@/lib/sanjesh/major-suggest';
+import { simulateStudentId, validateFormula, degreeCodeFor, FORMULA_TOKENS } from '@/lib/student-id-formula';
 import { ClientTh, useClientTable, type ColumnDef } from '@/components/DataTable';
 import {
-  importStagedStudentsAction,
+  assignStudentNumbersAction,
+  finalRegisterStudentsAction,
+  listExistingForStagingAction,
+  setStagingDecisionAction,
   registerManualStudentAction,
   saveSanjeshMappingAction,
   saveStudentIdFormulaAction,
+  saveFormulaModelAction,
+  deleteFormulaModelAction,
   stageSanjeshDataAction,
   testIrandocCheckAction,
 } from './actions';
-
+import { revertImportedToResolvedAction, revertResolvedToPendingAction, revertNumberAssignedToResolvedAction, revertStagedToFieldsReadyAction, deleteSanjeshFileAction, cancelAdmissionAction, revokeAssignedNumbersAction } from './revert';
+import { askConfirm } from '@/lib/ui-feedback';
 interface StagingItem {
   id: number;
+  fileId: number | null;
   nationalCode: string;
   fullName: string | null;
   mappedMajorId: number | null;
@@ -31,8 +42,20 @@ interface StagingItem {
     examType?: string;
     degreeLevel?: string;
     majorGroup?: string;
+    /** نام رشتهٔ سنجش — مبنای پیشنهاد هوشمند نگاشت */
+    majorTitle?: string;
     universityCode?: string;
   };
+  /** فیلدهای کامل فایل سنجش برای جدول «بازبینی و تأیید» */
+  profile?: Record<string, string>;
+  /**
+   * مقطعِ واقعیِ این ردیف — از رشتهٔ نگاشت‌شده استخراج می‌شود.
+   * فایل سنجش برای بعضی انواع (مثلاً فنی) فیلد مقطع را خالی می‌گذارد؛
+   * پس نمی‌توان تنها به `rawSanjeshData.degreeLevel` تکیه کرد.
+   */
+  degreeLevelName?: string | null;
+  /** شمارهٔ دانشجوییِ صادرشده (پس از «صدور شماره») */
+  assignedStudentCode?: string | null;
 }
 
 interface SanjeshMappingItem {
@@ -73,12 +96,20 @@ interface ApiAuditItem {
   executedAt: string | null;
 }
 
+interface FormulaModelItem {
+  id: number;
+  title: string;
+  formula: string;
+  note: string | null;
+}
+
 interface AdmissionsClientProps {
   stagingList: StagingItem[];
   mappings: SanjeshMappingItem[];
   majors: MajorOption[];
   degreeLevels: DegreeLevelOption[];
   formulas: FormulaItem[];
+  formulaModels: FormulaModelItem[];
   apiLogs: ApiAuditItem[];
 }
 
@@ -94,6 +125,7 @@ export default function AdmissionsClient({
   majors,
   degreeLevels,
   formulas: initialFormulas,
+  formulaModels: initialModels,
   apiLogs: initialApiLogs,
 }: AdmissionsClientProps) {
   const [activeTab, setActiveTab] = useState<'SANJESH_STAGING' | 'ID_FORMULA' | 'MANUAL_ADMISSION' | 'IRANDOC_TEST'>('SANJESH_STAGING');
@@ -101,14 +133,32 @@ export default function AdmissionsClient({
   // Tab 1: Sanjesh Staging — خالی شروع می‌شود (نمونه فقط به‌صورت «قالب» قابل مشاهده است)
   const [rawText, setRawText] = useState<string>('');
   const [stagingList, setStagingList] = useState<StagingItem[]>(initialStaging);
+  /** پیش‌نویسِ فرمول هر مقطع در پنل «فرمول این انتقال» */
+  const [formulaDraft, setFormulaDraft] = useState<Record<number, string>>({});
+  const [formulaBusy, setFormulaBusy] = useState<number | null>(null);
+
+  /**
+   * مقطعِ یک ردیف صف. ترتیب اولویت:
+   *   ۱) مقطعِ رشتهٔ نگاشت‌شدهٔ دانشگاه — همان چیزی که واقعاً پرونده را می‌سازد
+   *   ۲) مقطعِ اعلامی خود فایل سنجش
+   * فایل سنجش «فنی» فیلد مقطع را خالی می‌فرستد، پس تکیه بر آن ستون را خالی
+   * می‌گذاشت در حالی که ردیف نگاشت شده و مقطعش معلوم بود.
+   *
+   * ⚠️ این تعریف باید **بالای** اولین مصرف‌کننده‌اش (STAGING_COLS و useMemoهای
+   * بالای کامپوننت) باشد؛ وگرنه در زمان رندر به TDZ می‌خورد:
+   * «Cannot access '…' before initialization».
+   */
+  const degreeTitleOf = (s: any): string =>
+    (s?.degreeLevelName || s?.rawSanjeshData?.degreeLevel || '').trim();
 
   // جدول داوطلبان: سورت + فیلتر هر ستون
   const STAGING_COLS: ColumnDef<StagingItem>[] = [
+    { key: 'studentCode', label: 'شمارهٔ دانشجویی', get: s => s.assignedStudentCode ?? '' },
     { key: 'nationalCode', label: 'کد ملی', get: s => s.nationalCode },
     { key: 'fullName', label: 'نام و نام خانوادگی', get: s => s.fullName ?? '' },
     { key: 'sanjeshCode', label: 'کد رشته سنجش', get: s => s.rawSanjeshData?.sanjeshCode ?? '' },
     { key: 'examType', label: 'نوع آزمون', get: s => s.rawSanjeshData?.examType ?? '' },
-    { key: 'degreeLevel', label: 'مقطع تحصیلی', get: s => s.rawSanjeshData?.degreeLevel ?? '' },
+    { key: 'degreeLevel', label: 'مقطع تحصیلی', get: s => degreeTitleOf(s) },
     { key: 'majorGroup', label: 'گروه رشته', get: s => s.rawSanjeshData?.majorGroup ?? '' },
     { key: 'major', label: 'رشته تطبیق‌یافته دانشگاه', get: s => s.mappedMajorName ?? '' },
     { key: 'quota', label: 'سهمیه پذیرش', get: s => s.rawSanjeshData?.quota ?? s.quotaType ?? '' },
@@ -116,16 +166,292 @@ export default function AdmissionsClient({
     { key: 'status', label: 'وضعیت تطبیق', get: s => s.status ?? '' },
   ];
   const stagingTable = useClientTable(stagingList, STAGING_COLS);
+
+  // ── جدول «بازبینی و تأیید نهایی» ────────────────────────────────────────
+  // همان زیرساخت فیلتر/سورتِ جدول صف، با ستون‌های همین جدول. ستون‌های تأیید
+  // و # عمداً sortable/filterable نیستند (مقدارشان معنادار نیست).
+  const readyRows = stagingList.filter(s => s.status === 'RESOLVED' && s.mappedMajorId);
+  const REVIEW_COLS: ColumnDef<StagingItem>[] = [
+    { key: 'approve', label: 'تأیید', get: () => '', sortable: false, filterable: false },
+    { key: 'row', label: '#', get: () => '', sortable: false, filterable: false },
+    { key: 'studentCode', label: 'شمارهٔ دانشجویی', get: s => s.assignedStudentCode ?? '' },
+    { key: 'nationalCode', label: 'کد ملی', get: s => s.nationalCode },
+    { key: 'firstName', label: 'نام', get: s => s.profile?.firstName ?? '' },
+    { key: 'lastName', label: 'نام خانوادگی', get: s => s.profile?.lastName ?? s.fullName ?? '' },
+    { key: 'fatherName', label: 'نام پدر', get: s => s.profile?.fatherName ?? '' },
+    {
+      key: 'gender',
+      label: 'جنسیت',
+      get: s => (s.profile?.gender === '1' ? 'مرد' : s.profile?.gender === '2' ? 'زن' : '—'),
+    },
+    { key: 'degree', label: 'مقطع', get: s => degreeTitleOf(s) || s.profile?.degreeLevelTitle || '' },
+    {
+      key: 'sanjeshMajor',
+      label: 'رشتهٔ سنجش',
+      get: s => s.profile?.fieldPlaceTitle || s.profile?.fieldTitle || s.rawSanjeshData?.majorTitle || '',
+    },
+    { key: 'mappedMajor', label: 'رشتهٔ دانشگاه', get: s => s.mappedMajorName ?? '' },
+    {
+      key: 'quota',
+      label: 'سهمیه',
+      get: s => s.profile?.quotaAdmitTitle || s.profile?.quotaFinalTitle || s.rawSanjeshData?.quota || '',
+    },
+    {
+      key: 'universityCode',
+      label: 'کد دانشگاه',
+      get: s => s.profile?.universityCode || s.rawSanjeshData?.universityCode || '',
+    },
+    { key: 'mobile', label: 'موبایل', get: s => s.profile?.mobile || s.mobile || '' },
+    {
+      key: 'status',
+      label: 'وضعیت',
+      get: s =>
+        s.status === 'IMPORTED'
+          ? 'ثبت قطعی'
+          : s.status === 'NUMBER_ASSIGNED'
+            ? 'شماره صادر شد'
+            : s.status === 'RESOLVED'
+              ? 'آماده'
+              : 'نیازمند نگاشت',
+    },
+  ];
+  const reviewTable = useClientTable(readyRows, REVIEW_COLS);
   const [mappingsList, setMappingsList] = useState<SanjeshMappingItem[]>(initialMappings);
   const [isStaging, setIsStaging] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
+  const [isAssigning, setIsAssigning] = useState(false);
+  // شمارهٔ شروع سریال به‌ازای هر رشته (خالی = خودکار/ادامهٔ بیشینهٔ همان رشته)
+  const [majorStarts, setMajorStarts] = useState<Record<number, string>>({});
+  // «بازبینی و تأیید»: هیچ ردیفی بدون دیدنِ اطلاعاتِ کاملش صادر شماره نمی‌شود
+  const [reviewed, setReviewed] = useState<Set<number>>(new Set());
+  const toggleReviewed = (id: number) =>
+    setReviewed(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  const [isFinalizing, setIsFinalizing] = useState(false);
+  const [importEntryMethod, setImportEntryMethod] = useState<string>('');
+  const [existingItems, setExistingItems] = useState<any[]>([]);
+  const [decisionBusy, setDecisionBusy] = useState<number | null>(null);
+
+  const loadExisting = async () => {
+    const res = await listExistingForStagingAction();
+    if (res.ok) setExistingItems(res.items ?? []);
+  };
+
+  useEffect(() => { loadExisting(); }, [initialStaging]);
+
+  const decide = async (stagingId: number, decision: 'ALLOW_DUPLICATE' | 'REJECT' | 'CLEAR' | 'REPLACE') => {
+    setDecisionBusy(stagingId);
+    const res = await setStagingDecisionAction(stagingId, decision);
+    setDecisionBusy(null);
+    if (!res.ok) {
+      setFeedback({ text: res.error || 'ثبت تصمیم انجام نشد.', type: 'error' });
+      return;
+    }
+    await loadExisting();
+    router.refresh();
+  };
+
+  const [reverting, setReverting] = useState(false);
+  const handleRevertImported = async (ids: number[]) => {
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: `برگشت ${ids.length} ردیف از IMPORTED به RESOLVED؟ (پرونده دانشجویی و ثبت‌نام‌ها دست‌نخورده می‌مانند)`, confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
+    setReverting(true);
+    const res = await revertImportedToResolvedAction(ids);
+    setReverting(false);
+    setFeedback({ text: res.ok ? (res.message || 'انجام شد') : (res.error || 'خطا'), type: res.ok ? 'success' : 'error' });
+    if (res.ok) { await loadExisting(); router.refresh(); }
+  };
+  const handleRevertNumberAssigned = async (ids: number[]) => {
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: `برگشت ${ids.length} ردیف از NUMBER_ASSIGNED به RESOLVED؟ (شمارهٔ صادرشده حفظ می‌شود)`, confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
+    setReverting(true);
+    const res = await revertNumberAssignedToResolvedAction(ids);
+    setReverting(false);
+    setFeedback({ text: res.ok ? (res.message || 'انجام شد') : (res.error || 'خطا'), type: res.ok ? 'success' : 'error' });
+    if (res.ok) { await loadExisting(); router.refresh(); }
+  };
+  // کنسل/حذف بعد از ثبت نهایی: دانشجوی ایجادشده حذف یا غیرفعال می‌شود
+  const handleCancelAdmission = async (ids: number[], mode: 'cancel' | 'purge') => {
+    if (ids.length === 0) return;
+    const label = mode === 'purge'
+      ? `حذف کامل و غیرقابل بازگشتِ ${ids.length} دانشجوی ثبت‌شده؟ (فقط دانشجوی بدون سابقه حذف می‌شود)`
+      : `کنسل (غیرفعال‌سازی) ${ids.length} دانشجوی ثبت‌شده؟ (رکورد برای حسابرسی می‌ماند)`;
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: label, confirmText: 'تأیید', cancelText: 'انصراف', danger: false }))) return;
+    setReverting(true);
+    const res = await cancelAdmissionAction(ids, mode);
+    setReverting(false);
+    const extra = res.ok && (res as any).failures?.length ? ` — ${(res as any).failures.length} ردیف ناموفق` : '';
+    setFeedback({ text: res.ok ? `${(res as any).message || 'انجام شد'}${extra}` : (res.error || 'خطا'), type: res.ok ? 'success' : 'error' });
+    if (res.ok) { await loadExisting(); router.refresh(); }
+  };
+  /**
+   * حذف شماره‌های صادرشده: پروندهٔ دانشجوییِ ساخته‌شده پاک می‌شود و ردیف‌های
+   * صف به RESOLVED برمی‌گردند تا بتوان شمارهٔ تازه صادر کرد.
+   * فقط پروندهٔ بدون سابقه (ثبت‌نام/دفتر/پرداخت) حذف می‌شود؛ بقیه گزارش خطا.
+   */
+  const handleRevokeNumbers = async (ids: number[]) => {
+    if (ids.length === 0) return;
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: `حذف شمارهٔ ${ids.length} دانشجو؟ پروندهٔ ساخته‌شده هم حذف می‌شود و می‌توانید شمارهٔ تازه صادر کنید.`, confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
+    setReverting(true);
+    const res = await revokeAssignedNumbersAction(ids);
+    setReverting(false);
+    const extra = res.ok && (res as any).failures?.length ? ` — ${(res as any).failures.length} ردیف ناموفق` : '';
+    setFeedback({ text: res.ok ? `${(res as any).message || 'انجام شد'}${extra}` : (res.error || 'خطا'), type: res.ok ? 'success' : 'error' });
+    if (res.ok) { await loadExisting(); router.refresh(); }
+  };
+  const handleRevertResolved = async (ids: number[]) => {
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: `برگشت ${ids.length} ردیف از RESOLVED به PENDING_MAPPING؟ (نگاشت رشته و تصمیم پاک می‌شود)`, confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
+    setReverting(true);
+    const res = await revertResolvedToPendingAction(ids);
+    setReverting(false);
+    setFeedback({ text: res.ok ? (res.message || 'انجام شد') : (res.error || 'خطا'), type: res.ok ? 'success' : 'error' });
+    if (res.ok) { await loadExisting(); router.refresh(); }
+  };
+  const handleRevertStaged = async (fileId: number) => {
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: `برگشت فایل ${fileId} از STAGED به FIELDS_READY؟ (ردیف‌های پذیرش این فایل حذف می‌شوند)`, confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
+    setReverting(true);
+    const res = await revertStagedToFieldsReadyAction(fileId);
+    setReverting(false);
+    setFeedback({ text: res.ok ? (res.message || 'انجام شد') : (res.error || 'خطا'), type: res.ok ? 'success' : 'error' });
+    if (res.ok) { await loadExisting(); router.refresh(); }
+  };
+  const handleDeleteFile = async (fileId: number) => {
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: `حذف کامل فایل ${fileId} و تمام ردیف‌های آن؟ (غیرقابل بازگشت)`, confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
+    setReverting(true);
+    const res = await deleteSanjeshFileAction(fileId);
+    setReverting(false);
+    setFeedback({ text: res.ok ? (res.message || 'انجام شد') : (res.error || 'خطا'), type: res.ok ? 'success' : 'error' });
+    if (res.ok) { await loadExisting(); router.refresh(); }
+  };
+
+  // ── نگاشت «کد رشتهٔ سنجش» → «رشتهٔ دانشگاه» ─────────────────────────────
+  // هر ردیفِ «نیازمند نگاشت» یک کد رشتهٔ سنجش دارد؛ نگاشت یک کد، همهٔ
+  // ردیف‌های همان کد را به RESOLVED می‌برد (اکشن خودش این کار را می‌کند).
+  const router = useRouter();
+  const [mapSel, setMapSel] = useState<Record<string, string>>({});
+  const [mappingBusy, setMappingBusy] = useState<string | null>(null);
+
+  /** کدهای رشتهٔ سنجشِ موجود در صف، با تعداد و عنوان گروه رشته */
+  const sanjeshCodeGroups = useMemo(() => {
+    const map = new Map<string, { code: string; group: string; degree: string; count: number }>();
+    for (const st of stagingList) {
+      const code = (st.rawSanjeshData?.sanjeshCode ?? '').trim();
+      if (!code) continue;
+      const cur = map.get(code);
+      if (cur) cur.count++;
+      else
+        map.set(code, {
+          code,
+          group: st.rawSanjeshData?.majorGroup ?? '',
+          degree: degreeTitleOf(st),
+          count: 1,
+        });
+    }
+    return [...map.values()].sort((a, b) => b.count - a.count || a.code.localeCompare(b.code));
+  }, [stagingList]);
+
+  /** رشته‌های متناسب با مقطعِ ردیف (اگر مقطع شناسا نبود، همهٔ رشته‌ها) */
+  const majorsFor = (degreeTitle: string): MajorOption[] => {
+    const dl = degreeLevels.find(d => d.title.trim() === degreeTitle.trim() || d.code === degreeTitle.trim());
+    if (!dl) return majors;
+    const filtered = majors.filter(m => m.degreeLevelId === dl.id);
+    return filtered.length > 0 ? filtered : majors;
+  };
+
+  const handleMapMajor = async (sanjeshCode: string, majorIdRaw: string) => {
+    const majorId = Number(majorIdRaw);
+    if (!Number.isFinite(majorId) || majorId <= 0) return;
+    const majorName = majors.find(m => m.id === majorId)?.name ?? '';
+    setMappingBusy(sanjeshCode);
+    const res = await saveSanjeshMappingAction(sanjeshCode, majorId);
+    setMappingBusy(null);
+    if (!res.ok) {
+      setFeedback({ text: res.error || 'خطا در ذخیرهٔ نگاشت.', type: 'error' });
+      return;
+    }
+    // بازخورد فوری + همگام‌سازی با دادهٔ سرور
+    setStagingList(prev =>
+      prev.map(s =>
+        s.status === 'PENDING_MAPPING' && (s.rawSanjeshData?.sanjeshCode ?? '').trim() === sanjeshCode
+          ? { ...s, status: 'RESOLVED', mappedMajorId: majorId, mappedMajorName: majorName }
+          : s,
+      ),
+    );
+    setMappingsList(prev => {
+      const rest = prev.filter(m => m.sanjeshCode !== sanjeshCode);
+      return [...rest, { id: prev.find(m => m.sanjeshCode === sanjeshCode)?.id ?? -1, sanjeshCode, internalMajorId: majorId, majorName, sanjeshQuota: 'سهمیه عادی' }];
+    });
+    setMapSel(p => ({ ...p, [sanjeshCode]: majorIdRaw }));
+    setFeedback({ text: `نگاشت «${majorName}» برای کد رشتهٔ ${sanjeshCode} ثبت شد.`, type: 'success' });
+    router.refresh();
+  };
+
+  // همگام‌سازی state با دادهٔ تازهٔ سرور (پس از router.refresh یا ناوبری)
+  useEffect(() => {
+    setStagingList(initialStaging);
+    setMappingsList(initialMappings);
+  }, [initialStaging, initialMappings]);
 
   // Tab 2: Formula Builder
+  // با تغییر مقطع، فرمولِ ذخیره‌شدهٔ همان مقطع بارگذاری می‌شود تا آنچه
+  // می‌بینید همان چیزی باشد که ذخیره شده — نه یک الگوی نمونه در کد.
   const [selectedDegreeId, setSelectedDegreeId] = useState<number>(degreeLevels[0]?.id || 1);
-  const [formulaPattern, setFormulaPattern] = useState<string>('{Year:2}{DegreeCode:1}{MajorCode:3}{Seq:3}');
+  // فرمولِ ذخیره‌شدهٔ همان مقطع — نه یک الگوی از پیش‌تعیین‌شده در کد.
+  const [formulaPattern, setFormulaPattern] = useState<string>(
+    initialFormulas.find((f: FormulaItem) => f.degreeLevelId === (degreeLevels[0]?.id || 1))?.formula ?? '',
+  );
   const [simYear, setSimYear] = useState<number>(1405);
   const [simMajorCode, setSimMajorCode] = useState<string>('412');
   const [simSeq, setSimSeq] = useState<number>(15);
+
+  // فرمول‌ساز: انتخاب متغیر + تعداد رقم + مقدار ثابت (همان الگوی ساما)
+  const [tokenKey, setTokenKey] = useState<string>('Seq');
+  const [tokenWidth, setTokenWidth] = useState<number>(3);
+  const [constText, setConstText] = useState<string>('');
+
+  // کتابخانهٔ مدل‌های فرمول
+  const [models, setModels] = useState<FormulaModelItem[]>(initialModels);
+  const [modelTitle, setModelTitle] = useState<string>('');
+  const [modelFormula, setModelFormula] = useState<string>('');
+  const [modelNote, setModelNote] = useState<string>('');
+  const [modelBusy, setModelBusy] = useState<boolean>(false);
+
+  const handleAddModel = async () => {
+    setModelBusy(true);
+    const res = await saveFormulaModelAction(modelTitle, modelFormula.trim() || formulaPattern, modelNote);
+    setModelBusy(false);
+    if (!res.ok) {
+      setFeedback({ text: res.error || 'ذخیرهٔ مدل انجام نشد.', type: 'error' });
+      return;
+    }
+    setModelTitle('');
+    setModelFormula('');
+    setModelNote('');
+    setFeedback({ text: 'مدل فرمول به کتابخانه اضافه شد.', type: 'success' });
+    setTimeout(() => setFeedback(null), 4000);
+    router.refresh();
+  };
+
+  const handleDeleteModel = async (id: number, title: string) => {
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: `مدل «${title}» حذف شود؟\n(فرمول فعالِ مقاطع دست‌نخورده می‌ماند)`, confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
+    const res = await deleteFormulaModelAction(id);
+    if (!res.ok) {
+      setFeedback({ text: res.error || 'حذف انجام نشد.', type: 'error' });
+      return;
+    }
+    setModels(prev => prev.filter(m => m.id !== id));
+    setFeedback({ text: `مدل «${title}» حذف شد.`, type: 'success' });
+    setTimeout(() => setFeedback(null), 4000);
+    router.refresh();
+  };
+
+  // بارگذاری فرمولِ ذخیره‌شدهٔ مقطع انتخاب‌شده (یا خالی، اگر تعریف نشده)
+  useEffect(() => {
+    const saved = initialFormulas.find((f: FormulaItem) => f.degreeLevelId === selectedDegreeId);
+    setFormulaPattern(saved?.formula ?? '');
+  }, [selectedDegreeId, initialFormulas]);
 
   // Tab 3: Manual Admission
   const [manualForm, setManualForm] = useState({
@@ -166,24 +492,113 @@ export default function AdmissionsClient({
     }
   };
 
-  // ثبت‌نام دسته‌جمعی پذیرفته‌شدگان
-  const handleBatchImport = async () => {
+  // مرحله ۱: صدور شماره دانشجویی
+  const handleAssignNumbers = async () => {
     const resolvedIds = stagingList.filter(s => s.status === 'RESOLVED').map(s => s.id);
     if (resolvedIds.length === 0) {
-      setFeedback({ text: 'هیچ رکورد تطبیق‌یافته‌ای (RESOLVED) جهت ثبت‌نام وجود ندارد.', type: 'error' });
+      setFeedback({ text: 'هیچ رکورد تطبیق‌یافته‌ای (RESOLVED) جهت صدور شماره وجود ندارد.', type: 'error' });
       return;
     }
 
-    setIsImporting(true);
-    const res = await importStagedStudentsAction(resolvedIds);
-    setIsImporting(false);
-    if (res.ok) {
-      const failNote = res.failures?.length ? ` — ${res.failures.length} رکورد ناموفق بود (به‌طور کامل برگشت داده شد؛ جزئیات در لاگ سرور).` : '';
-      setFeedback({ text: `${res.count} دانشجو با موفقیت ثبت قطعی شدند و شماره دانشجویی یکتا برای آنان صادر گردید.${failNote}`, type: res.failures?.length ? 'warning' : 'success' });
-      setTimeout(() => setFeedback(null), 5000);
-    } else {
-      setFeedback({ text: res.error || 'خطا در ثبت‌نام', type: 'error' });
+    if (!importEntryMethod) {
+      setFeedback({ text: 'ابتدا «روش ورود» را برای این گروه انتخاب کنید.', type: 'error' });
+      return;
     }
+
+    // شمارهٔ شروع هر رشته (خالی = خودکار)
+    const starts: Record<number, number> = {};
+    for (const [mid, val] of Object.entries(majorStarts)) {
+      const n = parseInt(String(val), 10);
+      if (Number.isFinite(n) && n > 0) starts[Number(mid)] = n;
+    }
+
+    setIsAssigning(true);
+    const res = await assignStudentNumbersAction(resolvedIds, importEntryMethod, starts);
+    setIsAssigning(false);
+    if (res.ok) {
+      const linked = (res.items ?? []).filter((i: any) => i.linked).length;
+      const created = Math.max(0, (res.count ?? 0) - linked);
+      const parts: string[] = [];
+      if (created > 0) parts.push(`${created} شمارهٔ دانشجویی جدید صادر شد`);
+      if (linked > 0) parts.push(`${linked} ردیف به پروندهٔ از قبل موجود وصل شد`);
+      const head = parts.length > 0 ? parts.join(' و ') : 'موردی برای پردازش نبود';
+      const failNote = res.failures?.length ? ` — ${res.failures.length} رکورد ناموفق بود.` : '';
+      setFeedback({ text: `${head}.${failNote}`, type: res.failures?.length ? 'warning' : 'success' });
+      setTimeout(() => setFeedback(null), 5000);
+      // ردیف‌ها از «آماده» خارج شدند؛ شناسه‌های تأییدشده هم پاک شوند تا
+      // شمارندهٔ «تأیید شده» برای دستهٔ بعدی گمراه‌کننده نباشد.
+      setReviewed(new Set());
+      await loadExisting();
+      router.refresh();
+    } else {
+      setFeedback({ text: res.error || 'خطا در صدور شماره', type: 'error' });
+    }
+  };
+
+  // مرحله ۲: ثبت قطعی
+  const handleFinalRegister = async () => {
+    const numberAssignedIds = stagingList.filter(s => s.status === 'NUMBER_ASSIGNED').map(s => s.id);
+    if (numberAssignedIds.length === 0) {
+      setFeedback({ text: 'هیچ رکوردی با شماره صادرشده (NUMBER_ASSIGNED) جهت ثبت قطعی وجود ندارد.', type: 'error' });
+      return;
+    }
+
+    setIsFinalizing(true);
+    const res = await finalRegisterStudentsAction(numberAssignedIds);
+    setIsFinalizing(false);
+    if (res.ok) {
+      const failNote = res.failures?.length ? ` — ${res.failures.length} رکورد ناموفق بود.` : '';
+      setFeedback({ text: `${res.count} دانشجو با موفقیت ثبت قطعی شدند.${failNote}`, type: res.failures?.length ? 'warning' : 'success' });
+      setTimeout(() => setFeedback(null), 5000);
+      await loadExisting();
+      router.refresh();
+    } else {
+      setFeedback({ text: res.error || 'خطا در ثبت قطعی', type: 'error' });
+    }
+  };
+
+  // خروجی اکسل (CSV با BOM — اکسل فارسی را درست نشان می‌دهد)
+  const handleExportExcel = () => {
+    if (stagingList.length === 0) {
+      setFeedback({ text: 'ردیفی برای خروجی گرفتن وجود ندارد.', type: 'error' });
+      return;
+    }
+    const headers = [
+      'شمارهٔ دانشجویی', 'کد ملی', 'نام و نام خانوادگی', 'کد رشته سنجش', 'نوع آزمون', 'مقطع',
+      'گروه رشته', 'رشتهٔ دانشگاه', 'سهمیه', 'کد دانشگاه', 'وضعیت',
+    ];
+    const statusFa: Record<string, string> = {
+      PENDING_MAPPING: 'نیازمند نگاشت',
+      RESOLVED: 'آماده ثبت‌نام',
+      NUMBER_ASSIGNED: 'شماره صادر شد',
+      IMPORTED: 'ثبت قطعی شد',
+    };
+    const rows = stagingList.map(s => [
+      s.assignedStudentCode ?? '',
+      s.nationalCode,
+      s.fullName ?? '',
+      s.rawSanjeshData?.sanjeshCode ?? '',
+      s.rawSanjeshData?.examType ?? '',
+      degreeTitleOf(s),
+      s.rawSanjeshData?.majorGroup ?? '',
+      s.mappedMajorName ?? '',
+      s.rawSanjeshData?.quota ?? s.quotaType ?? '',
+      s.rawSanjeshData?.universityCode ?? '',
+      statusFa[s.status ?? ''] ?? (s.status ?? ''),
+    ]);
+    const esc = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const csv = '\uFEFF' + [headers, ...rows].map(r => r.map(esc).join(',')).join('\r\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `admissions-${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    setFeedback({ text: `${rows.length} ردیف به‌صورت اکسل (CSV) ذخیره شد.`, type: 'success' });
+    setTimeout(() => setFeedback(null), 4000);
   };
 
   // ذخیره فرمول شماره دانشجویی
@@ -192,7 +607,42 @@ export default function AdmissionsClient({
     if (res.ok) {
       setFeedback({ text: 'الگوی فرمول شماره دانشجویی با موفقیت ذخیره گردید.', type: 'success' });
       setTimeout(() => setFeedback(null), 4000);
+    } else {
+      setFeedback({ text: res.error || 'ذخیرهٔ فرمول انجام نشد.', type: 'error' });
     }
+  };
+
+  // ── فرمولِ همین انتقال (داخل تب صف سنجش، بدون رفتن به تب «فرمول شماره») ──
+  /**
+   * فرمولِ مؤثر یک مقطع: پیش‌نویسِ کاربر، و اگر ویرایش نکرده، مقدارِ ذخیره‌شده
+   * در سرور. فرمول در پایگاه‌داده «به‌ازای مقطع» ذخیره می‌شود، نه به‌ازای رشته.
+   */
+  const transferFormulaOf = (degreeLevelId: number): string =>
+    formulaDraft[degreeLevelId] !== undefined
+      ? formulaDraft[degreeLevelId]
+      : (initialFormulas.find((f: FormulaItem) => f.degreeLevelId === degreeLevelId)?.formula ?? '');
+
+  const handleSaveTransferFormula = async (degreeLevelId: number) => {
+    const f = transferFormulaOf(degreeLevelId).trim();
+    if (!f) {
+      setFeedback({ text: 'فرمول خالی است؛ ابتدا یک الگو انتخاب یا وارد کنید.', type: 'error' });
+      return;
+    }
+    const errs = validateFormula(f);
+    if (errs.length > 0) {
+      setFeedback({ text: `فرمول نامعتبر است: ${errs[0]}`, type: 'error' });
+      return;
+    }
+    setFormulaBusy(degreeLevelId);
+    const res = await saveStudentIdFormulaAction(degreeLevelId, f);
+    setFormulaBusy(null);
+    if (!res.ok) {
+      setFeedback({ text: res.error || 'ذخیرهٔ فرمول انجام نشد.', type: 'error' });
+      return;
+    }
+    setFeedback({ text: 'فرمول این مقطع ذخیره شد؛ صدور شمارهٔ بعدی از همین الگو استفاده می‌کند.', type: 'success' });
+    setTimeout(() => setFeedback(null), 4000);
+    router.refresh();
   };
 
   // ثبت‌نام دستی
@@ -236,17 +686,20 @@ export default function AdmissionsClient({
     }
   };
 
-  // شبیه‌سازی زنده فرمول
-  const year2 = String(simYear).slice(-2);
-  const degreeDigit = selectedDegreeId === 1 ? '1' : selectedDegreeId === 2 ? '2' : '3';
-  const major3 = simMajorCode.padStart(3, '0').slice(-3);
-  const seq3 = String(simSeq).padStart(3, '0');
-  const simStudentId = formulaPattern
-    .replace('{Year:2}', year2)
-    .replace('{DegreeCode:1}', degreeDigit)
-    .replace('{MajorCode:3}', major3)
-    .replace('{Seq:3}', seq3)
-    .replace('{QuotaCode:1}', '1');
+  // شبیه‌سازی زنده فرمول — با همان موتور سرور، پس هر عرضی که بنویسید
+  // (۲، ۳، ۴، …) دقیقاً همان‌طور رندر می‌شود که در تولید واقعی می‌شود.
+  const selectedDegree = degreeLevels.find(d => d.id === selectedDegreeId);
+  const simResult = simulateStudentId(formulaPattern, {
+    entryYear: simYear,
+    degreeCode: degreeCodeFor(selectedDegree?.code),
+    majorCode: simMajorCode,
+    seq: simSeq,
+  });
+  const simStudentId = simResult.result;
+  const formulaErrors = [...validateFormula(formulaPattern), ...simResult.errors];
+
+  // دروازهٔ بازبینی: تا همهٔ ردیف‌های آماده تأیید نشوند، شماره صادر نمی‌شود
+  const unreviewedCount = readyRows.filter(s => !reviewed.has(s.id)).length;
 
   return (
     <div className="space-y-6" dir="rtl">
@@ -327,7 +780,254 @@ export default function AdmissionsClient({
       {/* TAB 1: پردازش فایل متنی سنجش و Staging */}
       {activeTab === 'SANJESH_STAGING' && (
         <div className="space-y-6">
+          {existingItems.length > 0 && (() => {
+            const autoLinked = existingItems.filter((it: any) => it.autoLink && !it.decision);
+            const needsDecision = existingItems.filter((it: any) => !it.autoLink || !!it.decision);
+            return (
+            <div className="card p-6 bg-amber-50 border border-amber-300 rounded-2xl space-y-4 shadow-sm dark:bg-amber-950 dark:border-amber-800">
+              <div className="border-b pb-3 border-amber-200">
+                <h2 className="text-sm font-black text-amber-900 dark:text-amber-200">
+                  ⚠️ داوطلبان با پروندهٔ موجود در همان ورودی ({existingItems.length.toLocaleString('fa-IR')} نفر)
+                </h2>
+                <p className="text-xs text-amber-800 mt-0.5 dark:text-amber-300">
+                  فقط پرونده‌هایی که <span className="font-bold">ورودی‌شان با پذیرش جدید یکی است</span> نشان
+                  داده می‌شوند؛ پرونده‌های سال‌های گذشته (انصراف، عدم‌مراجعه، فارغ‌التحصیلی) تداخلی ندارند و
+                  در این فهرست نمی‌آیند.
+                  {(autoLinked.length > 0 || needsDecision.length > 0) && <br />}
+                  {autoLinked.length > 0 && (
+                    <>
+                      <span className="font-bold text-emerald-800 dark:text-emerald-300">
+                        {autoLinked.length.toLocaleString('fa-IR')} نفر قبلاً همین پذیرش را دارند و هنگام انتقال
+                        <span className="mx-1">خودکار به همان پرونده وصل می‌شوند</span>
+                        (شمارهٔ تکراری ساخته نمی‌شود).
+                      </span>
+                      {needsDecision.length > 0 && <br />}
+                    </>
+                  )}
+                  {needsDecision.length > 0 && (
+                    <>
+                      فقط{' '}
+                      <span className="font-bold text-red-800 dark:text-red-300">
+                        {needsDecision.length.toLocaleString('fa-IR')} نفر
+                      </span>{' '}
+                      نیاز به تصمیم دارند: «ثبت پرونده جدید» یا «رد». پرونده‌های قبلی هیچ تغییری نمی‌کنند.
+                    </>
+                  )}
+                  {needsDecision.length === 0 && autoLinked.length > 0 && (
+                    <> نیازی به تصمیم‌گیری نیست — دکمهٔ «صدور شماره دانشجویی» را بزنید.</>
+                  )}
+                </p>
+              </div>
+
+              {/* گروه ۱: همان پذیرش، خودکار وصل می‌شود */}
+              {autoLinked.length > 0 && (
+                <div className="rounded-xl border border-emerald-300 bg-white dark:bg-slate-900 dark:border-emerald-800">
+                  <div className="px-3 py-2 border-b border-emerald-200 dark:border-emerald-800 flex items-center justify-between">
+                    <span className="text-2xs font-black text-emerald-800 dark:text-emerald-300">
+                      ✓ قبلاً ثبت شده — خودکار وصل می‌شود ({autoLinked.length.toLocaleString('fa-IR')} نفر)
+                    </span>
+                    <span className="text-3xs text-slate-500">شمارهٔ جدید ساخته نمی‌شود</span>
+                  </div>
+                  <div className="max-h-64 overflow-auto">
+                    <table className="w-full text-right text-2xs">
+                      <thead className="text-slate-500 sticky top-0 bg-white dark:bg-slate-900">
+                        <tr>
+                          <th className="p-1.5 font-medium">نام</th>
+                          <th className="p-1.5 font-medium">کد ملی</th>
+                          <th className="p-1.5 font-medium">شمارهٔ موجود</th>
+                          <th className="p-1.5 font-medium">رشته</th>
+                          <th className="p-1.5 font-medium">اقدام</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {autoLinked.map((it: any) => (
+                          <tr key={it.stagingId} className="border-t border-slate-100 dark:border-slate-800">
+                            <td className="p-1.5 font-bold text-slate-900 dark:text-slate-100">{it.fullName}</td>
+                            <td className="p-1.5 tabular-nums text-slate-500" dir="ltr">{it.nationalCode}</td>
+                            <td className="p-1.5 font-mono tabular-nums text-emerald-700 dark:text-emerald-400" dir="ltr">
+                              {it.autoLink.studentCode ?? '—'}
+                            </td>
+                            <td className="p-1.5 text-slate-600 dark:text-slate-300">{it.autoLink.majorName ?? '—'}</td>
+                            <td className="p-1.5">
+                              <button
+                                onClick={() => decide(it.stagingId, 'ALLOW_DUPLICATE')}
+                                disabled={decisionBusy === it.stagingId}
+                                title="اگر واقعاً پذیرش دومی است، پروندهٔ تازه بساز"
+                                className="px-1.5 py-0.5 rounded border border-slate-300 bg-white text-3xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-600"
+                              >
+                                ثبت پروندهٔ جدید
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* گروه ۲: نیازمند تصمیم */}
+              {needsDecision.length > 0 && (
+              <div className="space-y-3 max-h-[60vh] overflow-auto">
+                {needsDecision.map((it: any) => (
+                  <div key={it.stagingId} className={`rounded-xl border p-3 bg-white dark:bg-slate-900 ${it.sameMajorYearActive ? 'border-red-400' : 'border-amber-200'}`}>
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div className="text-xs">
+                        <span className="font-black text-slate-900">{it.fullName}</span>
+                        <span className="text-slate-500 mr-2 tabular-nums" dir="ltr">{it.nationalCode}</span>
+                        {it.sameMajorYearActive && (
+                          <span className="mr-2 px-1.5 py-0.5 rounded bg-red-100 text-red-800 font-bold text-3xs">احتمال تکرار: پرونده فعال با همین رشته و ورودی</span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        {it.decision === 'REJECT' && (
+                          <span className="px-2 py-1 rounded-lg bg-rose-100 text-rose-800 text-2xs font-bold">✗ رد شد</span>
+                        )}
+                        {it.decision === 'ALLOW_DUPLICATE' ? (
+                          <span className="px-2 py-1 rounded-lg bg-emerald-100 text-emerald-800 text-2xs font-bold">✓ ثبت پرونده جدید</span>
+                        ) : (
+                          <button
+                            onClick={() => decide(it.stagingId, 'ALLOW_DUPLICATE')}
+                            disabled={decisionBusy === it.stagingId}
+                            className="px-2 py-1 rounded-lg border border-emerald-300 bg-white text-2xs font-bold text-emerald-800 hover:bg-emerald-50 disabled:opacity-50"
+                          >
+                            ثبت پرونده جدید
+                          </button>
+                        )}
+                        {it.decision === 'REPLACED' ? (
+                          <span className="px-2 py-1 rounded-lg bg-violet-100 text-violet-800 text-2xs font-bold">↻ جایگزین شد</span>
+                        ) : (
+                          <button
+                            onClick={() => decide(it.stagingId, 'REPLACE')}
+                            disabled={decisionBusy === it.stagingId}
+                            className="px-2 py-1 rounded-lg border border-violet-300 bg-white text-2xs font-bold text-violet-800 hover:bg-violet-50 disabled:opacity-50"
+                          >
+                            جایگزین (قدیمی غیرفعال)
+                          </button>
+                        )}
+                        {it.decision !== 'REJECT' && (
+                          <button
+                            onClick={() => decide(it.stagingId, 'REJECT')}
+                            disabled={decisionBusy === it.stagingId}
+                            className="px-2 py-1 rounded-lg border border-rose-300 bg-white text-2xs font-bold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                          >
+                            رد
+                          </button>
+                        )}
+                        {it.decision && (
+                          <button
+                            onClick={() => decide(it.stagingId, 'CLEAR')}
+                            disabled={decisionBusy === it.stagingId}
+                            className="px-2 py-1 rounded-lg border border-slate-300 bg-white text-2xs font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                          >
+                            لغو تصمیم
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-2 text-2xs text-slate-600 dark:text-slate-300">
+                      <span className="font-bold">پذیرش جدید:</span> ورودی {it.newEntryYear}
+                      <span className="mx-2 text-slate-400">|</span>
+                      <span className="font-bold">پرونده‌های موجود:</span>
+                    </div>
+                    <table className="w-full mt-1 text-right text-2xs">
+                      <thead className="text-slate-500">
+                        <tr>
+                          <th className="p-1 font-medium">شماره</th>
+                          <th className="p-1 font-medium">رشته</th>
+                          <th className="p-1 font-medium">ورودی/ترم</th>
+                          <th className="p-1 font-medium">وضعیت</th>
+                          <th className="p-1 font-medium">منبع</th>
+                          <th className="p-1 font-medium">روش ورود</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {it.existing.map((e: any) => (
+                          <tr key={e.studentCode} className="border-t border-slate-100">
+                            <td className="p-1 font-mono tabular-nums" dir="ltr">{e.studentCode}</td>
+                            <td className="p-1">{e.majorName ?? '—'}</td>
+                            <td className="p-1 tabular-nums">{e.entryYear} / {e.entryTerm ?? '—'}</td>
+                            <td className="p-1">{e.status}</td>
+                            <td className="p-1">{e.admissionSource ?? 'LEGACY'}</td>
+                            <td className="p-1">{e.acceptanceType ?? '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+              </div>
+              )}
+            </div>
+            );
+          })()}
+
           <div className="card p-6 bg-white border border-slate-200 rounded-2xl space-y-4 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
+              <div>
+                <h2 className="text-sm font-black text-slate-900">
+                  📥 بارگذاری و پردازش خطوط فایل متنی سنجش (TXT / CSV Data Staging)
+                </h2>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center gap-2 mb-3">
+              <span className="text-xs font-bold text-slate-600">برگشت مرحله:</span>
+              <button
+                onClick={() => handleRevertImported(stagingList.filter(s => s.status === 'IMPORTED').map(s => s.id))}
+                disabled={reverting || stagingList.filter(s => s.status === 'IMPORTED').length === 0}
+                className="px-3 py-1.5 rounded-xl border border-sky-300 bg-sky-50 text-sky-800 font-bold text-2xs hover:bg-sky-100 disabled:opacity-50"
+              >
+                ↩ IMPORTED → RESOLVED
+              </button>
+              <button
+                onClick={() => handleRevertNumberAssigned(stagingList.filter(s => s.status === 'NUMBER_ASSIGNED').map(s => s.id))}
+                disabled={reverting || stagingList.filter(s => s.status === 'NUMBER_ASSIGNED').length === 0}
+                className="px-3 py-1.5 rounded-xl border border-cyan-300 bg-cyan-50 text-cyan-800 font-bold text-2xs hover:bg-cyan-100 disabled:opacity-50"
+              >
+                ↩ NUMBER_ASSIGNED → RESOLVED
+              </button>
+              <button
+                onClick={() => handleRevertResolved(stagingList.filter(s => s.status === 'RESOLVED').map(s => s.id))}
+                disabled={reverting || stagingList.filter(s => s.status === 'RESOLVED').length === 0}
+                className="px-3 py-1.5 rounded-xl border border-amber-300 bg-amber-50 text-amber-800 font-bold text-2xs hover:bg-amber-100 disabled:opacity-50"
+              >
+                ↩ RESOLVED → PENDING_MAPPING
+              </button>
+              <button
+                onClick={() => handleRevertStaged(stagingList[0]?.fileId || 5)}
+                disabled={reverting || stagingList.length === 0}
+                className="px-3 py-1.5 rounded-xl border border-rose-300 bg-rose-50 text-rose-800 font-bold text-2xs hover:bg-rose-100 disabled:opacity-50"
+              >
+                ↩ STAGED → FIELDS_READY
+              </button>
+              <button
+                onClick={() => handleDeleteFile(stagingList[0]?.fileId || 5)}
+                disabled={reverting || stagingList.length === 0}
+                className="px-3 py-1.5 rounded-xl border border-red-300 bg-red-50 text-red-800 font-bold text-2xs hover:bg-red-100 disabled:opacity-50"
+              >
+                🗑 حذف کامل فایل
+              </button>
+              <span className="mx-1 h-4 w-px bg-slate-300" aria-hidden />
+              <button
+                onClick={() => handleCancelAdmission(
+                  stagingList.filter(s => s.status === 'IMPORTED' || s.status === 'NUMBER_ASSIGNED').map(s => s.id),
+                  'cancel')}
+                disabled={reverting || stagingList.filter(s => s.status === 'IMPORTED' || s.status === 'NUMBER_ASSIGNED').length === 0}
+                className="px-3 py-1.5 rounded-xl border border-orange-300 bg-orange-50 text-orange-800 font-bold text-2xs hover:bg-orange-100 disabled:opacity-50"
+              >
+                ⛔ کنسل ثبت‌شده‌ها (غیرفعال)
+              </button>
+              <button
+                onClick={() => handleCancelAdmission(
+                  stagingList.filter(s => s.status === 'IMPORTED' || s.status === 'NUMBER_ASSIGNED').map(s => s.id),
+                  'purge')}
+                disabled={reverting || stagingList.filter(s => s.status === 'IMPORTED' || s.status === 'NUMBER_ASSIGNED').length === 0}
+                className="px-3 py-1.5 rounded-xl border border-red-400 bg-red-50 text-red-800 font-bold text-2xs hover:bg-red-100 disabled:opacity-50"
+              >
+                🗑 حذف کامل دانشجویان
+              </button>
+            </div>
+
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
               <div>
                 <h2 className="text-sm font-black text-slate-900">
@@ -338,7 +1038,7 @@ export default function AdmissionsClient({
                 </p>
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   onClick={handleStageRawText}
                   disabled={isStaging}
@@ -346,15 +1046,197 @@ export default function AdmissionsClient({
                 >
                   {isStaging ? 'در حال استخراج...' : '⚙️ پردازش و تطبیق خودکار کدها'}
                 </button>
+                <select
+                  value={importEntryMethod}
+                  onChange={e => setImportEntryMethod(e.target.value)}
+                  className="px-2 py-2 rounded-xl border border-slate-300 bg-white text-xs font-bold"
+                >
+                  <option value="">— روش ورود (الزامی) —</option>
+                  {ENTRY_METHODS.map(m => (
+                    <option key={m.value} value={m.value}>{m.label}</option>
+                  ))}
+                </select>
                 <button
-                  onClick={handleBatchImport}
-                  disabled={isImporting}
+                  onClick={handleAssignNumbers}
+                  disabled={isAssigning || unreviewedCount > 0}
+                  title={unreviewedCount > 0 ? `${unreviewedCount} ردیف هنوز در جدول «بازبینی و تأیید» تأیید نشده است.` : undefined}
+                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow transition disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isAssigning ? 'در حال صدور شماره...' : '1️⃣ صدور شماره دانشجویی'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleRevokeNumbers(
+                      stagingList
+                        .filter(s => s.status === 'NUMBER_ASSIGNED' || s.status === 'IMPORTED')
+                        .map(s => s.id),
+                    )
+                  }
+                  disabled={
+                    reverting ||
+                    stagingList.filter(s => s.status === 'NUMBER_ASSIGNED' || s.status === 'IMPORTED').length === 0
+                  }
+                  title="شمارهٔ صادرشده و پروندهٔ بدون سابقه حذف می‌شود تا بتوانید دوباره شماره صادر کنید."
+                  className="px-4 py-2 rounded-xl border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-800 font-extrabold text-xs shadow-sm transition disabled:opacity-50"
+                >
+                  🗑 حذف شماره‌های صادرشده
+                </button>
+                <button
+                  onClick={handleFinalRegister}
+                  disabled={isFinalizing}
                   className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow transition disabled:opacity-50"
                 >
-                  {isImporting ? 'در حال صدور شماره دانشجویی...' : '🚀 صدور شماره دانشجویی و ثبت قطعی'}
+                  {isFinalizing ? 'در حال ثبت قطعی...' : '2️⃣ ثبت قطعی'}
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportExcel}
+                  className="px-4 py-2 rounded-xl border border-slate-300 bg-white hover:bg-slate-50 text-slate-800 font-extrabold text-xs shadow-sm transition"
+                >
+                  📥 خروجی اکسل
                 </button>
               </div>
             </div>
+
+            {(() => {
+              const resolvedRows = stagingList.filter(s => s.status === 'RESOLVED' && s.mappedMajorId);
+              const byMajor = new Map<number, { name: string; count: number }>();
+              for (const r of resolvedRows) {
+                const mid = r.mappedMajorId as number;
+                const name = majors.find(m => m.id === mid)?.name || `رشته ${mid}`;
+                const prev = byMajor.get(mid);
+                byMajor.set(mid, { name, count: (prev?.count ?? 0) + 1 });
+              }
+              if (byMajor.size === 0) return null;
+              return (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 space-y-2">
+                  <div className="text-xs font-black text-amber-900">🔢 شمارهٔ شروع هر رشته (اختیاری)</div>
+                  <p className="text-2xs leading-5 text-amber-800">
+                    برای هر رشته شمارهٔ شروع سریال را وارد کن (مثلاً <b>1</b> یا <b>601</b>).
+                    خالی بگذاری = ادامه از بیشینهٔ موجودِ همان رشته.
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {[...byMajor.entries()].map(([mid, info]) => (
+                      <div key={mid} className="flex items-center gap-2 rounded-lg border border-amber-200 bg-white px-2 py-1.5">
+                        <span className="flex-1 truncate text-2xs font-bold text-slate-700" title={info.name}>
+                          {info.name} <span className="text-slate-400">({info.count})</span>
+                        </span>
+                        <input
+                          type="number"
+                          min={0}
+                          inputMode="numeric"
+                          placeholder="خودکار"
+                          value={majorStarts[mid] ?? ''}
+                          onChange={e => setMajorStarts(prev => ({ ...prev, [mid]: e.target.value }))}
+                          className="w-24 rounded-lg border border-slate-300 px-2 py-1 text-center font-mono text-xs"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {(() => {
+              // مقاطعِ دخیل در همین صف. فرمول در پایگاه‌داده «به‌ازای مقطع» ذخیره
+              // می‌شود؛ اگر ردیف را به‌ازای رشته نشان می‌دادیم، ویرایش دو ردیفِ
+              // هم‌مقطع روی یک رکورد می‌نشست و کاربر فکر می‌کرد جداست.
+              const groups = new Map<number, { title: string; majors: string[]; count: number }>();
+              for (const s of stagingList) {
+                if (!s.mappedMajorId) continue;
+                const m = majors.find(x => x.id === s.mappedMajorId);
+                const did = m?.degreeLevelId ?? null;
+                if (did == null) continue;
+                const mname = m?.name ?? s.mappedMajorName ?? `رشته ${s.mappedMajorId}`;
+                const cur = groups.get(did);
+                if (cur) {
+                  cur.count++;
+                  if (!cur.majors.includes(mname)) cur.majors.push(mname);
+                } else {
+                  groups.set(did, {
+                    title: degreeLevels.find(d => d.id === did)?.title ?? `مقطع ${did}`,
+                    majors: [mname],
+                    count: 1,
+                  });
+                }
+              }
+              if (groups.size === 0) return null;
+              return (
+                <div className="rounded-xl border border-indigo-200 bg-indigo-50/60 p-3 space-y-2">
+                  <div className="text-xs font-black text-indigo-900">🔢 فرمول شمارهٔ دانشجوییِ این انتقال</div>
+                  <p className="text-2xs leading-5 text-indigo-800">
+                    الگویی که هنگام «صدور شماره دانشجویی» استفاده می‌شود. یک فرمول برای هر <b>مقطع</b> ذخیره می‌شود،
+                    پس همهٔ رشته‌های هم‌مقطع از همین الگو شماره می‌گیرند. پس از ذخیره، دکمهٔ «صدور شماره دانشجویی» را بزنید.
+                  </p>
+                  <div className="space-y-2">
+                    {[...groups.entries()].map(([did, info]) => {
+                      const value = transferFormulaOf(did);
+                      const errs = validateFormula(value);
+                      const preview = simulateStudentId(value, {
+                        entryYear: 1405,
+                        degreeCode: degreeCodeFor(degreeLevels.find(d => d.id === did)?.code),
+                        majorCode: '412',
+                        seq: 1,
+                      });
+                      return (
+                        <div key={did} className="rounded-lg border border-indigo-200 bg-white p-2 space-y-1.5">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className="text-2xs font-black text-slate-800">{info.title}</span>
+                            <span className="text-3xs text-slate-500">
+                              {info.count} ردیف · {info.majors.slice(0, 3).join('، ')}
+                              {info.majors.length > 3 ? ` +${info.majors.length - 3}` : ''}
+                            </span>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <select
+                              value=""
+                              onChange={e => {
+                                const picked = models.find(x => String(x.id) === e.target.value);
+                                if (picked) setFormulaDraft(prev => ({ ...prev, [did]: picked.formula }));
+                              }}
+                              className="min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-2xs font-bold"
+                            >
+                              <option value="">— انتخاب از کتابخانهٔ مدل‌ها —</option>
+                              {models.map(m => (
+                                <option key={m.id} value={m.id}>
+                                  {m.title} — {m.formula}
+                                </option>
+                              ))}
+                            </select>
+                            <input
+                              value={value}
+                              onChange={e => setFormulaDraft(prev => ({ ...prev, [did]: e.target.value }))}
+                              dir="ltr"
+                              placeholder="{Year:2}{DegreeCode:1}{MajorCode:3}{Seq:3}"
+                              className="min-w-0 flex-1 rounded-lg border border-slate-300 px-2 py-1 font-mono text-xs"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => handleSaveTransferFormula(did)}
+                              disabled={formulaBusy === did}
+                              className="rounded-lg bg-indigo-700 px-3 py-1 text-2xs font-extrabold text-white hover:bg-indigo-800 disabled:opacity-50"
+                            >
+                              {formulaBusy === did ? 'در حال ذخیره…' : '💾 ذخیره برای این مقطع'}
+                            </button>
+                          </div>
+                          <div className="text-3xs leading-4">
+                            {errs.length > 0 ? (
+                              <span className="text-rose-700">⚠️ {errs[0]}</span>
+                            ) : (
+                              <span className="text-slate-500">
+                                پیش‌نمایش (کد رشتهٔ نمونه ۴۱۲):{' '}
+                                <span className="font-mono text-emerald-700">{preview.result}</span>
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
 
             <textarea
               rows={5}
@@ -363,11 +1245,319 @@ export default function AdmissionsClient({
               className="w-full p-3 font-mono text-xs rounded-xl border border-slate-300 bg-slate-50 focus:bg-white"
               placeholder="کدملی, نام, نام‌خانوادگی, کد_سنجش, سهمیه, موبایل, رتبه, نوع_آزمون, مقطع, گروه_رشته, کد_دانشگاه"
             />
-            <details className="text-[11px] text-slate-500">
+            <details className="text-2xs text-slate-500">
               <summary className="cursor-pointer font-bold text-indigo-800">مشاهدهٔ قالب نمونهٔ فایل (ساختار ستون‌ها)</summary>
-              <pre className="mt-2 p-3 bg-slate-100 rounded-xl font-mono text-[10px] leading-5 overflow-x-auto whitespace-pre">{SAMPLE_SANJESH_RAW}</pre>
+              <pre className="mt-2 p-3 bg-slate-100 rounded-xl font-mono text-3xs leading-5 overflow-x-auto whitespace-pre">{SAMPLE_SANJESH_RAW}</pre>
             </details>
           </div>
+
+          {/* ── نگاشت رشته: کد رشتهٔ سنجش → رشتهٔ دانشگاه ── */}
+          <div className="card p-6 bg-white border border-slate-200 rounded-2xl shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
+              <div>
+                <h2 className="text-sm font-black text-slate-900">
+                  🧭 نگاشت رشته‌ها (کد رشتهٔ سنجش ← رشتهٔ دانشگاه)
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  هر ردیفِ «نیازمند نگاشت» یک کد رشتهٔ سنجش دارد؛ نگاشت یک کد، همهٔ ردیف‌های همان کد را همزمان
+                  «آماده ثبت‌نام» می‌کند. بعد از نگاشت، دکمهٔ «🚀 صدور شماره دانشجویی و ثبت قطعی» را بزنید.
+                </p>
+              </div>
+              <span className="text-2xs text-slate-500">
+                {sanjeshCodeGroups.filter(g => !mappingsList.some(m => m.sanjeshCode === g.code)).length} کد بدون نگاشت
+              </span>
+              {(() => {
+                // پیشنهادها فقط «پیشنهاد»اند؛ تا این دکمه زده نشود چیزی ذخیره نمی‌شود.
+                const pending = sanjeshCodeGroups.filter(g => !mappingsList.some(m => m.sanjeshCode === g.code));
+                const withSug: { code: string; majorId: number; majorName: string }[] = [];
+                for (const g of pending) {
+                  if (!g.group) continue;
+                  const s = bestSuggestion(g.group, majorsFor(g.degree), 0.55);
+                  if (s) withSug.push({ code: g.code, majorId: s.major.id, majorName: s.major.name });
+                }
+                if (withSug.length === 0) return null;
+                return (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!(await askConfirm({ title: 'تأیید عملیات', body: `نگاشت ${withSug.length} کد رشته با پیشنهاد هوشمند ثبت شود؟\n\n${withSug.map(x => `• ${x.code} ← ${x.majorName}`).join('\n')}`, confirmText: 'تأیید', cancelText: 'انصراف', danger: false }))) return;
+                      for (const x of withSug) await handleMapMajor(x.code, String(x.majorId));
+                    }}
+                    className="px-3 py-1.5 rounded-xl border border-amber-400 bg-amber-50 text-amber-900 font-bold text-2xs hover:bg-amber-100"
+                  >
+                    🪄 تأیید {withSug.length} پیشنهاد
+                  </button>
+                );
+              })()}
+            </div>
+
+            {sanjeshCodeGroups.length === 0 ? (
+              <p className="py-4 text-center text-xs text-slate-400">هنوز رکوردی در صف نیست.</p>
+            ) : (
+              <div className="mt-3 overflow-x-auto">
+                <table className="w-full text-right text-xs">
+                  <thead className="bg-slate-50 text-slate-600">
+                    <tr>
+                      <th className="p-2 font-bold">کد رشتهٔ سنجش</th>
+                      <th className="p-2 font-bold">گروه رشته</th>
+                      <th className="p-2 font-bold">مقطع</th>
+                      <th className="p-2 font-bold">تعداد</th>
+                      <th className="p-2 font-bold">رشتهٔ دانشگاه</th>
+                      <th className="p-2 font-bold">وضعیت</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sanjeshCodeGroups.map(g => {
+                      const mapping = mappingsList.find(m => m.sanjeshCode === g.code);
+                      const selected = mapSel[g.code] ?? (mapping?.internalMajorId ? String(mapping.internalMajorId) : '');
+                      const options = majorsFor(g.degree);
+                      return (
+                        <tr key={g.code} className="border-t border-slate-100">
+                          <td className="p-2 font-mono font-bold text-indigo-900" dir="ltr">{g.code}</td>
+                          <td className="p-2 text-slate-700">{g.group || '—'}</td>
+                          <td className="p-2 text-slate-600">{g.degree || '—'}</td>
+                          <td className="p-2 tabular-nums text-slate-700">{g.count.toLocaleString('fa-IR')}</td>
+                          <td className="p-2">
+                            {(() => {
+                              const sug = g.group ? bestSuggestion(g.group, options, 0.55) : null;
+                              return (
+                                <div className="space-y-1">
+                                  {sug && !mapping?.majorName && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setMapSel(p => ({ ...p, [g.code]: String(sug.major.id) }));
+                                        void handleMapMajor(g.code, String(sug.major.id));
+                                      }}
+                                      className="text-right text-3xs font-bold text-amber-800 bg-amber-50 border border-amber-300 rounded-lg px-1.5 py-0.5 hover:bg-amber-100 w-full"
+                                    >
+                                      🪄 پیشنهاد: {sug.major.name} ({sug.percent.toLocaleString('fa-IR')}٪)
+                                    </button>
+                                  )}
+                                  <select
+                                    value={selected}
+                                    onChange={e => {
+                                      const v = e.target.value;
+                                      setMapSel(p => ({ ...p, [g.code]: v }));
+                                      if (v) void handleMapMajor(g.code, v);
+                                    }}
+                                    className="w-full rounded-lg border border-slate-300 px-2 py-1 text-2xs min-w-0"
+                                  >
+                                    <option value="">— انتخاب رشتهٔ دانشگاه —</option>
+                                    {options.map(m => (
+                                      <option key={m.id} value={m.id}>
+                                        {m.name}{m.majorCode ? ` (${m.majorCode})` : ''}
+                                      </option>
+                                    ))}
+                                  </select>
+                                </div>
+                              );
+                            })()}
+                          </td>
+                          <td className="p-2">
+                            {mapping?.majorName ? (
+                              <span className="font-bold text-emerald-700">✓ {mapping.majorName}</span>
+                            ) : mappingBusy === g.code ? (
+                              <span className="text-slate-400">در حال ثبت…</span>
+                            ) : (
+                              <span className="text-red-600">نیازمند نگاشت</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          {/* ── بازبینی و تأیید نهایی: همهٔ اطلاعات هر داوطلب در یک جدول ── */}
+          {(() => {
+            if (stagingList.length === 0) return null;
+            // همان مجموعهٔ بالای کامپوننت — یک منبع حقیقت، نه دو فیلتر موازی.
+            const ready = readyRows;
+            const unreviewed = ready.filter(s => !reviewed.has(s.id));
+            // تعداد تأییدشده باید «اشتراک» با ready باشد، نه اندازهٔ خامِ Set:
+            // بعد از صدور شماره، ردیف‌ها از ready خارج می‌شوند ولی شناسه‌شان
+            // در reviewed می‌ماند و شمارنده «۵۰ از ۰» می‌شد.
+            const reviewedCount = ready.filter(s => reviewed.has(s.id)).length;
+            const issuedCount = stagingList.filter(
+              s => s.status === 'NUMBER_ASSIGNED' || s.status === 'IMPORTED',
+            ).length;
+            const genderFa = (g?: string) => (g === '1' ? 'مرد' : g === '2' ? 'زن' : '—');
+            return (
+              <div className="card p-6 bg-white border border-slate-200 rounded-2xl shadow-sm space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
+                  <div>
+                    <h2 className="text-sm font-black text-slate-900">
+                      🔍 بازبینی و تأیید نهایی (همهٔ اطلاعات، نه فقط رشته)
+                    </h2>
+                    <p className="text-xs text-slate-500 mt-0.5">
+                      قبل از صدور شماره دانشجویی، تک‌تک ردیف‌ها را ببینید و تأیید کنید.
+                      تا ردیفی تأیید نشود، دکمهٔ «صدور شماره دانشجویی» فعال نمی‌شود.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-2xs font-bold ${unreviewed.length ? 'text-amber-700' : 'text-emerald-700'}`}>
+                      {reviewedCount.toLocaleString('fa-IR')} از {ready.length.toLocaleString('fa-IR')} تأیید شده
+                      {unreviewed.length ? ` — ${unreviewed.length.toLocaleString('fa-IR')} باقی مانده` : ' ✓'}
+                    </span>
+                    {reviewTable.visible.length !== ready.length && (
+                      <span className="text-2xs font-bold text-indigo-700">
+                        {reviewTable.visible.length.toLocaleString('fa-IR')} از {ready.length.toLocaleString('fa-IR')} ردیف (فیلتر فعال)
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setReviewed(new Set(ready.map(s => s.id)))}
+                      disabled={ready.length === 0 || unreviewed.length === 0}
+                      title={ready.length === 0 ? 'ردیفی آمادهٔ بازبینی نیست.' : undefined}
+                      className="px-2.5 py-1 rounded-lg border border-emerald-300 bg-emerald-50 text-emerald-800 text-2xs font-bold hover:bg-emerald-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      تأیید همه
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setReviewed(new Set())}
+                      disabled={reviewedCount === 0}
+                      title={reviewedCount === 0 ? 'هیچ ردیفی تأیید نشده که لغو شود.' : undefined}
+                      className="px-2.5 py-1 rounded-lg border border-slate-300 bg-white text-slate-600 text-2xs font-bold hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                      لغو همه
+                    </button>
+                  </div>
+                </div>
+
+                {ready.length === 0 ? (
+                  /*
+                   * این پنل «بازبینی قبل از صدور شماره» است. وقتی هیچ ردیفی در
+                   * وضعیت RESOLVED نیست، جدول و دکمه‌های تأیید/لغو بی‌معنا
+                   * می‌شوند — قبلاً جدول همهٔ ردیف‌ها را نشان می‌داد ولی دکمه‌ها
+                   * روی مجموعهٔ خالی کار می‌کردند و کاربر فکر می‌کرد خراب است.
+                   */
+                  <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 space-y-2 text-center">
+                    <div className="text-xs font-black text-emerald-900">
+                      {issuedCount > 0
+                        ? `همهٔ ${issuedCount.toLocaleString('fa-IR')} ردیف این صف شمارهٔ دانشجویی گرفته‌اند — چیزی برای بازبینی نمانده.`
+                        : 'هیچ ردیفی آمادهٔ بازبینی نیست.'}
+                    </div>
+                    <p className="text-2xs leading-5 text-emerald-800">
+                      {issuedCount > 0
+                        ? 'برای بازبینی مجدد، ابتدا شماره‌ها را حذف کنید تا ردیف‌ها به «آماده ثبت‌نام» برگردند.'
+                        : 'ردیف‌ها پس از نگاشت رشته به وضعیت «آماده» می‌رسند و این‌جا نمایش داده می‌شوند.'}
+                    </p>
+                    {issuedCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          handleRevokeNumbers(
+                            stagingList
+                              .filter(s => s.status === 'NUMBER_ASSIGNED' || s.status === 'IMPORTED')
+                              .map(s => s.id),
+                          )
+                        }
+                        disabled={reverting}
+                        className="px-3 py-1.5 rounded-xl border border-rose-300 bg-white text-rose-800 font-bold text-2xs hover:bg-rose-50 disabled:opacity-50"
+                      >
+                        🗑 حذف شماره‌ها و بازگشت به بازبینی
+                      </button>
+                    )}
+                  </div>
+                ) : (
+                <div className="overflow-auto max-h-[28rem] rounded-xl border border-slate-200">
+                  <table className="w-full text-right text-2xs">
+                    <thead className="sticky top-0 z-10 bg-slate-100 text-slate-700">
+                      <tr>
+                        {REVIEW_COLS.map(col => (
+                          <ClientTh
+                            key={col.key}
+                            col={col}
+                            sortKey={reviewTable.sortKey}
+                            sortDir={reviewTable.sortDir}
+                            filter={reviewTable.filters[col.key] ?? ''}
+                            onSort={() => reviewTable.toggleSort(col.key)}
+                            onFilter={v => reviewTable.setFilter(col.key, v)}
+                          />
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {reviewTable.visible.map((s, i) => {
+                        const p = s.profile ?? {};
+                        const isReady = s.status === 'RESOLVED' && !!s.mappedMajorId;
+                        const isDone = reviewed.has(s.id);
+                        return (
+                          <tr
+                            key={s.id}
+                            className={`border-t border-slate-100 ${isDone ? 'bg-emerald-50/50' : isReady ? 'bg-amber-50/30' : ''}`}
+                          >
+                            <td className="p-2">
+                              <input
+                                type="checkbox"
+                                checked={isDone}
+                                disabled={!isReady}
+                                onChange={() => toggleReviewed(s.id)}
+                                title={isReady ? 'تأیید این ردیف' : 'اول رشته را نگاشت کنید'}
+                                className="h-4 w-4 accent-emerald-600 disabled:opacity-30"
+                              />
+                            </td>
+                            <td className="p-2 text-slate-400 tabular-nums">{(i + 1).toLocaleString('fa-IR')}</td>
+                            <td className="p-2 whitespace-nowrap">
+                              {s.assignedStudentCode
+                                ? <span className="font-mono font-bold text-sky-700 dark:text-sky-300" dir="ltr">{s.assignedStudentCode}</span>
+                                : <span className="text-slate-300">—</span>}
+                            </td>
+                            <td className="p-2 font-mono font-bold text-slate-800" dir="ltr">{s.nationalCode}</td>
+                            <td className="p-2 text-slate-800 whitespace-nowrap">{p.firstName || '—'}</td>
+                            <td className="p-2 text-slate-800 whitespace-nowrap">{p.lastName || s.fullName || '—'}</td>
+                            <td className="p-2 text-slate-600 whitespace-nowrap">{p.fatherName || '—'}</td>
+                            <td className="p-2 text-slate-600">{genderFa(p.gender)}</td>
+                            <td className="p-2 text-slate-600 whitespace-nowrap">{degreeTitleOf(s) || p.degreeLevelTitle || '—'}</td>
+                            <td className="p-2 text-slate-600 whitespace-nowrap">
+                              {p.fieldPlaceTitle || p.fieldTitle || s.rawSanjeshData?.majorTitle || '—'}
+                            </td>
+                            <td className="p-2 whitespace-nowrap">
+                              {s.mappedMajorName
+                                ? <span className="font-bold text-emerald-700">{s.mappedMajorName}</span>
+                                : <span className="text-rose-600">نگاشت نشده</span>}
+                            </td>
+                            <td className="p-2 text-slate-600 whitespace-nowrap">
+                              {p.quotaAdmitTitle || p.quotaFinalTitle || s.rawSanjeshData?.quota || '—'}
+                            </td>
+                            <td className="p-2 font-mono text-slate-600" dir="ltr">
+                              {p.universityCode || s.rawSanjeshData?.universityCode || '—'}
+                            </td>
+                            <td className="p-2 font-mono text-slate-600" dir="ltr">{p.mobile || s.mobile || '—'}</td>
+                            <td className="p-2 whitespace-nowrap">
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-3xs font-bold ${
+                                  s.status === 'IMPORTED'
+                                    ? 'bg-emerald-100 text-emerald-900'
+                                    : isReady
+                                    ? 'bg-sky-100 text-sky-900'
+                                    : 'bg-rose-100 text-rose-900'
+                                }`}
+                              >
+                                {s.status === 'IMPORTED'
+                                  ? 'ثبت قطعی'
+                                  : s.status === 'NUMBER_ASSIGNED'
+                                  ? 'شماره صادر شد'
+                                  : isReady
+                                  ? 'آماده'
+                                  : 'نیازمند نگاشت'}
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* جدول رکوردهای در صف Staging */}
           <div className="card overflow-x-auto bg-white border border-slate-200 rounded-2xl shadow-sm">
@@ -380,6 +1570,7 @@ export default function AdmissionsClient({
 
             <table className="w-full table-fixed text-right text-xs rt">
               <colgroup>
+                <col style={{ width: 130 }} />
                 <col style={{ width: 110 }} />
                 <col style={{ width: 180 }} />
                 <col style={{ width: 110 }} />
@@ -409,13 +1600,13 @@ export default function AdmissionsClient({
               <tbody>
                 {stagingTable.visible.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="p-8 text-center text-slate-400">
+                    <td colSpan={11} className="p-8 text-center text-slate-400">
                       هیچ رکوردی در صف Staging موجود نیست. بر روی «پردازش و تطبیق خودکار» کلیک کنید.
                     </td>
                   </tr>
                 )}
                 {stagingTable.visible.map(st => {
-                  const isResolved = st.status === 'RESOLVED' || st.status === 'IMPORTED';
+                  const isResolved = st.status === 'RESOLVED' || st.status === 'IMPORTED' || st.status === 'NUMBER_ASSIGNED';
                   const isPending = st.status === 'PENDING_MAPPING';
 
                   return (
@@ -424,22 +1615,69 @@ export default function AdmissionsClient({
                       <td className="p-3 font-semibold text-slate-900">{st.fullName}</td>
                       <td className="p-3 font-mono text-indigo-900 font-bold">{st.rawSanjeshData?.sanjeshCode || ''}</td>
                       <td className="p-3 text-slate-600 font-mono">{st.rawSanjeshData?.examType || ''}</td>
-                      <td className="p-3 text-slate-600">{st.rawSanjeshData?.degreeLevel || ''}</td>
+                      <td className="p-3 text-slate-600">{degreeTitleOf(st) || '—'}</td>
                       <td className="p-3 text-slate-600">{st.rawSanjeshData?.majorGroup || ''}</td>
                       <td className="p-3">
                         {isResolved ? (
                           <span className="font-bold text-emerald-800">{st.mappedMajorName || '—'}</span>
-                        ) : (
-                          <span className="text-red-600 font-bold bg-red-50 px-2 py-0.5 rounded border border-red-200 dark:border-red-800 dark:bg-red-950 dark:text-red-200">
-                            ⚠️ تعریف‌نشده (نیاز به نگاشت)
-                          </span>
-                        )}
+                        ) : (() => {
+                          // «پیشنهاد هوشمند» — فقط پیشنهاد؛ تا کارشناس کلیک نکند
+                          // هیچ نگاشتی نوشته نمی‌شود.
+                          const rowCode = (st.rawSanjeshData?.sanjeshCode ?? '').trim();
+                          const rowTitle = st.rawSanjeshData?.majorTitle || st.rawSanjeshData?.majorGroup || '';
+                          const candidates = majorsFor(degreeTitleOf(st));
+                          const sug = rowTitle ? bestSuggestion(rowTitle, candidates, 0.55) : null;
+                          // اگر برای این کد از قبل نگاشتی ثبت شده، همان را نشان بده
+                          // (وگرنه کاربر فکر می‌کند نگاشتش گم شده).
+                          const known = mappingsList.find(m => m.sanjeshCode === rowCode);
+                          const selValue = mapSel[rowCode] ?? (known?.internalMajorId ? String(known.internalMajorId) : '');
+                          return (
+                            <div className="flex flex-col gap-1">
+                              <select
+                                value={selValue}
+                                onChange={e => {
+                                  const v = e.target.value;
+                                  const code = (st.rawSanjeshData?.sanjeshCode ?? '').trim();
+                                  if (!code) return;
+                                  setMapSel(p => ({ ...p, [code]: v }));
+                                  if (v) void handleMapMajor(code, v);
+                                }}
+                                className="w-full rounded-lg border border-red-200 bg-red-50 px-1.5 py-1 text-3xs min-w-0"
+                              >
+                                <option value="">⚠️ انتخاب رشته…</option>
+                                {candidates.map(m => (
+                                  <option key={m.id} value={m.id}>
+                                    {m.name}{m.majorCode ? ` (${m.majorCode})` : ''}
+                                  </option>
+                                ))}
+                              </select>
+                              {sug && rowCode && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setMapSel(p => ({ ...p, [rowCode]: String(sug.major.id) }));
+                                    void handleMapMajor(rowCode, String(sug.major.id));
+                                  }}
+                                  title={`از نام رشتهٔ سنجش «${rowTitle}» حدس زده شد`}
+                                  className="text-right text-3xs font-bold text-amber-800 bg-amber-50 border border-amber-300 rounded-lg px-1.5 py-1 hover:bg-amber-100"
+                                >
+                                  🪄 پیشنهاد: {sug.major.name} ({sug.percent.toLocaleString('fa-IR')}٪)
+                                </button>
+                              )}
+                              {!rowCode && (
+                                <span className="text-3xs text-slate-400">
+                                  کد رشتهٔ سنجش در این ردیف نیست — فایل را دوباره پردازش کنید.
+                                </span>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="p-3 text-slate-600">{st.rawSanjeshData?.quota || st.quotaType || 'سهمیه عادی'}</td>
                       <td className="p-3 text-slate-600 font-mono">{st.rawSanjeshData?.universityCode || ''}</td>
                       <td className="p-3">
                         <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                          className={`px-2.5 py-0.5 rounded-full text-3xs font-bold ${
                             st.status === 'IMPORTED'
                               ? 'bg-emerald-100 text-emerald-900 border border-emerald-300 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'
                               : isResolved
@@ -447,7 +1685,7 @@ export default function AdmissionsClient({
                               : 'bg-red-100 text-red-900 border border-red-300 dark:border-red-800 dark:bg-red-950 dark:text-red-200'
                           }`}
                         >
-                          {st.status === 'IMPORTED' ? '✓ ثبت‌نام قطعی شد' : isResolved ? 'آماده ثبت‌نام' : 'نیازمند نگاشت'}
+                          {st.status === 'IMPORTED' ? '✓ ثبت‌نام قطعی شد' : st.status === 'NUMBER_ASSIGNED' ? '🔢 شماره صادر شد' : isResolved ? 'آماده ثبت‌نام' : 'نیازمند نگاشت'}
                         </span>
                       </td>
                     </tr>
@@ -489,23 +1727,110 @@ export default function AdmissionsClient({
                 </select>
               </div>
 
-              <div className="space-y-1">
-                <label className="block text-xs font-bold text-slate-700">الگوی فرمول (Pattern Template):</label>
+              <div className="space-y-2">
+                <label className="block text-xs font-bold text-slate-700">الگوی فرمول (آزاد — هر عرضی که بخواهید):</label>
+
+                {/* مقدار ثابت — مثل «4051» یا جداکننده */}
+                <div className="grid grid-cols-12 gap-2 items-end">
+                  <div className="col-span-8 min-w-0">
+                    <label className="block text-3xs text-slate-500 mb-1">مقدار ثابت</label>
+                    <input
+                      type="text"
+                      value={constText}
+                      onChange={e => setConstText(e.target.value)}
+                      placeholder="مثلاً 4051"
+                      dir="ltr"
+                      className="w-full p-2 text-xs font-mono rounded-lg border border-slate-300 bg-white"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { if (constText) { setFormulaPattern(v => v + constText); setConstText(''); } }}
+                    className="col-span-4 px-3 py-2 rounded-lg border border-indigo-300 bg-white text-xs font-bold text-indigo-800 hover:bg-indigo-50"
+                  >
+                    + افزودن ثابت
+                  </button>
+                </div>
+
+                {/* متغیر + تعداد رقم */}
+                <div className="grid grid-cols-12 gap-2 items-end">
+                  <div className="col-span-6 min-w-0">
+                    <label className="block text-3xs text-slate-500 mb-1">متغیر</label>
+                    <select
+                      value={tokenKey}
+                      onChange={e => {
+                        const k = e.target.value;
+                        setTokenKey(k);
+                        const d = FORMULA_TOKENS.find(t => t.key === k);
+                        setTokenWidth(d?.key === 'Seq' ? 3 : d?.key === 'Year' ? 2 : d?.key === 'DegreeCode' ? 1 : 3);
+                      }}
+                      className="w-full p-2 text-xs rounded-lg border border-slate-300 bg-white"
+                    >
+                      {FORMULA_TOKENS.map(t => (
+                        <option key={t.key} value={t.key}>{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-3 min-w-0">
+                    <label className="block text-3xs text-slate-500 mb-1">تعداد رقم</label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={12}
+                      value={tokenWidth}
+                      onChange={e => setTokenWidth(Math.max(1, Math.min(12, Number(e.target.value) || 1)))}
+                      className="w-full p-2 text-xs font-mono rounded-lg border border-slate-300 bg-white"
+                      dir="ltr"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setFormulaPattern(v => v + `{${tokenKey}:${tokenWidth}}`)}
+                    className="col-span-3 px-3 py-2 rounded-lg border border-indigo-300 bg-white text-xs font-bold text-indigo-800 hover:bg-indigo-50"
+                  >
+                    + افزودن
+                  </button>
+                </div>
+
+                <div className="flex flex-wrap gap-1.5 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setFormulaPattern(v => v.replace(/\{[^}]*\}$|[^\s{}]+$/, ''))}
+                    className="px-2 py-1 rounded-lg border border-slate-300 bg-white text-2xs font-bold text-slate-600 hover:bg-slate-50"
+                  >
+                    ↩ حذف آخرین بخش
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormulaPattern('')}
+                    className="px-2 py-1 rounded-lg border border-rose-300 bg-white text-2xs font-bold text-rose-700 hover:bg-rose-50"
+                  >
+                    پاک‌کردن همه
+                  </button>
+                </div>
+
                 <input
                   type="text"
                   value={formulaPattern}
                   onChange={e => setFormulaPattern(e.target.value)}
+                  placeholder="{Year:2}{MajorCode:3}{Seq:3}"
                   className="w-full p-2.5 text-xs font-mono font-bold rounded-xl border border-indigo-300 bg-indigo-50/50 dark:border-indigo-700 dark:bg-indigo-950 dark:text-indigo-100"
                   dir="ltr"
                 />
-                <p className="text-[10px] text-slate-400 mt-1">
-                  متغیرهای مجاز: <code className="bg-slate-100 p-0.5 rounded">{'{Year:2}'}</code>، <code className="bg-slate-100 p-0.5 rounded">{'{DegreeCode:1}'}</code>، <code className="bg-slate-100 p-0.5 rounded">{'{MajorCode:3}'}</code>، <code className="bg-slate-100 p-0.5 rounded">{'{Seq:3}'}</code>
+                <p className="text-3xs text-slate-400 mt-1">
+                  متغیرهای مجاز: {FORMULA_TOKENS.map(t => t.key).join(' · ')} — شکل هر کدام <code className="bg-slate-100 p-0.5 rounded">{'{نام:تعداد‌رقم}'}</code>
                 </p>
+                {formulaErrors.length > 0 && (
+                  <ul className="text-2xs text-rose-700 bg-rose-50 border border-rose-200 rounded-lg p-2 space-y-0.5">
+                    {formulaErrors.map((e, i) => <li key={i}>• {e}</li>)}
+                  </ul>
+                )}
               </div>
 
               <button
                 onClick={handleSaveFormula}
-                className="px-5 py-2.5 rounded-xl bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-xs shadow transition"
+                disabled={formulaErrors.length > 0}
+                className="px-5 py-2.5 rounded-xl bg-indigo-700 hover:bg-indigo-800 disabled:opacity-40 disabled:cursor-not-allowed text-white font-extrabold text-xs shadow transition"
               >
                 💾 ذخیره فرمول مقطع
               </button>
@@ -517,42 +1842,149 @@ export default function AdmissionsClient({
 
               <div className="grid grid-cols-3 gap-2 text-xs">
                 <div>
-                  <span className="text-[10px] text-slate-400 block">سال ورود:</span>
+                  <span className="text-3xs text-slate-400 block">سال ورود:</span>
                   <input
                     type="number"
                     value={simYear}
                     onChange={e => setSimYear(Number(e.target.value))}
-                    className="w-full p-1.5 rounded bg-slate-800 border border-slate-700 text-xs font-mono"
+                    className="w-full p-1.5 rounded bg-slate-800 border border-slate-600 text-xs font-mono text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400/60"
                   />
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-400 block">کد رشته (۳ رقم):</span>
+                  <span className="text-3xs text-slate-400 block">کد رشته (۳ رقم):</span>
                   <input
                     type="text"
                     value={simMajorCode}
                     onChange={e => setSimMajorCode(e.target.value)}
-                    className="w-full p-1.5 rounded bg-slate-800 border border-slate-700 text-xs font-mono"
+                    className="w-full p-1.5 rounded bg-slate-800 border border-slate-600 text-xs font-mono text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400/60"
                   />
                 </div>
                 <div>
-                  <span className="text-[10px] text-slate-400 block">شماره سریال:</span>
+                  <span className="text-3xs text-slate-400 block">شماره سریال:</span>
                   <input
                     type="number"
                     value={simSeq}
                     onChange={e => setSimSeq(Number(e.target.value))}
-                    className="w-full p-1.5 rounded bg-slate-800 border border-slate-700 text-xs font-mono"
+                    className="w-full p-1.5 rounded bg-slate-800 border border-slate-600 text-xs font-mono text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400/60"
                   />
                 </div>
               </div>
 
               <div className="pt-3 border-t border-slate-800 text-center space-y-1">
-                <span className="text-[11px] text-slate-400">شماره دانشجویی تولیدشده:</span>
+                <span className="text-2xs text-slate-400">شماره دانشجویی تولیدشده:</span>
                 <p className="text-3xl font-black font-mono tracking-widest text-emerald-400" dir="ltr">
                   {simStudentId}
                 </p>
-                <p className="text-[10px] text-slate-400 mt-1">طول شناسه: {simStudentId.length} رقم یکتا</p>
+                <p className="text-3xs text-slate-400 mt-1">طول شناسه: {simStudentId.length} رقم یکتا</p>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* کتابخانهٔ مدل‌های فرمول */}
+      {activeTab === 'ID_FORMULA' && (
+        <div className="card p-6 bg-white border border-slate-200 rounded-2xl space-y-4 shadow-sm">
+          <div className="border-b pb-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div>
+              <h2 className="text-sm font-black text-slate-900">📚 مدل‌های فرمول شمارهٔ دانشجویی</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                چند الگو بسازید و هنگام تعریف فرمول هر مقطع از بین آن‌ها انتخاب کنید.
+                دکمهٔ «استفاده» فقط فرمول را در کادر بالا می‌گذارد — تا «ذخیره فرمول مقطع» را نزنید هیچ چیز عوض نمی‌شود.
+              </p>
+            </div>
+            <span className="text-2xs text-slate-500">{models.length.toLocaleString('fa-IR')} مدل</span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-right text-xs">
+              <thead className="bg-slate-50 text-slate-600">
+                <tr>
+                  <th className="p-2 font-bold w-8">#</th>
+                  <th className="p-2 font-bold">عنوان</th>
+                  <th className="p-2 font-bold">فرمول</th>
+                  <th className="p-2 font-bold">توضیح</th>
+                  <th className="p-2 font-bold w-32">عملیات</th>
+                </tr>
+              </thead>
+              <tbody>
+                {models.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="p-4 text-center text-slate-400">
+                      هنوز مدلی ثبت نشده — از فرم پایین اضافه کنید.
+                    </td>
+                  </tr>
+                )}
+                {models.map((m, i) => (
+                  <tr key={m.id} className="border-t border-slate-100 hover:bg-slate-50">
+                    <td className="p-2 text-slate-400 tabular-nums">{(i + 1).toLocaleString('fa-IR')}</td>
+                    <td className="p-2 font-bold text-slate-800">{m.title}</td>
+                    <td className="p-2 font-mono text-indigo-900" dir="ltr">{m.formula}</td>
+                    <td className="p-2 text-slate-500">{m.note || '—'}</td>
+                    <td className="p-2">
+                      <div className="flex gap-1">
+                        <button
+                          type="button"
+                          onClick={() => setFormulaPattern(m.formula)}
+                          className="px-2 py-1 rounded-lg border border-indigo-300 bg-white text-3xs font-bold text-indigo-800 hover:bg-indigo-50"
+                        >
+                          استفاده
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteModel(m.id, m.title)}
+                          className="px-2 py-1 rounded-lg border border-rose-300 bg-white text-3xs font-bold text-rose-700 hover:bg-rose-50"
+                        >
+                          حذف
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="grid grid-cols-12 gap-2 items-end border-t pt-3">
+            <div className="col-span-12 sm:col-span-3 min-w-0">
+              <label className="block text-3xs text-slate-500 mb-1">عنوان مدل *</label>
+              <input
+                type="text"
+                value={modelTitle}
+                onChange={e => setModelTitle(e.target.value)}
+                placeholder="مثلاً سال + رشته + سریال"
+                className="w-full p-2 text-xs rounded-lg border border-slate-300 bg-white"
+              />
+            </div>
+            <div className="col-span-12 sm:col-span-4 min-w-0">
+              <label className="block text-3xs text-slate-500 mb-1">فرمول *</label>
+              <input
+                type="text"
+                value={modelFormula}
+                onChange={e => setModelFormula(e.target.value)}
+                placeholder={formulaPattern || '{Year:2}{MajorCode:3}{Seq:3}'}
+                dir="ltr"
+                className="w-full p-2 text-xs font-mono rounded-lg border border-slate-300 bg-white"
+              />
+            </div>
+            <div className="col-span-12 sm:col-span-3 min-w-0">
+              <label className="block text-3xs text-slate-500 mb-1">توضیح</label>
+              <input
+                type="text"
+                value={modelNote}
+                onChange={e => setModelNote(e.target.value)}
+                placeholder="اختیاری"
+                className="w-full p-2 text-xs rounded-lg border border-slate-300 bg-white"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleAddModel}
+              disabled={modelBusy || !modelTitle.trim() || (!modelFormula.trim() && !formulaPattern)}
+              className="col-span-12 sm:col-span-2 px-3 py-2 rounded-lg bg-indigo-700 hover:bg-indigo-800 text-white text-xs font-extrabold disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {modelBusy ? 'در حال ذخیره…' : '+ افزودن مدل'}
+            </button>
           </div>
         </div>
       )}
@@ -624,7 +2056,11 @@ export default function AdmissionsClient({
               <label className="block text-xs font-bold text-slate-700">رشته تحصیلی: *</label>
               <select
                 value={manualForm.majorId}
-                onChange={e => setManualForm({ ...manualForm, majorId: Number(e.target.value) })}
+                onChange={e => {
+                  const majorId = Number(e.target.value);
+                  const major = majors.find(m => m.id === majorId);
+                  setManualForm({ ...manualForm, majorId, degreeLevelId: major?.degreeLevelId ?? manualForm.degreeLevelId });
+                }}
                 className="w-full p-2.5 text-xs rounded-xl border border-slate-300 bg-slate-50"
               >
                 {majors.map(m => (

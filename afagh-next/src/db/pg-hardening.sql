@@ -72,6 +72,7 @@ ALTER TABLE "student_documents" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "military_service_records" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "kyc_verifications" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "grade_appeals" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "grade_objections" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "grade_submission_otps" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "doc_sign_otps" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "professor_term_contracts" ENABLE ROW LEVEL SECURITY;
@@ -90,7 +91,9 @@ ALTER TABLE "request_parallel_checkpoints" ENABLE ROW LEVEL SECURITY;
 REVOKE SELECT ON "system_settings", "integrations_config", "audit_logs", "api_audit_logs",
              "admissions_staging", "person_source_identities", "sanjesh_mappings", "evaluation_responses",
              "verification_otps", "step_api_actions", "document_signatures",
-             "curriculum_approvals"
+             "curriculum_approvals",
+             "sanjesh_templates", "sanjesh_files", "sanjesh_file_fields",
+             "sanjesh_file_rows", "sanjesh_value_maps"
   FROM afagh_app;
 ALTER TABLE "system_settings" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "integrations_config" ENABLE ROW LEVEL SECURITY;
@@ -105,6 +108,12 @@ ALTER TABLE "step_api_actions" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "document_signatures" ENABLE ROW LEVEL SECURITY;
 -- چرخهٔ تأیید برنامهٔ درسی: دفتر ممیزیِ فقط-مالک (بدون سیاست = deny-all برای نقش اپ)
 ALTER TABLE "curriculum_approvals" ENABLE ROW LEVEL SECURITY;
+-- ماژول سازمان سنجش (مهاجرت 0128): دادهٔ خام داوطلبان = PII کامل ⇒ deny-all
+ALTER TABLE "sanjesh_templates" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "sanjesh_files" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "sanjesh_file_fields" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "sanjesh_file_rows" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "sanjesh_value_maps" ENABLE ROW LEVEL SECURITY;
 
 -- جداول پشتیبان دستیِ اطلاعات شخصی (مثل enr_extra_backup_14051 که با studentId ساخته
 -- شده‌اند): اگر موجود باشند RLS می‌گیرند (بدون سیاست = deny-all برای نقش اپ) تا چک
@@ -188,6 +197,14 @@ CREATE POLICY appeal_self_read ON "grade_appeals" FOR SELECT TO afagh_app
   USING ("enrollmentId" IN (SELECT e."id" FROM "enrollments" e
     JOIN "students" s ON s."id" = e."studentId"
     WHERE s."userId" = nullif(current_setting('app.user_id', true), '')::int));
+
+-- اعتراض به نمره (grade_objections): دانشجو فقط اعتراض‌های خودش را می‌بیند.
+-- درج/به‌روزرسانی از نقش مالک (مسیر owner db، BYPASSRLS) انجام می‌شود —
+-- همانند grade_appeals؛ پس فقط سیاست خواندنِ خود-دانشجو کافی است.
+DROP POLICY IF EXISTS objection_self_read ON "grade_objections";
+CREATE POLICY objection_self_read ON "grade_objections" FOR SELECT TO afagh_app
+  USING ("studentId" IN (SELECT "id" FROM "students"
+    WHERE "userId" = nullif(current_setting('app.user_id', true), '')::int));
 
 -- ── کارکنان: ردیف‌های مرتبط با خودشان ──
 DROP POLICY IF EXISTS gsotp_self_read ON "grade_submission_otps";
@@ -942,3 +959,30 @@ ALTER TABLE "legacy_code_maps" ENABLE ROW LEVEL SECURITY;
 -- targetId عمومی/داخلی است و کاربرد نقش اپ ندارد → برای نقش اپ «هیچ» (deny-all صریح)
 DROP POLICY IF EXISTS legacy_code_maps_deny_all ON "legacy_code_maps";
 CREATE POLICY legacy_code_maps_deny_all ON "legacy_code_maps" FOR ALL TO afagh_app USING (false);
+
+-- ── گزارش‌ساز: گزارش‌های ذخیره‌شده (saved_reports) ──
+-- این جدول «تعریفِ گزارش» است، نه دادهٔ دانشجویی. سه دامنهٔ دیده‌شدن:
+--   PRIVATE → فقط مالک
+--   ROLE    → مالک + اعضای نقش‌های فهرست‌شده در allowedRoles
+--   PUBLIC  → همهٔ کاربرانی که به مرکز گزارش‌ها دسترسی دارند
+-- نوشتن (ساخت/ویرایش/حذف) همیشه فقط برای مالک.
+-- نکته: like سایر سیاست‌های نقش‌محور، app.user_id تنها GUCی است که withUserRls
+-- (src/db/index.ts) در همان تراکنش می‌نویسد؛ نبودِ آن ⇒ uid NULL ⇒ EXISTS صفر
+-- ⇒ همچنان fail-closed. زیرپرسمانِ user_roles خودش RLS دارد و روی همین userId
+-- است، پس فقط نقش‌های خودِ کاربر جاری دیده می‌شود (بازگشتِ بی‌نهایت هم ندارد).
+ALTER TABLE "saved_reports" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS saved_reports_read ON "saved_reports";
+CREATE POLICY saved_reports_read ON "saved_reports" FOR SELECT TO afagh_app
+  USING (
+    "ownerUserId" = nullif(current_setting('app.user_id', true), '')::int
+    OR "visibility" = 'PUBLIC'
+    OR ("visibility" = 'ROLE' AND EXISTS (
+          SELECT 1 FROM "user_roles" ur JOIN "roles" r ON r."id" = ur."roleId"
+          WHERE ur."userId" = nullif(current_setting('app.user_id', true), '')::int
+            AND r."code" = ANY (SELECT jsonb_array_elements_text(saved_reports."allowedRoles"))
+        ))
+  );
+DROP POLICY IF EXISTS saved_reports_write ON "saved_reports";
+CREATE POLICY saved_reports_write ON "saved_reports" FOR ALL TO afagh_app
+  USING ("ownerUserId" = nullif(current_setting('app.user_id', true), '')::int)
+  WITH CHECK ("ownerUserId" = nullif(current_setting('app.user_id', true), '')::int);

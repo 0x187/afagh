@@ -25,7 +25,19 @@ const DENY_UNI: UniScope = { id: 0, code: '', title: '—', kind: 'NONE', logoUr
 /** پیش‌فرض وقتی جدول دانشگاه‌ها هنوز ساخته نشده (نصب تازه / خطای DB) */
 const FALLBACK_UNI: UniScope = { id: 1, code: 'AFAGH', title: 'دانشگاه آفاق', kind: 'OWN', logoUrl: null };
 
-async function allUniversities(): Promise<UniScope[]> {
+/**
+ * فهرستِ همهٔ دانشگاه‌ها — با کشِ درون‌درخواستی.
+ *
+ * ⚠ چرا cache(): این تابع هم از `getCurrentUniversity()` صدا زده می‌شود و هم از
+ * `listUniversities()`، و آن دو در یک `Promise.all` داخلِ layout کنارِ هم
+ * می‌نشینند. به‌علاوه خودِ `getCurrentUniversity()` هم یک بار در layout و یک بار
+ * در صفحه فراخوانی می‌شود. یعنی همین یک کوئریِ ساده **سه بار در هر درخواست**
+ * اجرا می‌شد. `authorizedUniversityIds` از قبل cache داشت؛ این یکی جا افتاده بود.
+ *
+ * `cache()` فقط در محدودهٔ همان رندر زنده است (نه بین درخواست‌ها)، پس دادهٔ
+ * دانشگاه هیچ‌وقت کهنه نمی‌شود.
+ */
+const allUniversities = cache(async (): Promise<UniScope[]> => {
   try {
     return (await db.select({
       id: universities.id, code: universities.code,
@@ -35,7 +47,7 @@ async function allUniversities(): Promise<UniScope[]> {
   } catch {
     return [];
   }
-}
+});
 
 /**
  * فهرست دانشگاه‌های مجاز کاربر — تنها مرز امنیتیِ چندمؤسسه‌ای.

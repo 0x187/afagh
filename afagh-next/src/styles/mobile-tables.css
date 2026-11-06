@@ -5,10 +5,18 @@
    (--bg-secondary و …) تا دارک‌مود و برندینگِ هر دانشگاه دست‌نخورده بمانند.
    تزریقِ برچسبِ هر ستون (data-label) توسط مؤلفهٔ MobileTableEnhancer انجام
    می‌شود، پس هیچ بازنویسی در صفحه‌ها لازم نیست.
+
+   ⚠️ همهٔ بلوک‌های این فایل با `@media screen and (…)` محدود شده‌اند و نه
+   `@media (max-width: …)`. دلیل: عرضِ کاغذِ A4 عمودی پس از کسر حاشیه‌ها
+   ۱۹۶mm ≈ ۷۴۱px است؛ با شرطِ بدونِ `screen`، این قاعده هنگامِ **چاپ** هم
+   فعال می‌شد و هر جدولِ `rt` (از جمله جدولِ سندِ کارنامهٔ مالی) را به
+   «کارتِ عمودی» تبدیل می‌کرد — یعنی ستون‌ها روی کاغذ زیرِ هم می‌ریختند و
+   سند چند برابر بلندتر و بریده‌بریده چاپ می‌شد. با `screen`، چاپ همیشه
+   چیدمانِ جدولیِ دسکتاپ را می‌گیرد.
    ───────────────────────────────────────────────────────────────────────── */
 
 /* مدل ۱ (پیش‌فرض `rt`): کارت به ازای هر سطر — فقط روی موبایل */
-@media (max-width: 768px) {
+@media screen and (max-width: 768px) {
   table.rt:not(.rt--scroll) {
     display: block;
   }
@@ -36,7 +44,10 @@
     border: 0;
     border-bottom: 1px solid var(--b-100);
     font-size: 13px;
-    text-align: left;
+    /* `start` نه `left`: در RTL مقدارِ فارسی باید از راست تراز شود؛
+       با left، نام/عنوان فارسی از سمت چپ می‌چسبید و در کنار برچسبِ
+       راست‌چین، ردیفِ کارت نامتقارن و ناخوانا می‌شد. */
+    text-align: start;
   }
   table.rt:not(.rt--scroll) tbody tr td:last-child {
     border-bottom: 0;
@@ -47,12 +58,12 @@
     font-weight: 600;
     color: var(--t-500);
     font-size: 12px;
-    margin-left: 8px;
+    margin-inline-start: 8px;
   }
   table.rt:not(.rt--scroll) td > * {
     flex: 1 1 auto;
     min-width: 0;
-    text-align: left;
+    text-align: start;
   }
 }
 
@@ -63,7 +74,7 @@
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
 }
-@media (max-width: 768px) {
+@media screen and (max-width: 768px) {
   table.rt--scroll {
     min-width: 640px;
   }
@@ -72,6 +83,9 @@
     position: sticky;
     right: 0;
     background: var(--bg-tertiary);
+    /* ستون اولِ چسبان هم پس‌زمینهٔ روشن می‌گیرد؛ متن باید با آن هم‌خوان باشد
+       وگرنه در حالت روشن نامرئی می‌شود. */
+    color: var(--t-800) !important;
     z-index: 1;
   }
 }
@@ -83,7 +97,7 @@
 .mc-list {
   display: none;
 }
-@media (max-width: 768px) {
+@media screen and (max-width: 768px) {
   .mc-list {
     display: grid;
     grid-template-columns: 1fr;
@@ -135,19 +149,19 @@
     justify-content: space-between;
     gap: 12px;
     font-size: 13px;
-    text-align: left;
+    text-align: start;
   }
   .mc-field__label {
     flex: 0 0 auto;
     font-weight: 600;
     color: var(--t-500);
     font-size: 12px;
-    margin-left: 8px;
+    margin-inline-start: 8px;
   }
   .mc-field__value {
     flex: 1 1 auto;
     min-width: 0;
-    text-align: left;
+    text-align: start;
     color: var(--t-900);
     word-break: break-word;
     overflow-wrap: anywhere;
@@ -171,13 +185,61 @@
   }
 }
 
+/* ─────────────────────────────────────────────────────────────
+   سرستونِ چسبانِ جدول‌ها (فقط دسکتاپ)
+   در ۱۹۶ جدولِ سامانه، ستون‌های بلند هنگام اسکرول بی‌سرستون می‌شدند و کاربر
+   «کدام ستون» را گم می‌کرد. فقط برای جدول‌های استانداردِ `rt` و فقط روی
+   صفحه اعمال می‌شود؛ در چاپ همان قاعدهٔ `table-header-group` تکرار سرستون
+   را انجام می‌دهد.
+   ───────────────────────────────────────────────────────────── */
+@media screen and (min-width: 769px) {
+  table.rt > thead > tr > th {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--bg-tertiary);
+    /* رنگِ متنِ سرستون باید با پس‌زمینهٔ تم هم‌خوان باشد. پیش‌تر فقط
+       background ست می‌شد؛ در نتیجه متنِ سفیدِ `<tr className="bg-slate-900 text-white">`
+       روی زمینهٔ روشنِ `--bg-tertiary` در حالت روشن نامرئی می‌شد
+       (دارک خوب بود، روشن خراب). حالا با متغیرِ تم، هم روشن و هم تیره خواناست. */
+    color: var(--t-800) !important;
+    box-shadow: inset 0 -1px 0 var(--b-200);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   پالایشِ ظاهریِ جدول‌ها (حالت صفحه، دسکتاپ) — ظاهر حرفه‌ای‌تر
+   هدف: کاهشِ سنگینیِ خطوطِ شبکه، تأکیدِ بیشتر روی سرستون و بازخوردِ
+   hover روی ردیف. فقط روی صفحه اعمال می‌شود؛ چاپ دست‌نخورده می‌ماند.
+   ───────────────────────────────────────────────────────────── */
+@media screen and (min-width: 769px) {
+  /* خطوطِ شبکه: خاکستریِ بسیار روشنِ هم‌خوان با تم، به‌جای خطوطِ تیره/سنگین */
+  table.rt th,
+  table.rt td {
+    border-color: var(--b-100) !important;
+  }
+  /* سرستون: متنِ پررنگ و کمی کوچک‌تر با فاصلهٔ حروف، خطِ زیرینِ ملایم */
+  table.rt > thead > tr > th {
+    background: var(--bg-tertiary) !important;
+    color: var(--t-800) !important;
+    font-weight: 800 !important;
+    font-size: 11px;
+    letter-spacing: 0.015em;
+    border-color: var(--b-200) !important;
+  }
+  /* بازخوردِ hover روی ردیف (بدون برهم‌زدنِ رنگِ سلول‌های وضعیت) */
+  table.rt > tbody > tr:hover > td {
+    background-color: rgba(79, 70, 229, 0.05);
+  }
+}
+
 /* ─────────────────────────────────────────────────────────────────────────
    لایهٔ ج — قابِ پنل (drawer همبرگری + تب‌های افقی + نوارِ عملیاتِ پایین)
    ───────────────────────────────────────────────────────────────────────── */
 
 /* سایدبارِ ادمین روی موبایل به کشوی کشویی (drawer) تبدیل می‌شود.
    والدِ ناوبری باید `.app-shell` و خودِ سایدبار `.app-nav` باشد. */
-@media (max-width: 768px) {
+@media screen and (max-width: 768px) {
   .app-nav {
     position: fixed;
     inset-block: 0;
@@ -221,7 +283,7 @@
 .tabstrip::-webkit-scrollbar {
   display: none;
 }
-@media (max-width: 768px) {
+@media screen and (max-width: 768px) {
   .tabstrip {
     flex-wrap: nowrap;
     padding-bottom: 2px;
@@ -236,7 +298,7 @@
 .action-bar {
   display: none;
 }
-@media (max-width: 768px) {
+@media screen and (max-width: 768px) {
   .action-bar {
     display: flex;
     position: fixed;

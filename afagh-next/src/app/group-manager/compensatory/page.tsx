@@ -15,9 +15,12 @@ const RELATION_LABEL: Record<string, string> = {
 export default async function CompensatoryStudentsPage({
   searchParams,
 }: {
-  searchParams?: { year?: string };
+  // ⚠ در Next.js 15/16 `searchParams` یک Promise است — بدون await، پارامتر
+  // «ورودی» نادیده گرفته می‌شد و صفحه همیشه روی پیش‌فرض می‌ماند.
+  searchParams: Promise<{ year?: string }>;
 }) {
   const { depts } = await requireDepHead();
+  const sp = (await searchParams) ?? {};
   const deptIds = depts.map(d => d.id);
   const majorsInScope = deptIds.length
     ? await db.select({ id: majors.id, name: majors.name, departmentId: majors.departmentId })
@@ -31,7 +34,9 @@ export default async function CompensatoryStudentsPage({
         .orderBy(sql`${students.entryYear} desc`)
     : [];
   const yearList = years.map(r => r.y).filter((y): y is number => y != null);
-  const selectedYear = searchParams?.year ? Number(searchParams.year) : (yearList[0] ?? new Date().getFullYear());
+  // پیش‌فرض = جدیدترین ورودیِ واقعی. `new Date().getFullYear()` غلط بود چون
+  // `entryYear` شمسی است (۱۴۰۵)، نه میلادی.
+  const selectedYear = sp.year ? Number(sp.year) : (yearList[0] ?? 0);
 
   const rows = (majorIds.length && selectedYear)
     ? await db.select({
@@ -100,17 +105,17 @@ export default async function CompensatoryStudentsPage({
             <input type="hidden" name="studentId" value={r.id} />
             <div className="sm:col-span-2">
               <div className="font-bold text-slate-900">{r.firstName} {r.lastName}</div>
-              <div className="font-mono text-[10px] text-slate-500" dir="ltr">{r.studentCode} — {r.majorName}</div>
+              <div className="font-mono text-3xs text-slate-500" dir="ltr">{r.studentCode} — {r.majorName}</div>
             </div>
-            <label className="text-[11px] font-bold text-slate-700 space-y-1">
+            <label className="text-2xs font-bold text-slate-700 space-y-1">
               <span className="block">کد رشتهٔ قبلی</span>
               <input type="text" name="previousMajorCode" defaultValue={r.previousMajorCode ?? ''} className="w-full rounded border border-slate-300 px-2 py-1.5 text-xs font-mono" />
             </label>
-            <label className="text-[11px] font-bold text-slate-700 space-y-1">
+            <label className="text-2xs font-bold text-slate-700 space-y-1">
               <span className="block">عنوان رشتهٔ قبلی</span>
               <input type="text" name="previousMajorTitle" defaultValue={r.previousMajorTitle ?? ''} className="w-full rounded border border-slate-300 px-2 py-1.5 text-xs" />
             </label>
-            <label className="text-[11px] font-bold text-slate-700 space-y-1">
+            <label className="text-2xs font-bold text-slate-700 space-y-1">
               <span className="block">نسبت</span>
               <select name="previousMajorRelation" defaultValue={r.previousMajorRelation ?? ''} className="w-full rounded border border-slate-300 px-2 py-1.5 text-xs">
                 <option value="">—</option>
@@ -119,11 +124,11 @@ export default async function CompensatoryStudentsPage({
                 <option value="UNRELATED">نامرتبط</option>
               </select>
             </label>
-            <label className="text-[11px] font-bold text-slate-700 space-y-1">
+            <label className="text-2xs font-bold text-slate-700 space-y-1">
               <span className="block">واحد جبرانی</span>
               <input type="number" name="compensatoryUnits" min={0} step={1} defaultValue={r.compensatoryUnits ?? 0} className="w-full rounded border border-slate-300 px-2 py-1.5 text-xs font-mono" />
             </label>
-            <label className="text-[11px] font-bold text-slate-700 space-y-1">
+            <label className="text-2xs font-bold text-slate-700 space-y-1">
               <span className="block">ممتاز</span>
               <select name="honorsOverride" defaultValue={r.honorsOverride == null ? '' : String(r.honorsOverride)} className="w-full rounded border border-slate-300 px-2 py-1.5 text-xs">
                 <option value="">خودکار</option>

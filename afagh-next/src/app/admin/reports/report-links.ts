@@ -8,6 +8,8 @@ export interface ReportLinkCard {
 }
 
 export const LINK_CARDS: ReportLinkCard[] = [
+  { kind: 'link-builder', icon: '🛠️', title: 'گزارش‌ساز (ساخت گزارش دلخواه)', href: '/admin/reports/builder' },
+  { kind: 'link-saved-reports', icon: '📂', title: 'گزارش‌های ذخیره‌شده', href: '/admin/reports/saved' },
   { kind: 'link-exams', icon: '🗂️', title: 'کارتابل برنامه‌ریزی امتحانات', href: '/admin/exams' },
   { kind: 'link-scheduling', icon: '📅', title: 'برنامه‌ریزی درسی گروه‌ها', href: '/admin/scheduling' },
   { kind: 'link-defense', icon: '🛡️', title: 'میز دفاع پایان‌نامه', href: '/admin/defense-scheduling' },

@@ -17,8 +17,15 @@ const txFa = (t: string) => TX_FA[t] ?? t;
 
 const fa = (n: number) => Math.round(n).toLocaleString('fa-IR');
 
-export default async function StudentFinancePage() {
+export default async function StudentFinancePage({
+  searchParams,
+}: {
+  // در Next 16 مقدار searchParams یک Promise است — بدون await، فیلترِ
+  // «نوع واریز» همیشه undefined می‌شد و بی‌صدا کار نمی‌کرد.
+  searchParams: Promise<{ depositType?: string }>;
+}) {
   await requireRole(['ADMIN', 'FINANCE_EXPERT', 'FINANCE']);
+  const sp = await searchParams;
 
   const currentUniversity = await getCurrentUniversity();
   const currentUniversityId = currentUniversity?.id ?? null;
@@ -33,19 +40,48 @@ export default async function StudentFinancePage() {
     ? sql`and (r."universityId" = ${currentUniversityId} or r."universityId" is null)`
     : sql``;
 
-  // ── جمع کل شارژ/وصول و تعداد تراکنش‌ها ──
-  const [tot] = (
-    await db.execute(sql`
+  // ── تفکیک وصولی بر اساس «نوع واریز» ──
+  const payScope = currentUniversityId
+    ? sql`and (l."universityId" = ${currentUniversityId} or l."universityId" is null)`
+    : sql``;
+
+  // ── فیلتر نوع واریز (از ستون ساختاریافتهٔ جدید — مهاجرت ۰۱۱۹) ──
+  const depositTypeFilter =
+    typeof sp?.depositType === 'string' && sp.depositType.length > 0
+      ? sp.depositType
+      : null;
+  const filterSql = depositTypeFilter
+    ? sql`and l."depositType" = ${depositTypeFilter}`
+    : sql``;
+
+  // ── محدودهٔ «آخرین تراکنش‌ها» ──
+  // قبلاً فیلترِ دانشگاه به‌صورت `where st."universityId" = X` **بعد از** اتصال
+  // اعمال می‌شد؛ چون `order by l.id desc limit 10` هم روی همان کوئری بود،
+  // PostgreSQL نمی‌توانست از ایندکسِ کلیدِ اصلی برای «۱۰ ردیفِ آخر» استفاده کند
+  // و مجبور بود کلِ دفترِ مالی را با students/users هش‌جوین کند، بعد مرتب کند و
+  // ده ردیف بردارد (در پروفایل: ۰.۶۶ ثانیه). حالا همان فیلتر را به یک نیمه‌اتصال
+  // روی `students` منتقل کردیم و `limit` داخل زیرکوئری است، پس موتور می‌تواند
+  // ایندکسِ `id` را نزولی بپیماید و به‌محضِ رسیدن به ۱۰ ردیف بایستد.
+  const recentWhere = currentUniversityId
+    ? sql`where l."studentId" in (
+            select st2.id from students st2
+            where st2."universityId" = ${currentUniversityId} or st2."universityId" is null
+          )`
+    : sql``;
+
+  // ── هر شش کوئری مستقل‌اند؛ قبلاً پشتِ سرِ هم اجرا می‌شدند و تأخیرشان جمع
+  //    می‌شد (۶ رفت‌وبرگشتِ سریالی به دیتابیس). حالا موازی‌اند.
+  const [totRes, debtorsRes, pendingRes, recentRes, depositTypeRes, byMethodRes] = await Promise.all([
+    // ۱) جمع کل شارژ/وصول و تعداد تراکنش‌ها
+    db.execute(sql`
       select
         coalesce(sum(case when "transactionType" in ('TUITION_CHARGE','CHARGE') then amount else 0 end),0)::float8 as charged,
         coalesce(sum(case when "transactionType" in ('PAYMENT','CREDIT') then amount else 0 end),0)::float8 as paid,
         count(*)::int as txns
-      from student_ledger ${ledgerScope}`)
-  ).rows as unknown as { charged: number; paid: number; txns: number }[];
+      from student_ledger ${ledgerScope}`),
 
-  // ── ماندهٔ هر دانشجو و استخراج بدهکاران ──
-  const debtors = (
-    await db.execute(sql`
+    // ۲) ماندهٔ هر دانشجو و استخراج بدهکاران
+    db.execute(sql`
       select b.bal::float8 as bal, st."studentCode", u."firstName", u."lastName"
       from (
         select "studentId",
@@ -57,14 +93,10 @@ export default async function StudentFinancePage() {
       join users u on u.id = st."userId"
       where b.bal < 0 ${studentScope}
       order by b.bal asc
-      limit 12`)
-  ).rows as unknown as { bal: number; studentCode: string; firstName: string; lastName: string }[];
+      limit 12`),
 
-  const totalDebt = debtors.reduce((s, d) => s + -d.bal, 0);
-
-  // ── پرونده‌های در انتظار اقدام مالی ──
-  const pending = (
-    await db.execute(sql`
+    // ۳) پرونده‌های در انتظار اقدام مالی
+    db.execute(sql`
       select r."trackingCode", r.status, pd.title, ps.title as step, u."firstName", u."lastName"
       from student_requests r
       join process_steps ps on ps.id = r."currentStepId"
@@ -73,28 +105,82 @@ export default async function StudentFinancePage() {
       left join process_definitions pd on pd.id = r."processId"
       where ps."roleCode" in ('FINANCE_EXPERT','FINANCE')
         and r.status not in ('APPROVED','REJECTED','CANCELLED') ${requestScope} ${studentScope}
-      order by r.id desc limit 10`)
-  ).rows as unknown as { trackingCode: string; status: string; title: string | null; step: string; firstName: string; lastName: string }[];
+      order by r.id desc limit 10`),
 
-  // ── آخرین تراکنش‌های دفتر مالی ──
-  const recent = (
-    await db.execute(sql`
+    // ۴) آخرین تراکنش‌های دفتر مالی
+    db.execute(sql`
       select l."transactionType", l.amount::float8 as amount, l.description, l."createdAt",
+             l."depositType", l."depositDate",
              st."studentCode", u."firstName", u."lastName"
-      from student_ledger l
+      from (
+        select * from student_ledger l ${recentWhere} order by l.id desc limit 10
+      ) l
       join students st on st.id = l."studentId"
       join users u on u.id = st."userId"
-      where 1=1 ${studentScope}
-      order by l.id desc limit 10`)
-  ).rows as unknown as {
-    transactionType: string;
-    amount: number;
-    description: string | null;
-    createdAt: Date | null;
+      order by l.id desc`),
+
+    // ۵) گزینه‌های فیلتر: انواع واریزِ موجود در دفتر (هم‌گام با داده پس از بک‌فیل)
+    db.execute(sql`
+      select distinct coalesce(l."depositType", 'نامشخص / بدون شرح') as dt
+      from student_ledger l
+      where l."transactionType" = 'PAYMENT' ${payScope}
+      order by 1`),
+
+    // ۶) تفکیک وصولی بر اساس «نوع واریز»
+    // از ستون ساختاریافتهٔ depositType استفاده می‌کند (پس از بک‌فیلِ مهاجرت ۰۱۱۹
+    // مقدارش از متنِ description پر شده است)؛ گزارش‌گیری دیگر به متنِ شرح وابسته نیست.
+    db.execute(sql`
+      select
+        coalesce(l."depositType", 'نامشخص / بدون شرح') as deposit_type,
+        count(*)::int as txn_count,
+        coalesce(sum(l.amount), 0)::float8 as total_amount
+      from student_ledger l
+      where l."transactionType" = 'PAYMENT' ${payScope} ${filterSql}
+      group by 1
+      order by 2 desc`),
+  ]);
+
+  const [tot] = totRes.rows as unknown as { charged: number; paid: number; txns: number }[];
+
+  const debtors = debtorsRes.rows as unknown as {
+    bal: number;
     studentCode: string;
     firstName: string;
     lastName: string;
   }[];
+
+  const pending = pendingRes.rows as unknown as {
+    trackingCode: string;
+    status: string;
+    title: string | null;
+    step: string;
+    firstName: string;
+    lastName: string;
+  }[];
+
+  const recent = recentRes.rows as unknown as {
+    transactionType: string;
+    amount: number;
+    description: string | null;
+    createdAt: Date | null;
+    depositType: string | null;
+    depositDate: Date | null;
+    studentCode: string;
+    firstName: string;
+    lastName: string;
+  }[];
+
+  const depositTypeOptions = depositTypeRes.rows as unknown as { dt: string }[];
+  const byMethod = byMethodRes.rows as unknown as {
+    deposit_type: string;
+    txn_count: number;
+    total_amount: number;
+  }[];
+
+  const totalDebt = debtors.reduce((s, d) => s + -d.bal, 0);
+  const methodTotal = byMethod.reduce((s, r) => s + r.total_amount, 0);
+  const methodCount = byMethod.reduce((s, r) => s + r.txn_count, 0);
+  const pct = (v: number) => (methodTotal ? (v / methodTotal) * 100 : 0);
 
   return (
     <div className="space-y-4" dir="rtl">
@@ -105,7 +191,7 @@ export default async function StudentFinancePage() {
             <h1 className="text-lg font-black sm:text-xl">💳 امور مالی دانشجویان</h1>
             <p className="mt-1 text-xs text-emerald-50/90">شهریه، دفتر مالی دانشجویان و پرونده‌های در انتظار اقدام مالی</p>
           </div>
-          <Link
+          <Link prefetch={false}
             href="/admin/finance/reports"
             className="rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-bold backdrop-blur transition hover:bg-white/20"
           >
@@ -202,6 +288,98 @@ export default async function StudentFinancePage() {
         </div>
       </div>
 
+      {/* تفکیک وصولی بر اساس نوع واریز */}
+      <div className="card">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
+          <h2 className="font-bold text-slate-800">تفکیک وصولی بر اساس نوع واریز</h2>
+          <span className="text-xs font-bold text-slate-500">
+            {fa(methodCount)} تراکنش · جمع {fa(methodTotal)} ریال
+          </span>
+        </div>
+
+        {/* فیلتر نوع واریز — فرم GET ساده (سازگار با کامپوننت سرور) */}
+        <form method="get" className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2.5">
+          <label htmlFor="depositType" className="text-xs font-bold text-slate-600">فیلتر نوع واریز:</label>
+          <select
+            id="depositType"
+            name="depositType"
+            defaultValue={depositTypeFilter ?? ''}
+            className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700"
+          >
+            <option value="">همهٔ انواع</option>
+            {depositTypeOptions.map((o) => (
+              <option key={o.dt} value={o.dt}>{o.dt}</option>
+            ))}
+          </select>
+          <button type="submit" className="rounded-lg bg-emerald-600 px-3 py-1 text-xs font-bold text-white transition hover:bg-emerald-700">
+            اعمال فیلتر
+          </button>
+          {depositTypeFilter && (
+            <a href="/admin/student-finance" className="text-xs font-bold text-rose-600 hover:underline">حذف فیلتر</a>
+          )}
+        </form>
+
+        <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 p-2.5 text-2xs font-bold leading-5 text-amber-900">
+          ⚠️ این تفکیک از متنِ شرحِ ردیف‌های منتقل‌شده از سیستم قدیمی استخراج شده است
+          («پرداخت از سیستم قدیمی — فیش N (نوع واریز)»). <b>تاریخ واریز واقعی در مهاجرت حفظ نشده</b>
+          و جداول جزئیاتِ چک و پرداخت آنلاین خالی‌اند؛ برای گزارشِ تاریخ‌دار باید داده از سیستم قدیمی دوباره وارد شود.
+        </p>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-right text-sm rt">
+            <thead>
+              <tr className="text-xs text-slate-500 border-b border-slate-200">
+                <th className="p-2">نوع واریز</th>
+                <th className="p-2">تعداد تراکنش</th>
+                <th className="p-2">جمع مبلغ (ریال)</th>
+                <th className="p-2">سهم</th>
+              </tr>
+            </thead>
+            <tbody>
+              {byMethod.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="p-5 text-center text-slate-400">
+                    پرداختی در دفتر مالی ثبت نشده است.
+                  </td>
+                </tr>
+              )}
+              {byMethod.map(r => (
+                <tr key={r.deposit_type} className="border-t border-slate-100">
+                  <td className="p-2 font-semibold text-slate-800">{r.deposit_type}</td>
+                  <td className="p-2 text-slate-600">{fa(r.txn_count)}</td>
+                  <td className={`p-2 font-bold ${r.total_amount < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+                    {fa(r.total_amount)}
+                  </td>
+                  <td className="p-2">
+                    <div className="flex items-center gap-2">
+                      <div className="h-1.5 w-16 overflow-hidden rounded-full bg-slate-200">
+                        <div
+                          className="h-full rounded-full bg-indigo-500"
+                          style={{ width: `${Math.min(100, Math.abs(pct(r.total_amount)))}%` }}
+                        />
+                      </div>
+                      <span className="text-2xs font-bold text-slate-500" dir="ltr">
+                        {pct(r.total_amount).toFixed(1)}%
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            {byMethod.length > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-slate-300 bg-slate-50 font-black text-slate-800">
+                  <td className="p-2">جمع کل</td>
+                  <td className="p-2">{fa(methodCount)}</td>
+                  <td className="p-2">{fa(methodTotal)}</td>
+                  <td className="p-2 text-xs text-slate-500">۱۰۰٪</td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </div>
+      </div>
+
       {/* آخرین تراکنش‌ها */}
       <div className="card">
         <h2 className="font-bold text-slate-800 mb-3 border-b border-slate-100 pb-2">آخرین تراکنش‌های دفتر مالی</h2>
@@ -212,6 +390,8 @@ export default async function StudentFinancePage() {
                 <th className="p-2">تاریخ</th>
                 <th className="p-2">دانشجو</th>
                 <th className="p-2">نوع</th>
+                <th className="p-2">نوع واریز</th>
+                <th className="p-2">تاریخ واریز</th>
                 <th className="p-2">مبلغ (ریال)</th>
                 <th className="p-2">شرح</th>
               </tr>
@@ -219,7 +399,7 @@ export default async function StudentFinancePage() {
             <tbody>
               {recent.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="p-5 text-center text-slate-400">
+                  <td colSpan={7} className="p-5 text-center text-slate-400">
                     تراکنشی در دفتر مالی ثبت نشده است.
                   </td>
                 </tr>
@@ -231,9 +411,13 @@ export default async function StudentFinancePage() {
                   </td>
                   <td className="p-2 text-slate-800">
                     {t.firstName} {t.lastName}
-                    <span className="text-[10px] font-mono text-slate-400 mr-1" dir="ltr">{t.studentCode}</span>
+                    <span className="text-3xs font-mono text-slate-400 mr-1" dir="ltr">{t.studentCode}</span>
                   </td>
                   <td className="p-2 text-xs">{txFa(t.transactionType)}</td>
+                  <td className="p-2 text-xs text-slate-600">{t.depositType ?? '—'}</td>
+                  <td className="p-2 text-xs text-slate-500">
+                    {t.depositDate ? new Date(t.depositDate).toLocaleDateString('fa-IR') : '—'}
+                  </td>
                   <td className="p-2 font-bold text-slate-700">{fa(t.amount)}</td>
                   <td className="p-2 text-xs text-slate-500 truncate max-w-[220px]">{t.description ?? '—'}</td>
                 </tr>

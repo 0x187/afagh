@@ -5,6 +5,7 @@ import { exportReport, runReport, type FilterOptions, type ReportResult } from '
 import { LINK_CARDS } from './report-links';
 import { faIncludes } from '@/lib/persian-search';
 import { faNum, formatReportCell as fmtCell } from '@/lib/report-format';
+import ReportPrint from '@/components/ui/ReportPrint';
 
 /** ارقام لاتین → فارسی (بدون تبدیل عدد) */
 type ReportCat = 'students' | 'probation' | 'program' | 'exams' | 'classes' | 'finance' | 'research';
@@ -79,10 +80,25 @@ const CARDS: Card[] = [
   { kind: 'staff-list', cat: 'classes', icon: '👨‍🏫', title: 'اساتید', needsTerm: true },
   { kind: 'staff-courses', cat: 'classes', icon: '📚', title: 'استادان مدرس دروس', needsTerm: true },
   { kind: 'staff-timetable', cat: 'classes', icon: '🗓', title: 'برنامه هفتگی اساتید', needsTerm: true },
+  // تشکیل کلاس استادان — معیار: ثبتِ حضور استاد برای جلسه (professor_class_attendance)
+  { kind: 'prof-formation-summary', cat: 'classes', icon: '📊', title: 'تشکیل کلاس استادان (خلاصه)', needsTerm: true },
+  { kind: 'prof-formation-detail', cat: 'classes', icon: '📚', title: 'تشکیل کلاس استادان (به تفکیک درس)', needsTerm: true },
+  { kind: 'prof-formation-none', cat: 'classes', icon: '🚫', title: 'استادان بدون جلسهٔ تشکیل‌شده', needsTerm: true },
+  { kind: 'prof-sessions-unformed', cat: 'classes', icon: '⏳', title: 'جلسات تشکیل‌نشده', needsTerm: true, customs: [{ key: 'dateFrom', title: 'از تاریخ' }, { key: 'dateTo', title: 'تا تاریخ' }] },
   { kind: 'attendance-list', cat: 'classes', icon: '📝', title: 'حضور و غیاب', needsTerm: true },
   // مالی
   { kind: 'tuition-tariff', cat: 'finance', icon: '💰', title: 'تعرفه تحصیلی', needsTerm: true },
   { kind: 'tuition-statement', cat: 'finance', icon: '🧾', title: 'صورت‌حساب شهریه', needsTerm: true },
+  // ── گزارش‌های پرداختی (هم‌ریخت با اسناد رسمی سما) ──
+  { kind: 'total-payments', cat: 'finance', icon: '📊', title: 'گزارش کل پرداختی دانشجویان' },
+  { kind: 'student-payments', cat: 'finance', icon: '🧾', title: 'گزارش پرداختی دانشجویان (تفصیلی)', needsTerm: true },
+  { kind: 'term-payments', cat: 'finance', icon: '💳', title: 'گزارش مبلغ پرداختی نیمسال', needsTerm: true },
+  { kind: 'accounting-voucher', cat: 'finance', icon: '📑', title: 'سند حسابداری (دفتر روزنامه)', needsTerm: true, customs: [{ key: 'voucherNo', title: 'شماره سند' }] },
+  { kind: 'term-financial', cat: 'finance', icon: '📈', title: 'گزارش مالی نیمسال (تجمیعی)', needsTerm: true },
+  { kind: 'tuition-overview', cat: 'finance', icon: '🧮', title: 'مدیریت کلان وضعیت شهریه (هر دانشجو)', needsTerm: true },
+  { kind: 'tuition-faculty-detail', cat: 'finance', icon: '🏛️', title: 'تفصیلی مالی (دانشکده × مقطع)', needsTerm: true },
+  { kind: 'faculty-financial', cat: 'finance', icon: '🏢', title: 'گزارش مالی دانشکده‌ها', needsTerm: true },
+  { kind: 'major-financial', cat: 'finance', icon: '📚', title: 'گزارش مالی نیمسال (مقطع × رشته)', needsTerm: true },
   // پژوهش
   { kind: 'proposal-cap', cat: 'research', icon: '🎓', title: 'ظرفیت پروپوزال استادان', soon: true },
   { kind: 'pending-requests', cat: 'research', icon: '⏳', title: 'درخواست‌های درانتظار' },
@@ -115,7 +131,11 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
   const [kind, setKind] = useState<string>(initialKind ?? 'active-term');
   const [cat, setCat] = useState<ReportCat | undefined>(undefined);
   const [search, setSearch] = useState('');
-  const [term, setTerm] = useState(initialTerm || opts.latestTerm);
+  const initialTermCodes = (initialTerm ?? '').split(/[,،\s]+/).map(s => s.trim()).filter(Boolean);
+  const [term, setTerm] = useState(initialTermCodes[0] || opts.latestTerm);
+  /** حالت فیلتر ترم: یک ترم / چند ترم / همهٔ ترمها (بدون فیلتر) */
+  const [termMode, setTermMode] = useState<'one' | 'many' | 'all'>(initialTermCodes.length > 1 ? 'many' : 'one');
+  const [manyTerms, setManyTerms] = useState<string[]>(initialTermCodes.length > 1 ? initialTermCodes : []);
   const [degreeId, setDegreeId] = useState(0);
   const [facultyId, setFacultyId] = useState(0);
   const [departmentId, setDepartmentId] = useState(0);
@@ -124,6 +144,10 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
   const [q, setQ] = useState('');
   const [nationalCode, setNationalCode] = useState('');
   const [miss, setMiss] = useState('national');
+  /** وضعیت تحصیلی: ALL = همه، وگرنه کد دقیق (ACTIVE/GRADUATED/…) */
+  const [status, setStatus] = useState('ALL');
+  /** دامنه: all = کل دوره، term = فقط نیمسالِ انتخاب‌شده */
+  const [scopeMode, setScopeMode] = useState<'all' | 'term'>('all');
   const [universityId, setUniversityId] = useState(initialUniversityId ?? 0);
   const [extra, setExtra] = useState<Record<string, string>>(initialExtra ?? {});
   const [res, setRes] = useState<ReportResult | null>(null);
@@ -151,6 +175,7 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
   const COURSE_LEVEL_KINDS = new Set([
     'weekly-timetable', 'room-conflicts', 'empty-rooms', 'low-enrollment', 'makeup-courses',
     'staff-list', 'staff-courses', 'staff-timetable', 'payesh',
+    'prof-formation-summary', 'prof-formation-detail', 'prof-formation-none', 'prof-sessions-unformed',
     'tuition-tariff', 'letter-templates', 'payroll-overview', 'bi-teaching-quality',
     'bi-facilities', 'graduation-dossiers', 'grade-audit-log',
   ]);
@@ -160,13 +185,22 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
     if (cat && !visibleCards.some(c => c.cat === cat)) setCat(undefined);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allowedKinds, scope]);
-  const filters = { term, degreeId, facultyId, departmentId, majorId, entryYear, q: q.trim(), nationalCode: nationalCode.trim(), miss, page: 1, universityId, ...extra };
+  // «همهٔ ترمها» = term خالی (همهٔ ماژولهای r-*.ts آن را «بدون فیلتر» میگیرند)؛
+  // «چند ترم» = فهرست کدها در f.terms، سرور آنها را جدا اجرا و ادغام میکند.
+  const effectiveTerm = termMode === 'all' ? '' : termMode === 'many' ? (manyTerms[0] ?? '') : term;
+  const multiTerms = termMode === 'many' ? manyTerms.join(',') : undefined;
+  const filters = { term: effectiveTerm, terms: multiTerms, degreeId, facultyId, departmentId, majorId, entryYear, q: q.trim(), nationalCode: nationalCode.trim(), miss, page: 1, universityId, status, scope: scopeMode, ...extra };
 
-  const run = async (page = 1) => {
+  const run = async (page = 1, kindOverride?: string) => {
+    const k = kindOverride ?? kind;
+    if (termMode === 'many' && manyTerms.length === 0 && page === 1) {
+      setErr('دستکم یک ترم انتخاب کنید، یا حالت «همهٔ ترمها» را بزنید.');
+      return;
+    }
     setLoading(true);
     setErr('');
     try {
-      setRes(await runReport(kind, { ...filters, page }));
+      setRes(await runReport(k, { ...filters, page }));
       setTimeout(() => {
         document.getElementById('report-result')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 50);
@@ -177,14 +211,20 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
     }
   };
 
+  /**
+   * انتخاب کارت گزارش = **فقط انتخاب**؛ هیچ درخواستی به سرور نمی‌رود.
+   *
+   * چرا: کاربر باید پیش از اجرا بتواند ترم/مقطع/دانشکده/رشته/وضعیت/دامنه و
+   * جست‌وجو را تنظیم کند. نسخهٔ قبل با `void run(1, k)` بلافاصله شروع به
+   * لود می‌کرد (و هنگام ورود با `?kind=...` یک `useEffect` هم اجرای خودکار
+   * داشت)، یعنی فیلترها عملاً بعد از اجرا تعریف می‌شدند و نتیجهٔ اول بیهوده
+   * بود. اجرا فقط با دکمهٔ صریح «▶ اجرای گزارش» (یا Enter در جست‌وجو)
+   * انجام می‌شود.
+   */
   const pick = (k: string) => {
     setKind(k);
     setRes(null);
     setErr('');
-    setTimeout(() => {
-      const el = document.getElementById('report-result');
-      void el;
-    }, 0);
   };
 
   const doExport = async () => {
@@ -265,7 +305,7 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
                     : 'bg-gradient-to-b from-white to-slate-100 border-slate-300 text-slate-700 hover:border-indigo-300 hover:shadow'}`}
             >
               <span className="text-2xl">{c.icon}</span>
-              <span>{c.title}{c.soon && <span className="block text-[10px] font-normal">به‌زودی</span>}</span>
+              <span>{c.title}{c.soon && <span className="block text-3xs font-normal">به‌زودی</span>}</span>
             </button>
           ))}
         </div>
@@ -285,12 +325,41 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
               </label>
             )}
             {card?.needsTerm && (
-              <label className="flex items-center gap-1">
+              <div className="flex flex-wrap items-center gap-1.5">
                 <span className="font-bold text-slate-600">ترم:</span>
-                <select value={term} onChange={e => setTerm(e.target.value)} className="bg-slate-50 border border-slate-300 rounded px-2 py-1.5 font-mono" dir="ltr">
-                  {opts.terms.map(t => <option key={t.code} value={t.code}>{t.code}</option>)}
+                <select
+                  value={termMode}
+                  onChange={e => setTermMode(e.target.value === 'many' ? 'many' : e.target.value === 'all' ? 'all' : 'one')}
+                  className="bg-indigo-50 border border-indigo-300 rounded px-2 py-1.5 font-bold"
+                  title="یک ترم، چند ترم بهصورت همزمان، یا همهٔ ترمها بدون فیلتر"
+                >
+                  <option value="one">یک ترم</option>
+                  <option value="many">چند ترم…</option>
+                  <option value="all">همهٔ ترمها</option>
                 </select>
-              </label>
+                {termMode === 'one' && (
+                  <select value={term} onChange={e => setTerm(e.target.value)} className="bg-slate-50 border border-slate-300 rounded px-2 py-1.5 font-mono" dir="ltr">
+                    {opts.terms.map(t => <option key={t.code} value={t.code}>{t.code}</option>)}
+                  </select>
+                )}
+                {termMode === 'many' && (
+                  <div className="w-full flex flex-wrap items-center gap-1.5 rounded border border-slate-200 bg-slate-50 p-2 max-h-28 overflow-y-auto">
+                    <button type="button" onClick={() => setManyTerms(opts.terms.map(t => t.code))} className="px-2 py-1 bg-white border border-slate-300 rounded font-bold text-2xs">انتخاب همه</button>
+                    <button type="button" onClick={() => setManyTerms([])} className="px-2 py-1 bg-white border border-slate-300 rounded font-bold text-2xs">پاک کردن</button>
+                    {opts.terms.map(t => (
+                      <label key={t.code} className="flex items-center gap-1 px-1.5 py-0.5 bg-white border border-slate-200 rounded font-mono text-2xs" dir="ltr">
+                        <input
+                          type="checkbox"
+                          checked={manyTerms.includes(t.code)}
+                          onChange={e => setManyTerms(prev => e.target.checked ? [...prev, t.code] : prev.filter(x => x !== t.code))}
+                        />
+                        {t.title || t.code} ({t.code})
+                      </label>
+                    ))}
+                    <span className="font-extrabold text-indigo-700 text-2xs">{faNum(manyTerms.length)} ترم انتخاب شد</span>
+                  </div>
+                )}
+              </div>
             )}
             <label className="flex items-center gap-1">
               <span className="font-bold text-slate-600">مقطع:</span>
@@ -436,7 +505,7 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
                     <option value="PROF">کد استاد و ساعت درس</option>
                   </select>
                 </label>
-                <label className="flex items-center gap-1 pb-2 text-[11px] font-bold text-slate-700">
+                <label className="flex items-center gap-1 pb-2 text-2xs font-bold text-slate-700">
                   <input type="checkbox" checked={extra.showFinance === '1'} onChange={e => setExtra({ ...extra, showFinance: e.target.checked ? '1' : '' })} />
                   نمایش وضعیت مالی
                 </label>
@@ -451,6 +520,42 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
                   placeholder="کد ملی..."
                   className="bg-slate-50 border border-slate-300 rounded px-2 py-1.5 w-36 font-mono" dir="ltr"
                 />
+              </label>
+            )}
+            {/* ── وضعیت تحصیلی + دامنهٔ گزارش (همهٔ گزارش‌ها) ── */}
+            {showStudentFilters && (
+              <label className="flex items-center gap-1">
+                <span className="font-bold text-slate-600">وضعیت تحصیلی:</span>
+                <select
+                  value={status}
+                  onChange={e => setStatus(e.target.value)}
+                  className="bg-slate-50 border border-slate-300 rounded px-2 py-1.5"
+                >
+                  <option value="ALL">همهٔ وضعیت‌ها</option>
+                  <option value="ACTIVE">در حال تحصیل</option>
+                  <option value="GRADUATED">فارغ‌التحصیل</option>
+                  <option value="SUSPENDED">محروم از تحصیل</option>
+                  <option value="WITHDRAWN">انصراف</option>
+                  <option value="EXPELLED">اخراج</option>
+                  <option value="TRANSFERRED">انتقالی / میهمان</option>
+                  <option value="NO_SHOW">عدم مراجعه</option>
+                  <option value="DECEASED">فوت</option>
+                  <option value="UNKNOWN">نامشخص</option>
+                </select>
+              </label>
+            )}
+            {showStudentFilters && (
+              <label className="flex items-center gap-1">
+                <span className="font-bold text-slate-600">دامنه:</span>
+                <select
+                  value={scopeMode}
+                  onChange={e => setScopeMode(e.target.value === 'term' ? 'term' : 'all')}
+                  className="bg-slate-50 border border-slate-300 rounded px-2 py-1.5"
+                  title="کل دوره = همهٔ دانشجویان؛ نیمسال = فقط دانشجویانِ فعال در ترم انتخاب‌شده"
+                >
+                  <option value="all">کل دوره</option>
+                  <option value="term">فقط همین نیمسال</option>
+                </select>
               </label>
             )}
             {kind === 'incomplete' && (
@@ -483,9 +588,31 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
               {loading ? '⏳ در حال اجرا...' : '▶ اجرای گزارش'}
             </button>
             {res && res.rows.length > 0 && (
-              <button onClick={doExport} disabled={exporting} className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded disabled:opacity-50 mr-auto">
-                {exporting ? '⏳...' : '📥 خروجی Excel (CSV)'}
-              </button>
+              <>
+                <button onClick={doExport} disabled={exporting} className="px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded disabled:opacity-50 mr-auto">
+                  {exporting ? '⏳...' : '📥 خروجی Excel (CSV)'}
+                </button>
+                <ReportPrint
+                  title={card?.title ?? 'گزارش'}
+                  subtitle={[
+                    card?.needsTerm
+                      ? termMode === 'all'
+                        ? 'همهٔ ترمها'
+                        : termMode === 'many'
+                          ? `ترمهای ${manyTerms.map(faNum).join('، ')}`
+                          : `ترم ${faNum(term)}`
+                      : null,
+                    scopeMode === 'term' ? 'فقط همین نیمسال' : 'کل دوره',
+                    `${faNum(res.total)} رکورد`,
+                  ].filter(Boolean).join('  •  ')}
+                  columns={res.columns}
+                  rows={res.rows}
+                  summary={res.summary}
+                  universityTitle={opts.universityTitle}
+                  universityLogoUrl={opts.universityLogoUrl}
+                  signers={opts.signers}
+                />
+              </>
             )}
           </div>
         </div>
@@ -493,12 +620,16 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
 
       {/* پیوند به صفحات تخصصی — جمع‌شونده در انتها تا مسیر اجرا→نتیجه تمیز بماند */}
       {/* نتیجه */}
-      <div id="report-result" className="bg-white border border-slate-300 rounded-xl shadow-sm overflow-hidden scroll-mt-4">
+      <div id="report-result" className="bg-white border border-slate-300 rounded-xl shadow-sm overflow-hidden scroll-mt-4 print:hidden">
         {err ? (
           <p className="p-8 text-center text-rose-700 bg-rose-50 text-sm font-bold">خطا: {err}</p>
+        ) : loading ? (
+          <p className="p-8 text-center text-slate-600 text-sm font-bold" role="status" aria-live="polite">
+            ⏳ در حال اجرای گزارش «{card?.title}»…
+          </p>
         ) : !res ? (
           <p className="p-8 text-center text-slate-500 text-sm">
-            گزارش «{card?.title}» را انتخاب و <b>اجرای گزارش</b> را بزنید.
+            گزارش «{card?.title}» انتخاب شد. ابتدا فیلترهای بالا (ترم، مقطع، دانشکده، وضعیت، دامنه …) را تنظیم کنید، سپس «▶ اجرای گزارش» را بزنید.
           </p>
         ) : res.rows.length === 0 ? (
           <div className="p-6 text-center">
@@ -513,14 +644,14 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
               <table className="w-full text-right text-xs rt">
                 <thead className="bg-slate-100 border-b border-slate-300 font-bold text-slate-700 sticky top-0">
                   <tr>
-                    {res.columns.map(c => <th key={c.key} className="p-2 whitespace-nowrap">{c.title}</th>)}
+                    {res.columns.map(c => <th key={c.key} className="p-2 print:whitespace-normal">{c.title}</th>)}
                   </tr>
                 </thead>
                 <tbody>
                   {res.rows.map((r, i) => (
                     <tr key={i} className="border-b border-slate-200 hover:bg-slate-50">
                       {res.columns.map(c => (
-                        <td key={c.key} className="p-2 whitespace-nowrap font-mono" dir={/^[0-9]/.test(String(r[c.key] ?? '')) ? 'ltr' : 'auto'}>
+                        <td key={c.key} className="p-2 font-mono print:whitespace-normal print:break-words" dir={/^[0-9]/.test(String(r[c.key] ?? '')) ? 'ltr' : 'auto'}>
                           {fmtCell(r[c.key], c.format)}
                         </td>
                       ))}
@@ -539,9 +670,8 @@ export default function ReportsClient({ opts, initialUniversityId, allowedKinds,
           </>
         )}
       </div>
-
       {/* پیوند به صفحات تخصصی — جمع‌شونده در انتهای صفحه */}
-      <div className="bg-white border border-slate-300 rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-slate-300 rounded-xl shadow-sm overflow-hidden print:hidden">
         <button
           onClick={() => setShowLinks(v => !v)}
           className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-extrabold text-slate-600 hover:bg-slate-50"

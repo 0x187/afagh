@@ -45,7 +45,7 @@ export default async function VerifyEnrollmentPage({ params }: { params: Promise
               </h2>
               <p className="mx-auto mt-2 max-w-md text-xs leading-6 text-slate-300">{res.message}</p>
             </div>
-            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-3 text-[11px] leading-5 text-slate-400">
+            <div className="rounded-2xl border border-slate-800 bg-slate-950 p-3 text-2xs leading-5 text-slate-400">
               دانشجو باید از مسیر <span className="font-mono text-slate-200">پنل دانشجو ← تأییدیه انتخاب واحد</span> توکن تازه
               دریافت کند.
             </div>
@@ -73,10 +73,10 @@ export default async function VerifyEnrollmentPage({ params }: { params: Promise
             )}
             <div>
               <h1 className="text-sm font-black text-white">تأییدیهٔ انتخاب واحد دانشگاه آفاق</h1>
-              <p className="text-[11px] text-emerald-300">استعلام برخط · {res.termTitle}</p>
+              <p className="text-2xs text-emerald-300">استعلام برخط · {res.termTitle}</p>
             </div>
           </div>
-          <span className="rounded-full border border-emerald-600/50 bg-emerald-950 px-2.5 py-1 text-[10px] font-black text-emerald-300">
+          <span className="rounded-full border border-emerald-600/50 bg-emerald-950 px-2.5 py-1 text-3xs font-black text-emerald-300">
             ✓ معتبر
           </span>
         </div>
@@ -152,7 +152,7 @@ export default async function VerifyEnrollmentPage({ params }: { params: Promise
           </div>
         </div>
 
-        <div className="text-center font-mono text-[10px] text-slate-500">
+        <div className="text-center font-mono text-3xs text-slate-500">
           استعلام زنده در {new Date(res.checkedAt).toLocaleString('fa-IR')}
         </div>
 

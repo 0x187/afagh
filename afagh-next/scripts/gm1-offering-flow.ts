@@ -67,7 +67,7 @@ const submitDeps = {
   nextWaitlistPosition: async () => 0,
   warmupCapacities: async () => 0,
   evaluateRegulations: async () => ({ effectiveMaxUnits: 40 }),
-  buildPrereq: async () => ({ ruleByCourse: new Map<number, any>(), passed: new Map<string, number>(), titles: new Map<string, string>(), defaultPassing: 10 }),
+  buildPrereq: async () => ({ ruleByCourse: new Map<number, any>(), passed: new Map<string, number>(), titles: new Map<string, string>(), defaultPassing: 10, unitsPassed: 0, semesterNo: 1 }),
   getDebtThreshold: async () => 0,
   notifyEnrollmentDone: async () => {},
 };

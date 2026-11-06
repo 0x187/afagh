@@ -1,6 +1,6 @@
-﻿import { and, asc, desc, eq } from 'drizzle-orm';
+﻿import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import type { ReactNode } from 'react';
-import { academic_terms, course_offerings, courses, degree_level_configs, educational_regulations, enrollments, majors, students, universities, users } from '@/db/schema';
+import { academic_terms, course_offerings, courses, degree_level_configs, educational_regulations, enrollments, grade_objections, majors, process_definitions, student_requests, students, universities, users } from '@/db/schema';
 import { db, withUserRls } from '@/db';
 import { getStudentByUser, requireRole } from '@/lib/auth';
 import { calculateOfficialGPA, getRegulationConfig } from '@/lib/regulations-engine';
@@ -12,8 +12,8 @@ import { isDemoStudentUser } from '@/lib/demo-accounts';
 import { DEMO_STUDENT } from '@/lib/demo-student-data';
 import { COURSE_TYPE_FA } from '@/lib/student-labels';
 import { sortTermsForTranscript, groupTermsByAcademicYear, EQUIVALENCE_GROUP_YEAR } from '@/lib/scheduling-core';
-import { getTermScope } from '@/lib/term-scope';
 import PrintTranscriptButton from '@/components/PrintTranscriptButton';
+import GradeObjectionPanel from './GradeObjectionPanel';
 
 export const dynamic = 'force-dynamic';
 
@@ -29,7 +29,11 @@ const statusFa: Record<string, string> = {
   GRADUATED: 'فارغ‌التحصیل',
 };
 
-export default async function StudentTranscriptPage({ searchParams }: { searchParams: Promise<{ record?: string }> }) {
+export default async function StudentTranscriptPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ record?: string; view?: string; term?: string }>;
+}) {
   const user = await requireRole(['STUDENT']);
   const picked = await getStudentByUser(user.id);
   if (!picked) return <p className="card p-6 text-center text-slate-500">پروندهٔ دانشجویی یافت نشد.</p>;
@@ -72,11 +76,6 @@ export default async function StudentTranscriptPage({ searchParams }: { searchPa
   const [identity] = await db.select({ nationalCode: users.nationalCode }).from(users).where(eq(users.id, user.id)).limit(1);
 
   const demo = await isDemoStudentUser(user.id);
-
-  const termScope = await getTermScope(me.universityId);
-  const filteredTerm = termScope.selectedId
-    ? termScope.terms.find(t => t.id === termScope.selectedId) ?? null
-    : null;
 
   const regRows = me.degreeLevelId
     ? await db.select().from(educational_regulations).where(eq(educational_regulations.degreeLevelId, me.degreeLevelId))
@@ -137,18 +136,39 @@ export default async function StudentTranscriptPage({ searchParams }: { searchPa
       .orderBy(asc(academic_terms.termCode), desc(enrollments.id))
   );
 
-  // دسته‌بندی دروس بر اساس ترم‌ها
-  const scopedRows = filteredTerm ? allRows.filter(r => r.termId === filteredTerm.id) : allRows;
-  const termsMap = new Map<number, { title: string; code: string; isCurrent: boolean; rows: typeof allRows }>();
-  for (const row of scopedRows) {
-    if (!termsMap.has(row.termId)) {
-      termsMap.set(row.termId, {
-        title: row.termTitle,
-        code: row.termCode,
-        isCurrent: !!row.isCurrent,
-        rows: [],
+  // ── دو نمای سند: «کارنامهٔ کل دوره» و «کارنامهٔ نیمسال» ──
+  // پیش‌تر فقط فیلترِ سراسریِ ترم (کوکیِ هدر) بود؛ دانشجو نمی‌فهمید سندش کل
+  // دوره است یا یک نیمسال و دکمهٔ چاپ هم یکی بود. حالا دو سندِ مستقل با آدرس،
+  // عنوان و دکمهٔ چاپ جدا:
+  //     /student/transcript                    → کارنامهٔ کل تحصیلی
+  //     /student/transcript?view=term&term=ID  → کارنامهٔ همان نیمسال
+  const view: 'all' | 'term' = sp?.view === 'term' ? 'term' : 'all';
+  const wantedTermId = Number(sp?.term ?? 0) || 0;
+
+  type TermBucket = { termId: number; title: string; termCode: string; isCurrent: boolean; rows: typeof allRows };
+  const bucketMap = new Map<number, TermBucket>();
+  for (const row of allRows) {
+    if (!bucketMap.has(row.termId)) {
+      bucketMap.set(row.termId, {
+        termId: row.termId, title: row.termTitle, termCode: row.termCode,
+        isCurrent: !!row.isCurrent, rows: [],
       });
     }
+    bucketMap.get(row.termId)!.rows.push(row);
+  }
+  const allTermsAsc = sortTermsForTranscript([...bucketMap.values()]);
+  const currentBucket = allTermsAsc.find(t => t.isCurrent) ?? allTermsAsc[allTermsAsc.length - 1] ?? null;
+  const activeBucket = view === 'term'
+    ? (allTermsAsc.find(t => t.termId === wantedTermId) ?? currentBucket)
+    : null;
+  const scopedRows = activeBucket ? allRows.filter(r => r.termId === activeBucket.termId) : allRows;
+
+  // دسته‌بندی دروس بر اساس ترم‌ها
+  const termsMap = new Map<number, TermBucket>();
+  for (const row of scopedRows) {
+    const base = bucketMap.get(row.termId);
+    if (!base) continue;
+    if (!termsMap.has(row.termId)) termsMap.set(row.termId, { ...base, rows: [] });
     termsMap.get(row.termId)!.rows.push(row);
   }
 
@@ -158,7 +178,7 @@ export default async function StudentTranscriptPage({ searchParams }: { searchPa
   // ۱. معادل‌سازی‌ها اول می‌آیند
   // ۲. بعد ترم‌های تحصیلی بر اساس سال و نیمسال
   const sortedTerms = sortTermsForTranscript(
-    termsList.map(t => ({ termCode: t.code, title: t.title, isCurrent: t.isCurrent, rows: t.rows }))
+    termsList.map(t => ({ termId: t.termId, termCode: t.termCode, title: t.title, isCurrent: t.isCurrent, rows: t.rows }))
   );
 
   const groupedYears = groupTermsByAcademicYear(
@@ -199,18 +219,104 @@ export default async function StudentTranscriptPage({ searchParams }: { searchPa
   }
 
   const totalCumulativeGpa = officialGpaData.totalUnits > 0 ? officialGpaData.gpa.toFixed(2) : '—';
+
+  // ── خلاصهٔ همان نیمسال (نمای «کارنامهٔ نیمسال») ──
+  // معدل نیمسال فقط از دروسِ عددیِ همان ترم ساخته می‌شود؛ آوردن معدل کل روی
+  // سندِ یک نیمسال، سند را گمراه‌کننده می‌کرد. نام‌ها با پیشوند `scope` تا با
+  // متغیرهای محلیِ حلقهٔ ترم (termGpa/termGradedUnits) قاطی نشوند.
+  let scopeEnrolledUnits = 0;
+  let scopePassedUnits = 0;
+  let scopeGradedUnits = 0;
+  let scopeWeightedScore = 0;
+  let scopeFailedUnits = 0;
+  for (const r of scopedRows) {
+    const u = Number(r.units || 0);
+    const isDescriptive = r.gradingType === 'DESCRIPTIVE' || Number(r.grade) === 1 || r.affectsGpa === 0;
+    if (r.status === 'REGISTERED' || r.status === 'PENDING_COUNCIL') scopeEnrolledUnits += u;
+    if (isDescriptive) {
+      if (r.grade != null && Number(r.grade) === 1) scopePassedUnits += u;
+      if (r.grade != null && Number(r.grade) === 0) scopeFailedUnits += u;
+    } else {
+      if (r.grade != null && Number(r.grade) >= 10) scopePassedUnits += u;
+      if (r.grade != null && Number(r.grade) < 10) scopeFailedUnits += u;
+      if (r.grade != null && Number(r.grade) >= 0 && Number(r.grade) <= 20) {
+        scopeGradedUnits += u;
+        scopeWeightedScore += Number(r.grade) * u;
+      }
+    }
+  }
+  const scopeGpa = scopeGradedUnits > 0 ? (scopeWeightedScore / scopeGradedUnits).toFixed(2) : '—';
+  const isTermView = view === 'term' && !!activeBucket;
+  const docTitle = isTermView ? 'کارنامهٔ نیمسال' : 'کارنامهٔ کل تحصیلی دانشجو';
+  const docSubtitle = isTermView
+    ? `ریزنمرات نیمسال ${activeBucket!.title}`
+    : 'ریزنمرات قطعی دوره‌های آموزشی';
   const todayFa = new Date().toLocaleDateString('fa-IR');
 
-  // ── بلوک رسمیت: QR استعلام برخط اصالت کارنامه (مقصد: /verify-transcript/<token>) ──
+  // ── درخواست‌های «کارنامه معتبر» دانشجو + بلوک رسمیت (فقط پس از تأیید) ──
+  const transcriptReqRows = await db
+    .select({
+      id: student_requests.id,
+      status: student_requests.status,
+      trackingCode: student_requests.trackingCode,
+    })
+    .from(student_requests)
+    .innerJoin(process_definitions, eq(process_definitions.id, student_requests.processId))
+    .where(and(eq(process_definitions.code, 'VALID_TRANSCRIPT'), eq(student_requests.studentId, me.id)))
+    .orderBy(desc(student_requests.id));
+
+  const approvedTranscriptReq = transcriptReqRows.find(r => r.status === 'APPROVED') ?? null;
+  const pendingTranscriptReq = transcriptReqRows.find(r => r.status !== 'APPROVED' && r.status !== 'REJECTED') ?? null;
+
+  // رمز تایید (QR) فقط وقتی درخواست تأیید شده باشد صادر می‌شود؛ کارنامهٔ خود‌نمایی فاقد اعتبار است.
   let transcriptQr: { url: string; qr: string; expiresAt: string | null } | null = null;
-  try {
-    const publicBaseUrl = await getPublicBaseUrl();
-    const issued = await issueTranscriptToken(user.id, { id: me.id, code: me.studentCode, universityId: me.universityId });
-    const url = `${publicBaseUrl}/verify-transcript/${encodeURIComponent(issued.token)}`;
-    transcriptQr = { url, qr: await qrSvg(url, { errorCorrectionLevel: 'Q', size: 128, margin: 4 }), expiresAt: issued.expiresAt };
-  } catch (err) {
-    console.warn('transcript qr failed:', err);
+  if (approvedTranscriptReq) {
+    try {
+      const publicBaseUrl = await getPublicBaseUrl();
+      const issued = await issueTranscriptToken(user.id, { id: me.id, code: me.studentCode, universityId: me.universityId });
+      const url = `${publicBaseUrl}/verify-transcript/${encodeURIComponent(issued.token)}`;
+      transcriptQr = { url, qr: await qrSvg(url, { errorCorrectionLevel: 'Q', size: 128, margin: 4 }), expiresAt: issued.expiresAt };
+    } catch (err) {
+      console.warn('transcript qr failed:', err);
+    }
   }
+
+  // ── دادهٔ پنل اعتراض به نمره (کارنامه نیمسال) ──
+  const objectionCourseIds = allRows.map(r => r.id);
+  const objectionExistingRows = objectionCourseIds.length
+    ? await db
+        .select({
+          enrollmentId: grade_objections.enrollmentId,
+          status: grade_objections.status,
+          reviewerNote: grade_objections.reviewerNote,
+        })
+        .from(grade_objections)
+        .where(and(eq(grade_objections.studentId, me.id), inArray(grade_objections.enrollmentId, objectionCourseIds)))
+    : [];
+  const objectionExisting: Record<number, { status: string; note: string | null }> = {};
+  for (const o of objectionExistingRows) {
+    objectionExisting[o.enrollmentId] = { status: o.status, note: o.reviewerNote };
+  }
+  const objectionDeadline = (await getSetting('GRADE_OBJECTION_DEADLINE').catch(() => '')) || null;
+  const objectionWindowOpen =
+    !!objectionDeadline &&
+    /^\d{4}-\d{2}-\d{2}$/.test(objectionDeadline) &&
+    new Date() <= new Date(objectionDeadline + 'T23:59:59');
+  const objectionTerms = academicYears
+    .flatMap(g => g.terms)
+    .map(t => ({
+      termTitle: t.title || `${t.normalized?.displayYear}/${t.normalized?.semester}`,
+      termCode: `${t.normalized?.displayYear ?? ''}/${t.normalized?.semester ?? ''}`,
+      isCurrent: t.isCurrent,
+      rows: t.rows.map(r => ({
+        enrollmentId: r.id,
+        code: r.code,
+        title: r.title,
+        grade: r.grade != null ? Number(r.grade) : null,
+        gradeStatus: r.gradeStatus,
+        isFinalized: r.gradeStatus === 'FINALIZED' || r.grade != null,
+      })),
+    }));
 
   return (
     <div className="space-y-4">
@@ -229,19 +335,65 @@ export default async function StudentTranscriptPage({ searchParams }: { searchPa
               {r.status === 'GRADUATED' ? ' — فارغ‌التحصیل' : ''}
             </a>
           ))}
-          <span className="text-[10px] text-slate-400">هر مقطع کارنامهٔ جداگانه و QR جدا دارد.</span>
+          <span className="text-3xs text-slate-400">هر مقطع کارنامهٔ جداگانه و QR جدا دارد.</span>
         </div>
       )}
-      {/* دکمه چاپ و عملیات بالای سند */}
-      <div className="flex items-center justify-between bg-white p-3 px-4 rounded-xl shadow-sm border border-slate-200 print:hidden">
+      {/* نوار ابزار: انتخاب نمای سند (کل / نیمسال) + چاپ همان نما */}
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white p-3 px-4 shadow-sm print:hidden">
         <div className="flex items-center gap-2">
           <span className="text-xl">📜</span>
           <div>
-            <h2 className="text-sm font-bold text-slate-800">کارنامه کل تحصیلی (نسخه رسمی اداری)</h2>
-            <p className="text-xs text-slate-500">مشاهده ریزنمرات، محاسبه صحیح دروس توصیفی و استناد به آیین‌نامه</p>
+            <h2 className="text-sm font-bold text-slate-800">
+              کارنامه {isTermView ? 'نیمسال' : 'کل'} — نسخهٔ مشاهده‌ای
+            </h2>
+            <p className="text-xs text-slate-500">
+              {docSubtitle} — این نسخه <b>فاقد اعتبار اداری (غیرقابل استناد)</b> است
+            </p>
           </div>
         </div>
-        <PrintTranscriptButton orientation="landscape" />
+        <div className="flex flex-wrap items-center gap-2">
+          {/* دو سند جدا با دکمهٔ جدا */}
+          <div className="flex overflow-hidden rounded-lg border border-slate-300 text-xs font-bold">
+            <a
+              href={`/student/transcript${wantedRecordId ? `?record=${wantedRecordId}` : ''}`}
+              className={view === 'all'
+                ? 'bg-slate-800 px-3 py-1.5 text-white'
+                : 'bg-white px-3 py-1.5 text-slate-600 hover:bg-slate-50'}
+            >
+              کارنامهٔ کل
+            </a>
+            <a
+              href={`/student/transcript?view=term&term=${activeBucket?.termId ?? ''}${wantedRecordId ? `&record=${wantedRecordId}` : ''}`}
+              className={view === 'term'
+                ? 'border-r border-slate-300 bg-slate-800 px-3 py-1.5 text-white'
+                : 'border-r border-slate-300 bg-white px-3 py-1.5 text-slate-600 hover:bg-slate-50'}
+            >
+              کارنامهٔ نیمسال
+            </a>
+          </div>
+          {isTermView && allTermsAsc.length > 0 && (
+            <form method="get" className="flex items-center gap-1">
+              <input type="hidden" name="view" value="term" />
+              {wantedRecordId ? <input type="hidden" name="record" value={wantedRecordId} /> : null}
+              <select
+                name="term"
+                defaultValue={String(activeBucket?.termId ?? '')}
+                className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-700"
+              >
+                {[...allTermsAsc].reverse().map(t => (
+                  <option key={t.termId} value={t.termId}>{t.title}</option>
+                ))}
+              </select>
+              <button type="submit" className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs font-bold text-slate-600 hover:bg-slate-50">
+                نمایش
+              </button>
+            </form>
+          )}
+          <PrintTranscriptButton
+            orientation="landscape"
+            label={isTermView ? 'چاپ کارنامهٔ نیمسال' : 'چاپ کارنامهٔ کل'}
+          />
+        </div>
       </div>
 
       {/* سند رسمی کارنامه (کاغذ رسمی کارنامه دانشگاهی) */}
@@ -255,7 +407,7 @@ export default async function StudentTranscriptPage({ searchParams }: { searchPa
               <p className="font-bold text-slate-800">جمهوری اسلامی ایران</p>
               <p className="font-semibold text-slate-700">وزارت علوم، تحقیقات و فناوری</p>
               {universityTitle ? <p className="font-extrabold text-slate-900 text-sm">{universityTitle}</p> : null}
-              <p className="text-[11px] text-slate-500">معاونت آموزشی و تحصیلات تکمیلی</p>
+              <p className="text-2xs text-slate-500">معاونت آموزشی و تحصیلات تکمیلی</p>
             </div>
 
             {/* ستون وسط (نشان و عنوان سند) */}
@@ -264,13 +416,13 @@ export default async function StudentTranscriptPage({ searchParams }: { searchPa
               <img src={universityLogo} alt={"آرم دانشگاه"} className={"mb-1 h-12 w-12 shrink-0 object-contain"} />
             ) : null}
               <h1 className="text-base font-black tracking-wide text-slate-950 border-b border-slate-800 pb-0.5 px-4">
-                کارنامه کل تحصیلی دانشجو
+                {docTitle}
               </h1>
-              <p className="text-[10px] text-slate-600 mt-0.5">ریزنمرات قطعی دوره‌های آموزشی</p>
+              <p className="text-3xs text-slate-600 mt-0.5">{docSubtitle}</p>
             </div>
 
             {/* ستون چپ (اطلاعات سند) */}
-            <div className="text-left space-y-1 font-mono text-[11px]">
+            <div className="text-left space-y-1 font-mono text-2xs">
               <p><span className="font-sans text-slate-500">شماره پرونده: </span><b>{me.studentCode}</b></p>
               <p><span className="font-sans text-slate-500">تاریخ صدور: </span><b>{todayFa}</b></p>
               <p><span className="font-sans text-slate-500">صفحه: </span><b>۱ از ۱</b></p>
@@ -279,12 +431,21 @@ export default async function StudentTranscriptPage({ searchParams }: { searchPa
           </div>
         </div>
 
+        {/* ۱.۵ نوار «غیرقابل استناد» — باید در **چاپ** هم دیده شود، نه فقط روی صفحه.
+            عمداً «متن + کادر ضخیم» است نه فقط پس‌زمینهٔ رنگی (بسیاری از چاپگرها
+            پس‌زمینه را حذف می‌کنند). متنِ نوار همان سیاست سند است: نسخهٔ مشاهده‌ای
+            تا تأیید کارشناس، سند استنادی نیست و نسخهٔ معتبر از مسیر درخواست صادر می‌شود. */}
+        <div className="tr-unverified-band mb-3 flex flex-wrap items-center justify-between gap-2 border-2 border-amber-700 bg-amber-50 px-3 py-1.5 text-3xs font-black text-amber-950">
+          <span>⚠️ این کارنامه تا تأیید کارشناس امور آموزشی <u>غیرقابل استناد</u> است.</span>
+          <span className="shrink-0 font-mono text-[9px] text-amber-900">نسخهٔ مشاهده‌ای — بدون رمز تایید</span>
+        </div>
+
         {/* ۲. جدول مشخصات هویتی، آموزشی و آیین‌نامه اجرایی */}
         <div className="border border-slate-800 mb-5 overflow-hidden">
-          <div className="bg-slate-100 px-3 py-1 font-bold text-slate-900 border-b border-slate-800 text-[11px]">
+          <div className="bg-slate-100 px-3 py-1 font-bold text-slate-900 border-b border-slate-800 text-2xs">
             مشخصات فردی، تحصیلی و آیین‌نامه ملاک عمل
           </div>
-          <table className="w-full text-right text-[11px] border-collapse rt">
+          <table className="w-full text-right text-2xs border-collapse rt">
             <tbody>
               <tr className="border-b border-slate-300">
                 <td className="p-1.5 bg-slate-50 font-medium text-slate-600 w-1/6 border-l border-slate-300">نام و نام خانوادگی:</td>
@@ -308,7 +469,7 @@ export default async function StudentTranscriptPage({ searchParams }: { searchPa
                 <td className="p-1.5 bg-slate-50 font-medium text-slate-600 border-l border-slate-300">آیین‌نامه ملاک عمل:</td>
                 <td colSpan={3} className="p-1.5 font-semibold text-slate-900">
                   <span className="text-indigo-950 font-bold">{shownRegulation}</span>
-                  <span className="text-slate-500 text-[10px] mr-2">({regPolicy})</span>
+                  <span className="text-slate-500 text-3xs mr-2">({regPolicy})</span>
                 </td>
               </tr>
             </tbody>
@@ -318,8 +479,8 @@ export default async function StudentTranscriptPage({ searchParams }: { searchPa
         {/* ۳. ریزنمرات به تفکیک سال‌های تحصیلی و نیمسال‌ها */}
         {academicYears.length === 0 && (
           <div className="col-span-full p-8 text-center text-slate-400 border border-dashed border-slate-300">
-            {filteredTerm
-              ? `برای نیمسال «${filteredTerm.title}» درسی در کارنامه ثبت نشده است.`
+            {isTermView
+              ? `برای نیمسال «${activeBucket!.title}» درسی در کارنامه ثبت نشده است.`
               : 'هنوز درسی در پرونده کارنامه ثبت نشده است.'}
           </div>
         )}
@@ -395,19 +556,19 @@ export default async function StudentTranscriptPage({ searchParams }: { searchPa
                             )}
                           </span>
                           {termItem.isCurrent && (
-                            <span className="text-[10px] bg-emerald-700 text-white font-bold px-1.5 py-0.2 rounded">
+                            <span className="text-3xs bg-emerald-700 text-white font-bold px-1.5 py-0.2 rounded">
                               جاری
                             </span>
                           )}
                         </div>
-                        <span className="font-mono text-slate-700 text-[10px]" dir="ltr">
+                        <span className="font-mono text-slate-700 text-3xs" dir="ltr">
                           {termItem.normalized.displayYear} / {termItem.normalized.semester}
                         </span>
                       </div>
                     </div>
 
                     {/* جدول دروس */}
-                  <table className="w-full text-right text-[11px] border-collapse rt">
+                  <table className="w-full text-right text-2xs border-collapse rt">
                     <thead>
                       <tr className="bg-slate-100 border-b border-slate-700 font-bold text-slate-800">
                         <th className="p-1 border-l border-slate-300 text-center w-6">ردیف</th>
@@ -445,7 +606,7 @@ export default async function StudentTranscriptPage({ searchParams }: { searchPa
                         return (
                           <tr key={row.id} className="border-b border-slate-200 hover:bg-slate-50">
                             <td className="p-1 border-l border-slate-200 text-center text-slate-600">{rIdx + 1}</td>
-                            <td className="p-1 border-l border-slate-200 text-center font-mono text-[10px]" dir="ltr">{row.code}</td>
+                            <td className="p-1 border-l border-slate-200 text-center font-mono text-3xs" dir="ltr">{row.code}</td>
                             <td className="p-1 border-l border-slate-200 font-semibold text-slate-900">
                               {row.title}
                             </td>
@@ -453,7 +614,7 @@ export default async function StudentTranscriptPage({ searchParams }: { searchPa
                             <td className="p-1 border-l border-slate-200 text-center font-black text-slate-900">
                               {row.grade != null ? (
                                 isDescriptive ? (
-                                  <span className="text-emerald-800 text-[10px]">قبول</span>
+                                  <span className="text-emerald-800 text-3xs">قبول</span>
                                 ) : (
                                   Number(row.grade).toFixed(2)
                                 )
@@ -461,7 +622,7 @@ export default async function StudentTranscriptPage({ searchParams }: { searchPa
                                 <span className="text-slate-400">—</span>
                               )}
                             </td>
-                            <td className="p-1 text-center font-bold text-[10px]">
+                            <td className="p-1 text-center font-bold text-3xs">
                               {resultDisplay}
                             </td>
                           </tr>
@@ -470,7 +631,7 @@ export default async function StudentTranscriptPage({ searchParams }: { searchPa
                     </tbody>
                   </table>
 
-                <div className="bg-slate-100 p-2 border-t border-slate-700 flex items-center justify-between font-bold text-[10px] text-slate-800 mt-auto">
+                <div className="bg-slate-100 p-2 border-t border-slate-700 flex items-center justify-between font-bold text-3xs text-slate-800 mt-auto">
                   <div className="flex gap-2">
                     <span>اخذ: <b className="font-mono">{termUnits}</b></span>
                     <span>گذرانده: <b className="text-emerald-800 font-mono">{termPassed}</b></span>
@@ -488,25 +649,29 @@ export default async function StudentTranscriptPage({ searchParams }: { searchPa
 
         <div className="border-2 border-slate-800 mt-6 overflow-hidden">
           <div className="bg-slate-800 text-white px-3 py-1 font-bold text-center text-xs">
-            خلاصه وضعیت تحصیلی کل دوره تا تاریخ صدور کارنامه
+            {isTermView
+              ? `خلاصه وضعیت نیمسال ${activeBucket!.title}`
+              : 'خلاصه وضعیت تحصیلی کل دوره تا تاریخ صدور کارنامه'}
           </div>
-          <table className="w-full text-center text-[11px] border-collapse font-bold rt">
+          <table className="w-full text-center text-2xs border-collapse font-bold rt">
             <tbody>
               <tr className="bg-slate-100 border-b border-slate-400 text-slate-700">
-                <td className="p-2 border-l border-slate-300">کل واحدهای اخذشده</td>
-                <td className="p-2 border-l border-slate-300">کل واحدهای گذرانده</td>
-                <td className="p-2 border-l border-slate-300">کل واحدهای مردودی</td>
+                <td className="p-2 border-l border-slate-300">{isTermView ? 'واحدهای اخذشده' : 'کل واحدهای اخذشده'}</td>
+                <td className="p-2 border-l border-slate-300">{isTermView ? 'واحدهای گذرانده' : 'کل واحدهای گذرانده'}</td>
+                <td className="p-2 border-l border-slate-300">{isTermView ? 'واحدهای مردودی' : 'کل واحدهای مردودی'}</td>
                 <td className="p-2 border-l border-slate-300">واحدهای مؤثر در معدل</td>
-                <td className="p-2 border-l border-slate-300 bg-slate-200 text-slate-950">معدل کل دوره (GPA)</td>
-                <td className="p-2">وضعیت نهایی دانشجو</td>
+                <td className="p-2 border-l border-slate-300 bg-slate-200 text-slate-950">
+                  {isTermView ? 'معدل نیمسال' : 'معدل کل دوره (GPA)'}
+                </td>
+                <td className="p-2">{isTermView ? 'وضعیت دانشجو' : 'وضعیت نهایی دانشجو'}</td>
               </tr>
               <tr className="text-slate-950 text-xs font-mono">
-                <td className="p-2 border-l border-slate-300">{totalEnrolledUnits} واحد</td>
-                <td className="p-2 border-l border-slate-300 text-emerald-800">{totalPassedUnits} واحد</td>
-                <td className="p-2 border-l border-slate-300 text-red-700">{failedUnits} واحد</td>
-                <td className="p-2 border-l border-slate-300">{totalGradedUnits} واحد</td>
+                <td className="p-2 border-l border-slate-300">{isTermView ? scopeEnrolledUnits : totalEnrolledUnits} واحد</td>
+                <td className="p-2 border-l border-slate-300 text-emerald-800">{isTermView ? scopePassedUnits : totalPassedUnits} واحد</td>
+                <td className="p-2 border-l border-slate-300 text-red-700">{isTermView ? scopeFailedUnits : failedUnits} واحد</td>
+                <td className="p-2 border-l border-slate-300">{isTermView ? scopeGradedUnits : totalGradedUnits} واحد</td>
                 <td className="p-2 border-l border-slate-300 bg-emerald-50 text-emerald-950 font-black text-sm">
-                  {totalCumulativeGpa}
+                  {isTermView ? scopeGpa : totalCumulativeGpa}
                 </td>
                 <td className="p-2 font-sans font-bold text-emerald-800">
                   {statusFa[me.status] ?? me.status}
@@ -514,30 +679,21 @@ export default async function StudentTranscriptPage({ searchParams }: { searchPa
               </tr>
             </tbody>
           </table>
-          {officialGpaData.excludedCount > 0 && (
-            <div className="bg-emerald-50 px-3 py-1.5 border-t border-emerald-200 text-[10px] text-emerald-900 font-medium flex items-center justify-between">
+          {!isTermView && officialGpaData.excludedCount > 0 && (
+            <div className="bg-emerald-50 px-3 py-1.5 border-t border-emerald-200 text-3xs text-emerald-900 font-medium flex items-center justify-between">
               <span>✨ تعداد <b>{officialGpaData.excludedCount} نمره مردودی</b> پس از قبولی مجدد در درس، طبق مصوبه آیین‌نامه (EXCLUDE_IF_PASSED) از مخرج و صورت معدل کل کسر گردید.</span>
               <span className="font-bold text-emerald-950">آیین‌نامه ملاک عمل</span>
             </div>
           )}
         </div>
 
-        {/* ۵. بلوک رسمیت: استعلام برخط اصالت کارنامه */}
-        {transcriptQr && (
-          <div className="mt-4">
-            <VerifyQrBlock
-              title="استعلام برخط اصالت این کارنامه"
-              url={transcriptQr.url}
-              qr={transcriptQr.qr}
-              expiresAt={transcriptQr.expiresAt}
-            />
-          </div>
-        )}
+        {/* ۵. بلوک رسمیت: در نسخهٔ مشاهده‌ای حذف شد — رمز تایید (QR) تنها پس از تأیید درخواست
+            کارنامهٔ معتبر، در بخش تعاملیِ زیرِ سند نمایش داده می‌شود. */}
 
         {/* ۶. متن حقوقی سند و محل امضا و مهرهای رسمی */}
-        <div className="mt-6 pt-3 border-t border-slate-400 text-[10px] text-slate-600 space-y-4">
+        <div className="mt-6 pt-3 border-t border-slate-400 text-3xs text-slate-600 space-y-4">
           <p className="leading-relaxed">
-            <b>تذکر مهم:</b> این کارنامه صرفاً جهت اطلاع از وضعیت تحصیلی دانشجو صادر گردیده و هرگونه خط‌خوردگی یا تغییر در مندرجات آن، سند را از درجه اعتبار ساقط می‌نماید. نمرات دروس توصیفی در مخرج معدل عددی لحاظ نمی‌شوند.
+            <b>تذکر مهم:</b> این کارنامه صرفاً جهت اطلاع و مشاهدهٔ شخصی دانشجو صادر گردیده و <b>فاقد اعتبار اداری (غیرقابل استناد)</b> می‌باشد؛ هرگونه سوءاستفاده یا جعل قابل پیگرد قانونی است. برای دریافت کارنامهٔ معتبر با رمز تایید (QR) از بخش «درخواست‌ها → درخواست کارنامه معتبر» اقدام نمایید. نمرات دروس توصیفی در مخرج معدل عددی لحاظ نمی‌شوند.
           </p>
 
           <div className="grid grid-cols-3 text-center pt-6 pb-4 font-bold text-slate-800">
@@ -563,6 +719,40 @@ export default async function StudentTranscriptPage({ searchParams }: { searchPa
         </div>
 
       </div>
+
+      {/* بخش تعاملی: دسترس به کارنامهٔ معتبر + اعتراض به نمره (زیر کارنامه — چاپ نمی‌شود) */}
+      <div className="space-y-3 print:hidden">
+        {transcriptQr ? (
+          <div className="rounded-2xl border border-emerald-300 bg-emerald-50 p-4 shadow-sm">
+            <h3 className="font-extrabold text-emerald-900 text-sm mb-1">✅ کارنامهٔ معتبر (پس از تأیید کارشناس) — رمز تایید برخط</h3>
+            <p className="text-xs text-emerald-800 mb-3">این کارنامه دارای اعتبار اداری است و با اسکن رمز تایید (QR) در آدرس زیر قابل استعلام می‌باشد.</p>
+            <VerifyQrBlock title="استعلام برخط اصالت کارنامهٔ معتبر" url={transcriptQr.url} qr={transcriptQr.qr} expiresAt={transcriptQr.expiresAt} />
+          </div>
+        ) : (
+          <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 shadow-sm">
+            <h3 className="font-extrabold text-amber-900 text-sm mb-1">⚠️ این کارنامه غیرقابل استناد است</h3>
+            <p className="text-xs text-amber-800 leading-relaxed mb-3">
+              کارنامهٔ نمایش‌داده‌شده در پرتال صرفاً جهت مشاهدهٔ شخصی است و فاقد اعتبار اداری می‌باشد. برای دریافت <b>کارنامهٔ معتبر با رمز تایید (QR)</b> که در مراجع رسمی معتبر باشد، باید از بخش درخواست‌ها اقدام کنید.
+            </p>
+            {pendingTranscriptReq ? (
+              <div className="text-xs font-bold text-amber-900 bg-amber-100 border border-amber-200 rounded-lg p-2 mb-2">
+                درخواست کارنامهٔ معتبر شما در حال بررسی است (کد رهگیری: <span className="font-mono" dir="ltr">{pendingTranscriptReq.trackingCode}</span>). پس از تأیید کارشناس، رمز تایید در همین صفحه نمایش داده می‌شود.
+              </div>
+            ) : null}
+            <a href="/student/requests" className="inline-flex items-center gap-1 px-4 py-2 rounded-xl bg-indigo-700 hover:bg-indigo-800 text-white text-xs font-extrabold shadow">
+              📨 درخواست کارنامه معتبر (با QR)
+            </a>
+          </div>
+        )}
+
+        <GradeObjectionPanel
+          terms={objectionTerms}
+          windowOpen={objectionWindowOpen}
+          deadline={objectionDeadline}
+          existing={objectionExisting}
+        />
+      </div>
+
     </div>
   );
 }

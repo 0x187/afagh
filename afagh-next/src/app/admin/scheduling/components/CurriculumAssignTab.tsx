@@ -3,10 +3,11 @@
 // گام ۱: چارت دروس و انتساب اساتید
 import { usePlanning } from '../PlanningProvider';
 import { ProfessorSelect } from './ProfessorSelect';
-import { faNum, DEMAND_PAGE, NO_PROFESSOR } from '../planning-core';
+import { faNum, DEMAND_PAGE, NO_PROFESSOR, MAX_GROUPS_PER_COURSE, suggestGroupsCount } from '../planning-core';
 
 export default function CurriculumAssignTab() {
   const {
+    chartRange,
     currentProgram,
     displayedDemands,
     filteredDemands,
@@ -14,10 +15,12 @@ export default function CurriculumAssignTab() {
     handleAssignProfessorToCourse,
     handleAssignProfessorToGroup,
     handleToggleCoTeaching,
+    handleToggleCohortMerge,
     handleToggleDemandExamMode,
     handleUpdateCoWeights,
     handleUpdateCourseGroupsCount,
     handleUpdateDemandExamDate,
+    isDeptScope,
     profAssignedUnitsMap,
     professors,
     setActiveMainTab,
@@ -31,11 +34,16 @@ export default function CurriculumAssignTab() {
                 <div className="flex items-center gap-2">
                   <span className="text-xl">📚</span>
                   <h3 className="font-extrabold text-slate-900 text-base">
-                    چارت درسی رشته «{currentProgram?.title ?? '—'}» و انتساب اساتید به دروس
+                    چارت درسی رشته «{currentProgram?.title ?? '—'}» ({currentProgram?.code ?? ''}) و انتساب اساتید به دروس
                   </h3>
                 </div>
                 <p className="text-xs text-slate-500 mt-0.5">
                   برای هر درس چارت، نام استاد مدرس و تعداد گروه‌ها را مشخص فرمایید. کنترل سقف واحد مجاز اساتید به صورت زنده انجام می‌شود.
+                </p>
+                <p className={`mt-1 text-2xs font-black ${chartRange ? 'text-emerald-700' : 'text-amber-700'}`}>
+                  {chartRange
+                    ? `📗 چارت معتبر برای ورودی‌های ${faNum(chartRange.from)} تا ${chartRange.to ? faNum(chartRange.to) : 'به بعد'}`
+                    : '📙 برای این رشته چارت مصوبی تعریف نشده است — دروس از فهرست ارائه‌های گروه نمایش داده می‌شود'}
                 </p>
               </div>
 
@@ -56,7 +64,7 @@ export default function CurriculumAssignTab() {
                     <th className="p-3 border border-slate-800 w-12">ردیف</th>
                     <th className="p-3 border border-slate-800">کد درس</th>
                     <th className="p-3 border border-slate-800">عنوان درس چارت</th>
-                    <th className="p-3 border border-slate-800">ورودی/ترم</th>
+                    <th className="p-3 border border-slate-800">نیمسال ورود</th>
                     <th className="p-3 border border-slate-800">واحد</th>
                     <th className="p-3 border border-slate-800">نوع درس</th>
                     <th className="p-3 border border-slate-800">تعداد گروه‌ها</th>
@@ -67,9 +75,31 @@ export default function CurriculumAssignTab() {
                 </thead>
                 <tbody>
                   {displayedDemands.map((demand, idx) => {
-                    const assignedProf = professors.find(p => p.id === demand.preferredProfId) || professors[0] || NO_PROFESSOR;
+                    // کشویی استاد فقط استادانِ «گروه صاحب درس» را نشان می‌دهد.
+                    // اگر آن گروه هنوز استادی ندارد، به فهرست کامل برمی‌گردیم تا
+                    // کشویی خالی و بی‌استفاده نشود.
+                    const deptProfs = professors.filter(p => p.departmentId != null && p.departmentId === demand.courseDeptId);
+                    // مدیرگروه فقط استادان گروه خودش را ببیند؛ fallback فقط برای ادمین.
+                    const pool = isDeptScope ? deptProfs : (deptProfs.length ? deptProfs : professors);
+                    const assignedProf = pool.find(p => p.id === demand.preferredProfId)
+                      || professors.find(p => p.id === demand.preferredProfId)
+                      || pool[0] || NO_PROFESSOR;
+                    const coProf = demand.coProfId
+                      ? (professors.find(p => p.id === demand.coProfId) ?? null)
+                      : null;
                     const profLoad = profAssignedUnitsMap[assignedProf.id]?.units || 0;
+                    const coLoad = coProf ? (profAssignedUnitsMap[coProf.id]?.units || 0) : 0;
                     const isOverQuota = profLoad > assignedProf.maxWeeklyUnits;
+                    // پیشنهاد خودکار تعداد گروه از روی تعداد دانشجو (ثبت‌نام/ظرفیت)
+                    const suggestedGroups = suggestGroupsCount({
+                      enrolled: demand.enrolledCount, capacity: demand.capacity,
+                    });
+                    const typeRank = demand.courseTypeRank ?? 6;
+                    const typeTone = typeRank <= 1
+                      ? 'bg-sky-100 text-sky-900 border border-sky-300'
+                      : typeRank <= 3
+                        ? 'bg-indigo-100 text-indigo-900 border border-indigo-300'
+                        : 'bg-amber-100 text-amber-900 border border-amber-300';
 
                     return (
                       <tr key={demand.id} className={idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'}>
@@ -77,29 +107,78 @@ export default function CurriculumAssignTab() {
                         <td className="p-2 border border-slate-200 font-mono text-center font-bold text-indigo-900">{demand.code}</td>
                         <td className="p-2 border border-slate-200 font-extrabold text-slate-900">{demand.title}</td>
                         <td className="p-2 border border-slate-200 text-center">
-                          <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-900 font-bold text-[10px]">
+                          <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-900 font-bold text-3xs">
                             {demand.cohortTitle.split('(')[1]?.replace(')', '') || demand.cohortTitle}
                           </span>
+                          {/* ورودی بهمنِ کم‌جمعیت: کلاس جدا لازم نیست — با مهر یکی شود */}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleCohortMerge(demand.id, !demand.cohortMerged)}
+                            title={
+                              demand.cohortMerged
+                                ? 'این ارائه برای هر دو نیمسال ورود اعلام شده — برای جدا کردن کلیک کنید'
+                                : 'اگر ورودی بهمن این درس کم‌جمعیت است، با ورودی مهر همان ترم یک کلاس بگیرد'
+                            }
+                            className={`mt-1 block w-full px-1.5 py-0.5 rounded text-[9px] font-black transition ${
+                              demand.cohortMerged
+                                ? 'bg-emerald-100 text-emerald-900 border border-emerald-300 hover:bg-emerald-200'
+                                : 'bg-slate-100 text-slate-600 border border-slate-300 hover:bg-slate-200'
+                            }`}
+                          >
+                            {demand.cohortMerged ? '🔗 ادغام مهر+بهمن ✓' : '🔗 ادغام مهر+بهمن'}
+                          </button>
                         </td>
                         <td className="p-2 border border-slate-200 text-center font-extrabold text-slate-900">{faNum(demand.units)}</td>
                         <td className="p-2 border border-slate-200 text-center">
-                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                            demand.courseType === 'عملی' ? 'bg-amber-100 text-amber-900' : 'bg-slate-200 text-slate-800'
-                          }`}>
+                          <span className={`px-2 py-0.5 rounded text-3xs font-bold ${typeTone}`}>
                             {demand.courseType}
                           </span>
                         </td>
 
                         <td className="p-2 border border-slate-200 text-center">
-                          <select
-                            value={demand.groupsCount}
-                            onChange={e => handleUpdateCourseGroupsCount(demand.id, Number(e.target.value))}
-                            className="border border-slate-300 rounded px-2 py-1 font-bold bg-white text-indigo-900"
-                          >
-                            <option value={1}>۱ گروه</option>
-                            <option value={2}>۲ گروه موازی</option>
-                            <option value={3}>۳ گروه</option>
-                          </select>
+                          {/* تعداد گروه آزاد است (نه فقط ۱..۳) — با پله‌های − / + */}
+                          <div className="inline-flex items-center gap-1">
+                            <button
+                              type="button"
+                              title="کاهش گروه"
+                              onClick={() => handleUpdateCourseGroupsCount(demand.id, demand.groupsCount - 1)}
+                              className="w-6 h-6 rounded-md border border-slate-300 bg-white text-slate-700 font-black leading-none hover:bg-slate-100"
+                            >
+                              −
+                            </button>
+                            <input
+                              key={`groups-${demand.groupsCount}`}
+                              type="number"
+                              min={1}
+                              max={MAX_GROUPS_PER_COURSE}
+                              defaultValue={demand.groupsCount}
+                              onBlur={e => handleUpdateCourseGroupsCount(demand.id, Number(e.target.value))}
+                              onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
+                              title={`تعداد گروه‌های موازی (۱ تا ${MAX_GROUPS_PER_COURSE})`}
+                              className="w-14 border border-slate-300 rounded px-1 py-1 text-center font-black bg-white text-indigo-900"
+                            />
+                            <button
+                              type="button"
+                              title="افزایش گروه"
+                              onClick={() => handleUpdateCourseGroupsCount(demand.id, demand.groupsCount + 1)}
+                              className="w-6 h-6 rounded-md border border-slate-300 bg-white text-slate-700 font-black leading-none hover:bg-slate-100"
+                            >
+                              +
+                            </button>
+                          </div>
+                          <div className="text-[9px] font-bold text-slate-500 mt-0.5">
+                            {faNum(demand.groupsCount)} گروه · {faNum(demand.enrolledCount)} دانشجو
+                          </div>
+                          {suggestedGroups !== demand.groupsCount && (
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateCourseGroupsCount(demand.id, suggestedGroups)}
+                              title={`بر اساس ${faNum(Math.max(demand.enrolledCount, demand.capacity))} دانشجو ÷ ${faNum(40)} نفر در هر گروه`}
+                              className="mt-1 px-1.5 py-0.5 rounded bg-amber-100 hover:bg-amber-200 text-amber-900 border border-amber-300 text-[9px] font-black whitespace-nowrap"
+                            >
+                              💡 پیشنهاد: {faNum(suggestedGroups)} گروه
+                            </button>
+                          )}
                         </td>
 
                         <td className="p-2 border border-slate-200 min-w-[280px]">
@@ -108,7 +187,7 @@ export default function CurriculumAssignTab() {
                               <div className="space-y-1.5">
                                 <div className="flex items-center gap-1.5">
                                   <ProfessorSelect
-                                    professors={professors}
+                                    professors={pool}
                                     value={demand.preferredProfId}
                                     onChange={id => handleAssignProfessorToCourse(demand.id, id)}
                                     label={p => `${p.name} (${p.academicRank} — ${p.contractType})`}
@@ -118,7 +197,7 @@ export default function CurriculumAssignTab() {
                                     type="button"
                                     onClick={() => handleToggleCoTeaching(demand.id)}
                                     title="تخصیص دو استاد مشترک (تئوری + عملی)"
-                                    className="px-2 py-1 rounded bg-purple-100 hover:bg-purple-200 text-purple-900 font-bold text-[10px] whitespace-nowrap transition"
+                                    className="px-2 py-1 rounded bg-purple-100 hover:bg-purple-200 text-purple-900 font-bold text-3xs whitespace-nowrap transition"
                                   >
                                     👥 مشترک
                                   </button>
@@ -126,7 +205,7 @@ export default function CurriculumAssignTab() {
                               </div>
                             ) : (
                               <div className="space-y-2 p-2 bg-slate-50 rounded-xl border border-slate-200">
-                                <div className="flex items-center justify-between pb-1 border-b border-slate-200 text-[10px] font-bold text-slate-600">
+                                <div className="flex items-center justify-between pb-1 border-b border-slate-200 text-3xs font-bold text-slate-600">
                                   <span>انتساب اساتید به گروه‌های مجزا:</span>
                                   <button
                                     type="button"
@@ -140,12 +219,12 @@ export default function CurriculumAssignTab() {
                                   const gNo = gIdx + 1;
                                   const curProfId = demand.groupProfessors?.[gNo] || demand.preferredProfId;
                                   return (
-                                    <div key={gNo} className="flex items-center gap-1 text-[11px]">
-                                      <span className="px-1.5 py-0.5 rounded bg-indigo-900 text-white font-bold text-[10px] whitespace-nowrap">
+                                    <div key={gNo} className="flex items-center gap-1 text-2xs">
+                                      <span className="px-1.5 py-0.5 rounded bg-indigo-900 text-white font-bold text-3xs whitespace-nowrap">
                                         گروه {faNum(gNo)}:
                                       </span>
                                       <ProfessorSelect
-                                        professors={professors}
+                                        professors={pool}
                                         value={curProfId}
                                         onChange={id => handleAssignProfessorToGroup(demand.id, gNo, id)}
                                         className="w-full border border-indigo-300 rounded px-1.5 py-0.5 font-bold bg-white text-indigo-950 text-xs"
@@ -158,11 +237,11 @@ export default function CurriculumAssignTab() {
                           ) : (
                             <div className="p-2 rounded-xl bg-purple-50 border border-purple-200 space-y-2">
                               <div className="flex items-center justify-between pb-1 border-b border-purple-200/60">
-                                <span className="font-extrabold text-[10px] text-purple-950">👥 درس مشترک با دو استاد:</span>
+                                <span className="font-extrabold text-3xs text-purple-950">👥 درس مشترک با دو استاد:</span>
                                 <button
                                   type="button"
                                   onClick={() => handleToggleCoTeaching(demand.id)}
-                                  className="text-[10px] text-purple-700 hover:underline font-bold"
+                                  className="text-3xs text-purple-700 hover:underline font-bold"
                                 >
                                   لغو (تک‌استاد)
                                 </button>
@@ -170,12 +249,12 @@ export default function CurriculumAssignTab() {
 
                               {/* Theory Professor */}
                               <div className="space-y-0.5">
-                                <div className="flex items-center justify-between text-[10px] font-bold text-slate-700">
+                                <div className="flex items-center justify-between text-3xs font-bold text-slate-700">
                                   <span>📖 استاد بخش تئوری:</span>
                                   <span className="text-indigo-900">سهم: {faNum((demand.theoryWeightRatio || 0.7) * 100)}٪ ({faNum((demand.theoryWeightRatio || 0.7) * 20)} نمره)</span>
                                 </div>
                                 <ProfessorSelect
-                                  professors={professors}
+                                  professors={pool}
                                   value={demand.preferredProfId}
                                   onChange={id => handleAssignProfessorToCourse(demand.id, id)}
                                   className="w-full border border-indigo-300 rounded px-2 py-1 font-extrabold bg-white text-indigo-950 text-xs"
@@ -184,13 +263,13 @@ export default function CurriculumAssignTab() {
 
                               {/* Lab / Practical Professor */}
                               <div className="space-y-0.5">
-                                <div className="flex items-center justify-between text-[10px] font-bold text-slate-700">
+                                <div className="flex items-center justify-between text-3xs font-bold text-slate-700">
                                   <span>🔬 استاد بخش عملی:</span>
                                   <span className="text-purple-900">سهم: {faNum((demand.labWeightRatio || 0.3) * 100)}٪ ({faNum((demand.labWeightRatio || 0.3) * 20)} نمره)</span>
                                 </div>
                                 <ProfessorSelect
-                                  professors={professors}
-                                  value={demand.coProfId || professors[2]?.id || professors[0]?.id || 0}
+                                  professors={pool}
+                                  value={demand.coProfId ?? pool[0]?.id ?? 0}
                                   onChange={id => handleAssignCoProfessor(demand.id, id)}
                                   className="w-full border border-purple-300 rounded px-2 py-1 font-extrabold bg-white text-purple-950 text-xs"
                                 />
@@ -218,22 +297,22 @@ export default function CurriculumAssignTab() {
 
                         <td className="p-2 border border-slate-200 text-center">
                           {!demand.isCoTaught ? (
-                            <div className={`p-1.5 rounded-lg text-[11px] font-bold ${
+                            <div className={`p-1.5 rounded-lg text-2xs font-bold ${
                               isOverQuota ? 'bg-rose-100 text-rose-900 border border-rose-300' : 'bg-emerald-100 text-emerald-900'
                             }`}>
                               <span>{faNum(profLoad)} از {faNum(assignedProf.maxWeeklyUnits)} واحد</span>
                               {isOverQuota && <span className="block text-[9px] font-black text-rose-700 mt-0.5">⚠️ تجاوز از سقف مجاز!</span>}
                             </div>
                           ) : (
-                            <div className="space-y-1 text-[10px] font-bold">
+                            <div className="space-y-1 text-3xs font-bold">
                               <div className={`p-1 rounded ${profLoad > assignedProf.maxWeeklyUnits ? 'bg-rose-100 text-rose-900' : 'bg-indigo-100 text-indigo-900'}`}>
-                                <span>تئوری: {faNum(profLoad)}/{faNum(assignedProf.maxWeeklyUnits)} و</span>
+                                <span>تئوری ({assignedProf.name}): {faNum(profLoad)}/{faNum(assignedProf.maxWeeklyUnits)} واحد</span>
                               </div>
-                              {demand.coProfId && (
-                                <div className={`p-1 rounded ${profAssignedUnitsMap[demand.coProfId]?.units > (professors.find(p => p.id === demand.coProfId)?.maxWeeklyUnits || 10) ? 'bg-rose-100 text-rose-900' : 'bg-purple-100 text-purple-900'}`}>
-                                  <span>عملی: {faNum(profAssignedUnitsMap[demand.coProfId]?.units)}/{(professors.find(p => p.id === demand.coProfId)?.maxWeeklyUnits || 10)} و</span>
-                                </div>
-                              )}
+                              <div className={`p-1 rounded ${coProf && coLoad > coProf.maxWeeklyUnits ? 'bg-rose-100 text-rose-900' : 'bg-purple-100 text-purple-900'}`}>
+                                {coProf
+                                  ? <span>عملی ({coProf.name}): {faNum(coLoad)}/{faNum(coProf.maxWeeklyUnits)} واحد</span>
+                                  : <span>عملی: استاد بخش عملی تعیین نشده</span>}
+                              </div>
                             </div>
                           )}
                         </td>
@@ -243,7 +322,7 @@ export default function CurriculumAssignTab() {
                             <button
                               type="button"
                               onClick={() => handleToggleDemandExamMode(demand.id)}
-                              className={`px-2 py-0.5 rounded-full text-[10px] font-black transition ${
+                              className={`px-2 py-0.5 rounded-full text-3xs font-black transition ${
                                 demand.examSchedulingMode === 'MANUAL'
                                   ? 'bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200'
                                   : 'bg-emerald-100 text-emerald-900 border border-emerald-300 hover:bg-emerald-200'
@@ -256,7 +335,7 @@ export default function CurriculumAssignTab() {
                               type="text"
                               value={demand.examDate}
                               onChange={e => handleUpdateDemandExamDate(demand.id, e.target.value)}
-                              className="w-full border border-slate-300 rounded p-1 font-mono font-bold text-center text-[11px] bg-white text-slate-800"
+                              className="w-full border border-slate-300 rounded p-1 font-mono font-bold text-center text-2xs bg-white text-slate-800"
                             />
                           </div>
                         </td>

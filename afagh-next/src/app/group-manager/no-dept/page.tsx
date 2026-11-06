@@ -30,7 +30,7 @@ export default async function NoDept({ searchParams }: { searchParams: Promise<{
         {noStaff ? ' بسازد و به گروه آموزشی وصل کند.' : ' به گروه آموزشی مربوطه وصل کند.'}
       </p>
       <div className="flex flex-wrap gap-2 pt-1 text-sm">
-        <Link href="/" className="rounded-lg bg-white px-3 py-1.5 font-bold text-amber-900 border border-amber-300 hover:bg-amber-100">
+        <Link prefetch={false} href="/" className="rounded-lg bg-white px-3 py-1.5 font-bold text-amber-900 border border-amber-300 hover:bg-amber-100">
           بازگشت به کارتابل من
         </Link>
       </div>

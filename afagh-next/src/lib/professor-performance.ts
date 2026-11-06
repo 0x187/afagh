@@ -103,16 +103,27 @@ export async function getProfessorPerformance(staffId: number): Promise<Professo
   ]);
 
   // ── ۱) بار تدریس (یک کوئری) ──
+  // ⚠ بازنویسی: پیش‌تر تعداد دانشجو از یک «جدولِ مشتق» می‌آمد:
+  //     left join (select "offeringId", count(*) from enrollments
+  //                 where status <> 'DROPPED' group by "offeringId") e
+  //   زیرکوئری با GROUP BY قابلِ pull-up نیست و PostgreSQL شرطِ join را هم به
+  //   داخلش هل نمی‌دهد، پس برای نمایشِ کارنامهٔ **یک** استاد، هر ۶۹۱٬۹۵۳ ردیفِ
+  //   `enrollments` تجمیع می‌شد. حالا شمارش به‌صورت زیرکوئریِ همبسته در SELECT
+  //   است و فقط برای ارائه‌های همان استاد (چند ده ردیف) اجرا می‌شود.
+  //   پیش‌نیازِ سرعتش: ایندکسِ `idx_enr_offering` روی `enrollments("offeringId")`
+  //   — که تا پیش از این وجود نداشت (فقط ایندکسِ جزئیِ «نمراتِ قطعی‌نشده» بود و
+  //   predicateش با `status <> 'DROPPED'` جور درنمی‌آید).
   const [teach] = (await db.execute(sql`
     with ${OWNERSHIP_CTE}
     select count(distinct o.id)::int as offerings,
-           coalesce(sum(e.n), 0)::int as students,
+           coalesce(sum((
+             select count(*) from enrollments e
+              where e."offeringId" = o.id and e.status <> 'DROPPED'
+           )), 0)::int as students,
            coalesce(string_agg(distinct c.code, '، '), '—') as courses
       from ownership ow
       join course_offerings o on o.id = ow.offering_id and o."termId" = ${term.id}
       join courses c on c.id = o."courseId"
-      left join (select "offeringId", count(*)::int as n from enrollments
-                  where status <> 'DROPPED' group by "offeringId") e on e."offeringId" = o.id
      where ow.staff_id = ${staffId}
   `)).rows as unknown as { offerings: number; students: number; courses: string }[];
 
@@ -145,11 +156,19 @@ export async function getProfessorPerformance(staffId: number): Promise<Professo
   const gradesPending = gradeRows.filter(r => r.st === 'PENDING').reduce((a, r) => a + r.n, 0);
   const gradesEntered = gradesTotal - gradesPending;
 
+  // مهلتِ نزدیک‌ترین درسِ همین استاد — با همان CTEِ مالکیت.
+  // ⚠ قبلاً به‌صورت `o."professorId" = X OR exists (...)` نوشته شده بود؛ برای
+  //   PostgreSQL قابلِ hash join نیست و به nested loop روی حاصل‌ضربِ
+  //   course_offerings × offering_professors می‌افتد (همان الگویی که کوئریِ
+  //   گلوگاهِ حقوق را ۱ تا ۵ ثانیه‌ای کرده بود). `min()` از تکرار اثر نمی‌گیرد،
+  //   پس unionِ یکتاسازِ OWNERSHIP_CTE دقیقاً همان نتیجه را می‌دهد.
   const [deadlineRow] = (await db.execute(sql`
+    with ${OWNERSHIP_CTE}
     select min(coalesce(o."customGradeDeadline", t."gradeEntryDeadline")) as deadline
-      from course_offerings o join academic_terms t on t.id = o."termId"
-     where o."termId" = ${term.id} and (o."professorId" = ${staffId}
-        or exists (select 1 from offering_professors op where op."offeringId" = o.id and op."staffId" = ${staffId} and op.role = 'MAIN_LECTURER'))
+      from ownership ow
+      join course_offerings o on o.id = ow.offering_id and o."termId" = ${term.id}
+      join academic_terms t on t.id = o."termId"
+     where ow.staff_id = ${staffId}
   `)).rows as unknown as { deadline: Date | string | null }[];
 
   const [appealsRow] = (await db.execute(sql`

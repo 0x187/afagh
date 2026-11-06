@@ -212,7 +212,7 @@ export default function LivePayrollClient({
     <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="text-xs text-slate-500">{title}</div>
       <div className="mt-1 text-lg font-bold text-slate-800">{value}</div>
-      {hint ? <div className="mt-1 text-[11px] text-slate-400">{hint}</div> : null}
+      {hint ? <div className="mt-1 text-2xs text-slate-400">{hint}</div> : null}
     </div>
   );
 
@@ -337,20 +337,20 @@ export default function LivePayrollClient({
                 <tr key={x.id} className="border-t border-slate-100">
                   <td className="p-2">
                     <div className="font-medium text-slate-800">{x.name}</div>
-                    <div className="text-[11px] text-slate-400">{faNum(x.staffCode ?? '—')}</div>
+                    <div className="text-2xs text-slate-400">{faNum(x.staffCode ?? '—')}</div>
                   </td>
                   <td className="p-2">
                     <div className="font-medium text-slate-700">{x.rank ?? '—'}</div>
-                    <div className="text-[11px] text-slate-500">
+                    <div className="text-2xs text-slate-500">
                       پایه {x.base ? faNum(x.base) : '—'}
                       {x.degree && <span className="text-slate-400"> · {x.degree}</span>}
                     </div>
                   </td>
                   <td className="p-2">
-                    <div className="font-mono text-[11px] text-slate-800">{money(x.rate)}</div>
-                    <div className="text-[10px] text-slate-400">{RATE_SOURCE_FA[x.rateSource]}</div>
+                    <div className="font-mono text-2xs text-slate-800">{money(x.rate)}</div>
+                    <div className="text-3xs text-slate-400">{RATE_SOURCE_FA[x.rateSource]}</div>
                   </td>
-                  <td className="p-2 text-[11px] text-slate-600">{CONTRACT_FA[x.contractType ?? ''] ?? x.contractType ?? '—'}</td>
+                  <td className="p-2 text-2xs text-slate-600">{CONTRACT_FA[x.contractType ?? ''] ?? x.contractType ?? '—'}</td>
                   <td className="p-2">{faNum(x.totalEquivalentUnits.toFixed(2))}</td>
                   <td className="p-2">{faNum(x.payableUnits.toFixed(2))}</td>
                   <td className="p-2">{money(x.gross)}</td>
@@ -361,7 +361,7 @@ export default function LivePayrollClient({
                   <td className="p-2">
                     <span className={`rounded-full px-2 py-0.5 ${STATUS_BADGE[x.status] ?? 'bg-slate-100 text-slate-700'}`}>{STATUS_FA[x.status] ?? x.status}</span>
                   </td>
-                  <td className="p-2 text-[11px]">
+                  <td className="p-2 text-2xs">
                     <span className={x.gates.gradesFinalized ? 'text-emerald-600' : 'text-amber-600'}>
                       نمرات: {x.gates.gradesFinalized ? 'قطعی' : `${faNum(x.gates.pendingGrades)} باز`}
                     </span>
@@ -435,12 +435,12 @@ export default function LivePayrollClient({
               <tbody>
                 {(slip.calc?.rows ?? []).map((r: any) => (
                   <tr key={r.offeringId} className="border-t border-slate-100">
-                    <td className="p-2">{r.courseTitle}<div className="text-[10px] text-slate-400">{r.courseCode}</div></td>
+                    <td className="p-2">{r.courseTitle}<div className="text-3xs text-slate-400">{r.courseCode}</div></td>
                     <td className="p-2">{faNum(r.units)}</td>
                     <td className="p-2">{r.payRole}</td>
-                    <td className="p-2 text-[10px]">{r.coefficients}</td>
+                    <td className="p-2 text-3xs">{r.coefficients}</td>
                     <td className="p-2">{faNum(r.equivalentUnits.toFixed(2))}</td>
-                    <td className="p-2 text-[10px]">
+                    <td className="p-2 text-3xs">
                       {faNum(r.sessions.planned)}/{faNum(r.sessions.held)} · غیبت {faNum(r.sessions.netAbsences)}
                     </td>
                     <td className="p-2">{faNum(r.effectiveUnits.toFixed(2))}</td>
@@ -716,7 +716,7 @@ function CoefficientsRulesLiveTab({ term, onToast, busy }: CoefficientsRulesLive
                     />
                   </td>
                   <td className="p-2.5 text-center">
-                    {saving === coef.ruleName && <span className="text-amber-600 text-[10px]">⟳ ذخیره...</span>}
+                    {saving === coef.ruleName && <span className="text-amber-600 text-3xs">⟳ ذخیره...</span>}
                   </td>
                 </tr>
               ))}
@@ -834,8 +834,8 @@ function CoefficientsRulesLiveTab({ term, onToast, busy }: CoefficientsRulesLive
               {rules.map((rule: any) => (
                 <tr key={rule.id} className="border-b border-slate-100 hover:bg-slate-50">
                   <td className="p-2.5 font-mono text-slate-700">#{rule.id}</td>
-                  <td className="p-2.5 text-slate-600 text-[10px]">{getRuleDescription(rule)}</td>
-                  <td className="p-2.5 font-mono text-indigo-900 text-[10px]">{getRuleFormula(rule)}</td>
+                  <td className="p-2.5 text-slate-600 text-3xs">{getRuleDescription(rule)}</td>
+                  <td className="p-2.5 font-mono text-indigo-900 text-3xs">{getRuleFormula(rule)}</td>
                   <td className="p-2.5">
                     <input
                       type="text"
@@ -861,19 +861,19 @@ function CoefficientsRulesLiveTab({ term, onToast, busy }: CoefficientsRulesLive
                   <td className="p-2.5 text-center">
                     <div className="flex items-center justify-center gap-1">
                       {saving === `rule-${rule.id}` ? (
-                        <span className="text-amber-600 text-[10px]">⟳</span>
+                        <span className="text-amber-600 text-3xs">⟳</span>
                       ) : (
                         <>
                           <button
                             onClick={() => handleRuleUpdate(rule)}
-                            className="px-2 py-1 text-emerald-600 hover:bg-emerald-50 rounded text-[10px] font-bold"
+                            className="px-2 py-1 text-emerald-600 hover:bg-emerald-50 rounded text-3xs font-bold"
                             title="ذخیره تغییرات"
                           >
                             💾
                           </button>
                           <button
                             onClick={() => handleRuleDelete(rule.id)}
-                            className="px-2 py-1 text-rose-600 hover:bg-rose-50 rounded text-[10px] font-bold"
+                            className="px-2 py-1 text-rose-600 hover:bg-rose-50 rounded text-3xs font-bold"
                             title="حذف قانون"
                           >
                             🗑️

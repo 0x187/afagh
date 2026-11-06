@@ -8,6 +8,7 @@ import {
   saveRolePermissionsAction,
   type PermissionsWorkspace,
 } from './actions';
+import { askConfirm } from '@/lib/ui-feedback';
 
 const faNum = (n: any) =>
   n === null || n === undefined ? '—' : String(n).replace(/\d/g, d => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]);
@@ -88,9 +89,22 @@ export default function AdminPermissionsClient({ initial }: { initial: Permissio
   };
 
   /** تیک/برداشتن کلِ ماتریس برای یک نقش (مستقل از فیلتر بخش) — همان «همهٔ دسترسی‌ها» */
-  const toggleAllMatrix = (role: { id: number; code: string; title: string }, on: boolean) => {
-    if (on && !confirm(`همهٔ ${faNum(permissions.length)} مجوز ماتریس به نقش «${role.title}» داده شود؟`)) return;
-    if (!on && !confirm(`تمامی مجوزهای نقش «${role.title}» برداشته شود؟ (شامل مجوزهای سیستمی — ممکن است همین صفحه هم برای این نقش غیرفعال شود)`)) return;
+  const toggleAllMatrix = async (role: { id: number; code: string; title: string }, on: boolean) => {
+    const okAll = await askConfirm(
+      on
+        ? {
+            title: 'دادن همهٔ مجوزها',
+            body: `همهٔ ${faNum(permissions.length)} مجوز ماتریس به نقش «${role.title}» داده شود؟`,
+            confirmText: 'بده',
+          }
+        : {
+            title: 'برداشتن همهٔ مجوزها',
+            body: `تمامی مجوزهای نقش «${role.title}» برداشته شود؟ (شامل مجوزهای سیستمی — ممکن است همین صفحه هم برای این نقش غیرفعال شود)`,
+            confirmText: 'بردار',
+            danger: true,
+          },
+    );
+    if (!okAll) return;
     setDraft(prev => {
       const cur = new Set(prev[role.id] ?? []);
       for (const p of permissions) {
@@ -110,11 +124,22 @@ export default function AdminPermissionsClient({ initial }: { initial: Permissio
     [permissions, selectedCategory],
   );
 
+  // ── undo آخرین ذخیره ──
+  // اگر دسترسی اشتباهی داده شد، باید راه برگشتی باشد که *پس از* ذخیره هم کار
+  // کند (دکمهٔ «انصراف» فقط پیش‌نویسِ ذخیره‌نشده را دور می‌ریزد). عکسِ وضعیتِ
+  // قبل از ذخیره نگه داشته می‌شود و «بازگردانی» همان را دوباره می‌نویسد.
+  const [lastSave, setLastSave] = useState<{ roleIds: number[]; prev: Draft } | null>(null);
+
   // ── تأیید تغییرات: فقط نقش‌های تغییرکرده به سرور می‌روند ──
   const handleSave = () => {
     startTransition(async () => {
+      const roleIds = [...dirtyRoleIds];
+      // عکسِ «قبل از ذخیره» — مبنای بازگردانی
+      const prev: Draft = {};
+      for (const id of roleIds) prev[id] = [...(baseline[id] ?? [])];
+
       const failures: string[] = [];
-      for (const roleId of dirtyRoleIds) {
+      for (const roleId of roleIds) {
         const role = roles.find(r => r.id === roleId);
         const res = await saveRolePermissionsAction({ roleId, codes: draft[roleId] ?? [] });
         if (!res.ok) failures.push(`${role?.title ?? roleId}: ${res.error}`);
@@ -122,8 +147,30 @@ export default function AdminPermissionsClient({ initial }: { initial: Permissio
       if (failures.length) {
         showToast('err', `ذخیرهٔ برخی نقش‌ها ناموفق بود — ${failures.join(' | ')}`);
       } else {
-        showToast('ok', `تغییر دسترسی ${faNum(dirtyRoleIds.length)} نقش با موفقیت ثبت و در دفتر ممیزی درج شد.`);
+        setLastSave({ roleIds, prev });
+        showToast('ok', `تغییر دسترسی ${faNum(roleIds.length)} نقش با موفقیت ثبت و در دفتر ممیزی درج شد.`);
       }
+      router.refresh();
+    });
+  };
+
+  /** بازگردانیِ آخرین ذخیره — همان نقش‌ها با مقادیرِ قبل از ذخیره بازنویسی می‌شوند */
+  const handleUndoLastSave = () => {
+    if (!lastSave) return;
+    const { roleIds, prev } = lastSave;
+    startTransition(async () => {
+      const failures: string[] = [];
+      for (const roleId of roleIds) {
+        const role = roles.find(r => r.id === roleId);
+        const res = await saveRolePermissionsAction({ roleId, codes: prev[roleId] ?? [] });
+        if (!res.ok) failures.push(`${role?.title ?? roleId}: ${res.error}`);
+      }
+      if (failures.length) {
+        showToast('err', `بازگردانی ناقص ماند — ${failures.join(' | ')}`);
+        return;
+      }
+      setLastSave(null);
+      showToast('ok', `آخرین ذخیره بازگردانده شد — دسترسی ${faNum(roleIds.length)} نقش به حالت قبل برگشت.`);
       router.refresh();
     });
   };
@@ -146,8 +193,8 @@ export default function AdminPermissionsClient({ initial }: { initial: Permissio
     });
   };
 
-  const handleDeleteRole = (roleId: number, title: string) => {
-    if (!confirm(`نقش «${title}» حذف شود؟ این کار برگشت‌پذیر نیست.`)) return;
+  const handleDeleteRole = async (roleId: number, title: string) => {
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: `نقش «${title}» حذف شود؟ این کار برگشت‌پذیر نیست.`, confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
     startTransition(async () => {
       const res = await deleteRoleAction({ roleId });
       if (!res.ok) return showToast('err', res.error);
@@ -162,7 +209,8 @@ export default function AdminPermissionsClient({ initial }: { initial: Permissio
   );
 
   return (
-    <div className="space-y-6" dir="rtl">
+    // pb-28 = جای نوارِ ذخیرهٔ fixed پایین صفحه، تا آخرین ردیف ماتریس زیرش نماند
+    <div className="space-y-6 pb-28" dir="rtl">
       {/* Toast */}
       {toast && (
         <div
@@ -186,7 +234,7 @@ export default function AdminPermissionsClient({ initial }: { initial: Permissio
       <div className="bg-gradient-to-l from-indigo-950 via-slate-900 to-indigo-900 text-white rounded-3xl p-6 shadow-xl border border-indigo-800/50 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-black bg-amber-400 text-slate-950">
+            <span className="px-2.5 py-0.5 rounded-full text-2xs font-black bg-amber-400 text-slate-950">
               امنیت و کنترل دسترسی (Dynamic RBAC)
             </span>
             <span className="text-xs text-indigo-300">
@@ -210,26 +258,56 @@ export default function AdminPermissionsClient({ initial }: { initial: Permissio
         </button>
       </div>
 
-      {/* ── نوار تأیید تغییرات (چسبان) ── */}
+      {/*
+        نوار «ذخیره» — همیشه در دسترس (`fixed` پایین صفحه).
+
+        پیش‌تر `sticky top-2 z-20` بود و هدرِ چسبانِ شاخهٔ مدیریت
+        (`sticky top-0 z-40` در admin/layout.tsx) رویش می‌افتاد؛ با اسکرول،
+        دکمهٔ «تأیید و ذخیره» کامل پنهان می‌شد. `fixed` مستقل از ارتفاع هدر و
+        موقعیت اسکرول است، پس دکمه هیچ‌وقت گم نمی‌شود.
+
+        ⚠ هیچ‌چیز خودکار ذخیره نمی‌شود: تیک زدن فقط `draft` محلی را عوض می‌کند
+        و تا زدن همین دکمه هیچ نوشتنی در دیتابیس رخ نمی‌دهد. پس از ذخیره هم
+        «بازگردانی» (undo) در همین نوار می‌آید تا تخصیص اشتباه برگشت‌پذیر باشد.
+      */}
       <div
-        className={`sticky top-2 z-20 rounded-2xl border-2 shadow-lg px-4 py-3 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 transition ${
-          isDirty ? 'bg-amber-50 border-amber-400' : 'bg-white border-slate-200'
+        className={`fixed bottom-3 left-1/2 z-50 w-[min(1180px,calc(100vw-1.5rem))] -translate-x-1/2 rounded-2xl border-2 px-3 py-2.5 shadow-2xl backdrop-blur flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 transition ${
+          isDirty ? 'bg-amber-50/95 border-amber-400' : 'bg-white/95 border-slate-200'
         }`}
       >
-        <div className="text-xs font-bold">
+        <div className="min-w-0 text-xs font-bold">
           {isDirty ? (
-            <span className="text-amber-900">
-              ✏️ {faNum(dirtyRoleIds.length)} نقش تغییر ذخیره‌نشده دارد:{' '}
-              <span className="font-black">
-                {dirtyRoleIds.map(id => roles.find(r => r.id === id)?.title).filter(Boolean).join('، ')}
-              </span>
-            </span>
+            <>
+              <div className="text-amber-900">
+                ✏️ {faNum(dirtyRoleIds.length)} نقش تغییر <u>ذخیره‌نشده</u> دارد:{' '}
+                <span className="font-black">
+                  {dirtyRoleIds.map(id => roles.find(r => r.id === id)?.title).filter(Boolean).join('، ')}
+                </span>
+              </div>
+              <div className="text-2xs font-normal text-amber-800">
+                تیک زدن به‌تنهایی ذخیره نمی‌شود — برای ثبت در دیتابیس دکمهٔ «ذخیره» را بزنید.
+              </div>
+            </>
+          ) : lastSave ? (
+            <div className="text-slate-600">
+              ✅ ذخیره شد. اگر اشتباه بود، «بازگردانی» دسترسی {faNum(lastSave.roleIds.length)} نقش را به حالت قبل برمی‌گرداند.
+            </div>
           ) : (
             <span className="text-slate-500">✅ ماتریس با آخرین وضعیت ثبت‌شده در دیتابیس یکسان است.</span>
           )}
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
+          {lastSave && (
+            <button
+              onClick={handleUndoLastSave}
+              disabled={pending}
+              title="بازگردانی آخرین ذخیره — دسترسی نقش‌های همان ذخیره به حالت قبل برمی‌گردد"
+              className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-bold text-xs shadow disabled:opacity-40"
+            >
+              ↩️ بازگردانی (Undo)
+            </button>
+          )}
           <button
             onClick={handleDiscard}
             disabled={!isDirty || pending}
@@ -242,7 +320,7 @@ export default function AdminPermissionsClient({ initial }: { initial: Permissio
             disabled={!isDirty || pending}
             className="px-6 py-2.5 rounded-xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs shadow disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {pending ? '⏳ در حال ثبت…' : '✅ تأیید و ذخیرهٔ تغییر دسترسی‌ها'}
+            {pending ? '⏳ در حال ثبت…' : '✅ ذخیرهٔ تغییر دسترسی‌ها'}
           </button>
         </div>
       </div>
@@ -351,43 +429,66 @@ export default function AdminPermissionsClient({ initial }: { initial: Permissio
           ))}
         </div>
 
-        <div className="overflow-x-auto">
+        {/*
+          اسکرول داخل خودِ پنل (نه صفحه) + هدر و ستون اولِ چسبان.
+          چرا: ماتریس ۱۱ نقش × ده‌ها مجوز است؛ با اسکرول، سرصفحهٔ نقش‌ها از دید
+          خارج می‌شد و کاربر نمی‌دانست ستونِ تیک‌خورده مربوط به کدام نقش/کاربر
+          است. برای چسبیدنِ `th` باید جدول یک اسکرول‌کانتینر با ارتفاع محدود
+          داشته باشد؛ `overflow-x-auto` تنها این کار را نمی‌کند چون بدون
+          max-height ارتفاع می‌گیرد و اسکرول عمودی به صفحه منتقل می‌شود.
+          نکتهٔ RTL: ستون اول در لبهٔ **راست** است ⇒ `right-0` (نه left-0).
+          نکتهٔ `border-collapse`: مرزِ سلول‌های sticky در حالت collapse
+          ناپدید می‌شود، پس جداکننده با box-shadow ساخته شده است.
+        */}
+        <div className="max-h-[72vh] overflow-auto rounded-xl border border-slate-200">
           <table className="w-full text-right text-xs border-collapse rt">
             <thead>
               <tr className="bg-slate-900 text-white">
-                <th className="p-3 w-64">عنوان مجوز و شرح دسترسی</th>
-                <th className="p-3">دسته‌بندی</th>
+                <th className="sticky top-0 right-0 z-40 w-64 min-w-64 max-w-64 bg-slate-900 p-3 shadow-[-2px_0_0_0_#334155]">عنوان مجوز و شرح دسترسی</th>
+                <th className="sticky top-0 z-30 bg-slate-900 p-3">دسته‌بندی</th>
                 {roles.map(r => {
                   const list = draft[r.id] ?? [];
                   const changed = dirtyRoleIds.includes(r.id);
                   const allOn = filteredPermissions.length > 0 && filteredPermissions.every(p => list.includes(p.code));
                   return (
-                    <th key={r.id} className={`p-3 text-center min-w-[120px] ${changed ? 'bg-amber-600/70' : ''}`}>
+                    <th key={r.id} className={`sticky top-0 z-30 p-3 text-center min-w-[120px] ${changed ? 'bg-amber-700' : 'bg-slate-900'}`}>
                       <div className="font-black">{r.title}</div>
-                      <div className="text-[10px] text-indigo-300 font-mono" dir="ltr">
+                      <div className="text-3xs text-indigo-300 font-mono" dir="ltr">
                         {r.code}
                       </div>
-                      <div className="text-[10px] text-indigo-200 mt-0.5">
+                      <div className="text-3xs text-indigo-200 mt-0.5">
                         👤 {faNum(r.userCount)} کاربر
-                        {r.isSystem ? <span className="mr-1 text-amber-300">· سیستمی</span> : null}
+                        {r.isSystem ? <span className="ms-1 text-amber-300">· سیستمی</span> : null}
                       </div>
-                      <button
-                        onClick={() => toggleColumn(r.id, r.code, !allOn)}
-                        className="mt-1 text-[10px] underline text-indigo-200 hover:text-white"
-                      >
-                        {allOn ? 'برداشتن همه (این بخش)' : 'انتخاب همه (این بخش)'}
-                      </button>
+                      {/*
+                        ⚠ این دو دکمه شبیه هم‌اند ولی یکی نیستند — و وقتی
+                        فیلتر بخش‌ها روی «همه بخش‌ها» است، دقیقاً یک کار
+                        می‌کنند. برای همین:
+                          • دکمهٔ «این بخش» فقط وقتی فیلتر فعال است نشان داده
+                            می‌شود (وگرنه تکرارِ محض است)،
+                          • هر دو شمارشِ خودشان را روی دکمه دارند تا تفاوت
+                            بدون ابهام باشد.
+                      */}
+                      {selectedCategory !== 'ALL' && (
+                        <button
+                          onClick={() => toggleColumn(r.id, r.code, !allOn)}
+                          title={`فقط مجوزهای فیلترِ «${selectedCategory}» — نه کل ماتریس`}
+                          className="mt-1 block w-full text-3xs underline text-indigo-200 hover:text-white"
+                        >
+                          {allOn ? 'برداشتن' : 'انتخاب'} {faNum(filteredPermissions.length)} مجوزِ «{selectedCategory}»
+                        </button>
+                      )}
                       <button
                         onClick={() => toggleAllMatrix(r, !roleAllOn(r.id))}
-                        title="همهٔ مجوزهای کل ماتریس، مستقل از فیلتر بخش‌ها"
-                        className={`mt-1 block w-full border rounded px-1 text-[10px] font-bold ${roleAllOn(r.id) ? 'bg-amber-400 text-slate-950 hover:bg-amber-300' : 'bg-transparent text-amber-300 border-amber-400/60 hover:bg-amber-400/20'}`}
+                        title={`همهٔ ${faNum(permissions.length)} مجوزِ کل ماتریس، مستقل از فیلتر بخش‌ها`}
+                        className={`mt-1 block w-full border rounded px-1 text-3xs font-bold ${roleAllOn(r.id) ? 'bg-amber-400 text-slate-950 hover:bg-amber-300' : 'bg-transparent text-amber-300 border-amber-400/60 hover:bg-amber-400/20'}`}
                       >
-                        {roleAllOn(r.id) ? '✔ همهٔ ماتریس (گرفتن!)' : '☑ همهٔ ماتریس'}
+                        {roleAllOn(r.id) ? `✔ همهٔ ${faNum(permissions.length)} مجوز (گرفتن!)` : `☑ همهٔ ${faNum(permissions.length)} مجوز`}
                       </button>
                       {!r.isSystem && r.userCount === 0 && (
                         <button
                           onClick={() => handleDeleteRole(r.id, r.title)}
-                          className="block w-full mt-1 text-[10px] text-rose-300 hover:text-rose-100"
+                          className="block w-full mt-1 text-3xs text-rose-300 hover:text-rose-100"
                         >
                           حذف نقش
                         </button>
@@ -401,18 +502,19 @@ export default function AdminPermissionsClient({ initial }: { initial: Permissio
               {filteredPermissions.map((perm, idx) => (
                 <tr
                   key={perm.id}
-                  className={`border-b border-slate-100 hover:bg-slate-50 transition ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}`}
+                  className={`border-b border-slate-100 hover:bg-slate-50 transition ${idx % 2 === 0 ? 'bg-white' : 'bg-slate-50'}`}
                 >
-                  <td className="p-3">
+                  {/* `bg-inherit` تا ستونِ چسبان با رنگ همان سطر (و رنگ hover) بیاید */}
+                  <td className="sticky right-0 z-20 bg-inherit p-3 shadow-[-2px_0_0_0_#e2e8f0]">
                     <div className="font-black text-slate-900">{perm.title}</div>
                     <div className="text-slate-500 leading-4">{perm.description}</div>
-                    <div className="font-mono text-[10px] text-slate-400" dir="ltr">
+                    <div className="font-mono text-3xs text-slate-400" dir="ltr">
                       {perm.code}
                     </div>
                   </td>
 
                   <td className="p-3">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-700">{perm.category}</span>
+                    <span className="px-2 py-0.5 rounded text-3xs font-bold bg-slate-100 text-slate-700">{perm.category}</span>
                   </td>
 
                   {roles.map(role => {
@@ -449,8 +551,12 @@ export default function AdminPermissionsClient({ initial }: { initial: Permissio
           </table>
         </div>
 
-        <div className="text-[11px] text-slate-500 pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
-          <span>خانه‌های زردرنگ = تغییر ذخیره‌نشده. تا زدن دکمهٔ «تأیید»، هیچ چیزی در دیتابیس نوشته نمی‌شود.</span>
+        <div className="text-2xs text-slate-500 pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+          <span>
+            خانه‌های زردرنگ = تغییر ذخیره‌نشده. تیک زدن <b>خودکار ذخیره نمی‌شود</b>؛ تا زدن دکمهٔ «ذخیره»
+            (نوار پایین صفحه) هیچ چیزی در دیتابیس نوشته نمی‌شود. پس از ذخیره، دکمهٔ «بازگردانی» برای
+            برگشتِ تخصیصِ اشتباه در همان نوار هست.
+          </span>
           <span className="font-bold text-indigo-900">
             نمایش {faNum(filteredPermissions.length)} از {faNum(permissions.length)} مجوز
           </span>

@@ -2,6 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { notify } from '@/lib/ui-feedback';
 
 type Row = {
   id: number; fileName: string; status: string; reason: string | null; uploadedAt: string | null;
@@ -44,7 +45,7 @@ export default function ArchiveClient(props: {
       body: JSON.stringify({ docId, decision, reason }),
     });
     setBusy(false);
-    if (r.ok) router.refresh(); else alert('خطا: ' + r.status);
+    if (r.ok) router.refresh(); else notify('خطا: ' + r.status, 'error');
   }
 
   return (
@@ -83,7 +84,7 @@ export default function ArchiveClient(props: {
             {rows.map(r => (
               <tr key={r.id} className="border-t border-slate-100">
                 <td className="p-2 font-mono text-xs">{r.id}</td>
-                <td className="p-2">{r.student}<span className="block font-mono text-[10px] text-slate-400" dir="ltr">{r.nationalCode}</span></td>
+                <td className="p-2">{r.student}<span className="block font-mono text-3xs text-slate-400" dir="ltr">{r.nationalCode}</span></td>
                 <td className="p-2 text-xs">{r.category} / {r.type}</td>
                 <td className="p-2 text-xs">
                   <a className="text-indigo-700 underline" href={'/api/archive/' + r.id} target="_blank" rel="noreferrer">{r.fileName}</a>
@@ -91,10 +92,10 @@ export default function ArchiveClient(props: {
                 <td className="p-2 text-xs text-slate-500">{r.uploadedAt ? new Date(r.uploadedAt).toLocaleString('fa-IR') : '—'}</td>
                 <td className="p-2">
                   <span className={'badge ' + (props.stColor[r.status] ?? '')}>{props.stFa[r.status] ?? r.status}</span>
-                  {r.status === 'REJECTED' && r.reason && <span className="block text-[10px] text-red-600">{r.reason}</span>}
+                  {r.status === 'REJECTED' && r.reason && <span className="block text-3xs text-red-600">{r.reason}</span>}
                 </td>
                 <td className="p-2">
-                  <div className="flex gap-1 text-[11px]">
+                  <div className="flex gap-1 text-2xs">
                     <button className="rounded-lg bg-emerald-100 px-2 py-1 text-emerald-800" disabled={busy} onClick={() => verify(r.id, 'VERIFIED')}>تایید</button>
                     <button className="rounded-lg bg-red-100 px-2 py-1 text-red-700" disabled={busy} onClick={() => verify(r.id, 'REJECTED')}>رد</button>
                   </div>

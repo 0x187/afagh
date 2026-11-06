@@ -7,7 +7,9 @@ import { buildTranscriptCourses } from '@/lib/transcript-courses';
 import { toJalaliFromDate, faDigits } from '@/lib/calendar';
 import PrintTranscriptButton from '@/components/PrintTranscriptButton';
 import FinancialTranscript from '@/components/FinancialTranscript';
+import FinancialTranscriptFlat from '@/components/FinancialTranscriptFlat';
 import FinanceVerifyBlock from '@/components/FinanceVerifyBlock';
+import { getFinanceStatementApproval } from '@/lib/finance-approval';
 import StatementLinkButton from './StatementLinkButton';
 import FinanceStudentClient from './FinanceStudentClient';
 import { db } from '@/db';
@@ -33,12 +35,16 @@ function jdate(d: string | Date | null | undefined): string {
   return faDigits(`${jy}/${String(jm).padStart(2, '0')}/${String(jd).padStart(2, '0')}`);
 }
 
-export default async function StudentFinancePage({ params }: { params: Promise<{ id: string }> }) {
+export default async function StudentFinancePage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ format?: string }> }) {
   await requireRole(FINANCE);
 
   const { id } = await params;
   const studentId = Number(id);
   if (!Number.isFinite(studentId)) notFound();
+
+  // قالب سند: «نوع الف» = کارتی (پیش‌فرض) · «نوع ب» = تخت و فشرده
+  const sp = await searchParams;
+  const flatView = sp?.format === 'flat';
 
   const currentUniversity = await getCurrentUniversity();
 const fin = await getStudentFinance(studentId, {
@@ -93,6 +99,9 @@ const fin = await getStudentFinance(studentId, {
 
   const { student, totals, transcript } = fin;
 
+  // وضعیت تأیید کارنامهٔ مالی برای چاپ معتبر (درخواست FINANCE_STATEMENT)
+  const approval = await getFinanceStatementApproval(studentId);
+
   // ریز شهریهٔ متغیر دروس برای همهٔ ترم‌های کارنامه (مسیر یکتای buildTranscriptCourses:
   // وزن از تعرفهٔ رسمی همان سال، جمع قفل‌شده به «شهریهٔ متغیر» دفتر کل)
   const courseMap = await buildTranscriptCourses(studentId, transcript.map((t) => t.termId));
@@ -100,7 +109,11 @@ const fin = await getStudentFinance(studentId, {
     ...t,
     courses: courseMap[t.termId]?.lines ?? [],
     coursesBasis: courseMap[t.termId]?.basis,
+    tariffGroupCode: courseMap[t.termId]?.tariffGroupCode ?? null,
   }));
+
+  // نوع الف = کارتی · نوع ب = تخت — هر دو دقیقاً یک قرارداد پراپ دارند
+  const TranscriptDoc = flatView ? FinancialTranscriptFlat : FinancialTranscript;
 
   return (
     <div className="space-y-4" dir="rtl">
@@ -114,7 +127,7 @@ const fin = await getStudentFinance(studentId, {
                 {student.fullName} — {student.studentCode || 'بدون شمارهٔ دانشجویی'}
               </p>
             </div>
-            <Link
+            <Link prefetch={false}
               href="/admin/finance"
               className="rounded-lg border border-white/25 bg-white/10 px-3 py-1.5 text-xs font-bold backdrop-blur transition hover:bg-white/20"
             >
@@ -122,21 +135,43 @@ const fin = await getStudentFinance(studentId, {
             </Link>
           </div>
         </div>
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           <PrintTranscriptButton orientation="portrait" />
           <StatementLinkButton studentId={studentId} />
+          {/* نوع سند: الف = کارتی · ب = تخت و فشرده */}
+          <div className="flex overflow-hidden rounded-lg border border-white/30 bg-white/10 text-xs font-bold text-white backdrop-blur">
+            <Link prefetch={false}
+              href={`/admin/finance/student/${studentId}`}
+              className={!flatView ? 'bg-white px-3 py-1.5 text-slate-900' : 'px-3 py-1.5 text-white/85 hover:bg-white/10'}
+            >
+              نوع الف
+            </Link>
+            <Link prefetch={false}
+              href={`/admin/finance/student/${studentId}?format=flat`}
+              className={flatView ? 'border-r border-white/30 bg-white px-3 py-1.5 text-slate-900' : 'border-r border-white/30 px-3 py-1.5 text-white/85 hover:bg-white/10'}
+            >
+              نوع ب
+            </Link>
+          </div>
+          {/* وضعیت تأیید برای چاپ معتبر */}
+          <span className={`rounded-lg border px-2.5 py-1.5 text-2xs font-bold ${approval ? 'border-emerald-400/50 bg-emerald-400/20 text-emerald-100' : 'border-amber-400/50 bg-amber-400/20 text-amber-100'}`}>
+            {approval
+              ? `✅ تأییدشده برای چاپ معتبر${approval.trackingCode ? ` — ${approval.trackingCode}` : ''}`
+              : '⏳ بدون تأیید کارشناس مالی (QR برای دانشجو غیرفعال)'}
+          </span>
         </div>
       </div>
 
       {/* ═══ بخش چاپ‌شدنی ═══ */}
       <div className="print-area space-y-4">
-        <FinancialTranscript
+        <TranscriptDoc
           student={{ ...student, entryTerm: stuRow?.entryTerm ?? null }}
           terms={transcriptWithCourses}
           totals={totals}
           universityTitle={uniTitle}
           logoUrl={logoUrl}
           issuedAt={jdate(new Date())}
+          viewerRole="FINANCE"
           verifyBlock={financeVerify ? <FinanceVerifyBlock url={financeVerify.url} qr={financeVerify.qr} expiresAt={financeVerify.expiresAt} /> : undefined}
           cheques={fin.cheques.map((c) => ({
             id: c.id, chequeNo: c.chequeNo, bankName: c.bankName,
@@ -152,12 +187,12 @@ const fin = await getStudentFinance(studentId, {
                 <h4 className="mb-2 text-xs font-bold text-amber-800">
                   شهریهٔ ترم جاری با ضریب افزایشی
                   {enhancedTuition.overrideId !== null && (
-                    <span className="mr-2 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] text-violet-800">
+                    <span className="mr-2 rounded-full bg-violet-100 px-2 py-0.5 text-3xs text-violet-800">
                       🎯 فرمول ویژه
                     </span>
                   )}
                 </h4>
-                <div className="grid grid-cols-2 gap-2 text-[11px] sm:grid-cols-4">
+                <div className="grid grid-cols-2 gap-2 text-2xs sm:grid-cols-4">
                   <div><span className="text-slate-500">شهریه خام: </span><span className="font-medium">{fa(enhancedTuition.fixedTuition + enhancedTuition.variableTuition)}</span></div>
                   {enhancedTuition.fixedCoefficient !== 1 && (
                     <div><span className="text-slate-500">ضریب ثابت: </span><span className="font-medium text-amber-700">×{enhancedTuition.fixedCoefficient}</span></div>
@@ -170,23 +205,23 @@ const fin = await getStudentFinance(studentId, {
                   )}
                 </div>
                 {enhancedTuition.overrideId !== null && enhancedTuition.overrideReason && (
-                  <p className="mt-2 text-[11px] text-violet-700">
+                  <p className="mt-2 text-2xs text-violet-700">
                     دلیل فرمول ویژه: {enhancedTuition.overrideReason}
                   </p>
                 )}
                 {enhancedTuition.subjectFees.length > 0 && (
                   <div className="mt-2 border-t border-amber-200 pt-2">
-                    <p className="mb-1 text-[10px] font-bold text-amber-700">اقلام موضوعی:</p>
+                    <p className="mb-1 text-3xs font-bold text-amber-700">اقلام موضوعی:</p>
                     <div className="flex flex-wrap gap-2">
                       {enhancedTuition.subjectFees.map((sf, i) => (
-                        <span key={i} className={`rounded px-1.5 py-0.5 text-[10px] ${sf.kind === 'ADDITIVE' ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-800'}`}>
+                        <span key={i} className={`rounded px-1.5 py-0.5 text-3xs ${sf.kind === 'ADDITIVE' ? 'bg-amber-100 text-amber-800' : 'bg-sky-100 text-sky-800'}`}>
                           {sf.title}: {sf.amount > 0 ? '+' : ''}{fa(sf.amount)} ریال
                         </span>
                       ))}
                     </div>
                   </div>
                 )}
-                <p className="mt-2 text-[11px] text-amber-700">
+                <p className="mt-2 text-2xs text-amber-700">
                   شهریه نهایی ترم جاری: <span className="font-bold">{fa(enhancedTuition.totalTuition)} ریال</span>
                 </p>
               </div>

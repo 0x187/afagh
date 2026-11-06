@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { askConfirm } from '@/lib/ui-feedback';
 
 type RoleDef = {
   id: number; code: string; title: string;
@@ -106,7 +107,8 @@ export default function TeachingRolesClient() {
   };
 
   const deleteDef = async (d: RoleDef) => {
-    if (!confirm(`نقش «${d.title}» حذف شود؟`)) return;
+    const ok = await askConfirm({ title: 'حذف نقش', body: `نقش «${d.title}» حذف شود؟`, confirmText: 'حذف کن', danger: true });
+    if (!ok) return;
     setBusy(true); setErr(null);
     try {
       await api(`/api/admin/payroll/role-defs/${d.id}`, { method: 'DELETE' });
@@ -178,13 +180,13 @@ export default function TeachingRolesClient() {
             <div key={d.id} className={`rounded-2xl border p-3 space-y-1 ${d.isActive === 1 ? 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800' : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 opacity-70'}`}>
               <div className="flex items-center justify-between gap-2">
                 <span className="font-bold text-sm text-slate-900 dark:text-slate-100">{d.title}</span>
-                <span className="font-mono text-[10px] text-slate-400" dir="ltr">{d.code}</span>
+                <span className="font-mono text-3xs text-slate-400" dir="ltr">{d.code}</span>
               </div>
-              {d.description && <p className="text-[11px] text-slate-500 dark:text-slate-400">{d.description}</p>}
+              {d.description && <p className="text-2xs text-slate-500 dark:text-slate-400">{d.description}</p>}
               <div className="flex items-center gap-2 pt-1">
-                <button onClick={() => toggleDef(d)} disabled={busy} className="text-[11px] font-bold text-amber-700 dark:text-amber-400">{d.isActive === 1 ? 'غیرفعال کن' : 'فعال کن'}</button>
+                <button onClick={() => toggleDef(d)} disabled={busy} className="text-2xs font-bold text-amber-700 dark:text-amber-400">{d.isActive === 1 ? 'غیرفعال کن' : 'فعال کن'}</button>
                 <span className="text-slate-300 dark:text-slate-600">·</span>
-                <button onClick={() => deleteDef(d)} disabled={busy} className="text-[11px] font-bold text-rose-600 dark:text-rose-400">حذف</button>
+                <button onClick={() => deleteDef(d)} disabled={busy} className="text-2xs font-bold text-rose-600 dark:text-rose-400">حذف</button>
               </div>
             </div>
           ))}
@@ -227,18 +229,18 @@ export default function TeachingRolesClient() {
                 <tr key={`${r.staffId}-${r.offeringId}`} className="border-b border-slate-100 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/50">
                   <td className="p-2.5">
                     <div className="font-medium text-slate-900 dark:text-slate-100">{r.courseTitle}</div>
-                    <div className="text-[10px] text-slate-400">{r.courseCode} · گروه {r.groupNumber ?? '—'}{r.merged && <span className="text-indigo-600"> · 🔗 ادغامی</span>}</div>
+                    <div className="text-3xs text-slate-400">{r.courseCode} · گروه {r.groupNumber ?? '—'}{r.merged && <span className="text-indigo-600"> · 🔗 ادغامی</span>}</div>
                   </td>
                   <td className="p-2.5 text-slate-700 dark:text-slate-200">{r.staffName}</td>
                   <td className="p-2.5">
-                    <span className="inline-block bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded px-2 py-0.5 text-[10px] font-bold">{r.roleFa || r.role}</span>
+                    <span className="inline-block bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded px-2 py-0.5 text-3xs font-bold">{r.roleFa || r.role}</span>
                   </td>
                   <td className="p-2.5">
                     <select
                       value={ovr[r.offeringId] ?? ''}
                       onChange={e => saveOverride(r.offeringId, r.staffId, e.target.value)}
                       disabled={busy}
-                      className="border border-slate-300 dark:border-slate-600 dark:bg-slate-800 rounded px-1.5 py-1 text-[10px] max-w-[10rem]"
+                      className="border border-slate-300 dark:border-slate-600 dark:bg-slate-800 rounded px-1.5 py-1 text-3xs max-w-[10rem]"
                     >
                       <option value="">— خودکار —</option>
                       {defs.filter(d => d.isActive === 1).map(d => <option key={d.id} value={d.code}>{d.title}</option>)}
@@ -247,13 +249,13 @@ export default function TeachingRolesClient() {
                   <td className="p-2.5">
                     {r.ruleId != null ? (
                       <div>
-                        <span className="inline-block bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 rounded px-2 py-0.5 text-[10px] font-bold">{r.ruleTitle ?? `#${r.ruleId}`}</span>
-                        {r.expression && <div dir="ltr" className="text-left font-mono text-[10px] text-slate-500 mt-1">{r.expression}</div>}
+                        <span className="inline-block bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200 rounded px-2 py-0.5 text-3xs font-bold">{r.ruleTitle ?? `#${r.ruleId}`}</span>
+                        {r.expression && <div dir="ltr" className="text-left font-mono text-3xs text-slate-500 mt-1">{r.expression}</div>}
                       </div>
                     ) : (
                       <div>
-                        <span className="inline-block bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-200 rounded px-2 py-0.5 text-[10px] font-bold">بدون فرمول</span>
-                        {r.missReason && <div className="text-[10px] text-slate-500 mt-1">{r.missReason}</div>}
+                        <span className="inline-block bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-200 rounded px-2 py-0.5 text-3xs font-bold">بدون فرمول</span>
+                        {r.missReason && <div className="text-3xs text-slate-500 mt-1">{r.missReason}</div>}
                       </div>
                     )}
                   </td>

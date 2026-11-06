@@ -27,7 +27,7 @@ export default function ElectronicDecreesTab({ state, api }: Props) {
                 <h2 className="font-black text-slate-900 text-base">
                   📜 مدیریت و صدور ابلاغیه‌های رسمی تدریس (Teaching Appointment Decrees)
                 </h2>
-                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-100 text-indigo-900 border border-indigo-200">
+                <span className="px-2.5 py-0.5 rounded-full text-3xs font-black bg-indigo-100 text-indigo-900 border border-indigo-200">
                   سامانه ۱۰۰٪ بدون کاغذ (Paperless)
                 </span>
               </div>
@@ -70,7 +70,7 @@ export default function ElectronicDecreesTab({ state, api }: Props) {
                     <td className="p-2.5 font-black text-slate-900">{decree.profName}</td>
                     <td className="p-2.5 text-slate-700">
                       <div>{decree.academicRank}</div>
-                      <div className="text-[10px] text-slate-500">{decree.departmentName}</div>
+                      <div className="text-3xs text-slate-500">{decree.departmentName}</div>
                     </td>
                     <td className="p-2.5 font-bold text-indigo-950">
                       {decree.coursesList.map(c => `${c.title} (${c.units} واحد)`).join('، ')}
@@ -81,32 +81,32 @@ export default function ElectronicDecreesTab({ state, api }: Props) {
                     <td className="p-2.5 text-center">
                       {decree.signatureStatus === 'SIGNED' ? (
                         <div>
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white shadow-xs">
+                          <span className="px-2.5 py-0.5 rounded-full text-3xs font-black bg-emerald-600 text-white shadow-xs">
                             ✓ امضا شده با OTP
                           </span>
                           <div className="text-[9px] text-slate-500 font-mono mt-0.5">{decree.signedAt}</div>
                         </div>
                       ) : (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-500 text-slate-950">
+                        <span className="px-2.5 py-0.5 rounded-full text-3xs font-black bg-amber-500 text-slate-950">
                           در انتظار امضای استاد
                         </span>
                       )}
                     </td>
-                    <td className="p-2.5 text-center font-mono text-[10px] text-slate-500" dir="ltr">
+                    <td className="p-2.5 text-center font-mono text-3xs text-slate-500" dir="ltr">
                       {decree.documentHash ? `${decree.documentHash.slice(0, 16)}...` : '—'}
                     </td>
                     <td className="p-2.5 text-left">
                       <div className="flex items-center justify-end gap-1.5">
                         <button
                           onClick={() => setSelectedDecreeForView(decree)}
-                          className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 font-black text-[11px] transition"
+                          className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 font-black text-2xs transition"
                         >
                           📜 مشاهده ابلاغیه
                         </button>
                         {decree.signatureStatus === 'PENDING' && (
                           <button
                             onClick={() => handleSendDecreeReminder(decree.profName)}
-                            className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-900 border border-rose-300 font-black text-[10px] transition"
+                            className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-900 border border-rose-300 font-black text-3xs transition"
                           >
                             📲 پیامک یادآوری
                           </button>

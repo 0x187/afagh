@@ -24,7 +24,7 @@ export default function NewCourseModal() {
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 w-full max-w-lg p-5 space-y-3">
             <h3 className="font-extrabold text-slate-900 text-sm">✨ معرفی درس جدید در بانک دروس</h3>
-            <p className="text-[11px] text-slate-500 font-bold leading-relaxed">
+            <p className="text-2xs text-slate-500 font-bold leading-relaxed">
               درس از صفر در بانک سراسری تعریف می‌شود؛ پس از ثبت، همان‌جا برای افزودن به نسخه انتخاب می‌شود. پیش‌نیاز/هم‌نیاز هر درس در سطح کاتالوگ (تب «دروس کاتالوگ» ← قواعد) ثبت می‌گردد.
             </p>
             <div className="space-y-2 text-xs">
@@ -52,7 +52,7 @@ export default function NewCourseModal() {
                     className="mt-1 w-full border border-slate-300 rounded-lg p-2 font-bold" dir="ltr" />
                 </label>
                 <div className="rounded-lg bg-indigo-50 border border-indigo-100 p-2 text-center">
-                  <div className="text-[10px] text-slate-500 font-bold">تعداد واحد</div>
+                  <div className="text-3xs text-slate-500 font-bold">تعداد واحد</div>
                   <div className="font-black text-indigo-900 text-base">{faNum((Number(newCourseForm.theo) || 0) + (Number(newCourseForm.prac) || 0))}</div>
                 </div>
               </div>
@@ -87,7 +87,7 @@ export default function NewCourseModal() {
                   موثر بر معدل
                 </label>
               </div>
-              {deptsLoading && <p className="text-[10px] text-slate-400 font-bold">در حال بارگیری گروه‌ها…</p>}
+              {deptsLoading && <p className="text-3xs text-slate-400 font-bold">در حال بارگیری گروه‌ها…</p>}
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <button onClick={() => setModal(null)} className="px-4 py-1.5 rounded-lg bg-slate-200 text-slate-700 font-bold text-xs">انصراف</button>

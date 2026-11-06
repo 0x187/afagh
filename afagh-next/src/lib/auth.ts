@@ -1,4 +1,5 @@
 import { createHash, randomBytes, scrypt as _scrypt, timingSafeEqual } from 'crypto';
+import { cache } from 'react';
 import { promisify } from 'util';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
@@ -10,6 +11,7 @@ import { ensureBaseReferenceData } from '@/lib/base-data';
 import { clearPermissionCache } from '@/lib/permissions-enforcer';
 import { getRateLimitCount, progressiveDelay, rateLimit, releaseRateLimit } from '@/lib/rateLimit';
 import { requestClientIp } from '@/lib/request-context';
+import { checkNewPassword, PASSWORD_MIN_LENGTH_STAFF, PASSWORD_MIN_LENGTH_STUDENT } from '@/lib/password-policy';
 import {
   degree_level_configs,
   educational_regulations,
@@ -177,8 +179,24 @@ function clearSessionCookies(cookieStore: CookieStore): void {
 /**
  * نشستِ کاربری که باید رمزش را عوض کند فقط برای جریان تغییر رمز (و خروج) معتبر است؛
  * بقیهٔ گاردها (APIها، اکشن‌ها، layout ها) آن را «بدون نشست» می‌بینند.
+ *
+ * ═══ چرا cache() و چرا کلیدِ بولی ═══
+ * این تابع در **هر** درخواست چند بار صدا زده می‌شود: هر layout یک‌بار، خودِ صفحه
+ * یک‌بار، `requireRoleOrPermission` یک‌بار، و بعضی بخش‌های async داخل Suspense هم
+ * یک‌بار. هر فراخوانی یک JOIN چهار-جدولی روی
+ * sessions × users × user_roles × roles است، آن هم با `leftJoin` که برای هر
+ * کاربر به تعدادِ نقش‌هایش سطر تولید می‌کند. در صفحهٔ `/admin` اندازه‌گیری شد:
+ * همان کوئریِ یکسان **چهار بار** در یک درخواست اجرا می‌شد.
+ *
+ * `cache()` ری‌اکت، نتیجه را در محدودهٔ **همان درخواست** نگه می‌دارد (نه بین
+ * درخواست‌ها)، پس امن است و با پایانِ رندر دور ریخته می‌شود.
+ *
+ * ⚠ نکتهٔ ظریف: کلیدِ کش در `cache()` بر اساسِ **هویتِ ارجاعیِ** آرگومان‌هاست.
+ * اگر مستقیماً `{ allowPendingPasswordChange: true }` می‌گرفتیم، هر فراخوانی یک
+ * آبجکتِ تازه می‌ساخت و کش هرگز برخورد نمی‌کرد — یعنی هیچ سودی نداشت. برای همین
+ * تابعِ کش‌شده فقط یک **بولی** می‌گیرد تا کلید همیشه یکتا باشد.
  */
-export async function getSessionUser(opts?: { allowPendingPasswordChange?: boolean }): Promise<SessionUser | null> {
+const getSessionUserCached = cache(async (allowPendingPasswordChange: boolean): Promise<SessionUser | null> => {
   const cookieStore = await cookies();
   // DUAL-READ: نام جدید (__Host-afagh_session) در اولویت، سپس نام قدیمی token
   const token = readSessionToken(cookieStore);
@@ -201,7 +219,7 @@ export async function getSessionUser(opts?: { allowPendingPasswordChange?: boole
     return null;
   }
   // 🔒 تغییر اجباری رمز: تا تغییر رمز، هیچ گارد عمومی نشست معتبر نمی‌بیند.
-  if (rows[0].mustChangePassword === 1 && !opts?.allowPendingPasswordChange) return null;
+  if (rows[0].mustChangePassword === 1 && !allowPendingPasswordChange) return null;
   return {
     id: rows[0].id,
     name: rows[0].firstName + ' ' + rows[0].lastName,
@@ -211,6 +229,11 @@ export async function getSessionUser(opts?: { allowPendingPasswordChange?: boole
     mustChangePassword: rows[0].mustChangePassword === 1,
     universityId: rows[0].universityId ?? null,
   };
+});
+
+/** امضای عمومی — بدون تغییر برای ۱۱۹ نقطهٔ فراخوانیِ موجود. */
+export async function getSessionUser(opts?: { allowPendingPasswordChange?: boolean }): Promise<SessionUser | null> {
+  return getSessionUserCached(opts?.allowPendingPasswordChange === true);
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -652,10 +675,12 @@ export async function changePassword(currentPassword: string, newPassword: strin
       return { ok: false, error: 'رمز فعلی نادرست است.' };
   }
   const trimmed = newPassword.trim();
-  if (trimmed.length < 10) return { ok: false, error: 'رمز جدید باید حداقل ۱۰ کاراکتر باشد.' };
-  if (trimmed.length > 128) return { ok: false, error: 'رمز جدید باید حداکثر ۱۲۸ کاراکتر باشد.' };
-  if (!/[A-Za-z]/.test(trimmed) || !/[0-9]/.test(trimmed))
-    return { ok: false, error: 'رمز جدید باید حداقل یک حرف و یک رقم داشته باشد.' };
+  const isEndUser = me.roles.length > 0 && me.roles.every(r => r === 'STUDENT' || r === 'PROFESSOR');
+  const policyError = checkNewPassword(trimmed, {
+    minLength: isEndUser ? PASSWORD_MIN_LENGTH_STUDENT : PASSWORD_MIN_LENGTH_STAFF,
+    identifiers: [u.nationalCode],
+  });
+  if (policyError) return { ok: false, error: policyError };
   if (trimmed === currentPassword) return { ok: false, error: 'رمز جدید نباید با رمز فعلی یکسان باشد.' };
   const passwordHash = await hashPassword(trimmed);
   await db.update(users).set({ passwordHash, mustChangePassword: 0 }).where(eq(users.id, u.id));

@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react';
 import { saveFeeRuleAction, deleteFeeRuleAction, importLegacyFeeRulesAction, setEquivFixedModeAction, type FeeRuleInput } from './actions';
 import type { EquivFixedMode } from '@/lib/tuition-rules';
+import { askConfirm } from '@/lib/ui-feedback';
 
 type Rule = {
   id: number;
@@ -72,8 +73,8 @@ export default function TuitionRulesClient({ rules, degrees, equivFixedMode }: {
     });
   };
 
-  const remove = (id: number) => {
-    if (!confirm('این قاعدهٔ شهریه حذف شود؟')) return;
+  const remove = async (id: number) => {
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: 'این قاعدهٔ شهریه حذف شود؟', confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
     start(async () => {
       const res = await deleteFeeRuleAction(id);
       setMsg(res.ok ? { ok: true, text: 'حذف شد.' } : { ok: false, text: res.error || 'حذف ناموفق بود.' });
@@ -90,8 +91,8 @@ export default function TuitionRulesClient({ rules, degrees, equivFixedMode }: {
     });
   };
 
-  const importLegacy = () => {
-    if (!confirm('قواعد مالی قدیمی به موتور جدید درون‌ریزی شوند؟ قواعد تکراری ساخته نمی‌شوند.')) return;
+  const importLegacy = async () => {
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: 'قواعد مالی قدیمی به موتور جدید درون‌ریزی شوند؟ قواعد تکراری ساخته نمی‌شوند.', confirmText: 'تأیید', cancelText: 'انصراف', danger: false }))) return;
     start(async () => {
       const res = await importLegacyFeeRulesAction();
       if (res.ok) {

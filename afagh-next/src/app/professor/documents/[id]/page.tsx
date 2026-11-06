@@ -28,7 +28,7 @@ export default async function DocumentPage({ params }: { params: Promise<{ id: s
         <h2 className="font-bold">{doc.title}</h2>
         <p className="mt-1 text-xs text-slate-500">{doc.docType ? DOC_TYPE_LABEL[doc.docType] ?? doc.docType : 'سند'}</p>
         <pre className="mt-3 whitespace-pre-wrap rounded-xl bg-slate-50 p-3 text-xs leading-6 text-slate-700">{doc.documentSnapshot}</pre>
-        <p className="mt-2 break-all font-mono text-[10px] text-slate-400" dir="ltr">hash: {doc.documentHash}</p>
+        <p className="mt-2 break-all font-mono text-3xs text-slate-400" dir="ltr">hash: {doc.documentHash}</p>
       </div>
       <ElectronicSignature documentId={doc.id} initialStatus={doc.signatureStatus ?? 'PENDING'} documentHash={doc.documentHash} signedAt={sig?.signedAt?.toISOString() ?? null} />
     </div>

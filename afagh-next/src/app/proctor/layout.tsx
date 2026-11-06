@@ -39,7 +39,7 @@ export default async function ProctorLayout({ children }: { children: React.Reac
             <div>
               <div className="flex items-center gap-2">
                 <p className="font-extrabold text-sm tracking-wide">سامانه هوشمند مراقبین آزمون دانشگاه آفاق</p>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-indigo-500/80 text-white">
+                <span className="px-2 py-0.5 rounded-full text-3xs font-black bg-indigo-500/80 text-white">
                   پرتال مراقب
                 </span>
               </div>
@@ -53,7 +53,7 @@ export default async function ProctorLayout({ children }: { children: React.Reac
               siblings={siblings}
             />
             {hasAdminRole && (
-              <Link
+              <Link prefetch={false}
                 href="/admin/exams"
                 className="text-xs bg-indigo-900/90 hover:bg-indigo-800 text-indigo-200 border border-indigo-700/60 px-3 py-1.5 rounded-lg transition-colors font-bold"
               >
@@ -69,12 +69,12 @@ export default async function ProctorLayout({ children }: { children: React.Reac
         </div>
 
         <nav className="mx-auto flex max-w-6xl gap-2 sm:gap-4 px-4 pb-2.5 text-xs sm:text-sm font-medium overflow-x-auto">
-          <Link href="/proctor" className="px-3 py-1.5 rounded-lg bg-indigo-800/80 text-white border border-indigo-600/50 transition-colors whitespace-nowrap">
+          <Link prefetch={false} href="/proctor" className="px-3 py-1.5 rounded-lg bg-indigo-800/80 text-white border border-indigo-600/50 transition-colors whitespace-nowrap">
             📷 حضور و غیاب آزمون با QR-Code
           </Link>
         </nav>
       </header>
-      <main className="mx-auto max-w-6xl p-3 sm:p-5 pb-16">{children}</main>
+      <main id="main" className="mx-auto max-w-6xl p-3 sm:p-5 pb-16">{children}</main>
       <SessionLock name={user.name} timeoutMin={lockMin} initialLocked={lockOn} />
     </div>
   );

@@ -198,7 +198,7 @@ export default function ScheduleClient({
 
       <div className="flex items-center justify-between gap-3 bg-white p-3 rounded-2xl border border-slate-200 shadow-sm print:hidden">
         <div className="flex items-center gap-2">
-          <Link
+          <Link prefetch={false}
             href="/student/enroll"
             className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-xl font-bold transition-colors flex items-center gap-1"
           >
@@ -220,21 +220,21 @@ export default function ScheduleClient({
 
       <div className="print:hidden grid grid-cols-2 sm:grid-cols-4 gap-3 bg-white p-3.5 rounded-2xl border border-slate-200 text-xs shadow-sm">
         <div>
-          <span className="text-slate-500 block text-[11px]">نام و نام خانوادگی:</span>
+          <span className="text-slate-500 block text-2xs">نام و نام خانوادگی:</span>
           <span className="font-extrabold text-slate-900 text-sm">{student.name}</span>
         </div>
         <div>
-          <span className="text-slate-500 block text-[11px]">شماره دانشجویی:</span>
+          <span className="text-slate-500 block text-2xs">شماره دانشجویی:</span>
           <span className="font-extrabold text-slate-900 text-sm" dir="ltr">
             {faNum(student.studentCode)}
           </span>
         </div>
         <div>
-          <span className="text-slate-500 block text-[11px]">رشته تحصیلی:</span>
+          <span className="text-slate-500 block text-2xs">رشته تحصیلی:</span>
           <span className="font-extrabold text-slate-900">{student.majorName}</span>
         </div>
         <div>
-          <span className="text-slate-500 block text-[11px]">مقطع و ترم تحصیلی:</span>
+          <span className="text-slate-500 block text-2xs">مقطع و ترم تحصیلی:</span>
           <span className="font-extrabold text-slate-900">
             {student.degreeTitle} (ترم {faNum(student.currentTermNo)})
           </span>
@@ -299,7 +299,7 @@ export default function ScheduleClient({
             با فیلتر «{weekFilterLabel}» کلاسی برای نمایش وجود ندارد.
           </div>
         ) : (
-          <ProfessorCalendarGrid entries={visibleEntries} />
+          <ProfessorCalendarGrid entries={visibleEntries} orientation="days-rows" />
         )}
 
         {unscheduled.length > 0 && (
@@ -307,7 +307,7 @@ export default function ScheduleClient({
             <h4 className="text-xs font-extrabold text-amber-900">
               دروس بدون ساعت‌بندی ثبت‌شده ({faNum(unscheduled.length)} درس)
             </h4>
-            <ul className="space-y-1 text-[11px] font-bold text-amber-900">
+            <ul className="space-y-1 text-2xs font-bold text-amber-900">
               {unscheduled.map(o => (
                 <li key={o.offeringId}>
                   {o.code} · {o.title} (گروه {faNum(o.group)} · {faNum(o.units)} واحد)
@@ -355,9 +355,9 @@ export default function ScheduleClient({
                     <td className="p-2 border-l border-slate-200 font-extrabold text-slate-900">
                       {c.title}
                       <div className="mt-1">
-                        <Link
+                        <Link prefetch={false}
                           href={`/student/lesson-plan/${c.offeringId}`}
-                          className="inline-block px-2 py-0.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-bold text-[10px] transition"
+                          className="inline-block px-2 py-0.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-800 font-bold text-3xs transition"
                         >
                           📋 مشاهده طرح درس
                         </Link>
@@ -373,10 +373,10 @@ export default function ScheduleClient({
                     <td className="p-2 border-l border-slate-200 font-medium">{c.professor}</td>
                     <td className="p-2 border-l border-slate-200 text-slate-700">
                       {c.classes.length === 0 ? (
-                        <span className="text-[11px] text-slate-400">زمان‌بندی ثبت نشده</span>
+                        <span className="text-2xs text-slate-400">زمان‌بندی ثبت نشده</span>
                       ) : (
                         c.classes.map((cls, i) => (
-                          <div key={i} className="text-[11px]">
+                          <div key={i} className="text-2xs">
                             • {cls.dayName} ساعت {faNum(cls.startTime)} تا {faNum(cls.endTime)} — <b>{cls.room || 'کلاس تئوری'}</b>
                             {cls.weekType !== 'ALL' ? ` (${studentWeekLabel(cls.weekType)})` : ''}
                           </div>
@@ -384,7 +384,7 @@ export default function ScheduleClient({
                       )}
                     </td>
                     <td className="p-2 border-l border-slate-200 text-center">
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">
+                      <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-3xs">
                         {studentStatusLabel(c.status)}
                       </span>
                     </td>

@@ -67,6 +67,45 @@ try {
   }
   console.log(`✅ تأیید سلامت اسکیما: ${REQUIRED_TABLES.length} جدول حیاتی موجودند.`);
 
+  // ═══ گزارشِ ایندکس‌های عملکردی (ضدِ رگرسیونِ خاموش) ═══
+  // چرا: یک‌بار پیش آمد که ایندکس‌های جدیدِ patches.sql روی سرور ساخته نشدند و
+  // هیچ‌کس متوجه نشد، چون سرویسِ migrator ایمیجِ جداگانه‌ای دارد
+  // (`target: migrator`) و `docker compose build app` آن را بازسازی نمی‌کند.
+  // از این پس خودِ لاگِ دیپلوی فهرستِ ایندکس‌های کلیدیِ این سه جدول را چاپ
+  // می‌کند تا «ساخته شد یا نه» در همان خروجیِ استقرار قابلِ خواندن باشد.
+  // عمداً fail نمی‌کند: حذفِ آگاهانهٔ یک ایندکس نباید استقرار را بخواباند.
+  try {
+    const idx = await client.query(`
+      SELECT tablename, indexname
+      FROM pg_indexes
+      WHERE schemaname = 'public'
+        AND tablename IN ('student_requests', 'offering_professors', 'course_offerings', 'enrollments', 'student_ledger')
+        AND (indexname LIKE 'idx_req_%' OR indexname LIKE 'idx_op_%' OR indexname LIKE 'idx_co_%'
+             OR indexname LIKE 'idx_enr_%' OR indexname LIKE 'idx_ledger_%' OR indexname LIKE 'idx_student_ledger_%')
+      ORDER BY tablename, indexname`);
+    const byTable = new Map();
+    for (const r of idx.rows) {
+      if (!byTable.has(r.tablename)) byTable.set(r.tablename, []);
+      byTable.get(r.tablename).push(r.indexname);
+    }
+    console.log(`📇 ایندکس‌های عملکردی (${idx.rowCount} عدد):`);
+    for (const [t, list] of byTable) console.log(`   ${t}: ${list.join(', ')}`);
+
+    // ایندکس‌هایی که اگر نبودند یعنی patches.sql اجرا نشده یا ایمیج کهنه است.
+    const MUST_HAVE = ['idx_op_offering_staff', 'idx_co_prof_term', 'idx_enr_pending_grade', 'idx_enr_offering', 'idx_req_uni_created', 'idx_ledger_balance_cover', 'idx_co_active_history'];
+    const present = new Set(idx.rows.map((r) => r.indexname));
+    const absent = MUST_HAVE.filter((n) => !present.has(n));
+    if (absent.length) {
+      console.warn(`⚠️ ایندکس‌های کلیدیِ غایب: ${absent.join(', ')}`);
+      console.warn('   یعنی patches.sql این نسخه در این دیتابیس اعمال نشده — معمولاً چون ایمیجِ migrator');
+      console.warn('   بازسازی نشده است. با «docker compose build migrator» و اجرای مجدد رفع می‌شود.');
+    } else {
+      console.log('✅ همهٔ ایندکس‌های کلیدیِ عملکردی موجودند.');
+    }
+  } catch (e) {
+    console.warn(`⚠️ گزارشِ ایندکس‌ها خوانده نشد: ${e.message}`);
+  }
+
   await client.query(`SELECT pg_advisory_unlock(hashtext('afagh_migrator'))`);
 } catch (err) {
   console.error('❌ خطا در اعمال پچ‌ها:', err.message);

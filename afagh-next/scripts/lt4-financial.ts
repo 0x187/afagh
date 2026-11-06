@@ -74,7 +74,7 @@ const deps = {
   releaseSeat: async () => {},
   nextWaitlistPosition: async () => null,
   evaluateRegulations: async () => ({ effectiveMaxUnits: 40 }),
-  buildPrereq: async () => ({ ruleByCourse: new Map(), passed: new Map(), titles: new Map(), defaultPassing: 10 }),
+  buildPrereq: async () => ({ ruleByCourse: new Map(), passed: new Map(), titles: new Map(), defaultPassing: 10, unitsPassed: 0, semesterNo: 1 }),
   getDebtThreshold: async () => 0,
   notifyEnrollmentDone: async () => {},
 };

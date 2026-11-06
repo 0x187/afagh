@@ -11,6 +11,7 @@ import { course_rules, curriculum_courses } from '@/db/schema';
 import { appendAudit } from '@/lib/audit';
 import { requireRole } from '@/lib/auth';
 import { normalizeLogicNode } from '@/lib/curriculum-types';
+import { describeSyncStats, syncRequisiteRulesFromCourses, type SyncStats } from '@/lib/requisite-sync';
 import { EDITORS, PHASE, assertEditable, revalidateCurriculumPaths, type Act } from './shared';
 
 // ─────────────────────────── قواعد (پیش‌نیاز/هم‌نیاز/نمره) — D2 ───────────────────────────
@@ -134,4 +135,35 @@ export async function setCourseGradeStatusCodesAction(
 }
 
 
-// ─────────────────────────── اعتبارسنجی و چرخهٔ حیات ───────────────────────────
+// ─────────────────────── همگام‌سازی از جدول دروس (مهاجرت) ───────────────────────
+
+/**
+ * «پیش‌نیاز / هم‌نیاز» را از **جدول دروس** می‌خواند و برای همین نسخه در
+ * `course_rules` می‌نویسد.
+ *
+ * چرا عمداً `assertEditable` ندارد؟ چون این عمل ویرایشِ محتوای برنامه نیست،
+ * بلکه **تکمیل دادهٔ مهاجرت** است: قواعد در سیستم قدیمی داخل جدول دروس بودند و
+ * هنگام انتقال به سامانهٔ جدید در `course_rules` نوشته نشدند (جدول خالی ماند).
+ * نسخهٔ منتشرشده هم باید همین قواعد را داشته باشد، وگرنه هشدار پیش‌نیاز هرگز
+ * نمایش داده نمی‌شود. قواعد دستیِ موجود هم بازنویسی نمی‌شوند (overwrite=false).
+ */
+export async function syncRequisiteRulesAction(versionId: number, overwrite = false): Promise<Act<{ message: string; stats: SyncStats }>> {
+  const user = await requireRole(EDITORS);
+  try {
+    const stats = await syncRequisiteRulesFromCourses({ versionId, overwrite });
+    await db.transaction(async (tx) => {
+      await appendAudit(tx, {
+        actorUserId: user.id,
+        action: 'CURRICULUM_REQUISITE_SYNC', entityType: PHASE, entityId: versionId,
+        details: JSON.stringify({ prereqRules: stats.prereqRules, coreqRules: stats.coreqRules, skipped: stats.skippedExisting, overwrite }),
+      });
+    });
+    revalidateCurriculumPaths();
+    return { ok: true, message: describeSyncStats(stats), stats };
+  } catch (err: any) {
+    console.error('syncRequisiteRulesAction:', err);
+    return { ok: false, error: err.message || 'خطا در خواندن قواعد از جدول دروس' };
+  }
+}
+
+

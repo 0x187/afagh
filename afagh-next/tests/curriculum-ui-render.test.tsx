@@ -10,7 +10,7 @@
  */
 import { renderToStaticMarkup } from 'react-dom/server';
 import { CurriculumCtx } from '../src/app/admin/curriculum/curriculum-context.ts';
-import { leafCourseCodesOf, leafTotalOf } from '../src/app/admin/curriculum/curriculum-core.ts';
+import { leafCourseCodesOf, leafTotalOf, dependencyWarningsMap } from '../src/app/admin/curriculum/curriculum-core.ts';
 import AddCourseModal from '../src/app/admin/curriculum/components/AddCourseModal.tsx';
 import CatalogTab from '../src/app/admin/curriculum/components/CatalogTab.tsx';
 import CourseRulesModal from '../src/app/admin/curriculum/components/CourseRulesModal.tsx';
@@ -31,8 +31,8 @@ import VersionDetailPanel from '../src/app/admin/curriculum/components/VersionDe
 
 const noop = () => {};
 const courses = [
-  { courseId: 21, code: 'CM101', title: 'مبانی برنامه‌سازی', units: 3, roleType: 'CORE', isRequired: 1, isElective: 0, isGraduationRequired: 0, recommendedSemester: 1, minGrade: null },
-  { courseId: 22, code: 'CM102', title: 'ساختار داده', units: 3, roleType: 'GENERAL', isRequired: 0, isElective: 1, isGraduationRequired: 0, recommendedSemester: null, minGrade: 10 },
+  { courseId: 21, code: 'CM101', title: 'مبانی برنامه‌سازی', units: 3, roleType: 'CORE', isRequired: 1, isElective: 0, isGraduationRequired: 0, recommendedSemester: 1, minGrade: null, passGradeStatusCode: null, failGradeStatusCode: null },
+  { courseId: 22, code: 'CM102', title: 'ساختار داده', units: 3, roleType: 'GENERAL', isRequired: 0, isElective: 1, isGraduationRequired: 0, recommendedSemester: null, minGrade: 10, passGradeStatusCode: null, failGradeStatusCode: null },
 ];
 const detail = {
   version: { id: 10, majorId: 1, degreeLevelId: 2, trackId: 1, versionCode: '1402-1', title: 'برنامهٔ کارشناسی ۱۴۰۲', status: 'DRAFT', entryYearFrom: 1402, entryYearTo: null, totalRequiredUnits: '140', courseCount: 2, maxUnitsPerTerm: 24, minRoleUnits: { CORE: 60, GENERAL: 20 } },
@@ -60,6 +60,7 @@ function ctx(extra: Record<string, unknown> = {}) {
     roleForBank: (b: { id: number; courseType: string }) => (b.id === 21 ? 'CORE' : 'GENERAL'),
     toggleSelectAllBank: noop, closeAddCourse: noop, handleAddCourse: noop, handleBulkAddCourses: noop,
     modal: null as string | null, setModal: noop, busy: false, toast: { text: 'نسخه ذخیره شد', type: 'success' as const }, showToast: noop,
+    handleSyncRequisites: noop,
     newVersionForm: { versionCode: '1404-1', title: 'برنامهٔ ۱۴۰۴', entryYearFrom: 1404, totalRequiredUnits: 140, maxUnitsPerTerm: 24, cloneFromId: '' },
     setNewVersionForm: noop,
     addCourseForm: { courseId: '21', roleType: 'CORE', recommendedSemester: '2' }, setAddCourseForm: noop,
@@ -68,13 +69,14 @@ function ctx(extra: Record<string, unknown> = {}) {
     setNewCourseForm: noop,
     depts: [{ id: 1, name: 'گروه کامپیوتر' }], deptsLoading: false, handleCreateBankCourse: noop,
     ruleCourseId: 22, setRuleCourseId: noop,
-    ruleForm: { pre: ['CM101'], preOp: 'AND' as const, co: [], coOp: 'OR' as const, minGrade: '12' }, setRuleForm: noop,
+    ruleForm: { pre: ['CM101'], preOp: 'AND' as const, co: [], coOp: 'OR' as const, minGrade: '12', passGradeStatusCode: '', failGradeStatusCode: '', minUnits: '', minTerm: '' }, setRuleForm: noop,
     toggleRuleCode: noop, handleSaveRules: noop, handleCreateVersion: noop, handleTransferToMajor: noop,
     handleValidate: noop, handleSubmit: noop, handleApprove: noop, handleReject: noop, handlePublish: noop,
     handleArchive: noop, handleCreateRevision: noop, handleSyncRoles: noop, handleMarkGradReq: noop,
     handleRemoveCourse: noop, handleAssignSemester: noop, handleUpdateMaxUnits: noop, handleUpdateRequired: noop,
     handleUpdateRole: noop, handleUpdateGradReq: noop, handleSaveRoleTargets: noop,
     activeTab: 'CATALOG' as string, setActiveTab: noop, transferMajorId: 1, setTransferMajorId: noop,
+    transferEntryTermId: 0, setTransferEntryTermId: noop, terms: [],
     dragCourseId: null, setDragCourseId: noop, dropTarget: null, setDropTarget: noop,
     facultyFilter: '', setFacultyFilter: noop, deptFilter: '', setDeptFilter: noop,
     faculties: ['دانشکدهٔ فنی'], departments: ['گروه کامپیوتر'], filteredMajors: majors,
@@ -88,6 +90,9 @@ function ctx(extra: Record<string, unknown> = {}) {
     roleTargetsKey: '10:core', ruleText: (id: number, t: string) => (t === 'PREREQ' ? 'مبانی برنامه‌سازی' : null),
     openRules: noop, semLabel: (s: number | null) => (s == null ? 'نامشخص' : `ترم ${s}`),
     leafCourseCodesOf, leafTotalOf, semesterUnitTotal: (l: { units: number }[]) => l.reduce((s, c) => s + c.units, 0),
+    // هشدارهای پیش‌نیاز/هم‌نیاز — با همان تابعِ واقعی ساخته می‌شود تا mock
+    // هرگز از کدِ در حالِ اجرا عقب نماند (CoursesTab و SemestersTab آن را می‌خوانند).
+    depWarnings: dependencyWarningsMap(courses, detail.rules as Parameters<typeof dependencyWarningsMap>[1]),
     ...extra,
   } as never;
 }
@@ -102,7 +107,7 @@ const CASES: [string, React.ComponentType, string[], Record<string, unknown>?][]
   ['CurriculumTabsBar', CurriculumTabsBar, ['تعریف کاتالوگ رشته', 'نسخهٔ فعال: 1402-1', 'پیش‌نویس'], undefined],
   ['CatalogTab', CatalogTab, ['🗂️ نسخه‌های این رشته', 'کد نسخه', '1402-1'], { activeTab: 'CATALOG' }],
   ['DetailHeaderBar', DetailHeaderBar, ['برنامهٔ کارشناسی ۱۴۰۲', 'ایجاد نسخهٔ جدید'], { activeTab: 'COURSES' }],
-  ['VerifyTab', VerifyTab, ['🎯 سهم واحد هر نقش', 'جمع واحدها از سقف واحد ترم کمتر است', 'واحد (Enter/Blur برای ذخیره)', '!در حال بارگذاری جزئیات از سرور'], { activeTab: 'VERIFY' }],
+  ['VerifyTab', VerifyTab, ['🎯 سهم واحد هر نوع درس', 'جمع واحدها از سقف واحد ترم کمتر است', 'واحد (Enter/Blur برای ذخیره)', '!در حال بارگذاری جزئیات از سرور'], { activeTab: 'VERIFY' }],
   ['CoursesTab', CoursesTab, ['مبانی برنامه‌سازی', 'پیش‌نیاز / هم‌نیاز', 'افزودن درس از بانک'], { activeTab: 'COURSES' }],
   ['SemestersTab', SemestersTab, ['تابستان', 'نامشخص', 'ساختار داده'], { activeTab: 'SEMESTERS' }],
   ['TransferTab', TransferTab, ['نسخهٔ جدید (R+1) از همین نسخه', 'مهندسی کامپیوتر'], { activeTab: 'TRANSFER' }],
@@ -111,7 +116,7 @@ const CASES: [string, React.ComponentType, string[], Record<string, unknown>?][]
   ['CourseRulesModal', CourseRulesModal, ['پیش‌نیاز / هم‌نیاز — CM102', 'مبانی برنامه‌سازی', 'درس به‌عنوان پیش‌نیاز انتخاب شد'], { modal: 'RULES', ruleCourse: courses[1] }],
   ['AddCourseModal', AddCourseModal, ['افزودن درس از بانک دروس', 'ساختار داده'], { modal: 'ADD_COURSE' }],
   ['RejectModal', RejectModal, ['رد نسخه و بازگشت به پیش‌نویس', 'کسری واحد عمومی'], { modal: 'REJECT' }],
-  ['RoleTargetsEditor', RoleTargetsCase, ['موجود ۳ واحد', 'ذخیره سهم‌ها', 'کسری ۵۷'], undefined],
+  ['RoleTargetsEditor', RoleTargetsCase, ['۳ واحد (کسری ۵۷)', 'ذخیره سهم‌ها', 'کسری ۵۷'], undefined],
   ['VersionDetailPanel', VersionDetailPanel, ['ساختار داده', 'پیش‌نیاز / هم‌نیاز'], { activeTab: 'COURSES' }],
   ['CurriculumShell', CurriculumShell, ['مدیریت نسخه‌های برنامهٔ درسی', 'تعریف کاتالوگ رشته', '🗂️ نسخه‌های این رشته'], undefined],
 ];

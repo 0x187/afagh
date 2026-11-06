@@ -10,9 +10,9 @@ import { db } from '@/db';
 import { curriculum_approvals, curriculum_versions, majors } from '@/db/schema';
 import { appendAudit } from '@/lib/audit';
 import { requireRole } from '@/lib/auth';
-import { nextRevisionCode } from '@/lib/curriculum-types';
+import { canEditStatus, nextRevisionCode } from '@/lib/curriculum-types';
 import { parseRoleUnitTargets } from '@/lib/curriculum-validator';
-import { type Act, type CreateVersionInput, EDITORS, PHASE, assertEditable, assertUniqueVersionCode, deepCopyCourseData, getVersionOrThrow, requireActorStaff, revalidateCurriculumPaths } from './shared';
+import { type Act, type CreateVersionInput, EDITORS, PHASE, assertUniqueVersionCode, deepCopyCourseData, getVersionOrThrow, requireActorStaff, revalidateCurriculumPaths } from './shared';
 
 export async function createCurriculumVersionAction(input: CreateVersionInput): Promise<Act<{ message: string; data: { id: number } }>> {
   await requireRole(EDITORS);
@@ -39,6 +39,7 @@ export async function createCurriculumVersionAction(input: CreateVersionInput): 
         status: 'DRAFT',
         entryYearFrom: input.entryYearFrom,
         entryYearTo: input.entryYearTo ?? null,
+        entryTermId: input.entryTermId ?? null,
         totalRequiredUnits: String(input.totalRequiredUnits ?? 0),
         maxUnitsPerTerm: input.maxUnitsPerTerm ?? null,
       }).returning({ id: curriculum_versions.id });
@@ -88,37 +89,65 @@ export async function updateCurriculumMetaAction(
 ) {
   await requireRole(EDITORS);
   try {
-    const v = await assertEditable(versionId);
-    if (patch.versionCode && patch.versionCode.trim() !== v.versionCode) {
+    const v = await getVersionOrThrow(versionId);
+
+    // ── پس از انتشار، تنها «پنجرهٔ ورودی» قابل ویرایش است ──
+    // چرا: اگر «ورودی تا» خالی/اشتباه بماند و بعد چارت جدید بیاید، دو نسخه هم‌زمان
+    // روی یک ورودی منطبق می‌شوند و نیم‌سال‌ها تداخل می‌کنند. اصلاح همین پنجره است که
+    // آن تداخل را رفع می‌کند؛ بقیهٔ محتوا فقط با نسخهٔ R+1 قابل تغییر است.
+    const entryRangeOnly = !canEditStatus(v.status as Parameters<typeof canEditStatus>[0]);
+    if (entryRangeOnly) {
+      const forbidden = Object.entries(patch)
+        .filter(([, val]) => val !== undefined)
+        .map(([k]) => k)
+        .filter((k) => k !== 'entryYearFrom' && k !== 'entryYearTo');
+      if (forbidden.length > 0) {
+        return {
+          ok: false,
+          error: `نسخهٔ «${v.status}» فقط از نظر «ورودی از/تا» قابل ویرایش است؛ تغییر ${forbidden.join('، ')} مجاز نیست — برای تغییر محتوا نسخهٔ جدید (R+1) بسازید.`,
+        };
+      }
+    }
+
+    const nextEntryFrom = patch.entryYearFrom ?? v.entryYearFrom;
+    const nextEntryTo = patch.entryYearTo !== undefined ? patch.entryYearTo : v.entryYearTo;
+    if (nextEntryTo != null && nextEntryTo < nextEntryFrom) {
+      return { ok: false, error: `«ورودی تا» (${nextEntryTo}) نمی‌تواند کوچک‌تر از «ورودی از» (${nextEntryFrom}) باشد.` };
+    }
+
+    if (!entryRangeOnly && patch.versionCode && patch.versionCode.trim() !== v.versionCode) {
       await assertUniqueVersionCode(v.majorId, v.degreeLevelId, v.trackId, patch.versionCode.trim(), versionId);
     }
     await db.update(curriculum_versions).set({
-      title: patch.title?.trim() ?? v.title,
-      versionCode: patch.versionCode?.trim() ?? v.versionCode,
-      trackId: patch.trackId !== undefined ? patch.trackId : v.trackId,
-      entryYearFrom: patch.entryYearFrom ?? v.entryYearFrom,
-      entryYearTo: patch.entryYearTo !== undefined ? patch.entryYearTo : v.entryYearTo,
-      effectiveFrom: patch.effectiveFrom !== undefined ? patch.effectiveFrom : v.effectiveFrom,
-      effectiveTo: patch.effectiveTo !== undefined ? patch.effectiveTo : v.effectiveTo,
-      totalRequiredUnits: patch.totalRequiredUnits != null ? String(patch.totalRequiredUnits) : v.totalRequiredUnits,
-      maxUnitsPerTerm: patch.maxUnitsPerTerm !== undefined ? patch.maxUnitsPerTerm : v.maxUnitsPerTerm,
-      minRoleUnits: patch.minRoleUnits !== undefined
-        ? (patch.minRoleUnits && Object.keys(patch.minRoleUnits).length > 0 ? JSON.stringify(parseRoleUnitTargets(patch.minRoleUnits)) : null)
-        : v.minRoleUnits,
+      title: entryRangeOnly ? v.title : (patch.title?.trim() ?? v.title),
+      versionCode: entryRangeOnly ? v.versionCode : (patch.versionCode?.trim() ?? v.versionCode),
+      trackId: entryRangeOnly ? v.trackId : (patch.trackId !== undefined ? patch.trackId : v.trackId),
+      entryYearFrom: nextEntryFrom,
+      entryYearTo: nextEntryTo,
+      effectiveFrom: entryRangeOnly ? v.effectiveFrom : (patch.effectiveFrom !== undefined ? patch.effectiveFrom : v.effectiveFrom),
+      effectiveTo: entryRangeOnly ? v.effectiveTo : (patch.effectiveTo !== undefined ? patch.effectiveTo : v.effectiveTo),
+      totalRequiredUnits: entryRangeOnly || patch.totalRequiredUnits == null ? v.totalRequiredUnits : String(patch.totalRequiredUnits),
+      maxUnitsPerTerm: entryRangeOnly ? v.maxUnitsPerTerm : (patch.maxUnitsPerTerm !== undefined ? patch.maxUnitsPerTerm : v.maxUnitsPerTerm),
+      minRoleUnits: entryRangeOnly
+        ? v.minRoleUnits
+        : patch.minRoleUnits !== undefined
+          ? (patch.minRoleUnits && Object.keys(patch.minRoleUnits).length > 0 ? JSON.stringify(parseRoleUnitTargets(patch.minRoleUnits)) : null)
+          : v.minRoleUnits,
       updatedAt: new Date(),
     }).where(eq(curriculum_versions.id, versionId));
     await db.transaction(async (tx) => {
       await appendAudit(tx, {
         actorUserId: (await requireRole(EDITORS)).id,
-        action: 'CURRICULUM_VERSION_META_UPDATED', entityType: PHASE, entityId: versionId,
-        details: JSON.stringify(patch),
+        action: entryRangeOnly ? 'CURRICULUM_ENTRY_RANGE_UPDATED' : 'CURRICULUM_VERSION_META_UPDATED',
+        entityType: PHASE, entityId: versionId,
+        details: JSON.stringify(entryRangeOnly ? { entryYearFrom: nextEntryFrom, entryYearTo: nextEntryTo, status: v.status } : patch),
       });
     });
     revalidateCurriculumPaths();
-    return { ok: true, message: 'مشخصات نسخه بهروزرسانی شد.' };
+    return { ok: true, message: entryRangeOnly ? 'پنجرهٔ ورودی نسخه به‌روزرسانی شد.' : 'مشخصات نسخه به‌روزرسانی شد.' };
   } catch (err: any) {
     console.error('updateCurriculumMetaAction:', err);
-    return { ok: false, error: err.message || 'خطا در بهروزرسانی مشخصات' };
+    return { ok: false, error: err.message || 'خطا در به‌روزرسانی مشخصات' };
   }
 }
 

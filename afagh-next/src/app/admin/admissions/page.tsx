@@ -6,10 +6,11 @@ import {
   degree_level_configs,
   majors,
   sanjesh_mappings,
+  student_id_formula_models,
   student_id_formulas,
 } from '@/db/schema';
 import { requireRole } from '@/lib/auth';
-import { ensureDefaultSanjeshMappings } from '@/lib/admissions-engine';
+import { ensureDefaultSanjeshMappings, resyncStagingMappings } from '@/lib/admissions-engine';
 import { ensureDefaultIntegrations } from '@/lib/api-integrations';
 import { getCurrentUniversity } from '@/lib/university-scope';
 import AdmissionsClient from './AdmissionsClient';
@@ -18,24 +19,36 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminAdmissionsPage() {
   await requireRole(['ADMIN', 'EDU_EXPERT']);
-  await ensureDefaultSanjeshMappings();
-  await ensureDefaultIntegrations();
+  // دو تضمینِ پیش‌فرض روی جدول‌های متفاوت‌اند و به هم وابسته نیستند — موازی می‌روند.
+  await Promise.all([ensureDefaultSanjeshMappings(), ensureDefaultIntegrations()]);
+  // نگاشت‌هایی که قبلاً ثبت شده‌اند ولی ردیف‌های صف عقب مانده‌اند را همگام می‌کند
+  // (idempotent؛ فقط ردیف‌های PENDING_MAPPING را لمس می‌کند).
+  await resyncStagingMappings();
 
   const currentUniversity = await getCurrentUniversity();
   const currentUniversityId = currentUniversity?.id ?? null;
   const scopeOf = (c: any) => (currentUniversityId ? or(eq(c, currentUniversityId), isNull(c)) : undefined);
 
-  const allMajors = await db.select().from(majors).where(scopeOf(majors.universityId)).orderBy(majors.id);
-  const allLevels = await db.select().from(degree_level_configs).where(scopeOf(degree_level_configs.universityId)).orderBy(degree_level_configs.id);
-  const allMappings = await db.select().from(sanjesh_mappings).where(scopeOf(sanjesh_mappings.universityId));
-  const allFormulas = await db.select().from(student_id_formulas).where(scopeOf(student_id_formulas.universityId));
-
-  const rawStaging = await db
-    .select()
-    .from(admissions_staging)
-    .where(scopeOf(admissions_staging.universityId))
-    .orderBy(desc(admissions_staging.id))
-    .limit(50);
+  // پنج خواندنِ مستقل (بدون وابستگی بین‌شان) — یک رفت‌وبرگشتِ موازی به‌جای پنج تای پشتِ‌سرهم.
+  const [allMajors, allLevels, allMappings, allFormulas, rawStaging, rawModels] = await Promise.all([
+    db.select().from(majors).where(scopeOf(majors.universityId)).orderBy(majors.id),
+    db.select().from(degree_level_configs).where(scopeOf(degree_level_configs.universityId)).orderBy(degree_level_configs.id),
+    db.select().from(sanjesh_mappings).where(scopeOf(sanjesh_mappings.universityId)),
+    db.select().from(student_id_formulas).where(scopeOf(student_id_formulas.universityId)),
+    db
+      .select()
+      .from(admissions_staging)
+      .where(scopeOf(admissions_staging.universityId))
+      .orderBy(desc(admissions_staging.id))
+      .limit(50),
+    // کتابخانهٔ مدل‌های فرمول — اگر مهاجرت 0132 هنوز اجرا نشده باشد، صفحه نمی‌شکند
+    db
+      .select()
+      .from(student_id_formula_models)
+      .where(scopeOf(student_id_formula_models.universityId))
+      .orderBy(student_id_formula_models.id)
+      .catch(() => [] as any[]),
+  ]);
 
   let rawApiLogs: any[] = [];
   try {
@@ -52,21 +65,61 @@ export default async function AdminAdmissionsPage() {
     let parsedData: any = {};
     try {
       if (s.rawSanjeshData) parsedData = JSON.parse(s.rawSanjeshData);
+    } catch (_) {
+      parsedData = {};
+    }
+
+    // فیلدهای کاملِ سنجش — برای جدول «بازبینی و تأیید» که همهٔ اطلاعات
+    // هر داوطلب را نشان می‌دهد، نه فقط رشته را.
+    let profileFields: Record<string, string> = {};
+    try {
+      if (s.profileJson) profileFields = JSON.parse(s.profileJson)?.fields ?? {};
     } catch (_) {}
 
+    // ردیف‌هایی که با نسخهٔ قدیمیِ ingest ساخته شده‌اند، به‌جای JSON خطِ خامِ
+    // فایل را در rawSanjeshData دارند (JSON.parse می‌شکند) ⇒ همهٔ ستون‌ها خالی
+    // می‌شدند و ردیف هرگز نگاشت نمی‌خورد. دادهٔ کامل در profileJson.fields هست؛
+    // از همان بازسازی می‌کنیم تا نیازی به وارد کردن دوبارهٔ فایل نباشد.
+    if (!parsedData || typeof parsedData !== 'object' || Object.keys(parsedData).length === 0) {
+      const f = profileFields;
+      const code = (f.fieldPlaceCode || f.fieldCode || '').trim();
+      if (code || f.fieldTitle || f.fieldPlaceTitle) {
+        parsedData = {
+          sanjeshCode: code,
+          majorGroup: f.fieldTitle || f.fieldPlaceTitle || '',
+          degreeLevel: f.degreeLevelTitle || '',
+          quota: f.quotaAdmitTitle || f.quotaFinalTitle || '',
+          universityCode: f.universityCode || '',
+          examType: '',
+          firstName: f.firstName || '',
+          lastName: f.lastName || '',
+          /** نام رشتهٔ سنجش — مبنای «پیشنهاد هوشمند نگاشت» */
+          majorTitle: f.fieldPlaceTitle || f.fieldTitle || '',
+        };
+      }
+    }
+
     const major = allMajors.find(m => m.id === s.mappedMajorId);
+    // مقطعِ واقعی: از رشتهٔ نگاشت‌شده، و اگر نگاشت نبود از ستون خودِ ردیف.
+    // فایل سنجشِ «فنی» فیلد مقطع را خالی می‌فرستد، پس اتکا به آن ستون را خالی می‌گذاشت.
+    const levelId = major?.degreeLevelId ?? s.degreeLevelId ?? null;
+    const level = levelId != null ? allLevels.find(l => l.id === levelId) : undefined;
 
     return {
       id: s.id,
+      fileId: s.fileId,
       nationalCode: s.nationalCode,
       fullName: s.fullName,
       mappedMajorId: s.mappedMajorId,
       mappedMajorName: major?.name || null,
+      degreeLevelName: level?.title ?? null,
+      assignedStudentCode: s.assignedStudentCode ?? null,
       status: s.status,
       quotaType: s.quotaType,
       studentId: s.studentId,
       mobile: s.mobile,
       rawSanjeshData: parsedData,
+      profile: profileFields,
     };
   });
 
@@ -117,6 +170,12 @@ export default async function AdminAdmissionsPage() {
         code: l.code,
       }))}
       formulas={formulasFormatted}
+      formulaModels={rawModels.map((m: any) => ({
+        id: m.id,
+        title: m.title,
+        formula: m.formula,
+        note: m.note ?? null,
+      }))}
       apiLogs={apiLogsFormatted}
     />
   );

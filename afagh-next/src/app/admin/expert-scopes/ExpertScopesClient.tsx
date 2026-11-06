@@ -47,7 +47,7 @@ export default function ExpertScopesClient({ select, initialCandidates }: {
         {cands.map(c => (
           <div key={c.userId} className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-200 bg-slate-50/60 p-3">
             <span className="font-black text-slate-800">{c.name}</span>
-            <span className="text-[10px] text-slate-500">
+            <span className="text-3xs text-slate-500">
               {c.scopes.length ? c.scopes.map(s => `${s.type === 'UNIVERSITY' ? 'دانشگاه' : s.type === 'FACULTY' ? 'دانشکده' : s.type === 'DEPARTMENT' ? 'گروه' : 'رشته'}(${s.id})`).join(' · ') : 'کل دانشگاه'}
             </span>
             <button onClick={() => openEdit(c.userId)} className="mr-auto rounded-lg bg-indigo-700 px-3 py-1 text-white font-black text-xs">
@@ -93,12 +93,12 @@ export default function ExpertScopesClient({ select, initialCandidates }: {
 
           <div className="flex flex-wrap gap-1.5">
             {scopes.map((s, i) => (
-              <span key={i} className="inline-flex items-center gap-1 rounded-lg bg-white border border-indigo-300 px-2 py-1 text-[11px] font-bold">
+              <span key={i} className="inline-flex items-center gap-1 rounded-lg bg-white border border-indigo-300 px-2 py-1 text-2xs font-bold">
                 {s.type === 'UNIVERSITY' ? '🏛️ دانشگاه' : s.type === 'FACULTY' ? '🎓 دانشکده' : s.type === 'DEPARTMENT' ? '🏫 گروه' : '📚 رشته'}: {s.id}
                 <button onClick={() => removeScope(i)} className="text-red-600 font-black">✕</button>
               </span>
             ))}
-            {!scopes.length && <span className="text-[11px] text-slate-400 font-bold">(بدون محدودیت → کل دانشگاه)</span>}
+            {!scopes.length && <span className="text-2xs text-slate-400 font-bold">(بدون محدودیت → کل دانشگاه)</span>}
           </div>
 
           <div className="flex flex-wrap gap-1.5">

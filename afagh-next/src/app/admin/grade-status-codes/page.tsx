@@ -56,6 +56,7 @@ export default async function GradeStatusCodesPage() {
       courseIsActive: courses.courseIsActive,
       emergencyWithdrawal: courses.emergencyWithdrawal,
       coRequisites: courses.coRequisites,
+      prereqText: courses.prereqText,
       facesHours: courses.facesHours,
       equivalentCourseCodes: courses.equivalentCourseCodes,
     })

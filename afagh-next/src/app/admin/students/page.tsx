@@ -292,69 +292,14 @@ export default async function AdminStudentsPage({
 
   // خواندن اساتید و پرسنل با رتبه علمی و مدرک — پایه و نوع همکاری از سما
   // گروه/دانشکده/رشته/دانشگاه مستقیم از دیتابیس (نه placeholder)
-  const staffRows = await db
-    .select({
-      id: staff.id,
-      staffCode: staff.staffCode,
-      staffType: staff.staffType,
-      academicRank: staff.academicRank,
-      academicBase: staff.academicBase,
-      degree: staff.degree,
-      cooperationType: staff.cooperationType,
-      employmentType: staff.employmentType,
-      personnelNo: staff.personnelNo,
-      hireDate: staff.hireDate,
-      bankAccountNo: staff.bankAccountNo,
-      isActive: staff.isActive,
-      fieldOfStudy: staff.fieldOfStudy,
-      fieldMain: staff.fieldMain,
-      lastDegreeUniversity: staff.lastDegreeUniversity,
-      lastDegreeCountryCode: staff.lastDegreeCountryCode,
-      departmentName: departments.name,
-      departmentCode: departments.departmentCode,
-      facultyName: faculties.name,
-      facultyCode: faculties.facultyCode,
-      nationalCode: users.nationalCode,
-      firstName: users.firstName,
-      lastName: users.lastName,
-      mobile: users.mobile,
-      birthDate: users.birthDate,
-      address: users.address,
-      email: users.email,
-      userId: users.id,
-      userIsActive: users.isActive,
-      photoKey: users.photoKey,
-      phone: staff.phone,
-      maritalStatus: staff.maritalStatus,
-    })
-    .from(staff)
-    .innerJoin(users, eq(users.id, staff.userId))
-    .leftJoin(departments, eq(departments.id, staff.departmentId))
-    .leftJoin(faculties, eq(faculties.id, staff.facultyId))
-    .where(and(
-      currentUniversityId ? eq(staff.universityId, currentUniversityId) : undefined,
-      ...await staffScopeConds(user.roles),
-    ))
-    .orderBy(desc(staff.id));
-
-  function staffScopeConds(roles: string[]): Promise<any[]> {
-  return (async () => {
-    if (!roles.includes('EDU_EXPERT')) return [];
-    const _eff = await currentExpertFilters().catch(() => null);
-    if (!_eff) return [];
-    if (_eff.departmentIds) return [inArray(staff.departmentId, _eff.departmentIds)];
-    if (_eff.facultyIds) return [inArray(staff.facultyId, _eff.facultyIds)];
-    return [];
-  })();
-}
+  // ⚠ فهرست استادان/پرسنل عمداً اینجا خوانده **نمی‌شود**.
+  //   قبلاً همین‌جا برای ~۱۴۰۰ استاد × ۳۵ فیلد کوئری می‌خورد و به کلاینت
+  //   می‌رفت → HTML ۱.۶۶MB و رندر ۶۷۳ms. حالا با اکشن
+  //   `loadStaffListAction` فقط هنگام باز کردن تب «استادان» واکشی می‌شود.
+  //   (کوئری و مپینگ در `staff-data.ts` — یک منبع واحد.)
 
 const [head] = await db.select().from(roles).where(eq(roles.code, 'DEP_HEAD')).limit(1);
   const roleRows = await db.select({ id: roles.id, code: roles.code, title: roles.title, isSystem: roles.isSystem }).from(roles).orderBy(roles.id);
-  const staffUserIds = staffRows.map(r => r.userId).filter(Number.isInteger);
-  const urRows = staffUserIds.length ? await db.select().from(user_roles).where(inArray(user_roles.userId, staffUserIds)) : [];
-  const staffUserRoleIds: Record<number, number[]> = {};
-  for (const r of staffRows) if (r.userId) staffUserRoleIds[r.userId] = [];
-  for (const ur of urRows) (staffUserRoleIds[ur.userId] ??= []).push(ur.roleId);
 
   return (
     <div className="space-y-4">
@@ -455,43 +400,10 @@ const [head] = await db.select().from(roles).where(eq(roles.code, 'DEP_HEAD')).l
         degrees={degrees}
         geoPlaces={geoPlaces}
         statusCounts={statusCounts.map(r => ({ status: r.status, n: Number(r.n) }))}
-        staffList={staffRows.map(st => ({
-          id: st.id,
-          staffCode: st.staffCode ?? '',
-          nationalCode: st.nationalCode ?? '',
-          firstName: st.firstName ?? '',
-          lastName: st.lastName ?? '',
-          mobile: st.mobile || '—',
-          academicRank: st.academicRank || st.academicBase || '—',
-          degree: st.degree || st.fieldOfStudy || '—',
-          staffType: st.cooperationType || st.employmentType || st.staffType || '—',
-          cooperationType: st.cooperationType,
-          birthDate: st.birthDate instanceof Date ? st.birthDate.toISOString().slice(0, 10) : (st.birthDate ? String(st.birthDate).slice(0, 10) : null),
-          userId: (st as unknown as { userId?: number | null }).userId ?? null,
-          userIsActive: (st as unknown as { userIsActive?: number | null }).userIsActive ?? 1,
-          phone: st.phone,
-          address: st.address,
-          email: st.email,
-          maritalStatus: st.maritalStatus,
-          departmentName: st.departmentName || '—',
-          departmentCode: st.departmentCode,
-          facultyName: st.facultyName || '—',
-          facultyCode: st.facultyCode,
-          fieldOfStudy: st.fieldOfStudy,
-          fieldMain: st.fieldMain,
-          lastDegreeUniversity: st.lastDegreeUniversity,
-          lastDegreeCountryCode: st.lastDegreeCountryCode,
-          personnelNo: st.personnelNo,
-          hireDate: st.hireDate,
-          bankAccountNo: st.bankAccountNo,
-          academicBase: st.academicBase,
-          isActive: st.isActive == null ? 1 : st.isActive,
-          photoKey: (st as unknown as { photoKey?: string | null }).photoKey ?? null,
-          role: 'استاد / هیئت علمی',
-        }))}
+        staffList={undefined}
         canEditGrades={canEditGrades}
         rolesAll={roleRows}
-        userRoleIds={staffUserRoleIds}
+        userRoleIds={undefined}
         universities={allUniversities.map(u => ({ id: u.id, code: u.code, title: u.title, kind: u.kind, saminCode: u.saminCode }))}
         currentUniversityCode={currentUniversity?.code ?? 'AFAGH'}
       />

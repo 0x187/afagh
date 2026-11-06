@@ -63,13 +63,15 @@ export function transitionTargets(status: CurriculumVersionStatus): readonly Cur
 
 /** نوع نقش هر درس در برنامه (جایگزینِ courseType آزادِ UI قدیم) */
 export const COURSE_ROLE_TYPES = [
-  'CORE',        // اصلی
-  'MAJOR',       // تخصصی
+  'CORE',        // پایه
+  'MAJOR',       // اصلی
+  'SPECIALIZED', // تخصصی  ← در بانک دروس از «اصلی» جدا است
   'ELECTIVE',    // اختیاری
   'GENERAL',     // عمومی
   'THESIS',      // پایان‌نامه
   'INTERNSHIP',  // کارآموزی
   'WORKSHOP',    // کارگاه/مهارتی
+  'COMPENSATORY',// جبرانی
 ] as const;
 export type CourseRoleType = (typeof COURSE_ROLE_TYPES)[number];
 
@@ -87,11 +89,16 @@ export type CourseRuleType = (typeof COURSE_RULE_TYPES)[number];
 // evaluateLogicTree در enroll-engine.ts آن را می‌فهمد (بخش ۵.۴ سند).
 // تایپ‌های اینجا «نسخهٔ متعارف» هستند؛ ارزیاب موجود بدون تغییر استفاده می‌شود.
 
-/** شرط برگ: قبولی درس با حداقل نمره، یا حداقل واحد گذرانده */
+/** شرط برگ: قبولی درس با حداقل نمره، یا حداقل واحد گذرانده، یا حداقل ترم */
 export interface LogicCondition {
   course?: string;       // کد درس (مثلاً "RS30")
   minGrade?: number;     // کف نمره (مثلاً 12)
-  unitsPassed?: number;  // حداقل واحد گذرانده (مثلاً 60) — جدید
+  unitsPassed?: number;  // حداقل واحد گذرانده (مثلاً 60) — «تعداد واحد گذرانده لازم» جدول دروس قدیم
+  /**
+   * حداقل ترمِ لازم برای اخذ (مثلاً ۷) — «ترم لازم» جدول دروس قدیم.
+   * معنایش: دانشجو باید دست‌کم در ترم N (از نظر تعداد ترم گذرانده) باشد.
+   */
+  minSemester?: number;
   /** زیردرخت AND/OR (شرط مرکب تو در تو: A AND (B OR C)) */
   operator?: 'AND' | 'OR';
   conditions?: LogicCondition[];
@@ -128,24 +135,86 @@ export function normalizeLogicNode(raw: unknown): LogicNode {
     if (cc.course != null) cond.course = String(cc.course);
     if (cc.minGrade != null) cond.minGrade = Number(cc.minGrade);
     if (cc.unitsPassed != null) cond.unitsPassed = Number(cc.unitsPassed);
-    if (cond.course == null && cond.unitsPassed == null) {
-      throw new Error('شرط قاعده باید شامل course یا unitsPassed باشد');
+    if (cc.minSemester != null) cond.minSemester = Number(cc.minSemester);
+    if (cond.course == null && cond.unitsPassed == null && cond.minSemester == null) {
+      throw new Error('شرط قاعده باید شامل course یا unitsPassed یا minSemester باشد');
     }
     return cond;
   });
   return { operator: op as 'AND' | 'OR', conditions };
 }
 
-/** درخت را به متن فارسیِ نمایشی تبدیل می‌کند (مثلاً برای Tooltip و گزارش) */
-export function describeLogicNode(node: LogicNode, titles: (code: string) => string): string {
+/**
+ * همهٔ کدهای درسیِ برگِ درخت (پیمایش عمق‌نخست، شامل زیردرخت‌ها).
+ * برای «کدام درس‌ها در قاعده ارجاع شده‌اند؟» استفاده می‌شود.
+ */
+export function collectCourseCodes(node: LogicNode | null | undefined, out: string[] = []): string[] {
+  if (!node) return out;
+  for (const c of node.conditions ?? []) {
+    if (c.operator) collectCourseCodes(c as LogicNode, out);
+    else if (c.course) out.push(c.course);
+  }
+  return out;
+}
+
+/**
+ * مرتب‌سازی «طبیعی» کد درس: ارقام به‌صورت عددی مقایسه می‌شوند تا
+ * ۹۹۹ قبل از ۱۱۰۰ بیاید (مرتب‌سازی رشته‌ای این را خراب می‌کند).
+ * هم چارت ترمی و هم متنِ پیش‌نیاز/هم‌نیاز از همین تابع استفاده می‌کنند.
+ */
+export function compareCourseCode(a: string | null | undefined, b: string | null | undefined): number {
+  const sa = String(a ?? '');
+  const sb = String(b ?? '');
+  const re = /(\d+)|(\D+)/g;
+  const pa = sa.match(re) ?? [];
+  const pb = sb.match(re) ?? [];
+  for (let i = 0; i < Math.min(pa.length, pb.length); i++) {
+    const x = pa[i], y = pb[i];
+    const nx = /^\d+$/.test(x), ny = /^\d+$/.test(y);
+    if (nx && ny) {
+      const d = Number(x) - Number(y);
+      if (d !== 0) return d;
+    } else {
+      const d = x.localeCompare(y, 'fa');
+      if (d !== 0) return d;
+    }
+  }
+  return pa.length - pb.length;
+}
+
+/** رقم فارسی برای متن‌های نمایشی این ماژول (بدون وابستگی به UI) */
+const faDigits = (n: number | string | null | undefined): string =>
+  String(n ?? '').replace(/\d/g, (d) => '۰۱۲۳۴۵۶۷۸۹'[Number(d)]);
+
+/**
+ * درخت را به متن فارسیِ نمایشی تبدیل می‌کند (مثلاً برای Tooltip و گزارش).
+ * با `sortByCode` شرط‌های درسی بر اساس **کد** مرتب می‌شوند (نه ترتیب ذخیره‌شده
+ * و نه الفبای عنوان) و شرط‌های غیردرسی («۴۷ واحد پاس‌کرده»، «حداقل ترم ۷»)
+ * در انتها می‌آیند — همان چیزی که در ستون «پیش‌نیاز / هم‌نیاز» دیده می‌شود.
+ */
+export function describeLogicNode(
+  node: LogicNode,
+  titles: (code: string) => string,
+  opts: { sortByCode?: boolean } = {},
+): string {
   const op = node.operator === 'OR' ? ' یا ' : ' و ';
-  const parts = node.conditions.map((c) => {
-    if (c.operator) return '(' + describeLogicNode(c as LogicNode, titles) + ')';
+  let conds = node.conditions ?? [];
+  if (opts.sortByCode) {
+    const courseConds = conds
+      .filter((c) => !c.operator && c.course)
+      .slice()
+      .sort((a, b) => compareCourseCode(a.course, b.course));
+    const otherConds = conds.filter((c) => c.operator || !c.course);
+    conds = [...courseConds, ...otherConds];
+  }
+  const parts = conds.map((c) => {
+    if (c.operator) return '(' + describeLogicNode(c as LogicNode, titles, opts) + ')';
     if (c.course) {
       const base = titles(c.course);
-      return c.minGrade != null ? `${base} (نمرهٔ ≥ ${c.minGrade})` : base;
+      return c.minGrade != null ? `${base} (نمرهٔ ≥ ${faDigits(c.minGrade)})` : base;
     }
-    if (c.unitsPassed != null) return `گذراندن ${c.unitsPassed} واحد`;
+    if (c.unitsPassed != null) return `${faDigits(c.unitsPassed)} واحد پاس‌کرده`;
+    if (c.minSemester != null) return `حداقل ترم ${faDigits(c.minSemester)}`;
     return '';
   });
   return parts.filter(Boolean).join(op) || (node.operator === 'AND' ? '—' : '—');

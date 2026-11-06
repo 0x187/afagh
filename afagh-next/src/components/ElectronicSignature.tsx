@@ -60,7 +60,7 @@ export default function ElectronicSignature(props: {
       <p className="mt-1 text-xs text-emerald-700">
         {signedAt ? new Date(signedAt).toLocaleString('fa-IR') : ''}
       </p>
-      <p className="mt-1 break-all font-mono text-[10px] text-emerald-600" dir="ltr">SHA-256: {props.documentHash.slice(0, 32)}…</p>
+      <p className="mt-1 break-all font-mono text-3xs text-emerald-600" dir="ltr">SHA-256: {props.documentHash.slice(0, 32)}…</p>
     </div>
   );
 

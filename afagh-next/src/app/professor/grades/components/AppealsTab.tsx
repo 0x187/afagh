@@ -107,13 +107,13 @@ export default function AppealsTab({ offering, dispatch, onOpenAppeal }: Appeals
                 <div>
                   <span className="font-black text-slate-900 text-xs">{appeal.fullName}</span>
                   <span className="font-mono text-xs text-slate-500 mr-1">({faNum(appeal.studentCode)})</span>
-                  <span className="text-[10px] text-slate-400 font-bold">
+                  <span className="text-3xs text-slate-400 font-bold">
                     نمره موقت: {faNum(appeal.currentGrade)}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-[10px] text-slate-400 font-bold">{appeal.createdAt}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                  <span className="text-3xs text-slate-400 font-bold">{appeal.createdAt}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-3xs font-black ${
                     appeal.status === 'ACCEPTED'
                       ? 'bg-emerald-100 text-emerald-800'
                       : appeal.status === 'REJECTED'
@@ -188,7 +188,7 @@ export default function AppealsTab({ offering, dispatch, onOpenAppeal }: Appeals
 
             {offering.isCoTaught && offering.coTaughtDetails ? (
               <div className="grid grid-cols-2 gap-3">
-                <label className="text-[11px] font-black text-slate-600">
+                <label className="text-2xs font-black text-slate-600">
                   نمرهٔ تئوری (از ۲۰)
                   <input
                     type="number" min={0} max={20} step={0.25}
@@ -197,7 +197,7 @@ export default function AppealsTab({ offering, dispatch, onOpenAppeal }: Appeals
                     className="mt-1 w-full border-2 border-indigo-200 rounded-xl p-2 text-center font-black focus:ring-2 focus:ring-indigo-500"
                   />
                 </label>
-                <label className="text-[11px] font-black text-slate-600">
+                <label className="text-2xs font-black text-slate-600">
                   نمرهٔ عملی (از ۲۰)
                   <input
                     type="number" min={0} max={20} step={0.25}
@@ -209,21 +209,21 @@ export default function AppealsTab({ offering, dispatch, onOpenAppeal }: Appeals
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
-                <label className="text-[11px] font-black text-slate-600">
+                <label className="text-2xs font-black text-slate-600">
                   میان‌ترم ({faNum(offering.rubric.midterm)})
                   <input type="number" min={0} max={offering.rubric.midterm} step={0.25}
                     value={modal.breakdown.midtermScore}
                     onChange={e => setModal(m => m && ({ ...m, breakdown: { ...m.breakdown, midtermScore: Number(e.target.value) } }))}
                     className="mt-1 w-full border-2 border-slate-200 rounded-xl p-2 text-center font-black focus:ring-2 focus:ring-indigo-500" />
                 </label>
-                <label className="text-[11px] font-black text-slate-600">
+                <label className="text-2xs font-black text-slate-600">
                   تکالیف ({faNum(offering.rubric.homework)})
                   <input type="number" min={0} max={offering.rubric.homework} step={0.25}
                     value={modal.breakdown.homeworkScore}
                     onChange={e => setModal(m => m && ({ ...m, breakdown: { ...m.breakdown, homeworkScore: Number(e.target.value) } }))}
                     className="mt-1 w-full border-2 border-slate-200 rounded-xl p-2 text-center font-black focus:ring-2 focus:ring-indigo-500" />
                 </label>
-                <label className="text-[11px] font-black text-slate-600">
+                <label className="text-2xs font-black text-slate-600">
                   حضور ({faNum(offering.rubric.participation)})
                   <input type="number" min={0} max={offering.rubric.participation} step={0.25}
                     value={modal.breakdown.participationScore}
@@ -231,7 +231,7 @@ export default function AppealsTab({ offering, dispatch, onOpenAppeal }: Appeals
                     className="mt-1 w-full border-2 border-slate-200 rounded-xl p-2 text-center font-black focus:ring-2 focus:ring-indigo-500" />
                 </label>
                 {offering.rubric.practical > 0 && (
-                  <label className="text-[11px] font-black text-slate-600">
+                  <label className="text-2xs font-black text-slate-600">
                     عملی ({faNum(offering.rubric.practical)})
                     <input type="number" min={0} max={offering.rubric.practical} step={0.25}
                       value={modal.breakdown.practicalScore}
@@ -239,7 +239,7 @@ export default function AppealsTab({ offering, dispatch, onOpenAppeal }: Appeals
                       className="mt-1 w-full border-2 border-slate-200 rounded-xl p-2 text-center font-black focus:ring-2 focus:ring-indigo-500" />
                   </label>
                 )}
-                <label className="text-[11px] font-black text-slate-600">
+                <label className="text-2xs font-black text-slate-600">
                   پایان‌ترم ({faNum(offering.rubric.finalExam)})
                   <input type="number" min={0} max={offering.rubric.finalExam} step={0.25}
                     value={modal.breakdown.finalExamScore}
@@ -250,11 +250,11 @@ export default function AppealsTab({ offering, dispatch, onOpenAppeal }: Appeals
             )}
 
             <div className="p-3 bg-slate-900 rounded-2xl text-center">
-              <div className="text-[10px] text-slate-400 font-bold">نمرهٔ نهایی محاسبه‌شده (از ۲۰)</div>
+              <div className="text-3xs text-slate-400 font-bold">نمرهٔ نهایی محاسبه‌شده (از ۲۰)</div>
               <div className="text-3xl font-black text-amber-300">{faNum(liveCalculated)}</div>
             </div>
 
-            <label className="text-[11px] font-black text-slate-600 block">
+            <label className="text-2xs font-black text-slate-600 block">
               پاسخ استاد (متن پیام برای دانشجو)
               <textarea
                 rows={3}
@@ -283,7 +283,7 @@ export default function AppealsTab({ offering, dispatch, onOpenAppeal }: Appeals
             </div>
 
             {appealState?.error && (
-              <p className="text-[11px] font-bold text-rose-600">⚠ {appealState.error}</p>
+              <p className="text-2xs font-bold text-rose-600">⚠ {appealState.error}</p>
             )}
           </div>
         </div>

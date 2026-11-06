@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { THESIS_ROLE_FA, THESIS_STATUS_FA } from '@/lib/thesis-labels';
+import { askConfirm } from '@/lib/ui-feedback';
 
 type Supervision = {
   id: number; staffId: number; staffName: string;
@@ -98,8 +99,8 @@ export default function ThesisClient(props: {
     });
   }
 
-  function doDelete(id: number) {
-    if (!confirm('این سرجمع حذف شود؟')) return;
+  async function doDelete(id: number) {
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: 'این سرجمع حذف شود؟', confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
     start(async () => {
       const res = await actions.deleteAction(id);
       if (!res.ok) { setMsg(res.error ?? 'خطا در حذف.'); return; }
@@ -127,8 +128,8 @@ export default function ThesisClient(props: {
     });
   }
 
-  function doDeleteDraw(id: number) {
-    if (!confirm('این برداشت حذف شود؟')) return;
+  async function doDeleteDraw(id: number) {
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: 'این برداشت حذف شود؟', confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
     start(async () => {
       const res = await actions.deleteDrawAction(id);
       if (!res.ok) { setMsg(res.error ?? 'خطا.'); return; }
@@ -208,7 +209,7 @@ export default function ThesisClient(props: {
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
                 <div className="font-bold text-slate-900 text-sm">{s.title}</div>
-                <div className="text-[11px] text-slate-500 mt-0.5">
+                <div className="text-2xs text-slate-500 mt-0.5">
                   {s.staffName} · {THESIS_ROLE_FA[s.role] ?? s.role} · دانشجو: {s.studentName}
                   {s.startTermTitle ? ` · شروع: ${s.startTermTitle}` : ''}
                 </div>
@@ -219,25 +220,25 @@ export default function ThesisClient(props: {
                       style={{ width: `${s.totalUnits > 0 ? Math.min(100, (s.drawnUnits / s.totalUnits) * 100) : 0}%` }}
                     />
                   </div>
-                  <span className="text-[11px] text-slate-600">
+                  <span className="text-2xs text-slate-600">
                     باقی‌مانده: <b>{faNum(s.remainingUnits)}</b> از {faNum(s.totalUnits)} واحد
                   </span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${s.status === 'ONGOING' ? 'bg-emerald-100 text-emerald-900' : s.status === 'COMPLETED' ? 'bg-indigo-100 text-indigo-900' : 'bg-slate-200 text-slate-600'}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-3xs font-black ${s.status === 'ONGOING' ? 'bg-emerald-100 text-emerald-900' : s.status === 'COMPLETED' ? 'bg-indigo-100 text-indigo-900' : 'bg-slate-200 text-slate-600'}`}>
                     {THESIS_STATUS_FA[s.status] ?? s.status}
                   </span>
                 </div>
               </div>
               <div className="flex items-center gap-1 shrink-0">
-                <button onClick={() => (openId === s.id ? setOpenId(null) : openDraws(s.id))} className="px-2 py-1 text-indigo-600 hover:bg-indigo-50 rounded text-[11px] font-bold">
+                <button onClick={() => (openId === s.id ? setOpenId(null) : openDraws(s.id))} className="px-2 py-1 text-indigo-600 hover:bg-indigo-50 rounded text-2xs font-bold">
                   {openId === s.id ? 'بستن ✕' : '📥 برداشت‌ها'}
                 </button>
                 {s.status === 'ONGOING' ? (
-                  <button onClick={() => doStatus(s.id, 'COMPLETED')} disabled={pending} className="px-2 py-1 text-emerald-600 hover:bg-emerald-50 rounded text-[11px] font-bold">تکمیل</button>
+                  <button onClick={() => doStatus(s.id, 'COMPLETED')} disabled={pending} className="px-2 py-1 text-emerald-600 hover:bg-emerald-50 rounded text-2xs font-bold">تکمیل</button>
                 ) : null}
                 {s.status !== 'CANCELLED' ? (
-                  <button onClick={() => doStatus(s.id, 'CANCELLED')} disabled={pending} className="px-2 py-1 text-amber-600 hover:bg-amber-50 rounded text-[11px] font-bold">لغو</button>
+                  <button onClick={() => doStatus(s.id, 'CANCELLED')} disabled={pending} className="px-2 py-1 text-amber-600 hover:bg-amber-50 rounded text-2xs font-bold">لغو</button>
                 ) : null}
-                <button onClick={() => doDelete(s.id)} disabled={pending} className="px-2 py-1 text-rose-600 hover:bg-rose-50 rounded text-[11px] font-bold">🗑️</button>
+                <button onClick={() => doDelete(s.id)} disabled={pending} className="px-2 py-1 text-rose-600 hover:bg-rose-50 rounded text-2xs font-bold">🗑️</button>
               </div>
             </div>
 
@@ -255,13 +256,13 @@ export default function ThesisClient(props: {
                   </button>
                 </div>
                 {draws.length === 0 ? (
-                  <div className="text-[11px] text-slate-400">برداشتی ثبت نشده است.</div>
+                  <div className="text-2xs text-slate-400">برداشتی ثبت نشده است.</div>
                 ) : (
                   <div className="divide-y divide-slate-100 text-xs">
                     {draws.map(d => (
                       <div key={d.id} className="flex items-center justify-between py-1.5">
                         <span className="text-slate-700">{d.termTitle ?? '—'} · <b>{faNum(d.units)} واحد</b>{d.note ? ` · ${d.note}` : ''}</span>
-                        <button onClick={() => doDeleteDraw(d.id)} disabled={pending} className="text-rose-600 text-[11px]">حذف</button>
+                        <button onClick={() => doDeleteDraw(d.id)} disabled={pending} className="text-rose-600 text-2xs">حذف</button>
                       </div>
                     ))}
                   </div>

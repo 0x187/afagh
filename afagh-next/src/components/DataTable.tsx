@@ -122,7 +122,7 @@ export function ClientTh<T>({
           onChange={e => onFilter(e.target.value)}
           onClick={e => e.stopPropagation()}
           placeholder="فیلتر…"
-          className="mt-1 block h-7 w-full min-w-0 rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[11px] font-normal"
+          className="mt-1 block h-7 w-full min-w-0 rounded border border-slate-300 bg-white px-1.5 py-0.5 text-2xs font-normal"
         />
       )}
     </th>
@@ -194,7 +194,7 @@ export function ExportButtons({
       </button>
       {open && (
         <div className="absolute left-0 top-full mt-1 z-30 w-64 rounded-xl border border-slate-300 bg-white p-3 shadow-xl space-y-2">
-          <p className="text-[11px] font-bold text-slate-600">ستون‌های خروجی:</p>
+          <p className="text-2xs font-bold text-slate-600">ستون‌های خروجی:</p>
           <div className="max-h-48 overflow-y-auto space-y-1">
             {columns.map(c => (
               <label key={c.key} className="flex items-center gap-1.5 text-xs cursor-pointer hover:bg-slate-50 rounded px-1 py-0.5">
@@ -204,10 +204,10 @@ export function ExportButtons({
             ))}
           </div>
           <div className="flex gap-1.5 pt-1 border-t border-slate-100">
-            <button onClick={() => doExport('csv')} disabled={!chosen.length || pending} className="flex-1 px-2 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-[11px] font-bold rounded disabled:opacity-50">
+            <button onClick={() => doExport('csv')} disabled={!chosen.length || pending} className="flex-1 px-2 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white text-2xs font-bold rounded disabled:opacity-50">
               Excel (CSV)
             </button>
-            <button onClick={() => doExport('tsv')} disabled={!chosen.length || pending} className="flex-1 px-2 py-1.5 bg-slate-700 hover:bg-slate-800 text-white text-[11px] font-bold rounded disabled:opacity-50">
+            <button onClick={() => doExport('tsv')} disabled={!chosen.length || pending} className="flex-1 px-2 py-1.5 bg-slate-700 hover:bg-slate-800 text-white text-2xs font-bold rounded disabled:opacity-50">
               فایل متنی
             </button>
           </div>
@@ -249,7 +249,7 @@ export function ServerTh({
           onChange={e => onFilter(e.target.value)}
           onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); onApply?.(); } }}
           placeholder={filterPlaceholder ?? 'فیلتر…'}
-          className="mt-1 block h-7 w-full min-w-0 rounded border border-slate-300 bg-white px-1.5 py-0.5 text-[11px] font-normal"
+          className="mt-1 block h-7 w-full min-w-0 rounded border border-slate-300 bg-white px-1.5 py-0.5 text-2xs font-normal"
         />
       )}
     </th>

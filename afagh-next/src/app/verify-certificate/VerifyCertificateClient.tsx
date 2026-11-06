@@ -104,10 +104,10 @@ export default function VerifyCertificateClient({
             <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-indigo-600 text-base font-black text-white shadow-lg shadow-indigo-600/30">آ</div>
             <div>
               <h1 className="text-sm font-black text-white sm:text-base">سامانهٔ برخط استعلام اصالت گواهینامه‌های دانشگاه آفاق</h1>
-              <p className="text-[11px] text-indigo-300">AFAGH University Official Certificate Verification Portal</p>
+              <p className="text-2xs text-indigo-300">AFAGH University Official Certificate Verification Portal</p>
             </div>
           </div>
-          <Link href="/open-courses" className="rounded-xl bg-slate-800 px-3.5 py-1.5 text-xs font-bold text-slate-200 transition hover:bg-slate-700">
+          <Link prefetch={false} href="/open-courses" className="rounded-xl bg-slate-800 px-3.5 py-1.5 text-xs font-bold text-slate-200 transition hover:bg-slate-700">
             ← کاتالوگ دوره‌های آزاد
           </Link>
         </div>
@@ -134,7 +134,7 @@ export default function VerifyCertificateClient({
           {searchError && (
             <div className="rounded-2xl border border-rose-800/80 bg-rose-950/60 p-3 text-xs font-bold text-rose-300">⚠️ {searchError}</div>
           )}
-          <p className="text-[11px] text-slate-500">
+          <p className="text-2xs text-slate-500">
             نتیجهٔ استعلام مستقیماً از پایگاه دادهٔ آموزش‌های آزاد خوانده می‌شود و اثر انگشت SHA-256 گواهینامه دوباره
             محاسبه و با مقدار ثبت‌شده مقایسه می‌گردد.
           </p>
@@ -157,7 +157,7 @@ export default function VerifyCertificateClient({
             <h3 className="mt-3 text-lg font-black text-white">{rejection.title}</h3>
             <p className="mx-auto mt-2 max-w-xl text-xs leading-6 text-slate-300">{rejection.body}</p>
             {cert && (
-              <dl className="mx-auto mt-4 grid max-w-md grid-cols-2 gap-2 text-[11px]">
+              <dl className="mx-auto mt-4 grid max-w-md grid-cols-2 gap-2 text-2xs">
                 <dt className="text-slate-500">شمارهٔ سریال</dt>
                 <dd className="font-mono text-slate-200" dir="ltr">{cert.certificateNumber}</dd>
                 <dt className="text-slate-500">دارنده</dt>
@@ -166,7 +166,7 @@ export default function VerifyCertificateClient({
                 <dd className="text-slate-200">{cert.courseTitleFa}</dd>
               </dl>
             )}
-            <p className="mt-4 text-[11px] text-slate-500">
+            <p className="mt-4 text-2xs text-slate-500">
               در صورت اعتراض، با مرکز آموزش‌های آزاد دانشگاه آفاق تماس بگیرید.
             </p>
           </div>
@@ -202,16 +202,16 @@ export default function VerifyCertificateClient({
               <div className="space-y-0.5 text-right">
                 <p className="text-xs font-bold text-slate-500">جمهوری اسلامی ایران</p>
                 <p className="text-base font-black text-indigo-950">دانشگاه آفاق</p>
-                <p className="text-[11px] font-bold text-slate-600">مرکز آموزش‌های تخصصی و آزاد</p>
+                <p className="text-2xs font-bold text-slate-600">مرکز آموزش‌های تخصصی و آزاد</p>
               </div>
               <div className="text-center">
                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full border-4 border-amber-400 bg-gradient-to-tr from-indigo-950 to-indigo-800 text-2xl font-black text-amber-300 shadow-md">آ</div>
-                <span className="mt-1 block text-[10px] font-black tracking-widest text-slate-500">AFAGH</span>
+                <span className="mt-1 block text-3xs font-black tracking-widest text-slate-500">AFAGH</span>
               </div>
               <div className="space-y-0.5 text-left" dir="ltr">
                 <p className="text-xs font-bold text-slate-500">ISLAMIC REPUBLIC OF IRAN</p>
                 <p className="text-base font-black text-indigo-950">AFAGH UNIVERSITY</p>
-                <p className="text-[11px] font-bold text-slate-600">Continuing Education Center</p>
+                <p className="text-2xs font-bold text-slate-600">Continuing Education Center</p>
               </div>
             </div>
 
@@ -247,11 +247,11 @@ export default function VerifyCertificateClient({
                   <span className="font-serif text-lg font-bold italic text-indigo-900">{cert.instructorName}</span>
                 </div>
                 <p className="text-xs font-black text-slate-900">مدرس و ارزیاب دوره</p>
-                <p className="font-mono text-[10px] text-slate-500" dir="ltr">Lead Course Instructor</p>
+                <p className="font-mono text-3xs text-slate-500" dir="ltr">Lead Course Instructor</p>
               </div>
 
               <div className="space-y-1 rounded-2xl border border-slate-200 bg-slate-50 p-3 text-center">
-                <span className="block font-mono text-[10px] font-black text-indigo-950" dir="ltr">{cert.certificateNumber}</span>
+                <span className="block font-mono text-3xs font-black text-indigo-950" dir="ltr">{cert.certificateNumber}</span>
                 <span className="mx-auto block max-w-[200px] truncate break-all font-mono text-[8px] text-slate-500" dir="ltr">
                   SHA-256: {cert.verificationHash}
                 </span>
@@ -265,11 +265,11 @@ export default function VerifyCertificateClient({
                   </div>
                 </div>
                 <p className="text-xs font-black text-slate-900">رئیس مرکز آموزش‌های آزاد</p>
-                <p className="font-mono text-[10px] text-slate-500" dir="ltr">Director of Continuing Education</p>
+                <p className="font-mono text-3xs text-slate-500" dir="ltr">Director of Continuing Education</p>
               </div>
             </div>
 
-            <div className="flex items-center justify-between border-t border-slate-100 pt-3 font-mono text-[11px] text-slate-500">
+            <div className="flex items-center justify-between border-t border-slate-100 pt-3 font-mono text-2xs text-slate-500">
               <span>تاریخ صدور: {faNum(cert.issueDate)}</span>
               <span>استعلام برخط در: {new Date().toLocaleString('fa-IR')}</span>
             </div>

@@ -249,6 +249,46 @@ section('کارنامهٔ مالی');
   eq('ماندهٔ ترم ۲ = ۴میلیون − ۵۰۰هزار وام', st[1].balance, 3_500_000);
 }
 {
+  // ── تاریخ و نوع واقعی واریز (مهاجرت از StdPays سما) ──
+  // رکوردهای مهاجرتی همه createdAt یکسان (روز ایمپورت) دارند؛ کارنامه باید
+  // تاریخ فیش بانکی را نشان دهد، نه تاریخ ثبت در سیستم.
+  const st = buildTranscript({
+    ledger: [
+      { id: 1, termId: 1, transactionType: 'TUITION_CHARGE', amount: 1_000_000, description: 'شهریه', createdAt: '2026-10-11' },
+      {
+        id: 2, termId: 1, transactionType: 'PAYMENT', amount: 400_000,
+        description: 'پرداخت از سیستم قدیمی — فیش ۱۲۳ (نقدي)',
+        createdAt: '2026-10-11',             // روز ایمپورت — برای کارنامه بی‌ارزش
+        depositDate: '2019-05-22T00:00:00Z', // تاریخ واقعی فیش
+        depositType: 'نقدي'
+      }
+    ]
+  });
+  const pay = st[0].events.find((e) => e.kind === 'PAYMENT')!;
+  eq('تاریخ رویداد = تاریخ واریز، نه تاریخ ثبت', pay.dateMs, Date.parse('2019-05-22T00:00:00Z'));
+  eq('پرچم «تاریخ واریز» روشن است', pay.datedByDeposit, true);
+  eq('نوع واریز روی رویداد می‌نشیند', pay.depositType, 'نقدي');
+  eq('نوع واریز تکراری از شرح حذف می‌شود', pay.label, 'پرداخت از سیستم قدیمی — فیش ۱۲۳');
+}
+{
+  // سازگاری با دادهٔ قدیمی: نبودِ depositDate → همان createdAt
+  const st = buildTranscript({
+    ledger: [{ id: 1, termId: 1, transactionType: 'PAYMENT', amount: 100, description: 'واریز', createdAt: '2026-02-02' }]
+  });
+  eq('نبود تاریخ واریز → تاریخ ثبت', st[0].events[0].dateMs, Date.parse('2026-02-02'));
+  eq('پرچم «تاریخ واریز» خاموش است', st[0].events[0].datedByDeposit, false);
+}
+{
+  // پرانتزِ انتهایی که نوع واریز نیست باید دست‌نخورده بماند
+  const st = buildTranscript({
+    ledger: [{
+      id: 1, termId: 1, transactionType: 'PAYMENT', amount: 100,
+      description: 'واریز علی‌الحساب (بابت ترم گذشته)', depositType: 'نقدي'
+    }]
+  });
+  eq('پرانتز غیرنوع حفظ می‌شود', st[0].events[0].label, 'واریز علی‌الحساب (بابت ترم گذشته)');
+}
+{
   const st = buildTranscript({
     ledger: [{ id: 1, termId: null, transactionType: 'CHARGE', amount: 300_000, description: 'جریمه' }],
     termTitles: {}

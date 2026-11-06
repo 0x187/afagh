@@ -1,10 +1,8 @@
 import { and, eq, inArray } from 'drizzle-orm';
 import {
-  classrooms,
   course_offerings,
   courses,
   enrollments,
-  schedules,
   staff,
   users,
   virtual_classrooms,
@@ -13,15 +11,13 @@ import { db } from '@/db';
 import { getStudentByUser, requireRole } from '@/lib/auth';
 import { getTermScope } from '@/lib/term-scope';
 import {
-  buildDashboardScheduleMap,
   buildProfNameMap,
   distinctIds,
   resolveDashboardTerm,
-  toShamsi,
 } from '@/lib/student-dashboard-helpers';
 import { isDemoStudentUser } from '@/lib/demo-accounts';
 import MessengerOnboardBanner from '@/components/MessengerOnboardBanner';
-import { getExamCardData } from '@/lib/verification';
+import PanelHero from '@/components/PanelHero';
 import Link from 'next/link';
 import { DemoDashboard } from './demo-sections';
 
@@ -42,13 +38,9 @@ export default async function StudentDashboardPage() {
     return <DemoDashboard name={user.name} filteredTermTitle={filteredTerm?.title ?? null} />;
   }
 
-  const examTerm = term ? { id: term.id, title: term.title } : null;
-
   const [
-    examCard,
     currentEnrollments,
   ] = await Promise.all([
-    getExamCardData(user.id, examTerm),
     term
       ? db
         .select({
@@ -76,10 +68,9 @@ export default async function StudentDashboardPage() {
       : Promise.resolve([]),
   ]);
 
-  const offeringIds = distinctIds(currentEnrollments.map(c => c.offeringId));
   const professorIds = distinctIds(currentEnrollments.map(c => c.professorId));
 
-  const [profUsers, rawSchedules, liveVirtualClasses] = await Promise.all([
+  const [profUsers, liveVirtualClasses] = await Promise.all([
     professorIds.length > 0
       ? db
         .select({
@@ -90,28 +81,6 @@ export default async function StudentDashboardPage() {
         .from(staff)
         .innerJoin(users, eq(users.id, staff.userId))
         .where(inArray(staff.id, professorIds))
-      : Promise.resolve([]),
-    term && offeringIds.length > 0
-      ? db
-        .select({
-          offeringId: schedules.offeringId,
-          scheduleType: schedules.scheduleType,
-          dayOfWeek: schedules.dayOfWeek,
-          examDate: schedules.examDate,
-          startTime: schedules.startTime,
-          endTime: schedules.endTime,
-          roomName: classrooms.name,
-          buildingName: classrooms.buildingName,
-        })
-        .from(schedules)
-        .innerJoin(course_offerings, eq(course_offerings.id, schedules.offeringId))
-        .leftJoin(classrooms, eq(classrooms.id, schedules.roomId))
-        .where(
-          and(
-            eq(course_offerings.termId, term.id),
-            inArray(schedules.offeringId, offeringIds)
-          )
-        )
       : Promise.resolve([]),
     term && currentEnrollments.length > 0
       ? db
@@ -137,29 +106,32 @@ export default async function StudentDashboardPage() {
 
   const profMap = buildProfNameMap(profUsers);
 
-  const schedMap = buildDashboardScheduleMap(rawSchedules);
-
-  // لیست آزمون‌های پیش‌رو با شماره صندلی
-  const upcomingExams = currentEnrollments
-    .map(c => {
-      const s = schedMap.get(c.offeringId);
-      return {
-        code: c.code,
-        title: c.title,
-        group: c.group,
-        units: c.units,
-        professor: c.professorId ? profMap.get(c.professorId) || 'نامشخص' : 'نامشخص',
-        examDate: s?.exam?.examDate ?? null,
-        examTime: s?.exam ? `${s.exam.startTime}` : null,
-        room: s?.exam?.room ?? null,
-        seatNumber: examCard?.courses.find(ec => ec.enrollmentId === c.enrollmentId)?.seatNumber ?? null,
-      };
-    })
-    .filter(ex => ex.examDate != null)
-    .slice(0, 3);
+  // جمعِ واحدهای ترمِ جاری — برای ویترینِ بالای صفحه (درس‌های حذف‌شده شمرده نمی‌شوند)
+  const activeEnrollments = currentEnrollments.filter(c => c.status !== 'DROPPED');
+  const unitsSum = activeEnrollments.reduce((s, c) => s + (Number(c.units) || 0), 0);
 
   return (
     <div className="space-y-6 animate-in fade-in">
+      {/* ── ویترینِ صفحهٔ اول ──
+          پیش‌تر صفحه مستقیم با شبکهٔ «دسترسی سریع» شروع می‌شد و هیچ سربرگی
+          نداشت؛ حالا نام/نیمسال/تعداد درس و واحد در یک بلوکِ واحد می‌آید تا
+          صفحهٔ اولِ کارتابل دانشجو هم‌تراز سه کارتابل دیگر باشد. */}
+      <PanelHero
+        tone="emerald"
+        icon="🎓"
+        eyebrow="کارتابل دانشجو"
+        title={`سلام ${user.name.split(' ')[0]} 👋`}
+        subtitle={
+          term?.title
+            ? `نیمسال ${term.title} — درس‌ها، وضعیت مالی و خدمات آموزشی شما یک‌جا`
+            : 'برای شما نیمسال فعالی ثبت نشده است؛ با آموزش تماس بگیرید.'
+        }
+        stats={[
+          { label: 'درس این ترم', value: activeEnrollments.length.toLocaleString('fa-IR') },
+          { label: 'واحد', value: unitsSum.toLocaleString('fa-IR') },
+        ]}
+      />
+
       {/* ========================================================================= */}
       {/* 3. QUICK ACTION SERVICE PORTAL (میز دسترسی سریع به امکانات) */}
       {/* ========================================================================= */}
@@ -172,7 +144,7 @@ export default async function StudentDashboardPage() {
         </div>
 
         <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-4">
-          <Link
+          <Link prefetch={false}
             href="/student/enroll"
             className="card p-4 bg-white hover:bg-emerald-50/50 border border-slate-200 hover:border-emerald-300 rounded-2xl shadow-xs transition-all group flex flex-col justify-between"
           >
@@ -182,16 +154,16 @@ export default async function StudentDashboardPage() {
               </div>
             </div>
             <div className="mt-3">
-              <h3 className="font-black text-slate-900 text-[11px] sm:text-sm leading-tight group-hover:text-emerald-900 transition">
+              <h3 className="font-black text-slate-900 text-2xs sm:text-sm leading-tight group-hover:text-emerald-900 transition">
                 انتخاب واحد
               </h3>
-              <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+              <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 line-clamp-1">
                 کنترل هم‌نیازی، پیش‌نیازی و تداخل
               </p>
             </div>
           </Link>
 
-          <Link
+          <Link prefetch={false}
             href="/student/exam-card"
             className="card p-4 bg-white hover:bg-teal-50/50 border border-slate-200 hover:border-teal-300 rounded-2xl shadow-xs transition-all group flex flex-col justify-between"
           >
@@ -201,16 +173,16 @@ export default async function StudentDashboardPage() {
               </div>
             </div>
             <div className="mt-3">
-              <h3 className="font-black text-slate-900 text-[11px] sm:text-sm leading-tight group-hover:text-teal-900 transition">
+              <h3 className="font-black text-slate-900 text-2xs sm:text-sm leading-tight group-hover:text-teal-900 transition">
                 کارت آزمون
               </h3>
-              <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+              <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 line-clamp-1">
                 ارزشیابی استاد و چاپ برگه A4
               </p>
             </div>
           </Link>
 
-          <Link
+          <Link prefetch={false}
             href="/student/enroll-confirm"
             className="card p-4 bg-white hover:bg-lime-50/50 border border-slate-200 hover:border-lime-300 rounded-2xl shadow-xs transition-all group flex flex-col justify-between"
           >
@@ -220,16 +192,16 @@ export default async function StudentDashboardPage() {
               </div>
             </div>
             <div className="mt-3">
-              <h3 className="font-black text-slate-900 text-[11px] sm:text-sm leading-tight group-hover:text-lime-900 transition">
+              <h3 className="font-black text-slate-900 text-2xs sm:text-sm leading-tight group-hover:text-lime-900 transition">
                 تأییدیه
               </h3>
-              <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+              <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 line-clamp-1">
                 چاپ برگه با QR استعلام اصالت
               </p>
             </div>
           </Link>
 
-          <Link
+          <Link prefetch={false}
             href="/student/transcript"
             className="card p-4 bg-white hover:bg-indigo-50/50 border border-slate-200 hover:border-indigo-300 rounded-2xl shadow-xs transition-all group flex flex-col justify-between"
           >
@@ -237,21 +209,21 @@ export default async function StudentDashboardPage() {
               <div className="w-10 h-10 rounded-2xl bg-indigo-100 text-indigo-800 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
                 📜
               </div>
-              <span className="hidden sm:inline-flex text-[10px] bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full font-bold">
+              <span className="hidden sm:inline-flex text-3xs bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded-full font-bold">
                 رسمی
               </span>
             </div>
             <div className="mt-3">
-              <h3 className="font-black text-slate-900 text-[11px] sm:text-sm leading-tight group-hover:text-indigo-900 transition">
+              <h3 className="font-black text-slate-900 text-2xs sm:text-sm leading-tight group-hover:text-indigo-900 transition">
                 کارنامه
               </h3>
-              <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+              <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 line-clamp-1">
                 محاسبه آیین‌نامه‌ای و حذف مردودی
               </p>
             </div>
           </Link>
 
-          <Link
+          <Link prefetch={false}
             href="/student/virtual-classes"
             className="card p-4 bg-white hover:bg-sky-50/50 border border-slate-200 hover:border-sky-300 rounded-2xl shadow-xs transition-all group flex flex-col justify-between"
           >
@@ -259,21 +231,21 @@ export default async function StudentDashboardPage() {
               <div className="w-10 h-10 rounded-2xl bg-sky-100 text-sky-800 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
                 💻
               </div>
-              <span className="hidden sm:inline-flex text-[10px] bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full font-bold animate-pulse">
+              <span className="hidden sm:inline-flex text-3xs bg-sky-100 text-sky-800 px-2 py-0.5 rounded-full font-bold animate-pulse">
                 BBB زنده
               </span>
             </div>
             <div className="mt-3">
-              <h3 className="font-black text-slate-900 text-[11px] sm:text-sm leading-tight group-hover:text-sky-900 transition">
+              <h3 className="font-black text-slate-900 text-2xs sm:text-sm leading-tight group-hover:text-sky-900 transition">
                 کلاس آنلاین
               </h3>
-              <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+              <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 line-clamp-1">
                 ورود مستقیم به جلسات مجازی LMS
               </p>
             </div>
           </Link>
 
-          <Link
+          <Link prefetch={false}
             href="/student/schedule"
             className="card p-4 bg-white hover:bg-amber-50/50 border border-slate-200 hover:border-amber-300 rounded-2xl shadow-xs transition-all group flex flex-col justify-between"
           >
@@ -281,21 +253,21 @@ export default async function StudentDashboardPage() {
               <div className="w-10 h-10 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
                 📅
               </div>
-              <span className="hidden sm:inline-flex text-[10px] bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">
+              <span className="hidden sm:inline-flex text-3xs bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full font-bold">
                 تقویم شمسی
               </span>
             </div>
             <div className="mt-3">
-              <h3 className="font-black text-slate-900 text-[11px] sm:text-sm leading-tight group-hover:text-amber-900 transition">
+              <h3 className="font-black text-slate-900 text-2xs sm:text-sm leading-tight group-hover:text-amber-900 transition">
                 برنامه و آزمون
               </h3>
-              <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+              <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 line-clamp-1">
                 شماره کلاس، ساختمان و ساعت آزمون
               </p>
             </div>
           </Link>
 
-          <Link
+          <Link prefetch={false}
             href="/student/requests"
             className="card p-4 bg-white hover:bg-purple-50/50 border border-slate-200 hover:border-purple-300 rounded-2xl shadow-xs transition-all group flex flex-col justify-between"
           >
@@ -303,21 +275,21 @@ export default async function StudentDashboardPage() {
               <div className="w-10 h-10 rounded-2xl bg-purple-100 text-purple-800 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
                 📋
               </div>
-              <span className="hidden sm:inline-flex text-[10px] bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full font-bold">
+              <span className="hidden sm:inline-flex text-3xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full font-bold">
                 سجاد BPM
               </span>
             </div>
             <div className="mt-3">
-              <h3 className="font-black text-slate-900 text-[11px] sm:text-sm leading-tight group-hover:text-purple-900 transition">
+              <h3 className="font-black text-slate-900 text-2xs sm:text-sm leading-tight group-hover:text-purple-900 transition">
                 میز خدمات
               </h3>
-              <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+              <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 line-clamp-1">
                 درخواست مرخصی، حذف ترم و کمیسیون
               </p>
             </div>
           </Link>
 
-          <Link
+          <Link prefetch={false}
             href="/student/chart"
             className="card p-4 bg-white hover:bg-rose-50/50 border border-slate-200 hover:border-rose-300 rounded-2xl shadow-xs transition-all group flex flex-col justify-between"
           >
@@ -325,21 +297,21 @@ export default async function StudentDashboardPage() {
               <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-800 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
                 🗺️
               </div>
-              <span className="hidden sm:inline-flex text-[10px] bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full font-bold">
+              <span className="hidden sm:inline-flex text-3xs bg-rose-100 text-rose-800 px-2 py-0.5 rounded-full font-bold">
                 سرفصل‌ها
               </span>
             </div>
             <div className="mt-3">
-              <h3 className="font-black text-slate-900 text-[11px] sm:text-sm leading-tight group-hover:text-rose-900 transition">
+              <h3 className="font-black text-slate-900 text-2xs sm:text-sm leading-tight group-hover:text-rose-900 transition">
                 چارت درسی
               </h3>
-              <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+              <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 line-clamp-1">
                 دروس پایه، اصلی، تخصصی و عمومی
               </p>
             </div>
           </Link>
 
-          <Link
+          <Link prefetch={false}
             href="/student/documents"
             className="card p-4 bg-white hover:bg-slate-50 border border-slate-200 hover:border-slate-400 rounded-2xl shadow-xs transition-all group flex flex-col justify-between"
           >
@@ -347,15 +319,15 @@ export default async function StudentDashboardPage() {
               <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-800 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
                 📁
               </div>
-              <span className="hidden sm:inline-flex text-[10px] bg-slate-100 text-slate-800 px-2 py-0.5 rounded-full font-bold">
+              <span className="hidden sm:inline-flex text-3xs bg-slate-100 text-slate-800 px-2 py-0.5 rounded-full font-bold">
                 بایگانی
               </span>
             </div>
             <div className="mt-3">
-              <h3 className="font-black text-slate-900 text-[11px] sm:text-sm leading-tight group-hover:text-slate-900 transition">
+              <h3 className="font-black text-slate-900 text-2xs sm:text-sm leading-tight group-hover:text-slate-900 transition">
                 مدارک
               </h3>
-              <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 line-clamp-1">
+              <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 line-clamp-1">
                 مدرک دیپلم، کارت ملی و تعهدنامه
               </p>
             </div>
@@ -364,9 +336,10 @@ export default async function StudentDashboardPage() {
       </div>
 
       {/* ========================================================================= */}
-      {/* 4. TODAY'S LIVE VIRTUAL CLASSES & UPCOMING EXAMS SPLIT SECTION */}
+      {/* 4. TODAY'S LIVE VIRTUAL CLASSES — کارت آزمون حذف شد: صفحهٔ اختصاصی */}
+      {/* /student/exam-card از «دسترسی سریع» در دسترس است و تکرارش اینجا شلوغی بود. */}
       {/* ========================================================================= */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 gap-5">
         {/* Virtual Classes Widget */}
         <div className="card bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3.5">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
@@ -376,12 +349,12 @@ export default async function StudentDashboardPage() {
                 <h3 className="font-black text-slate-900 text-sm">
                   کلاس‌های آنلاین و جلسات وبینار LMS (امروز)
                 </h3>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-2xs text-slate-500">
                   اتصال مستقیم به سرور BigBlueButton دانشگاه با پروتکل امن SSO
                 </p>
               </div>
             </div>
-            <Link
+            <Link prefetch={false}
               href="/student/virtual-classes"
               className="text-xs font-bold text-sky-700 hover:text-sky-900 bg-sky-50 px-2.5 py-1 rounded-lg"
             >
@@ -409,82 +382,24 @@ export default async function StudentDashboardPage() {
                       <span className={`w-2 h-2 rounded-full ${vc.isRunning ? 'bg-emerald-500 animate-ping' : 'bg-amber-400'}`}></span>
                       <strong className="text-xs font-black text-slate-900">{vc.courseTitle}</strong>
                       {vc.isRunning && (
-                        <span className="hidden sm:inline-flex text-[10px] bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">
+                        <span className="hidden sm:inline-flex text-3xs bg-emerald-100 text-emerald-800 font-bold px-1.5 py-0.5 rounded">
                           در حال برگزاری
                         </span>
                       )}
                     </div>
-                    <p className="text-[11px] text-slate-600">
+                    <p className="text-2xs text-slate-600">
                       استاد: {vc.professorId ? profMap.get(vc.professorId) || 'نامشخص' : 'نامشخص'} · اتاق مجازی: {vc.meetingId}
                       {vc.isRunning && (vc.currentAttendanceCount ?? 0) > 0
                         ? ` · ${Number(vc.currentAttendanceCount).toLocaleString('fa-IR')} شرکت‌کننده فعال`
                         : ''}
                     </p>
                   </div>
-                  <Link
+                  <Link prefetch={false}
                     href="/student/virtual-classes"
                     className="px-3.5 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-black text-xs shadow-xs transition active:scale-95 whitespace-nowrap"
                   >
                     ورود به کلاس
                   </Link>
-                </div>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Upcoming Exams Widget */}
-        <div className="card bg-white p-5 rounded-2xl border border-slate-200 shadow-xs space-y-3.5">
-          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-            <div className="flex items-center gap-2">
-              <span className="text-xl">📝</span>
-              <div>
-                <h3 className="font-black text-slate-900 text-sm">
-                  برنامه امتحانات پایان‌ترم و شماره صندلی
-                </h3>
-                <p className="text-[11px] text-slate-500">
-                  همراه داشتن کارت آزمون چاپ‌شده و کارت ملی در جلسه آزمون الزامی است
-                </p>
-              </div>
-            </div>
-            <Link
-              href="/student/exam-card"
-              className="text-xs font-bold text-emerald-700 hover:text-emerald-900 bg-emerald-50 px-2.5 py-1 rounded-lg"
-            >
-              کارت آزمون ←
-            </Link>
-          </div>
-
-          <div className="space-y-2.5">
-            {upcomingExams.length === 0 ? (
-              <p className="text-xs text-slate-500 text-center py-3">
-                برای {filteredTerm ? 'نیمسال انتخابی' : 'ترم جاری'} شما زمان‌بندی امتحانی ثبت نشده است.
-              </p>
-            ) : (
-              upcomingExams.map((ex, idx) => (
-                <div
-                  key={idx}
-                  className="p-3 rounded-xl bg-slate-50 border border-slate-200 hover:bg-emerald-50/40 transition flex items-center justify-between gap-3 text-xs"
-                >
-                  <div className="space-y-0.5">
-                    <div className="font-black text-slate-900">{ex.title}</div>
-                    <div className="text-[11px] text-slate-500 flex items-center gap-2">
-                      <span>📅 {toShamsi(ex.examDate)}</span>
-                      {ex.examTime && <span>⏰ {ex.examTime}</span>}
-                      {ex.room && <span>🏛️ {ex.room}</span>}
-                    </div>
-                  </div>
-                  <div className="text-left font-mono">
-                    <span
-                      className={`px-2.5 py-1 rounded-lg font-black text-xs ${
-                        ex.seatNumber != null
-                          ? 'bg-indigo-950 text-white'
-                          : 'bg-slate-200 text-slate-600'
-                      }`}
-                    >
-                      {ex.seatNumber != null ? `صندلی ${ex.seatNumber}` : 'بدون صندلی'}
-                    </span>
-                  </div>
                 </div>
               ))
             )}

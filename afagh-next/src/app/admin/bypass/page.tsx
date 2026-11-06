@@ -44,7 +44,7 @@ export default async function AdminBypassPage() {
         <div className="rounded-2xl border border-indigo-200 bg-indigo-50/60 p-4 shadow-sm space-y-3">
           <div>
             <h2 className="text-sm font-black text-indigo-950">⏱️ مهلت‌های تصمیم‌گیری (تنظیمات نیمسال جاری)</h2>
-            <p className="mt-0.5 text-[11px] leading-5 text-indigo-800">
+            <p className="mt-0.5 text-2xs leading-5 text-indigo-800">
               مدیر گروه تا پایان «مهلت مدیر» فرصت دارد؛ پس از آن درخواست به کارشناس آموزش رشته ارجاع می‌شود و
               کارشناس تا پایان «مهلت کارشناس» فرصت دارد. «یادآوری» یعنی چند ساعت قبل از پایان هر مهلت، پیام
               یادآوری ارسال شود. پس از پایان مهلت کارشناس بدون تصمیم، درخواست خودکار رد می‌شود.
@@ -59,9 +59,9 @@ export default async function AdminBypassPage() {
               <input type="hidden" name="termId" value={t.id} />
               <div className="text-xs font-bold text-slate-800 min-w-40">
                 {t.title}
-                <span className="block font-mono text-[10px] text-slate-500" dir="ltr">{t.termCode}</span>
+                <span className="block font-mono text-3xs text-slate-500" dir="ltr">{t.termCode}</span>
               </div>
-              <label className="text-[11px] font-bold text-slate-700 space-y-1">
+              <label className="text-2xs font-bold text-slate-700 space-y-1">
                 <span className="block">مهلت مدیر گروه (ساعت)</span>
                 <input
                   type="number" name="bypassManagerHours" min={1} max={720} step={1}
@@ -69,7 +69,7 @@ export default async function AdminBypassPage() {
                   className="w-28 rounded-lg border border-slate-300 px-2 py-1 text-xs font-mono"
                 />
               </label>
-              <label className="text-[11px] font-bold text-slate-700 space-y-1">
+              <label className="text-2xs font-bold text-slate-700 space-y-1">
                 <span className="block">مهلت کارشناس (ساعت)</span>
                 <input
                   type="number" name="bypassExpertHours" min={1} max={720} step={1}
@@ -77,7 +77,7 @@ export default async function AdminBypassPage() {
                   className="w-28 rounded-lg border border-slate-300 px-2 py-1 text-xs font-mono"
                 />
               </label>
-              <label className="text-[11px] font-bold text-slate-700 space-y-1">
+              <label className="text-2xs font-bold text-slate-700 space-y-1">
                 <span className="block">یادآوری قبل از مهلت (ساعت)</span>
                 <input
                   type="number" name="bypassReminderHours" min={1} max={720} step={1}

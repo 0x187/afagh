@@ -24,7 +24,7 @@ export default async function StudentEnrollConfirmPage() {
   if (!selectedTerm) {
     return (
       <div className="space-y-3">
-        <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
+        <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-2xs text-slate-600">
           نیمسالی انتخاب نشده است؛ از فیلتر نیمسال یک نیمسال را انتخاب کنید.
         </p>
       </div>

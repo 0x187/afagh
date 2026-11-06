@@ -34,7 +34,7 @@ export default async function StudentExamCardPage() {
     return (
       <div className="space-y-3">
         {selectedTerm ? (
-          <p className="print:hidden rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
+          <p className="print:hidden rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-2xs text-slate-600">
             {demoTermFilterNotice(selectedTerm.title)}
           </p>
         ) : (
@@ -101,7 +101,7 @@ export default async function StudentExamCardPage() {
     <div className="space-y-3">
 
       {noCourses && (
-        <p className="print:hidden rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[11px] text-slate-600">
+        <p className="print:hidden rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-2xs text-slate-600">
           {selectedTerm
             ? `برای نیمسال «${selectedTerm.title}» هیچ ثبت‌نامی برای شما ثبت نشده است؛ بنابراین برنامهٔ امتحان یا صندلیی نیز وجود ندارد.`
             : 'برای نیمسال جاری هیچ ثبت‌نامی برای شما ثبت نشده است؛ بنابراین برنامهٔ امتحان یا صندلیی نیز وجود ندارد.'}

@@ -12,7 +12,10 @@ import { getCurrentUniversity } from '@/lib/university-scope';
 const ALLOWED = ['ADMIN', 'EDU_EXPERT', 'VICE_EDU'];
 const PAGE_SIZE = 100;
 
-const courseTypeEnum = z.enum(['پایه', 'اصلی', 'تخصصی', 'عمومی', 'عملی', 'نظری', 'کارگاهی', 'اختیاری']);
+// نوع درس در بانک، دامنهٔ بسته ندارد: خروجی سما مقادیری مثل «نظري-عملي 2س»،
+// «الزامي مشترک»، «تخصصي انتخابي» و… دارد. enum بسته باعث می‌شد ویرایشِ درس
+// با خطای «داده ورودی معتبر نیست» رد شود و هیچ‌چیز ذخیره نشود.
+const courseTypeSchema = z.string().trim().min(1).max(50);
 const gradingTypeEnum = z.enum(['NUMERIC', 'PASS_FAIL']);
 const offeringScopeEnum = z.enum(['DEPARTMENTAL', 'GENERAL_SERVICE', 'UNIVERSITY_WIDE']);
 const locationTypeEnum = z.enum(['IN_CAMPUS', 'OUT_CAMPUS', 'ONLINE', 'HYBRID']);
@@ -24,7 +27,7 @@ const bankCreateSchema = z.object({
   title: z.string().trim().min(1).max(200),
   theoreticalUnits: z.coerce.number().min(0).max(20).default(0),
   practicalUnits: z.coerce.number().min(0).max(20).default(0),
-  courseType: courseTypeEnum.default('تخصصی'),
+  courseType: courseTypeSchema.default('تخصصی'),
   gradingType: gradingTypeEnum.default('NUMERIC'),
   affectsGpa: z.coerce.boolean().optional(),
   departmentId: z.coerce.number().int().positive().nullable().optional(),
@@ -46,16 +49,19 @@ const bankCreateSchema = z.object({
   courseIsActive: z.coerce.boolean().optional(),
   emergencyWithdrawal: z.coerce.boolean().optional(),
   coRequisites: z.string().max(500).nullable().optional(),
+  prereqText: z.string().max(1000).nullable().optional(),
   facesHours: unitsNumber.nullable().optional(),
   equivalentCourseCodes: z.string().max(500).nullable().optional(),
 });
 
 const bankPatchSchema = z.object({
-  code: z.string().trim().min(1).max(20).optional(),
+  // «کد» در ویرایش قابل تغییر نیست و فیلد غیرفعال در FormData نمی‌آید؛
+  // پس خالی/نبودنش نباید کل ذخیره را رد کند.
+  code: z.string().trim().max(20).optional(),
   title: z.string().trim().min(1).max(200).optional(),
   theoreticalUnits: unitsNumber.optional(),
   practicalUnits: unitsNumber.optional(),
-  courseType: courseTypeEnum.optional(),
+  courseType: courseTypeSchema.optional(),
   gradingType: gradingTypeEnum.optional(),
   affectsGpa: z.coerce.boolean().optional(),
   departmentId: nullableId,
@@ -77,6 +83,7 @@ const bankPatchSchema = z.object({
   courseIsActive: z.coerce.boolean().optional(),
   emergencyWithdrawal: z.coerce.boolean().optional(),
   coRequisites: z.string().max(500).nullable().optional(),
+  prereqText: z.string().max(1000).nullable().optional(),
   facesHours: unitsNumber.nullable().optional(),
   equivalentCourseCodes: z.string().max(500).nullable().optional(),
 }).strict();
@@ -140,6 +147,7 @@ export async function GET(req: NextRequest) {
       courseIsActive: courses.courseIsActive,
       emergencyWithdrawal: courses.emergencyWithdrawal,
       coRequisites: courses.coRequisites,
+      prereqText: courses.prereqText,
       facesHours: courses.facesHours,
       equivalentCourseCodes: courses.equivalentCourseCodes,
     })
@@ -182,7 +190,13 @@ export async function PATCH(req: NextRequest) {
   }
   const parsed = bankPatchSchema.safeParse(rawBody);
   if (!parsed.success) {
-    return NextResponse.json({ ok: false, error: 'داده ورودی معتبر نیست.' }, { status: 400 });
+    const first = parsed.error.issues[0];
+    const field = first?.path?.join('.') || '—';
+    return NextResponse.json({
+      ok: false,
+      error: `داده ورودی معتبر نیست — فیلد «${field}»: ${first?.message ?? ''}`,
+      details: parsed.error.flatten(),
+    }, { status: 400 });
   }
   const body = parsed.data;
   const patch: Record<string, unknown> = {};
@@ -212,6 +226,7 @@ export async function PATCH(req: NextRequest) {
   if (body.courseIsActive != null) patch.courseIsActive = body.courseIsActive ? 1 : 0;
   if (body.emergencyWithdrawal != null) patch.emergencyWithdrawal = body.emergencyWithdrawal ? 1 : 0;
   if (body.coRequisites != null) patch.coRequisites = body.coRequisites || null;
+  if (body.prereqText != null) patch.prereqText = body.prereqText || null;
   if (body.facesHours != null) patch.facesHours = String(body.facesHours);
   if (body.equivalentCourseCodes != null) patch.equivalentCourseCodes = body.equivalentCourseCodes || null;
 
@@ -248,7 +263,13 @@ export async function POST(req: NextRequest) {
   }
   const result = bankCreateSchema.safeParse(rawBody);
   if (!result.success) {
-    return NextResponse.json({ ok: false, error: 'داده ورودی معتبر نیست.' }, { status: 400 });
+    const first = result.error.issues[0];
+    const field = first?.path?.join('.') || '—';
+    return NextResponse.json({
+      ok: false,
+      error: `داده ورودی معتبر نیست — فیلد «${field}»: ${first?.message ?? ''}`,
+      details: result.error.flatten(),
+    }, { status: 400 });
   }
   const body = result.data;
   const code = body.code;
@@ -303,6 +324,7 @@ export async function POST(req: NextRequest) {
     courseIsActive: body.courseIsActive != null ? (body.courseIsActive ? 1 : 0) : 1,
     emergencyWithdrawal: body.emergencyWithdrawal ? 1 : 0,
     coRequisites: body.coRequisites || null,
+    prereqText: body.prereqText || null,
     facesHours: body.facesHours ? String(body.facesHours) : null,
     equivalentCourseCodes: body.equivalentCourseCodes || null,
   }).returning({ id: courses.id });

@@ -30,7 +30,7 @@ export default function UniversitySwitcher({
       >
         <span className={`inline-block w-2.5 h-2.5 rounded-full ${uniDot(cur.code)} ring-1 ring-white/40`} />
         <span className="max-w-36 truncate">{cur.title}{cur.kind === 'DISSOLVED' ? ' (منحله)' : ''}</span>
-        <span className="text-[10px] opacity-70">▾</span>
+        <span className="text-3xs opacity-70">▾</span>
       </summary>
       <div className="absolute inset-x-0 top-full z-50 mt-1 overflow-hidden rounded-xl border border-slate-700 bg-slate-900 shadow-2xl md:inset-x-auto md:right-0 md:left-auto md:min-w-52 md:w-auto">
         {universities.map(u => {

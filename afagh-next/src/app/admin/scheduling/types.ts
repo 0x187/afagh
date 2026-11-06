@@ -36,6 +36,7 @@ export interface CohortOption {
   semesterNo: number;
   title: string;
   expectedStudents: number;
+  majorId?: number | null;
   isEmployedAudience?: boolean;
 }
 
@@ -47,6 +48,10 @@ export interface ClassroomOption {
   roomType: 'THEORY' | 'LAB' | 'GYM' | 'EXAM';
   equipment: string[];
   isActive: boolean;
+  facultyId: number | null;
+  facultyName: string;
+  /** تعداد دانشجوی فعالِ دانشکده — برای توضیح «چرا این سالن سهمیه نگرفت» */
+  facultyStudents: number;
   isAllocatedToDept: boolean;
 }
 
@@ -56,6 +61,8 @@ export interface ProfessorOption {
   staffCode: string;
   academicRank: string;
   contractType: 'تمام‌وقت' | 'نیمه‌وقت' | 'مدعو';
+  /** گروه آموزشی استاد — کشویی هر درس فقط استادان همین گروه را نشان می‌دهد */
+  departmentId: number | null;
   departmentName: string;
   maxWeeklyUnits: number;
   maxDailyHours: number;
@@ -78,13 +85,22 @@ export interface CourseDemand {
   courseDeptId: number | null;
   programId: number;
   programTitle: string;
+  /** رشته‌هایی که این درس به آن‌ها تعلق دارد؛ خالی = درس مشترک بین رشته‌ها */
+  programIds?: number[];
+  /** شمارهٔ ترم پیشنهادی چارت؛ null = تعیین‌نشده */
+  semesterNo?: number | null;
   cohortId: string;
   cohortTitle: string;
+  /** ادغام مهر+بهمن برای این ارائه فعال است */
+  cohortMerged?: boolean;
   code: string;
   title: string;
   units: number;
   groupNumber: number;
-  courseType: 'پایه' | 'اصلی' | 'تخصصی' | 'عمومی' | 'عملی';
+  /** نوع درس واقعی از courses.courseType — دامنهٔ مقادیر باز است (پایه/اصلی/تخصصی/عمومی/اختیاری/نظری-عملی/کارورزی/پروژه/…)، پس رشته است نه اتحادیهٔ بسته. */
+  courseType: string;
+  /** رتبهٔ نوع درس برای مرتب‌سازی: عمومی و مشترک اول، سپس پایه، سپس تخصصی/اختصاصی */
+  courseTypeRank?: number;
   preferredProfId: number;
   groupProfessors?: { [groupNo: number]: number };
   isCoTaught?: boolean;
@@ -93,6 +109,8 @@ export interface CourseDemand {
   labWeightRatio?: number;    // e.g. 0.30 (6 marks out of 20)
   requiredRoomType: 'THEORY' | 'LAB' | 'GYM';
   capacity: number;
+  /** تعداد ثبت‌نام‌شدهٔ واقعی — مبنای پیشنهاد خودکار تعداد گروه */
+  enrolledCount: number;
   groupsCount: number;
   weekRecurrence: WeekRecurrence;
   sessionsCountPerWeek: number;
@@ -115,10 +133,10 @@ export interface DepartmentOffering {
   units: number;
   courseType: string;
   groupNumber: number;
-  professorId: number;
+  professorId: number | null;
   professorName: string;
   isCoTaught?: boolean;
-  coProfId?: number;
+  coProfId?: number | null;
   coProfName?: string;
   theoryWeightRatio?: number;
   labWeightRatio?: number;
@@ -142,6 +160,22 @@ export interface DepartmentOffering {
     endTime: string;
     roomName: string;
   } | null;
+  courseDeptId?: number | null;
+  offeringId?: number;
+  genderRestriction?: 'MIXED' | 'MALE' | 'FEMALE';
+  classroomId?: number | null;
+  dayOfWeek?: number | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  programIds?: number[];
+  semesterNo?: number | null;
+  cohortMerged?: boolean;
+  examDate?: string | null;
+  examMode?: 'WRITTEN' | 'ORAL' | 'PROJECT' | 'ONLINE';
+  examTime?: string | null;
+  examRoomId?: number | null;
+  isSharedService?: boolean;
+  offeringScope?: string;
 }
 
 export interface AutoScheduleScenario {
@@ -163,26 +197,46 @@ export interface AutoScheduleScenario {
   offerings: DepartmentOffering[];
 }
 export interface SchedulingWorkspace {
+  /** true = فقط اسکلتِ سبک (ترم/رشته/فاز/تقویم)؛ لیستهای سنگین را کلاینت
+   *  بعد از اولین paint با getSchedulingWorkspaceAction واکشی میکند */
+  partial?: boolean;
   terms: { id: number; code: string; title: string; isCurrent: boolean }[];
   selectedTermId: number | null;
   programs: { id: number; code: string; title: string; facultyName: string; degreeLevel: string; facultyId: number | null }[];
-  cohorts: { entryYear: number; expectedStudents: number }[];
-  classrooms: { id: number; name: string; buildingName: string; capacity: number; roomType: string }[];
+  cohorts: { majorId: number | null; entryYear: number; entryTerm: number; expectedStudents: number }[];
+  classrooms: { id: number; name: string; buildingName: string; capacity: number; roomType: string; isActive: number | null; facultyId: number | null; facultyName: string | null; facultyStudents: number }[];
   allocatedRoomIds: number[];
-  professors: { id: number; name: string; staffCode: string | null; academicRank: string | null; departmentName: string | null }[];
+  roomGrants: { id: number; classroomId: number; shift: string; ownerDepartmentId: number; status: string }[];
+  professors: { id: number; name: string; staffCode: string | null; academicRank: string | null; departmentId: number | null; departmentName: string | null }[];
   demands: {
     offeringId: number; courseId: number; courseDeptId: number | null;
     code: string; title: string; units: string; courseType: string;
     capacity: number; groupNumber: number; professorId: number | null; isCoTaught: boolean;
+    coProfId: number | null;
     enrolledCount: number; programId: number; programTitle: string;
+    /** رشته‌هایی که این درس به آن‌ها تعلق دارد (چارت درسی). خالی = مشترک/نامشخص */
+    programIds: number[];
+    /** شمارهٔ ترم پیشنهادی چارت (فاز ۰: رشته × ترم) — null = در چارت تعیین نشده */
+    semesterNo: number | null;
     cohortId: string; cohortTitle: string;
+    /** ادغام صریح مهر+بهمن روی همین ارائه ثبت شده است */
+    cohortMerged: boolean;
+    /** تاریخ امتحان واقعی از schedules(scheduleType='EXAM') — خالی یعنی هنوز تعیین نشده */
+    examDate: string;
     isSharedService: boolean;
     offeringScope: string;
   }[];
-  departments: { id: number; name: string }[];
+  departments: { id: number; name: string; departmentCode: string | null }[];
   availabilities: { staffId: number; dayOfWeek: number | null; startTime: string | null; endTime: string | null; status: string | null }[];
   phases: Record<number, string>;
-  termCalendar: { startJalali: string | null; endJalali: string | null; startDate: string | null } | null;
+  termCalendar: {
+    id: number;
+    startJalali: string | null; endJalali: string | null; startDate: string | null;
+    /** تعریف ترم = منبع حقیقت تقویم برنامه‌ریزی (نه اعداد پیش‌فرض UI) */
+    weeksCount: number | null;
+    classStartJalali: string | null; classEndJalali: string | null;
+    examStartJalali: string | null; examEndJalali: string | null;
+  } | null;
   sessionsTotal: number;
   sessionsByOffering: Record<number, { total: number; makeup: number; firstDate: string | null }>;
   hardConflictCount: number;
@@ -200,6 +254,7 @@ export interface SchedulingWorkspace {
 
 /** تب‌های اصلی کارتابل (کلید رندر در Shell) */
 export type PlanningTab =
+  | 'PROGRAM_SCOPE'
   | 'CURRICULUM_ASSIGN' | 'PROF_QUOTAS' | 'DEPT_ROOMS' | 'SCENARIOS'
   | 'PROFESSOR_SCHEDULE' | 'APPROVED' | 'TERM_CALENDAR';
 

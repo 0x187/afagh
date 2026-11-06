@@ -46,7 +46,7 @@ export default function StatementsCartableTab({ state, api }: Props) {
           <div className="p-3.5 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
             <div className="space-y-0.5">
               <span className="text-amber-300 font-bold block">⚖️ شیوه و خط‌مشی پرداخت حق‌التدریس دانشگاه:</span>
-              <p className="text-indigo-200 text-[11px]">
+              <p className="text-indigo-200 text-2xs">
                 {paymentPolicy === 'FULL_TERM_END'
                   ? 'سیاست فعلی: پرداخت ۱۰۰٪ حق‌التدریس در پایان ترم پس از تایید نمرات و تحویل فیزیکی اوراق به بایگانی'
                   : 'سیاست فعلی: پرداخت ۳ مرحله‌ای در طول ترم (۲۰٪ پس از جلسه ۴ + ۳۰٪ پس از میان‌ترم + ۵۰٪ تسویه نهایی بایگانی)'}
@@ -163,10 +163,10 @@ export default function StatementsCartableTab({ state, api }: Props) {
                       </td>
                       <td className="p-2.5 font-black text-slate-900">
                         <div>{rec.name}</div>
-                        <div className="text-[10px] text-slate-500">{rec.departmentName}</div>
+                        <div className="text-3xs text-slate-500">{rec.departmentName}</div>
                       </td>
                       <td className="p-2.5 font-bold text-indigo-950">{rec.academicRank}</td>
-                      <td className="p-2.5 text-[11px]">
+                      <td className="p-2.5 text-2xs">
                         {rec.contractType === 'FULL_TIME_FACULTY' ? (
                           <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-900 font-bold">
                             هیئت علمی ({rec.baseDutyUnits} واحد موظفی)
@@ -204,19 +204,19 @@ export default function StatementsCartableTab({ state, api }: Props) {
                       </td>
                       <td className="p-2.5 text-center">
                         {rec.status === 'FINANCE_SETTLED' ? (
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white">
+                          <span className="px-2.5 py-0.5 rounded-full text-3xs font-black bg-emerald-600 text-white">
                             ✓ تسویه نهایی مالی
                           </span>
                         ) : rec.status === 'DEAN_APPROVED' ? (
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-blue-600 text-white">
+                          <span className="px-2.5 py-0.5 rounded-full text-3xs font-black bg-blue-600 text-white">
                             ✓ تایید معاونت آموزش
                           </span>
                         ) : rec.status === 'DEPT_HEAD_APPROVED' ? (
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-indigo-600 text-white">
+                          <span className="px-2.5 py-0.5 rounded-full text-3xs font-black bg-indigo-600 text-white">
                             ✓ تایید مدیر گروه
                           </span>
                         ) : (
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-slate-200 text-slate-800">
+                          <span className="px-2.5 py-0.5 rounded-full text-3xs font-black bg-slate-200 text-slate-800">
                             پیش‌نویس سیستمی
                           </span>
                         )}
@@ -225,14 +225,14 @@ export default function StatementsCartableTab({ state, api }: Props) {
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             onClick={() => setDetailedPayslipRecord(rec)}
-                            className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 font-black text-[11px] transition"
+                            className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-900 border border-indigo-200 font-black text-2xs transition"
                           >
                             📄 فیش تفصیلی
                           </button>
                           {rec.status !== 'FINANCE_SETTLED' && (
                             <button
                               onClick={() => handleApproveStage(rec.id)}
-                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-black text-[10px] shadow-xs transition"
+                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-black text-3xs shadow-xs transition"
                             >
                               ✓ تایید مرحله
                             </button>

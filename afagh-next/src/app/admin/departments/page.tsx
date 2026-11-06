@@ -63,7 +63,7 @@ export default async function DepartmentsPage() {
 
       <p className="text-center text-xs text-slate-400">
         برای دیدن فهرست کامل کارکنان و نقش‌هایشان به{' '}
-        <Link href="/admin/staff" className="text-indigo-600 hover:underline">
+        <Link prefetch={false} href="/admin/staff" className="text-indigo-600 hover:underline">
           صفحهٔ استاد و کارکنان
         </Link>{' '}
         بروید.

@@ -12,20 +12,25 @@
 // هیچ UI جدیدی ساخته نشده؛ فقط دادهٔ واقعی جایگزین Mock می‌شود.
 // ════════════════════════════════════════════════════════════════════════
 
-import { and, asc, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { db } from '@/db';
 import {
   academic_terms, class_sessions, classrooms, course_offerings, courses, curriculum_courses, curriculum_versions, departments,
-  degree_level_configs, faculties, majors, offering_professors, schedules,
+  degree_level_configs, enrollments, faculties, majors, offering_professors, schedules,
   professor_availabilities, scheduling_room_grants, staff, students, term_scheduling_states, users,
 } from '@/db/schema';
-import { requireRole } from '@/lib/auth';
+import { requireRole, getStaffByUser } from '@/lib/auth';
+import { headedDepartments } from '@/lib/group-manager';
 import { getCurrentUniversity, isRealUniversityId, universityEq } from '@/lib/university-scope';
-import { getSchedulingState, transitionSchedulingPhase, supplyGroupDrafts, allocateSections, allocateRoomQuotas, getSmartSuggestions } from '@/lib/scheduling-engine';
+import { getSchedulingState, transitionSchedulingPhase, supplyGroupDrafts, allocateSections, allocateRoomQuotas, releaseRoomShift, borrowReleasedShift, getSmartSuggestions } from '@/lib/scheduling-engine';
 import { runSchedulingHealthCheck, type HealthReport } from '@/lib/scheduling-health';
 import { generateClassSessionsForTerm, getTermSessionsSummary, inspectSchedulingHardConflicts } from '@/lib/class-session-generator';
 import { detectScheduleConflicts, jalaliDateOf, type RoomCapacityInfo, type ScheduleConflictInput } from '@/lib/scheduling-core';
+// ستون‌های تاریخِ جلالی هرگز نباید با `new Date` پارس شوند — از این helper بخوانید.
+import { normalizeExamDate } from '@/lib/shamsi';
+// دامنهٔ مدیرگروه — توابعِ خالص و Unit-Test‌شده (tests/scheduling-dept-scope.test.ts)
+import { scopeDemandsToDepts, scopeClassroomsToDepts } from './planning-core';
 
 const EDITORS = ['ADMIN', 'EDU_EXPERT'];
 const MANAGERS = EDITORS;
@@ -59,6 +64,21 @@ function uniOrGlobal(column: any, universityId: number | undefined): any {
   return isRealUniversityId(universityId) ? or(eq(column, universityId), isNull(column)) : sql`1 = 0`;
 }
 
+/**
+ * دامنهٔ «مدیر گروه» — فقط وقتی نقشش صرفاً DEP_HEAD است (نه ادمین/کارشناس آموزش).
+ * در این حالت دادهٔ کارتابل برنامه‌ریزی به دروسِ گروه‌های تحت مدیریتش محدود می‌شود.
+ * ادمین/کارشناس آموزش همیشه دامنهٔ کامل دارند (بدون تغییر رفتار قبلی).
+ */
+async function deptHeadScope(user: { id: number; roles: string[] }): Promise<{ isDeptHead: boolean; deptIds: number[] }> {
+  const isEditor = user.roles.some(r => EDITORS.includes(r));
+  const isHead = user.roles.includes('DEP_HEAD');
+  if (!isHead || isEditor) return { isDeptHead: false, deptIds: [] };
+  const st = await getStaffByUser(user.id).catch(() => null);
+  if (!st) return { isDeptHead: true, deptIds: [] };
+  const depts = await headedDepartments(st.id, st.departmentId ?? null).catch(() => []);
+  return { isDeptHead: true, deptIds: depts.map(d => d.id) };
+}
+
 /** رشته‌ها = majors + دانشکده (فقط فعال) — فیلتر شده بر اساس universityId */
 async function listRealPrograms(universityId?: number) {
   const majorWhere = and(eq(majors.isActive, 1), universityEq(majors.universityId, universityId));
@@ -71,6 +91,7 @@ async function listRealPrograms(universityId?: number) {
       degreeLevel: degree_level_configs.title,
       facultyId: majors.facultyId,
       deptFacultyId: departments.facultyId,
+      departmentId: majors.departmentId,
     })
     .from(majors)
     .leftJoin(degree_level_configs, eq(degree_level_configs.id, majors.degreeLevelId))
@@ -79,29 +100,87 @@ async function listRealPrograms(universityId?: number) {
     .where(majorWhere);
 }
 
-/** ورودی‌های واقعی دانشجویان (cohort) = (ورودی، تعداد) — فیلتر شده بر اساس universityId */
-async function listRealCohorts(universityId?: number) {
-  const where = universityEq(students.universityId, universityId);
+/**
+ * ورودی‌های واقعی دانشجویان (cohort) = (ورودی، تعداد).
+ *
+ * ⚠️ پیش‌تر: همهٔ دانشجویانِ دانشگاه از هر وضعیتی و هر سالی (تا ۱۳۹۰) شمرده
+ * می‌شد؛ نتیجه فهرستی با ورودی‌های بی‌ربط و اعداد بادکرده بود. حالا فقط
+ * دانشجویانِ ACTIVE و فقط سال‌های قابل برنامه‌ریزی (۸ سال اخیر) و — اگر
+ * مدیرگروه باشد — فقط رشته‌های گروه خودش.
+ */
+async function listRealCohorts(universityId?: number, majorIds?: number[]) {
+  const currentJy = Number(jalaliDateOf(new Date()).slice(0, 4)) || 1405;
+  const conds = [
+    universityEq(students.universityId, universityId),
+    eq(students.status, 'ACTIVE'),
+    gte(students.entryYear, currentJy - 8),
+    lte(students.entryYear, currentJy + 1),
+  ];
+  if (majorIds && majorIds.length) conds.push(inArray(students.majorId, majorIds));
   const rows = await db
     .select({
+      majorId: students.majorId,
       entryYear: students.entryYear,
+      entryTerm: students.entryTerm,
       expectedStudents: sql<number>`count(*)::int`,
     })
     .from(students)
     .innerJoin(majors, eq(majors.id, students.majorId))
-    .where(where)
-    .groupBy(students.entryYear)
-    .orderBy(desc(students.entryYear));
-  return rows.map(r => ({ entryYear: r.entryYear, expectedStudents: Number(r.expectedStudents) }));
+    .where(and(...conds))
+    .groupBy(students.majorId, students.entryYear, students.entryTerm)
+    .orderBy(desc(students.entryYear), desc(students.entryTerm));
+  return rows.map(r => ({
+    majorId: r.majorId ?? null,
+    entryYear: r.entryYear,
+    entryTerm: r.entryTerm ?? 1,
+    expectedStudents: Number(r.expectedStudents),
+  }));
 }
 
 /** سالن‌های واقعی — فیلتر شده بر اساس universityId */
 async function listRealClassrooms(universityId?: number) {
   const where = universityEq(classrooms.universityId, universityId);
-  return db
-    .select({ id: classrooms.id, name: classrooms.name, buildingName: classrooms.buildingName, capacity: classrooms.capacity, roomType: classrooms.roomType })
+  /**
+   * تعداد دانشجوی فعالِ هر دانشکده.
+   *
+   * چرا لازم است؟ موتور تخصیص خودکار (`allocateRoomQuotas`) هر دانشکده را
+   * جدا می‌گیرد و اگر هیچ گروهی با دانشجوی فعال نداشته باشد، **کل دانشکده** را
+   * رد می‌کند. بدون این عدد، رابط کاربری نمی‌تواند توضیح بدهد چرا یک سالن
+   * «بدون سهمیه» مانده و کاربر فکر می‌کند خراب است.
+   */
+  const stuRows = await db.execute(sql`
+    SELECT d."facultyId" AS fac, count(st.id)::int AS n
+    FROM departments d
+    JOIN majors m ON m."departmentId" = d.id
+    JOIN students st ON st."majorId" = m.id AND st.status = 'ACTIVE'
+    GROUP BY 1
+  `);
+  const studentsByFaculty = new Map<number, number>();
+  for (const r of (stuRows.rows as { fac: number | null; n: number }[])) {
+    if (r.fac != null) studentsByFaculty.set(Number(r.fac), Number(r.n));
+  }
+
+  const rows = await db
+    .select({
+      id: classrooms.id,
+      name: classrooms.name,
+      buildingName: classrooms.buildingName,
+      capacity: classrooms.capacity,
+      roomType: classrooms.roomType,
+      isActive: classrooms.isActive,
+      facultyId: classrooms.facultyId,
+      /** گروهِ مسئولِ اتاق (زونینگ) — برای محدودکردنِ سالن‌ها به دامنهٔ مدیرگروه */
+      departmentId: classrooms.departmentId,
+      facultyName: faculties.name,
+    })
     .from(classrooms)
+    .leftJoin(faculties, eq(faculties.id, classrooms.facultyId))
     .where(where);
+
+  return rows.map(r => ({
+    ...r,
+    facultyStudents: r.facultyId == null ? 0 : (studentsByFaculty.get(r.facultyId) ?? 0),
+  }));
 }
 
 /** استادان واقعی (staff + users + گروه) — فیلتر شده بر اساس universityId */
@@ -114,6 +193,7 @@ async function listRealProfessors(universityId?: number) {
       lastName: users.lastName,
       staffCode: staff.staffCode,
       academicRank: staff.academicRank,
+      departmentId: staff.departmentId,
       departmentName: departments.name,
     })
     .from(staff)
@@ -157,11 +237,125 @@ async function listRealDemands(termId: number, universityId?: number) {
     .from(offering_professors)
     .innerJoin(course_offerings, eq(course_offerings.id, offering_professors.offeringId))
     .where(and(eq(course_offerings.termId, termId), uniFilter));
-  const coTaught = new Set<number>();
-  for (const p of profRows) coTaught.add(p.offeringId);
+
+  // ⚠️ «دو استاد» فقط وقتی است که واقعاً دو (یا بیشتر) استاد روی ارائه باشد.
+  // نسخهٔ قبلی هر ارائه‌ای را که *یک* ردیف در offering_professors داشت هم
+  // دوـاستاد علامت می‌زد (`for (...) coTaught.add(...)`) — یعنی تقریباً همه.
+  const profsByOffering = new Map<number, number[]>();
+  for (const p of profRows) {
+    const list = profsByOffering.get(p.offeringId) ?? [];
+    if (!list.includes(p.staffId)) list.push(p.staffId);
+    profsByOffering.set(p.offeringId, list);
+  }
+
+  // ورودی (cohort) واقعی: از دانشجویانِ ثبت‌نام‌شدهٔ همان ارائه خوانده می‌شود.
+  // course_offerings.entryYearStart/End در عمل خالی است، پس تکیه بر آن همه را
+  // «کلیهٔ ورودی‌ها» نشان می‌داد.
+  const cohortRows = await db
+    .select({ offeringId: enrollments.offeringId, entryYear: students.entryYear, entryTerm: students.entryTerm })
+    .from(enrollments)
+    .innerJoin(students, eq(students.id, enrollments.studentId))
+    .innerJoin(course_offerings, eq(course_offerings.id, enrollments.offeringId))
+    .where(and(eq(course_offerings.termId, termId), uniFilter))
+    .groupBy(enrollments.offeringId, students.entryYear, students.entryTerm);
+  const cohortsByOffering = new Map<number, { year: number; term: number }[]>();
+  for (const c of cohortRows) {
+    if (c.entryYear == null) continue;
+    const list = cohortsByOffering.get(c.offeringId) ?? [];
+    list.push({ year: Number(c.entryYear), term: Number(c.entryTerm ?? 1) });
+    cohortsByOffering.set(c.offeringId, list);
+  }
+
+  // تاریخ امتحان واقعی از schedules (scheduleType='EXAM')
+  const examRows = await db
+    .select({ offeringId: schedules.offeringId, examDate: schedules.examDate })
+    .from(schedules)
+    .innerJoin(course_offerings, eq(course_offerings.id, schedules.offeringId))
+    .where(and(eq(course_offerings.termId, termId), eq(schedules.scheduleType, 'EXAM'), uniFilter));
+  const examByOffering = new Map<number, string>();
+  for (const e of examRows) {
+    if (e.examDate) examByOffering.set(e.offeringId, String(e.examDate));
+  }
+
+  // ══ تفکیک «رشته به رشته» ══
+  // یک گروه می‌تواند چند رشته داشته باشد و تابلو نمی‌تواند همهٔ دروس را
+  // یک‌جا نشان دهد. targetMajorId روی اکثر ارائه‌ها خالی است، پس تعلق هر درس
+  // به رشته از چارت درسی (curriculum_courses → curriculum_versions.majorId)
+  // استخراج می‌شود. درسی که در هیچ چارتی نیست «مشترک» می‌ماند.
+  const courseIds = Array.from(new Set(rows.map(r => r.courseId)));
+  const majorsByCourse = new Map<number, number[]>();
+  /** شمارهٔ ترم پیشنهادی چارت برای هر (درس، رشته) — برای «فاز ۰: رشته × ترم» */
+  const semesterByCourseMajor = new Map<string, number>();
+  if (courseIds.length) {
+    const chartRows = await db
+      .selectDistinct({
+        courseId: curriculum_courses.courseId,
+        majorId: curriculum_versions.majorId,
+        semester: curriculum_courses.recommendedSemester,
+      })
+      .from(curriculum_courses)
+      .innerJoin(curriculum_versions, eq(curriculum_versions.id, curriculum_courses.curriculumVersionId))
+      .where(inArray(curriculum_courses.courseId, courseIds));
+    for (const c of chartRows) {
+      if (c.majorId == null) continue;
+      const list = majorsByCourse.get(c.courseId) ?? [];
+      if (!list.includes(c.majorId)) list.push(c.majorId);
+      majorsByCourse.set(c.courseId, list);
+      if (c.semester != null) {
+        semesterByCourseMajor.set(`${c.courseId}:${c.majorId}`, Number(c.semester));
+      }
+    }
+  }
 
   return rows.map(r => {
-    const hasSingleEntryYear = r.entryYearStart != null && r.entryYearStart === r.entryYearEnd;
+    const profs = profsByOffering.get(r.offeringId) ?? [];
+    const isCoTaught = profs.length >= 2;
+    // استادِ دومِ واقعی (اگر استاد اصلی در offering_professors نباشد، اولین نفر)
+    const coProfId = isCoTaught ? (profs.find(id => id !== r.professorId) ?? profs[1]) : null;
+
+    // «نیمسال ورود» (مهر/بهمن) به‌جای «ورودی سال» — منبع: students.entryYear/entryTerm
+    const uniq = new Map<string, { year: number; term: number }>();
+    for (const c of cohortsByOffering.get(r.offeringId) ?? []) {
+      uniq.set(`${c.year}-${c.term}`, c);
+    }
+    const cohorts = [...uniq.values()].sort((a, b) => (b.year - a.year) || (b.term - a.term));
+    let cohortId = 'ALL';
+    let cohortTitle = 'کلیهٔ نیمسال‌های ورود';
+    // تصمیمِ صریحِ ادغام (ستون‌های entryYearStart/End) بر استنتاج از ثبت‌نام اولویت دارد
+    const explicitMerge = r.entryYearStart != null;
+    if (explicitMerge) {
+      const from = r.entryYearStart as number;
+      const to = r.entryYearEnd ?? from;
+      if (from === to) {
+        cohortId = `${from}-ALL`;
+        cohortTitle = `نیمسال ورود ${from} (ادغام مهر و بهمن)`;
+      } else {
+        cohortTitle = `نیمسال‌های ورود ${from}–${to} (ادغام‌شده)`;
+      }
+    } else if (cohorts.length === 1) {
+      cohortId = `${cohorts[0].year}-${cohorts[0].term}`;
+      cohortTitle = entryCohortTitle(cohorts[0].year, cohorts[0].term);
+    } else if (cohorts.length === 2) {
+      cohortTitle = `${entryCohortTitle(cohorts[0].year, cohorts[0].term)}، ${entryCohortTitle(cohorts[1].year, cohorts[1].term)}`;
+    } else if (cohorts.length > 2) {
+      cohortTitle = `نیمسال‌های ورود ${cohorts[cohorts.length - 1].year}–${cohorts[0].year}`;
+    }
+
+    const examRaw = examByOffering.get(r.offeringId);
+    const progIds = r.targetMajorId != null ? [r.targetMajorId] : (majorsByCourse.get(r.courseId) ?? []);
+    // ترمِ چارت: اول برای رشتهٔ هدف، بعد اولین رشته‌ای که ترم تعریف‌شده دارد
+    let semesterNo: number | null = null;
+    for (const pid of progIds) {
+      const s = semesterByCourseMajor.get(`${r.courseId}:${pid}`);
+      if (s != null) { semesterNo = s; break; }
+    }
+    // `schedules."examDate"` ستون `date` است ولی در این پروژه «برچسب جلالی»
+    // نگه می‌دارد (`1405-11-03`). اگر آن را با `new Date(...)` پارس کنیم،
+    // جاوااسکریپت سالِ ۱۴۰۵ را **میلادی** می‌فهمد و تبدیل به جلالی نتیجه را
+    // به ۷۸۴ می‌برد (باگ گزارش‌شده: «۱۴۰۵ می‌شد ۷۸۴»).
+    // `normalizeExamDate` هم `-` و هم `/` را می‌شناسد و سالِ کمتر از ۱۶۰۰ را
+    // دست‌نخورده برمی‌گرداند — تنها نقطهٔ مجازِ خواندنِ این ستون.
+    const examDateOut = normalizeExamDate(examRaw) ?? '';
     return {
       offeringId: r.offeringId,
       courseId: r.courseId,
@@ -169,24 +363,45 @@ async function listRealDemands(termId: number, universityId?: number) {
       code: r.courseCode,
       title: r.courseTitle,
       units: String(r.units),
-      courseType: r.courseType ?? 'عمومی',
+      // مقدار واقعی — دامنه باز است (تخصصي/پايه/اصلي/اختياري/…)
+      courseType: r.courseType ?? '',
       capacity: r.capacity,
       groupNumber: r.groupNumber,
       professorId: r.professorId,
-      isCoTaught: coTaught.has(r.offeringId),
+      isCoTaught,
+      coProfId,
       enrolledCount: r.enrolledCount,
       programId: r.targetMajorId ?? 0,
       programTitle: r.targetMajorTitle ?? 'همهٔ رشته‌ها',
-      cohortId: hasSingleEntryYear ? String(r.entryYearStart) : 'ALL',
-      cohortTitle: hasSingleEntryYear ? `ورودی ${r.entryYearStart}` : 'کلیهٔ ورودی‌ها',
+      programIds: progIds,
+      semesterNo,
+      cohortId,
+      cohortTitle,
+      cohortMerged: explicitMerge,
+      examDate: examDateOut,
       isSharedService: r.isSharedService === 1,
       offeringScope: r.offeringScope ?? 'DEPARTMENTAL',
     };
   });
 }
 
-/** تقاضای مبتنی بر چارت درسی: درس‌های تعریف‌شده در curriculum_versions برای یک رشته/مقطع/ورودی */
-async function listCurriculumDemands(termId: number, programId: number, universityId?: number) {
+/**
+ * تقاضای مبتنی بر چارت درسی: درس‌های تعریف‌شده در curriculum_versions برای یک رشته/مقطع/ورودی
+ *
+ * ⚠️ `semester` = ترمِ چارتی که فاز ۱ باید نشان دهد (ترمِ ۱..۴ چارت).
+ *    **این پارامتر از دامنهٔ انتخابیِ کاربر می‌آید، نه از حدسِ سرور.**
+ *    نسخهٔ قبلی ترم را از زوج/فردِ `academic_terms."sortOrder"` درمی‌آورد:
+ *      sortOrder=14051 ⇒ ((14051-1)%2)+1 = 1  ⇒ همیشه «ترم ۱»!
+ *    نتیجه: دروس ترم ۳ و ۴ هرگز به کلاینت نمی‌رسید و جدول «گام ۱» خالی می‌ماند
+ *    (گزارش کاربر: مدیرگروه برق، رشتهٔ ۴۴ «برق قدرت»، ترم ۳ → «۰ درس»).
+ */
+async function listCurriculumDemands(
+  termId: number,
+  programId: number,
+  universityId?: number,
+  entryYear?: number | null,
+  semester?: number | 'ALL' | 'NONE' | null,
+) {
   // 1) پیدا کردن ترم و سال تحصیلی
   const [term] = await db.select().from(academic_terms).where(and(eq(academic_terms.id, termId), uniOrGlobal(academic_terms.universityId, universityId))).limit(1);
   if (!term) return [];
@@ -197,33 +412,51 @@ async function listCurriculumDemands(termId: number, programId: number, universi
 
   // 3) پیدا کردن نسخهٔ برنامه درسی منتشرشده/بایگانی‌شده برای این رشته و مقطع و سال ورودی
   // ورودی‌های متنوع وجود دارند؛ باید تمام ورودی‌های فعال را پوشش دهد
+  // ⚠️ چارت بر اساس «سال ورودیِ دانشجو» انتخاب می‌شود، نه سال تحصیلیِ ترم.
+  // چارت یک رشته در طول زمان عوض می‌شود؛ ممکن است برای ورودی ۱۴۰۱ یک نسخه و
+  // برای ورودی ۱۴۰۳ نسخهٔ دیگر معتبر باشد. نسخهٔ قبلی با term.academicYear
+  // مقایسه می‌کرد و عملاً همیشه یک نسخه (یا هیچ) برمی‌گرداند.
   const cvUniFilter = universityEq(curriculum_versions.universityId, universityId);
-  const cvRows = await db
-    .select({ id: curriculum_versions.id })
+  const targetEntryYear = entryYear ?? term.academicYear ?? null;
+  const cvBase = and(
+    eq(curriculum_versions.majorId, programId),
+    eq(curriculum_versions.degreeLevelId, major.degreeLevelId),
+    cvUniFilter,
+    sql`${curriculum_versions.status} in ('PUBLISHED','ARCHIVED')`,
+  );
+  let cvRows = targetEntryYear == null ? [] : await db
+    .select({ id: curriculum_versions.id, from: curriculum_versions.entryYearFrom, to: curriculum_versions.entryYearTo })
     .from(curriculum_versions)
     .where(and(
-      eq(curriculum_versions.majorId, programId),
-      eq(curriculum_versions.degreeLevelId, major.degreeLevelId),
-      cvUniFilter,
-      sql`${curriculum_versions.status} in ('PUBLISHED','ARCHIVED')`,
-      sql`${term.academicYear} between ${curriculum_versions.entryYearFrom} and coalesce(${curriculum_versions.entryYearTo}, 9999)`
+      cvBase,
+      sql`${targetEntryYear} between ${curriculum_versions.entryYearFrom} and coalesce(${curriculum_versions.entryYearTo}, 9999)`
     ))
-    .orderBy(desc(curriculum_versions.id))
+    .orderBy(desc(curriculum_versions.entryYearFrom), desc(curriculum_versions.id))
     .limit(1);
-  
+  // اگر برای آن ورودی چارتی تعریف نشده باشد، آخرین چارت مصوب رشته می‌آید
+  // تا صفحه خالی نماند (و UI صریحاً بگوید «چارت این ورودی تعریف نشده»).
+  if (!cvRows.length) {
+    cvRows = await db
+      .select({ id: curriculum_versions.id, from: curriculum_versions.entryYearFrom, to: curriculum_versions.entryYearTo })
+      .from(curriculum_versions)
+      .where(cvBase)
+      .orderBy(desc(curriculum_versions.entryYearFrom), desc(curriculum_versions.id))
+      .limit(1);
+  }
+
   if (!cvRows.length) return [];
   const curriculumVersionId = cvRows[0].id;
 
   // 4) درس‌های این نسخهٔ برنامه با ترم پیشنهادی (recommendedSemester)
-  // ترم فعلی را به شماره ترم (semester) مپ کنیم
-  // academic_terms.sortOrder یا termCode می‌تواند به semester مپ شود
-  // برای سادگی: اگر termType='SUMMER' → semester=9، وگرنه بر اساس sortOrder محاسبه می‌شود
-  let currentSemester = 1;
-  if (term.isSummer === 1) {
-    currentSemester = 9;
-  } else if (term.sortOrder) {
-    currentSemester = ((term.sortOrder - 1) % 2) + 1; // ساده‌سازی: زوج/فرد
-  }
+  // ⚠️ ترمِ چارت را «دامنهٔ انتخابیِ کاربر» تعیین می‌کند: چیپ فاز ۰ («ترم ۳») یا
+  //    ترمِ ورودیِ انتخاب‌شده. حدسِ زوج/فردِ sortOrder حذف شد (توضیح بالا).
+  //    'ALL' = همهٔ ترم‌های چارت، 'NONE' = فقط دروس بدون ترمِ تعیین‌شده.
+  const semFilter =
+    semester == null || semester === 'ALL'
+      ? null
+      : semester === 'NONE'
+        ? sql`${curriculum_courses.recommendedSemester} is null`
+        : eq(curriculum_courses.recommendedSemester, semester);
 
   const ccRows = await db
     .select({
@@ -235,15 +468,17 @@ async function listCurriculumDemands(termId: number, programId: number, universi
     .from(curriculum_courses)
     .where(and(
       eq(curriculum_courses.curriculumVersionId, curriculumVersionId),
-      or(
-        eq(curriculum_courses.recommendedSemester, currentSemester),
-        sql`${curriculum_courses.recommendedSemester} is null`
-      )
+      ...(semFilter ? [semFilter] : []),
     ));
 
   if (!ccRows.length) return [];
 
   const courseIds = ccRows.map(r => r.courseId);
+  /** ترمِ چارتِ هر درس — بدون این، فیلترِ کلاینت (semesterNo === ۳) همه‌چیز را حذف می‌کند */
+  const semesterByCourse = new Map<number, number | null>();
+  for (const r of ccRows) {
+    semesterByCourse.set(r.courseId, r.recommendedSemester != null ? Number(r.recommendedSemester) : null);
+  }
 
   // 5) ارائهٔ این درس‌ها در ترم جاری (course_offerings)
   const offerRows = await db
@@ -281,11 +516,63 @@ async function listCurriculumDemands(termId: number, programId: number, universi
     .from(offering_professors)
     .innerJoin(course_offerings, eq(course_offerings.id, offering_professors.offeringId))
     .where(and(eq(course_offerings.termId, termId), inArray(course_offerings.id, offerRows.map(r => r.offeringId))));
-  const coTaught = new Set<number>();
-  for (const p of profRows) coTaught.add(p.offeringId);
+  // «دو استاد» = حداقل دو استاد روی ارائه (نه هر ارائه‌ای که یک استاد دارد)
+  const profsByOffering = new Map<number, number[]>();
+  for (const p of profRows) {
+    const list = profsByOffering.get(p.offeringId) ?? [];
+    if (!list.includes(p.staffId)) list.push(p.staffId);
+    profsByOffering.set(p.offeringId, list);
+  }
+
+  // «نیمسال ورود» واقعی — از ثبت‌نام دانشجویان (همان منبعِ listRealDemands).
+  // بدون این، شناسهٔ کوهورت با قالب کلاینت («۱۴۰۳-۱») نمی‌خواند و فیلترِ
+  // «نیمسال ورود» همهٔ ردیف‌ها را حذف می‌کند.
+  const offeringIds = offerRows.map(r => r.offeringId);
+  const cohortRows = offeringIds.length
+    ? await db
+        .select({ offeringId: enrollments.offeringId, entryYear: students.entryYear, entryTerm: students.entryTerm })
+        .from(enrollments)
+        .innerJoin(students, eq(students.id, enrollments.studentId))
+        .where(inArray(enrollments.offeringId, offeringIds))
+        .groupBy(enrollments.offeringId, students.entryYear, students.entryTerm)
+    : [];
+  const cohortsByOffering = new Map<number, { year: number; term: number }[]>();
+  for (const c of cohortRows) {
+    if (c.entryYear == null) continue;
+    const list = cohortsByOffering.get(c.offeringId) ?? [];
+    list.push({ year: Number(c.entryYear), term: Number(c.entryTerm ?? 1) });
+    cohortsByOffering.set(c.offeringId, list);
+  }
 
   return offerRows.map(r => {
-    const hasSingleEntryYear = r.entryYearStart != null && r.entryYearStart === r.entryYearEnd;
+    const profs = profsByOffering.get(r.offeringId) ?? [];
+    const isCoTaught = profs.length >= 2;
+
+    // کوهورت: از ثبت‌نام‌های واقعی، وگرنه ستون‌های ادغام صریح
+    const uniq = new Map<string, { year: number; term: number }>();
+    for (const c of cohortsByOffering.get(r.offeringId) ?? []) uniq.set(`${c.year}-${c.term}`, c);
+    const cohortList = [...uniq.values()].sort((a, b) => (b.year - a.year) || (b.term - a.term));
+    const explicitMerge = r.entryYearStart != null;
+    let cohortId = 'ALL';
+    let cohortTitle = 'کلیهٔ نیمسال‌های ورود';
+    if (explicitMerge) {
+      const from = r.entryYearStart as number;
+      const to = r.entryYearEnd ?? from;
+      if (from === to) {
+        cohortId = `${from}-ALL`;
+        cohortTitle = `نیمسال ورود ${from} (ادغام مهر و بهمن)`;
+      } else {
+        cohortTitle = `نیمسال‌های ورود ${from}–${to} (ادغام‌شده)`;
+      }
+    } else if (cohortList.length === 1) {
+      cohortId = `${cohortList[0].year}-${cohortList[0].term}`;
+      cohortTitle = entryCohortTitle(cohortList[0].year, cohortList[0].term);
+    } else if (cohortList.length === 2) {
+      cohortTitle = `${entryCohortTitle(cohortList[0].year, cohortList[0].term)}، ${entryCohortTitle(cohortList[1].year, cohortList[1].term)}`;
+    } else if (cohortList.length > 2) {
+      cohortTitle = `نیمسال‌های ورود ${cohortList[cohortList.length - 1].year}–${cohortList[0].year}`;
+    }
+
     return {
       offeringId: r.offeringId,
       courseId: r.courseId,
@@ -293,16 +580,24 @@ async function listCurriculumDemands(termId: number, programId: number, universi
       code: r.courseCode,
       title: r.courseTitle,
       units: String(r.units),
-      courseType: r.courseType ?? 'عمومی',
+      // مقدار واقعی (دامنه باز) — پیش‌تر هر چیزی که در فهرست بسته نبود «عمومی» می‌شد
+      courseType: r.courseType ?? '',
       capacity: r.capacity,
       groupNumber: r.groupNumber,
       professorId: r.professorId,
-      isCoTaught: coTaught.has(r.offeringId),
+      isCoTaught,
+      coProfId: isCoTaught ? (profs.find(id => id !== r.professorId) ?? profs[1]) : null,
       enrolledCount: r.enrolledCount,
-      programId: r.targetMajorId ?? 0,
-      programTitle: r.targetMajorTitle ?? 'همهٔ رشته‌ها',
-      cohortId: hasSingleEntryYear ? String(r.entryYearStart) : 'ALL',
-      cohortTitle: hasSingleEntryYear ? `ورودی ${r.entryYearStart}` : 'کلیهٔ ورودی‌ها',
+      // این سطرها از چارتِ همین رشته آمده‌اند ⇒ تعلقشان به همین رشته قطعی است
+      programId,
+      programTitle: major.name,
+      programIds: [programId],
+      /** ترمِ چارتِ این درس — کلیدِ فیلترِ فاز ۱ («ترم ۳») */
+      semesterNo: semesterByCourse.get(r.courseId) ?? null,
+      cohortId,
+      cohortTitle,
+      cohortMerged: explicitMerge,
+      examDate: '',
       isSharedService: r.isSharedService === 1,
       offeringScope: r.offeringScope ?? 'DEPARTMENTAL',
     };
@@ -310,6 +605,13 @@ async function listCurriculumDemands(termId: number, programId: number, universi
 }
 
 const hm = (t: unknown) => (t == null ? '' : String(t).slice(0, 5));
+
+/** برچسب «نیمسال ورود» — ۱=مهر، ۲=بهمن، ۳=تابستان (students.entryTerm) */
+const ENTRY_TERM_NAMES: Record<number, string> = { 1: 'مهر', 2: 'بهمن', 3: 'تابستان' };
+const entryCohortTitle = (year: number, term: number | null | undefined) =>
+  term && ENTRY_TERM_NAMES[term]
+    ? `نیمسال ورود ${ENTRY_TERM_NAMES[term]} ${year}`
+    : `نیمسال ورود ${year}`;
 
 /** برنامهٔ مصوب واقعی: سطرهای schedules با scheduleType='CLASS' + جزئیات درس/استاد/سالن — فیلتر شده بر اساس universityId */
 async function listApprovedOfferings(termId: number, universityId?: number) {
@@ -348,7 +650,7 @@ async function listApprovedOfferings(termId: number, universityId?: number) {
     code: r.code,
     title: r.title,
     units: String(r.units),
-    courseType: r.courseType ?? 'عمومی',
+    courseType: r.courseType ?? '',
     groupNumber: r.groupNumber,
     professorId: r.professorId,
     professorName: r.profFirstName ? `${r.profFirstName} ${r.profLastName ?? ''}`.trim() : 'تخصیص‌نیافته',
@@ -370,6 +672,7 @@ async function listMakeupSessions(termId: number, universityId?: number) {
   const rows = await db
     .select({
       id: class_sessions.id,
+      offeringId: class_sessions.offeringId,
       courseCode: courses.code,
       courseTitle: courses.title,
       profFirstName: users.firstName,
@@ -390,6 +693,7 @@ async function listMakeupSessions(termId: number, universityId?: number) {
 
   return rows.map(r => ({
     id: r.id,
+    offeringId: r.offeringId,
     courseCode: r.courseCode,
     courseTitle: r.courseTitle,
     profName: r.profFirstName ? `${r.profFirstName} ${r.profLastName ?? ''}`.trim() : '—',
@@ -411,21 +715,49 @@ async function listAllocatedRoomIds(termId: number, universityId?: number) {
   return rows.map(r => r.classroomId);
 }
 
+/** سهمیهٔ سالن‌ها در این ترم (ALLOCATED/RELEASED) — برای مدیریت لغو/واگذاری */
+async function listRoomGrants(termId: number, universityId?: number) {
+  const uniFilter = universityEq(classrooms.universityId, universityId);
+  const rows = await db
+    .select({
+      id: scheduling_room_grants.id,
+      classroomId: scheduling_room_grants.classroomId,
+      shift: scheduling_room_grants.shift,
+      ownerDepartmentId: scheduling_room_grants.ownerDepartmentId,
+      status: scheduling_room_grants.status,
+    })
+    .from(scheduling_room_grants)
+    .innerJoin(classrooms, eq(classrooms.id, scheduling_room_grants.classroomId))
+    .where(and(eq(scheduling_room_grants.termId, termId), uniFilter));
+  return rows.map(r => ({
+    id: r.id,
+    classroomId: r.classroomId,
+    shift: String(r.shift),
+    ownerDepartmentId: r.ownerDepartmentId,
+    status: String(r.status),
+  }));
+}
+
 // ─────────────────────────── اکشن‌ها — Page Data ───────────────────────────
 
-/** تایپ صریح نتیجهٔ کارتابل — برای narrowing صحیح در کلاینت */
+/** تایپ صریح نتیجهٔ کارتابل — برای narrowing صحیح در کلاینت
+ *  ⚠️ این تایپ باید آینهٔ `SchedulingWorkspace` در `./types.ts` بماند؛
+ *  اگر فیلدی به خروجی اضافه/حذف شد، هر دو جا هم‌زمان به‌روز شوند. */
 export type SchedulingWorkspaceResult =
   | {
       ok: true;
+      /** true = نسخهٔ سبکِ اسکلتی؛ لیستهای سنگین را کلاینت پس از paint واکشی میکند */
+      partial?: boolean;
       terms: { id: number; code: string; title: string; isCurrent: boolean }[];
       selectedTermId: number | null;
       programs: { id: number; code: string; title: string; facultyName: string; degreeLevel: string; facultyId: number | null }[];
-      cohorts: { entryYear: number; expectedStudents: number }[];
-      classrooms: { id: number; name: string; buildingName: string; capacity: number; roomType: string }[];
+      cohorts: { majorId: number | null; entryYear: number; entryTerm: number; expectedStudents: number }[];
+      classrooms: { id: number; name: string; buildingName: string; capacity: number; roomType: string; isActive: number | null; facultyId: number | null; facultyName: string | null; facultyStudents: number }[];
       allocatedRoomIds: number[];
-      departments: { id: number; name: string }[];
+      roomGrants: { id: number; classroomId: number; shift: string; ownerDepartmentId: number; status: string }[];
+      departments: { id: number; name: string; departmentCode: string | null }[];
       availabilities: { staffId: number; dayOfWeek: number | null; startTime: string | null; endTime: string | null; status: string | null }[];
-      professors: { id: number; name: string; staffCode: string | null; academicRank: string | null; departmentName: string | null }[];
+      professors: { id: number; name: string; staffCode: string | null; academicRank: string | null; departmentId: number | null; departmentName: string | null }[];
       demands: {
         offeringId: number; courseId: number; courseDeptId: number | null;
         code: string; title: string; units: string; courseType: string;
@@ -452,18 +784,103 @@ export type SchedulingWorkspaceResult =
     }
   | { ok: false; error: string };
 
+/**
+ * نسخهٔ سبکِ کارتابل — فقط اسکلت (ترم‌ها/رشته‌ها/دپارتمان‌ها/فازها/تقویم) و
+ * لیستهای سنگین خالی. ~۵ کوئری کوچک به‌جای ~۱۳ کوئری سنگینِ نسخهٔ کامل.
+ *
+ * چرا؟ HAR نشان داد RSC این صفحه ۱٫۷MB است (کل workspace داخل payload
+ * سریالایز میشود) و روی لینکِ کند دانلودش ۸+ ثانیه طول میکشد، در حالی‌که
+ * رندرِ سرور فقط ~۲۵۰ms است. صفحه با اسکلتِ چندکیلوبایتی فوراً رندر میشود و
+ * PlanningProvider پس از اولین paint، workspace کامل را با همین
+ * `getSchedulingWorkspaceAction` واکشی میکند (وقتی `initial.partial === true`).
+ */
+export async function getSchedulingWorkspaceLightAction(): Promise<SchedulingWorkspaceResult> {
+  try {
+    await requireRole([...EDITORS, 'DEP_HEAD']);
+    const uid = await serverUniId();
+    const [terms, programs, deptRows, phases] = await Promise.all([
+      listRealTerms(uid),
+      listRealPrograms(uid),
+      db.select({ id: departments.id, name: departments.name, departmentCode: departments.departmentCode })
+        .from(departments).where(uniOrGlobal(departments.universityId, uid)).orderBy(departments.name),
+      db.select({ termId: term_scheduling_states.termId, phase: term_scheduling_states.phase })
+        .from(term_scheduling_states).where(uniOrGlobal(term_scheduling_states.universityId, uid)),
+    ]);
+    const resolvedTermId = terms.find(t => t.isCurrent === 1)?.id ?? terms[0]?.id ?? null;
+    let termCalendar: { id: number; startJalali: string | null; endJalali: string | null; startDate: string | null } | null = null;
+    if (resolvedTermId != null) {
+      const term = await db.select().from(academic_terms).where(and(
+        eq(academic_terms.id, resolvedTermId),
+        uniOrGlobal(academic_terms.universityId, uid),
+      )).limit(1).then(rows => rows[0] ?? null);
+      if (term) {
+        termCalendar = {
+          id: term.id,
+          startJalali: term.startDate ? jalaliDateOf(term.startDate) : null,
+          endJalali: term.endDate ? jalaliDateOf(term.endDate) : null,
+          startDate: term.startDate ? term.startDate.toISOString() : null,
+        };
+      }
+    }
+    return {
+      ok: true,
+      partial: true,
+      terms: terms.map(t => ({ id: t.id, code: t.code, title: t.title, isCurrent: t.isCurrent === 1 })),
+      selectedTermId: resolvedTermId,
+      programs: programs.map(p => ({
+        id: p.id, code: p.code ?? '', title: p.title,
+        facultyName: (p as any).facultyName ?? '—', degreeLevel: (p as any).degreeLevel ?? '—',
+        facultyId: (p as any).facultyId ?? (p as any).deptFacultyId ?? null,
+      })),
+      cohorts: [],
+      classrooms: [],
+      allocatedRoomIds: [],
+      roomGrants: [],
+      departments: deptRows,
+      availabilities: [],
+      professors: [],
+      demands: [],
+      phases: Object.fromEntries(phases.map(p => [p.termId, p.phase])),
+      termCalendar,
+      sessionsTotal: 0,
+      sessionsByOffering: {},
+      hardConflictCount: 0,
+      approvedOfferings: [],
+      makeupSessions: [],
+    };
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? 'خطا در بارگذاری کارتابل برنامه‌ریزی درسی.' };
+  }
+}
+
 /** دادهٔ اولیهٔ واقعی صفحه (جایگزین INITIAL_* های Mock) */
 export async function getSchedulingWorkspaceAction(termId?: number, _universityId?: number): Promise<SchedulingWorkspaceResult> {
   try {
-    await requireRole(EDITORS);
+    const actor = await requireRole([...EDITORS, 'DEP_HEAD']);
+    const { isDeptHead, deptIds } = await deptHeadScope(actor);
     const uid = await serverUniId();
-    const [terms, programs, classrooms, professors, deptRows] = await Promise.all([
+    // رشته‌های گروه‌های تحت مدیریت — برای محدود کردن فهرست ورودی‌ها
+    let deptMajorIds: number[] | undefined;
+    if (isDeptHead && deptIds.length) {
+      const ownMajors = await db.select({ id: majors.id }).from(majors).where(inArray(majors.departmentId, deptIds));
+      deptMajorIds = ownMajors.map(m => m.id);
+    }
+    const [terms, programRows, classroomsRaw, professorsRaw, deptRows] = await Promise.all([
       listRealTerms(uid),
       listRealPrograms(uid),
       listRealClassrooms(uid),
       listRealProfessors(uid),
-      db.select({ id: departments.id, name: departments.name }).from(departments).where(uniOrGlobal(departments.universityId, uid)).orderBy(departments.name),
+      db.select({ id: departments.id, name: departments.name, departmentCode: departments.departmentCode, facultyId: departments.facultyId }).from(departments).where(uniOrGlobal(departments.universityId, uid)).orderBy(departments.name),
     ]);
+    // سالن‌ها بعد از اعمالِ دامنهٔ مدیرگروه فیلتر می‌شوند (پایین‌تر)
+    let classrooms = classroomsRaw;
+    let professors = professorsRaw;
+    // دامنهٔ مدیرگروه: فقط استادانِ دپارتمان‌های تحت مدیریتِ خودش را ببیند
+    // (نه همهٔ استادان دانشگاه) — تا در «تخصیص درس» فقط استادان گروه خودش را انتخاب کند.
+    if (isDeptHead && deptIds.length) {
+      professors = professors.filter(p => p.departmentId != null && deptIds.includes(p.departmentId));
+    }
+    let programs = programRows;
     const resolvedTermId = termId ?? terms.find(t => t.isCurrent === 1)?.id ?? terms[0]?.id ?? null;
 
     let demands: Awaited<ReturnType<typeof listRealDemands>> = [];
@@ -472,10 +889,11 @@ export async function getSchedulingWorkspaceAction(termId?: number, _universityI
     let sessionsTotal = 0;
     let sessionsByOffering: Record<number, { total: number; makeup: number; firstDate: string | null }> = {};
     let hardConflictCount = 0;
-    let cohorts: { entryYear: number; expectedStudents: number }[] = [];
+    let cohorts: { majorId: number | null; entryYear: number; entryTerm: number; expectedStudents: number }[] = [];
     let approvedOfferings: Awaited<ReturnType<typeof listApprovedOfferings>> = [];
     let makeupSessions: Awaited<ReturnType<typeof listMakeupSessions>> = [];
     let allocatedRoomIds: number[] = [];
+    let roomGrants: Awaited<ReturnType<typeof listRoomGrants>> = [];
     let availRows: { staffId: number; dayOfWeek: number | null; startTime: unknown; endTime: unknown; status: string | null }[] = [];
 
     if (resolvedTermId != null) {
@@ -483,7 +901,7 @@ export async function getSchedulingWorkspaceAction(termId?: number, _universityI
         listRealDemands(resolvedTermId, uid),
         db.select({ termId: term_scheduling_states.termId, phase: term_scheduling_states.phase }).from(term_scheduling_states)
           .where(uniOrGlobal(term_scheduling_states.universityId, uid)),
-        listRealCohorts(uid),
+        listRealCohorts(uid, deptMajorIds),
         db.select({
           staffId: professor_availabilities.staffId,
           dayOfWeek: professor_availabilities.dayOfWeek,
@@ -495,32 +913,84 @@ export async function getSchedulingWorkspaceAction(termId?: number, _universityI
           uniOrGlobal(professor_availabilities.universityId, uid),
         )),
       ]);
-      const [inspect, term] = await Promise.all([
+      // ⚡ همهٔ پرسوجوهای وابسته به ترم در **یک** مرحلهٔ موازی.
+      //    قبلاً ۳ مرحلهٔ پشتسرهم بودند: inspect → چهار فهرست → خلاصهٔ جلسات؛
+      //    یعنی ۳ RTT اضافه به دیتابیس روی هر بار باز شدن کارتابل (HAR:
+      //    wait≈1004ms). هیچکدام به نتیجهٔ دیگری وابسته نیستند.
+      const [inspect, term, approved, makeup, allocated, grants, summary] = await Promise.all([
         inspectSchedulingHardConflicts(resolvedTermId),
         db.select().from(academic_terms).where(and(
           eq(academic_terms.id, resolvedTermId),
           uniOrGlobal(academic_terms.universityId, uid),
         )).limit(1).then(rows => rows[0] ?? null),
-      ]);
-      hardConflictCount = inspect.total;
-      [approvedOfferings, makeupSessions, allocatedRoomIds] = await Promise.all([
         listApprovedOfferings(resolvedTermId, uid),
         listMakeupSessions(resolvedTermId, uid),
         listAllocatedRoomIds(resolvedTermId, uid),
+        listRoomGrants(resolvedTermId, uid),
+        getTermSessionsSummary(resolvedTermId),
       ]);
+      hardConflictCount = inspect.total;
+      approvedOfferings = approved;
+      makeupSessions = makeup;
+      allocatedRoomIds = allocated;
+      roomGrants = grants;
       if (term) {
-        termCalendar = {
-          id: term.id,
-          startJalali: term.startDate ? jalaliDateOf(term.startDate) : null,
-          endJalali: term.endDate ? jalaliDateOf(term.endDate) : null,
-          startDate: term.startDate ? term.startDate.toISOString() : null,
-        };
+      // تقویم برنامه‌ریزی از «تعریف ترم» خوانده می‌شود، نه از اعداد پیش‌فرض UI
+      // (قبلاً هفته‌ها همیشه ۱۶ و تاریخ‌ها خالی بود).
+      termCalendar = {
+        id: term.id,
+        startJalali: term.startDate ? jalaliDateOf(term.startDate) : null,
+        endJalali: term.endDate ? jalaliDateOf(term.endDate) : null,
+        startDate: term.startDate ? term.startDate.toISOString() : null,
+        weeksCount: term.weeksCount ?? null,
+        classStartJalali: term.classStartDate ? jalaliDateOf(term.classStartDate) : (term.startDate ? jalaliDateOf(term.startDate) : null),
+        classEndJalali: term.classEndDate ? jalaliDateOf(term.classEndDate) : (term.endDate ? jalaliDateOf(term.endDate) : null),
+        examStartJalali: term.examStartDate ? jalaliDateOf(term.examStartDate) : null,
+        examEndJalali: term.examEndDate ? jalaliDateOf(term.examEndDate) : null,
+      } as any;
       }
-      const summary = await getTermSessionsSummary(resolvedTermId);
       for (const s of summary) {
         sessionsTotal += s.total;
         sessionsByOffering[s.offeringId] = { total: s.total, makeup: s.makeup, firstDate: s.firstDate };
       }
+    }
+
+    // ── دامنهٔ مدیرگروه: فقط ارائههای دروسِ گروههای تحت مدیریتِ خودش ──
+    // (ادمین/کارشناس آموزش: isDeptHead=false ⇒ هیچ فیلتری اعمال نمیشود)
+    if (isDeptHead) {
+      const allowed = new Set(deptIds);
+
+      // ── سالن‌ها: فقط دانشکده‌های دپارتمان‌های تحت مدیریت (زونینگ) ──
+      // قبلاً هر ۱۳۸ سالنِ دانشگاه می‌آمد و چون `allocatedRoomIds` سهمیه‌های
+      // *همهٔ* گروه‌ها را داشت، مدیرگروه برق دقیقاً ۱۲ باشگاهِ تربیت‌بدنی را
+      // می‌دید («فقط سالن‌های تربیت‌بدنی را می‌بیند که مال ما نیست»).
+      const facIds = deptRows
+        .filter(d => allowed.has(d.id) && d.facultyId != null)
+        .map(d => d.facultyId as number);
+      // ⚠️ فقط سهمیه‌های *خودِ* این گروه‌ها. `allocatedRoomIds` سراسری است و
+      // سهمیهٔ همهٔ گروه‌ها (از جمله باشگاه‌های تربیت‌بدنی) را دارد؛ اگر همان
+      // به تابعِ دامنه داده شود، سالن‌های گروه‌های دیگر دوباره برمی‌گردند.
+      const myAllocated = roomGrants
+        .filter(g => g.status === 'ALLOCATED' && allowed.has(g.ownerDepartmentId))
+        .map(g => g.classroomId);
+      classrooms = scopeClassroomsToDepts(classrooms, facIds, deptIds, myAllocated);
+      const roomIds = new Set(classrooms.map(c => c.id));
+      // سهمیه‌ها فقط از آنِ همین گروه‌ها (نه سهمیهٔ گروه‌های دیگر روی همان سالن)
+      roomGrants = roomGrants.filter(g => allowed.has(g.ownerDepartmentId) && roomIds.has(g.classroomId));
+      allocatedRoomIds = allocatedRoomIds.filter(id => roomIds.has(id));
+
+      demands = scopeDemandsToDepts(demands, deptIds);
+      const offIds = new Set(demands.map(d => d.offeringId));
+      approvedOfferings = approvedOfferings.filter(o => offIds.has(o.offeringId));
+      makeupSessions = makeupSessions.filter(m => offIds.has(m.offeringId));
+      sessionsByOffering = Object.fromEntries(
+        Object.entries(sessionsByOffering).filter(([k]) => offIds.has(Number(k))),
+      ) as typeof sessionsByOffering;
+      sessionsTotal = Object.values(sessionsByOffering).reduce((n, v) => n + (v?.total ?? 0), 0);
+      // رشته‌ها هم فقط رشته‌های گروه‌های خودش — وگرنه انتخاب رشتهٔ دیگر، چارت
+      // دانشگاه را در همین تابلو نشان می‌داد.
+      const ownPrograms = programs.filter(p => p.departmentId != null && allowed.has(p.departmentId));
+      if (ownPrograms.length) programs = ownPrograms;
     }
 
     return {
@@ -535,11 +1005,12 @@ export async function getSchedulingWorkspaceAction(termId?: number, _universityI
       cohorts,
       classrooms: classrooms.map(c => ({
         id: c.id, name: c.name, buildingName: c.buildingName ?? '—',
-        capacity: c.capacity, roomType: c.roomType ?? 'THEORY',
+        capacity: c.capacity, roomType: c.roomType ?? 'THEORY', isActive: c.isActive ?? 1, facultyId: c.facultyId ?? null, facultyName: c.facultyName ?? '—',
+        facultyStudents: c.facultyStudents,
       })),
       professors: professors.map(p => ({
         id: p.id, name: `${p.name} ${p.lastName}`.trim(), staffCode: p.staffCode,
-        academicRank: p.academicRank ?? '—', departmentName: p.departmentName ?? '—',
+        academicRank: p.academicRank ?? '—', departmentId: p.departmentId ?? null, departmentName: p.departmentName ?? '—',
       })),
       departments: deptRows,
       availabilities: availRows.map(a => ({
@@ -548,7 +1019,15 @@ export async function getSchedulingWorkspaceAction(termId?: number, _universityI
         endTime: a.endTime == null ? null : String(a.endTime).slice(0, 5),
         status: a.status ?? 'AVAIL',
       })),
-      demands,
+      demands: (demands as any[]).map(d => ({
+        ...d,
+        programIds: d.programIds ?? [],
+        semesterNo: d.semesterNo ?? null,
+        cohortMerged: d.cohortMerged ?? false,
+        examDate: d.examDate ?? '',
+        isCoTaught: d.isCoTaught ?? false,
+        coProfId: d.coProfId ?? null,
+      })),
       phases: Object.fromEntries(phases.map(p => [p.termId, p.phase])),
       termCalendar,
       sessionsTotal,
@@ -557,6 +1036,7 @@ export async function getSchedulingWorkspaceAction(termId?: number, _universityI
       approvedOfferings,
       makeupSessions,
       allocatedRoomIds,
+      roomGrants,
     };
   } catch (e: any) {
     return { ok: false, error: e?.message ?? 'خطا در بارگذاری دادهٔ صفحه.' };
@@ -565,14 +1045,70 @@ export async function getSchedulingWorkspaceAction(termId?: number, _universityI
 
 /** تقاضای مبتنی بر چارت درسی برای یک رشته خاص — برای فیلتر کردن دروس در CurriculumAssignTab */
 export type CurriculumDemandsResult =
-  | { ok: true; demands: Awaited<ReturnType<typeof listCurriculumDemands>> }
+  | {
+      ok: true;
+      demands: Awaited<ReturnType<typeof listCurriculumDemands>>;
+      /** بازهٔ ورودیِ چارت استفاده‌شده — «چارت معتبر برای ورودی ۱۴۰۱ تا ۱۴۰۴» */
+      chartRange?: { from: number; to: number | null } | null;
+      requestedEntryYear?: number | null;
+    }
   | { ok: false; error: string };
 
-export async function getCurriculumDemandsAction(termId: number, programId: number, _universityId?: number): Promise<CurriculumDemandsResult> {
+export async function getCurriculumDemandsAction(
+  termId: number,
+  programId: number,
+  entryYear?: number | null,
+  semester?: number | 'ALL' | 'NONE' | null,
+  _universityId?: number,
+): Promise<CurriculumDemandsResult> {
   try {
-    await requireRole(EDITORS);
-    const demands = await listCurriculumDemands(termId, programId, await serverUniId());
-    return { ok: true, demands };
+    // خواندنِ تقاضای چارت — مدیرگروه هم مجاز است (فقط مشاهده، فقط رشته‌های خودش)
+    const actor = await requireRole([...EDITORS, 'DEP_HEAD']);
+    const { isDeptHead, deptIds } = await deptHeadScope(actor);
+    let scopedDeptIds: number[] | null = null;
+    if (isDeptHead) {
+      const allowedDepts = deptIds.length ? deptIds : [-1];
+      const owned = await db
+        .select({ id: majors.id })
+        .from(majors)
+        .where(and(eq(majors.id, programId), inArray(majors.departmentId, allowedDepts)))
+        .limit(1);
+      if (!owned.length) {
+        // رشته ممکن است زیرِ دپارتمانِ دیگری ثبت شده باشد ولی دروسِ همین گروه
+        // در چارتش باشد (مثلِ «برق قدرت» که زیرِ عمران است ولی دروسش در برق).
+        const hasOwnCourse = await db
+          .select({ id: curriculum_courses.courseId })
+          .from(curriculum_courses)
+          .innerJoin(curriculum_versions, eq(curriculum_versions.id, curriculum_courses.curriculumVersionId))
+          .innerJoin(courses, eq(courses.id, curriculum_courses.courseId))
+          .where(and(eq(curriculum_versions.majorId, programId), inArray(courses.departmentId, allowedDepts)))
+          .limit(1);
+        if (!hasOwnCourse.length) return { ok: false, error: 'این رشته در دپارتمان‌های تحت مدیریت شما نیست.' };
+      }
+      scopedDeptIds = deptIds;
+    }
+    const allDemands = await listCurriculumDemands(termId, programId, await serverUniId(), entryYear ?? null, semester ?? null);
+    // ── دامنهٔ مدیرگروه: فقط دروسِ دپارتمان‌های خودش ──
+    // دروسِ عمومی/معارف (مثل «انقلاب اسلامی») را مدیرگروهِ همان گروه تخصیص
+    // می‌دهد؛ نمایشِ آن‌ها این‌جا فقط زمانِ برنامه‌ریزیِ گروه تخصصی را پر می‌کرد.
+    const demands = scopedDeptIds ? scopeDemandsToDepts(allDemands, scopedDeptIds) : allDemands;
+    // بازهٔ ورودیِ چارتی که واقعاً استفاده شد — UI می‌گوید «چارت معتبر برای
+    // ورودی‌های فلان تا فلان» یا «برای این ورودی چارت تعریف نشده».
+    const chart = await db
+      .select({ from: curriculum_versions.entryYearFrom, to: curriculum_versions.entryYearTo })
+      .from(curriculum_versions)
+      .where(and(
+        eq(curriculum_versions.majorId, programId),
+        sql`${curriculum_versions.status} in ('PUBLISHED','ARCHIVED')`,
+      ))
+      .orderBy(desc(curriculum_versions.entryYearFrom))
+      .limit(1);
+    return {
+      ok: true,
+      demands,
+      chartRange: chart.length ? { from: chart[0].from, to: chart[0].to } : null,
+      requestedEntryYear: entryYear ?? null,
+    };
   } catch (e: any) {
     return { ok: false, error: e?.message ?? 'خطا در بارگذاری دروس چارت درسی.' };
   }
@@ -592,7 +1128,11 @@ export async function generateClassSessionsAction(px: {
   dryRun?: boolean;
 }): Promise<GenerateSessionsOutcome> {
   try {
-    const user = await requireRole(EDITORS);
+    const user = await requireRole([...EDITORS, 'DEP_HEAD']);
+    const { isDeptHead } = await deptHeadScope(user);
+    if (isDeptHead) {
+      return { ok: false as const, generated: 0 as const, error: 'تولید جلسات برای کل ترم توسط کارشناس آموزش انجام می‌شود.' };
+    }
     const result = await generateClassSessionsForTerm(user.id, px.termId, {
       sessionsCount: px.sessionsCount,
       holidays: px.holidays,
@@ -616,7 +1156,11 @@ export async function generateClassSessionsAction(px: {
 /** گذار فاز برنامه‌ریزی (SUPPLY→ALLOCATION→REVIEW→PUBLISHED پله‌ای) — گیت: انتشار فقط بدون تداخل سخت */
 export async function transitionSchedulingPhaseAction(termId: number, to: 'ALLOCATION' | 'REVIEW' | 'PUBLISHED'): Promise<{ ok: true; phase: 'ALLOCATION' | 'REVIEW' | 'PUBLISHED'; from: string } | { ok: false; error: string }> {
   try {
-    const user = await requireRole(EDITORS);
+    const user = await requireRole([...EDITORS, 'DEP_HEAD']);
+    const { isDeptHead } = await deptHeadScope(user);
+    if (isDeptHead) {
+      return { ok: false as const, error: 'گذار فاز برنامه‌ریزی (انتشار ترم) مخصوص کارشناس آموزش است.' };
+    }
     if (to === 'PUBLISHED') {
       const insp = await inspectSchedulingHardConflicts(termId);
       if (insp.total > 0) {
@@ -787,7 +1331,18 @@ export async function supplyGroupDraftsAction(px: {
             professorId: number; classroomId: number; dayOfWeek: number; startTime: string; endTime: string }[];
 }): Promise<{ ok: true; created: number; offeringIds: number[] } | { ok: false; error: string }> {
   try {
-    const user = await requireRole(EDITORS);
+    const user = await requireRole([...EDITORS, 'DEP_HEAD']);
+    const { isDeptHead, deptIds } = await deptHeadScope(user);
+    if (isDeptHead && !deptIds.includes(px.ownerDepartmentId)) {
+      return { ok: false as const, error: 'فقط برای گروه‌های تحت مدیریت خودتان مجاز هستید.' };
+    }
+    // اعتبارسنجی درس در برابر گروه تحت مدیریت
+    if (isDeptHead) {
+      const [c] = await db.select({ id: courses.id, departmentId: courses.departmentId }).from(courses).where(eq(courses.id, px.courseId)).limit(1);
+      if (c && c.departmentId != null && !deptIds.includes(Number(c.departmentId))) {
+        return { ok: false as const, error: 'این درس متعلق به گروه‌های تحت مدیریت شما نیست.' };
+      }
+    }
     const res = await supplyGroupDrafts(user.id, {
       termId: px.termId, courseId: px.courseId, ownerDepartmentId: px.ownerDepartmentId,
       isSharedService: !!px.isSharedService, drafts: px.drafts,
@@ -814,7 +1369,7 @@ export async function allocateSectionsAction(px: { termId: number; departmentId:
 }
 
 /** سهمیه‌بندی (سالن، شیفت) گروه‌ها بر اساس جمعیت دانشجویی — موتور واقعی */
-export async function allocateRoomQuotasAction(termId: number) {
+export async function allocateRoomQuotasAction(termId: number): Promise<{ ok: true; grants: number } | { ok: false; error: string }> {
   try {
     const user = await requireRole(EDITORS);
     const res = await allocateRoomQuotas(user.id, termId);
@@ -825,13 +1380,192 @@ export async function allocateRoomQuotasAction(termId: number) {
   }
 }
 
+export async function copyRoomQuotasFromPreviousTermAction(termId: number): Promise<{ ok: true; copied: number } | { ok: false; error: string }> {
+  try {
+    await requireRole(EDITORS);
+    const uid = await serverUniId();
+    const terms = await db
+      .select({ id: academic_terms.id })
+      .from(academic_terms)
+      .orderBy(desc(academic_terms.id));
+    // «ترم قبل» = نزدیک‌ترین ترم با شناسهٔ کمتر. به `idx + 1` تکیه نمی‌کنیم چون
+    // اگر termId در فهرست نباشد (یا ترتیب شناسه‌ها زمانی نباشد) نتیجه غلط می‌شد.
+    const prevTermId = terms.find(t => t.id < termId)?.id ?? null;
+    if (!prevTermId) return { ok: false, error: 'ترم قبلی یافت نشد.' };
+
+    // فقط سهمیهٔ سالن‌های همین دانشگاه منتقل می‌شود. بدون این شرط، مدیرِ یک
+    // دانشگاه سهمیهٔ سالن‌های بقیهٔ دانشگاه‌ها را هم به این ترم کپی می‌کرد.
+    const prevGrants = await db
+      .select({
+        classroomId: scheduling_room_grants.classroomId,
+        shift: scheduling_room_grants.shift,
+        ownerDepartmentId: scheduling_room_grants.ownerDepartmentId,
+      })
+      .from(scheduling_room_grants)
+      .innerJoin(classrooms, eq(classrooms.id, scheduling_room_grants.classroomId))
+      .where(and(
+        eq(scheduling_room_grants.termId, prevTermId),
+        universityEq(classrooms.universityId, uid),
+      ));
+
+    let copied = 0;
+    for (const g of prevGrants) {
+      const [ins] = await db
+        .insert(scheduling_room_grants)
+        .values({
+          termId,
+          classroomId: g.classroomId,
+          shift: g.shift,
+          ownerDepartmentId: g.ownerDepartmentId,
+          status: 'ALLOCATED',
+          universityId: uid ?? null,
+        })
+        .onConflictDoNothing()
+        .returning({ id: scheduling_room_grants.id });
+      if (ins) copied++;
+    }
+    revalidatePath('/admin/scheduling');
+    return { ok: true, copied };
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? 'خطا در انتقال سهمیه از ترم قبل.' };
+  }
+}
+
+/**
+ * بازخوانی سبک فقط سهمیه‌های سالن (بدون تحلیل تداخل/جلسات/تقاضا) — برای استفاده
+ * بعد از عملیاتِ تخصیص/لغو/واگذاری سهمیه، تا کل کارتابل دوباره بارگذاری نشود و
+ * سرعت کلیک بالا بماند. هزینه: ۲ کوئری به‌جای ~۱۳ کوئریٔ سنگینِ getSchedulingWorkspaceAction.
+ */
+export async function getRoomGrantsAction(termId: number) {
+  try {
+    await requireRole([...EDITORS, 'DEP_HEAD']);
+    const uid = await serverUniId();
+    const [roomGrants, allocatedRoomIds] = await Promise.all([
+      listRoomGrants(termId, uid),
+      listAllocatedRoomIds(termId, uid),
+    ]);
+    return { ok: true as const, roomGrants, allocatedRoomIds };
+  } catch (e: any) {
+    return { ok: false as const, error: e?.message ?? 'خطا در بازخوانی سهمیه‌های سالن.' };
+  }
+}
+
+export async function releaseRoomShiftAction(px: { termId: number; departmentId: number; classroomId: number; shift: 'MORNING' | 'EVENING' }) {
+  try {
+    const user = await requireRole(EDITORS);
+    const res = await releaseRoomShift(user.id, { termId: px.termId, departmentId: px.departmentId, classroomId: px.classroomId, shift: px.shift });
+    return res;
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? 'خطا در لغو سهمیهٔ سالن.' };
+  }
+}
+
+export async function borrowReleasedShiftAction(px: { termId: number; classroomId: number; shift: 'MORNING' | 'EVENING'; departmentId: number }) {
+  try {
+    const user = await requireRole(EDITORS);
+    const res = await borrowReleasedShift(user.id, { termId: px.termId, classroomId: px.classroomId, shift: px.shift, departmentId: px.departmentId });
+    return res;
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? 'خطا در واگذاری سهمیهٔ سالن.' };
+  }
+}
+
+export async function upsertRoomGrantAction(px: { termId: number; classroomId: number; shift: 'MORNING' | 'EVENING'; departmentId: number }): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    await requireRole(EDITORS);
+    const uid = await serverUniId();
+    // سالن باید در دامنهٔ همین دانشگاه باشد؛ وگرنه مدیرِ یک دانشگاه می‌توانست
+    // برای سالنِ دانشگاه دیگر سهمیه بسازد (نشتی بین‌دانشگاهی).
+    const [room] = await db
+      .select({ id: classrooms.id })
+      .from(classrooms)
+      .where(and(eq(classrooms.id, px.classroomId), universityEq(classrooms.universityId, uid)))
+      .limit(1);
+    if (!room) return { ok: false, error: 'این سالن در دامنهٔ دانشگاه شما نیست.' };
+    await db
+      .insert(scheduling_room_grants)
+      .values({
+        termId: px.termId,
+        classroomId: px.classroomId,
+        shift: px.shift,
+        ownerDepartmentId: px.departmentId,
+        status: 'ALLOCATED',
+        universityId: uid ?? null,
+      })
+      .onConflictDoUpdate({
+        target: [scheduling_room_grants.termId, scheduling_room_grants.classroomId, scheduling_room_grants.shift],
+        set: { ownerDepartmentId: px.departmentId, status: 'ALLOCATED', releasedAt: null },
+      });
+    revalidatePath('/admin/scheduling');
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? 'خطا در تخصیص سالن.' };
+  }
+}
+
+/**
+ * ادغام/جداکردن «نیمسال ورود» یک ارائه.
+ *
+ * سناریوی واقعی: گروهی ورودی بهمن با ۶ نفر دارد؛ برای ۶ نفر کلاس جدا گذاشتن
+ * بی‌معنی است، پس همان ارائهٔ ورودی مهر (یا برعکس) برای هر دو نیمسال ورود
+ * اعلام می‌شود. تصمیم روی ستون‌های موجود `course_offerings.entryYearStart/End`
+ * ذخیره می‌شود (بدون جدول جدید) و `listRealDemands` اول همین را می‌خواند و
+ * تنها در نبود آن به دانشجویانِ ثبت‌نام‌شده برمی‌گردد.
+ */
+export async function setOfferingCohortMergeAction(px: {
+  offeringId: number;
+  merge: boolean;
+}): Promise<{ ok: true; entryYearStart: number | null; entryYearEnd: number | null } | { ok: false; error: string }> {
+  try {
+    const user = await requireRole([...EDITORS, 'DEP_HEAD']);
+    const { isDeptHead, deptIds } = await deptHeadScope(user);
+
+    const [off] = await db
+      .select({ id: course_offerings.id, courseDeptId: courses.departmentId, termId: course_offerings.termId })
+      .from(course_offerings)
+      .innerJoin(courses, eq(courses.id, course_offerings.courseId))
+      .where(eq(course_offerings.id, px.offeringId))
+      .limit(1);
+    if (!off) return { ok: false as const, error: 'ارائه یافت نشد.' };
+    if (isDeptHead && (off.courseDeptId == null || !deptIds.includes(off.courseDeptId))) {
+      return { ok: false as const, error: 'این درس در گروه‌های تحت مدیریت شما نیست.' };
+    }
+
+    // ادغام مهر+بهمن فقط برای نمایش/گروه‌بندی در تابلو است؛ هرگز ستون‌های هدف‌گیری ثبت‌نام را تغییر ندهد.
+    if (!px.merge) {
+      revalidatePath('/admin/scheduling');
+      revalidatePath('/group-manager/scheduling');
+      return { ok: true as const, entryYearStart: null, entryYearEnd: null };
+    }
+
+    // فقط برای اطلاع UI: بازهٔ ورودی دانشجویانِ همین ارائه (بدون نوشتن در entryYearStart/End)
+    const rows = await db
+      .select({ year: students.entryYear })
+      .from(enrollments)
+      .innerJoin(students, eq(students.id, enrollments.studentId))
+      .where(eq(enrollments.offeringId, px.offeringId));
+    const years = rows.map(r => Number(r.year)).filter(y => Number.isFinite(y) && y > 0);
+    if (!years.length) {
+      return { ok: false as const, error: 'برای این ارائه دانشجوی ثبت‌نام‌شده‌ای نیست؛ بازهٔ ورودی قابل تعیین نیست.' };
+    }
+    const from = Math.min(...years);
+    const to = Math.max(...years);
+    revalidatePath('/admin/scheduling');
+    revalidatePath('/group-manager/scheduling');
+    return { ok: true as const, entryYearStart: from, entryYearEnd: to };
+  } catch (e: any) {
+    return { ok: false as const, error: e?.message ?? 'ثبت ادغام نیمسال ورود ناموفق بود.' };
+  }
+}
+
 /** پیشنهاد هوشمند موتور: اسلات‌های ممکن بر اساس درٔ دسترس بودنِ واقعی استاد + اشغال سالن‌ها + زونینگ */
 export async function getSmartSuggestionsAction(px: {
   termId: number; professorId: number; capacity: number;
   targetFacultyId: number | null; durationMinutes?: number;
 }): Promise<{ ok: true; suggestions: SmartSlot[] } | { ok: false; error: string }> {
   try {
-    await requireRole(EDITORS);
+    // پیشنهاد هوشمند = محاسبهٔ فقط‌خواندنی؛ مدیرگروه هم می‌تواند ببیند
+    await requireRole([...EDITORS, 'DEP_HEAD']);
     const rows = await getSmartSuggestions(px);
     return { ok: true, suggestions: rows };
   } catch (e: any) {
@@ -843,7 +1577,8 @@ export async function getSmartSuggestionsAction(px: {
 export type SchedulingHealthReport = HealthReport;
 export async function getSchedulingHealthAction(termId: number): Promise<{ ok: true; health: HealthReport } | { ok: false; error: string }> {
   try {
-    await requireRole(EDITORS);
+    // عارضه‌یابی = فقط‌خواندنی؛ مدیرگروه هم می‌تواند ببیند
+    await requireRole([...EDITORS, 'DEP_HEAD']);
     const health = await runSchedulingHealthCheck(termId);
     return { ok: true, health };
   } catch (e: any) {

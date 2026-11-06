@@ -47,7 +47,7 @@ export function StudentSidebar({ user }: { user: { name: string; studentCode?: s
           </div>
           <div className="overflow-hidden">
             <h3 className="font-black text-slate-900 text-xs sm:text-sm truncate">{user.name}</h3>
-            <p className="text-[11px] text-slate-500 font-mono">
+            <p className="text-2xs text-slate-500 font-mono">
               شماره دانشجویی: <span dir="ltr">{user.studentCode || '—'}</span>
             </p>
           </div>
@@ -56,13 +56,13 @@ export function StudentSidebar({ user }: { user: { name: string; studentCode?: s
 
       {/* Nav links */}
       <div className="p-3 space-y-1 flex-1 overflow-y-auto text-xs">
-        <div className="px-3 py-1 text-[10px] font-black text-slate-400 uppercase tracking-wider">
+        <div className="px-3 py-1 text-3xs font-black text-slate-400 uppercase tracking-wider">
           منوی دسترسی و خدمات
         </div>
         {NAV_ITEMS.map(n => {
           const isActive = n.exact ? pathname === n.href : pathname.startsWith(n.href);
           return (
-            <Link
+            <Link prefetch={false}
               key={n.href}
               href={n.href}
               className={`flex items-center justify-between px-3 py-2.5 rounded-xl font-bold transition-all ${
@@ -91,7 +91,7 @@ export function StudentSidebar({ user }: { user: { name: string; studentCode?: s
 
       {/* Manual & Help link */}
       <div className="p-3 border-t border-slate-100 bg-slate-50/50 space-y-1">
-        <Link
+        <Link prefetch={false}
           href="/help/student"
           className="flex items-center justify-between px-3 py-2 rounded-xl text-xs font-bold text-slate-600 hover:text-emerald-800 hover:bg-emerald-50 transition"
         >
@@ -99,7 +99,7 @@ export function StudentSidebar({ user }: { user: { name: string; studentCode?: s
             <span>📖</span>
             <span>راهنمای دانشجو</span>
           </div>
-          <span className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded">راهنما</span>
+          <span className="text-3xs bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded">راهنما</span>
         </Link>
       </div>
     </aside>
@@ -117,7 +117,7 @@ export default function StudentNav() {
       {/* ⚡ نوار پایین بدون backdrop-blur (بلور روی المان fixed = عامل اصلی تأخیر
           لمسی در موبایل) + touch-action:manipulation برای پاسخ فوری تب‌ها */}
       <nav
-        className="md:hidden fixed inset-x-0 bottom-0 z-50 bg-white border-t border-slate-200 print:hidden"
+        className="ui-bottom-nav md:hidden fixed inset-x-0 bottom-0 z-50 print:hidden"
         style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
         aria-label="ناوبری اصلی دانشجو"
       >
@@ -127,18 +127,19 @@ export default function StudentNav() {
             .map(n => {
             const active = isActive(n);
             return (
-              <Link
+              <Link prefetch={false}
                 key={n.href}
                 href={n.href}
                 style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
-                className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl transition-all active:scale-95 ${
+                aria-current={active ? 'page' : undefined}
+                className={`flex min-h-[2.75rem] flex-col items-center justify-center gap-0.5 rounded-xl px-2 py-1 transition-all active:scale-95 ${
                   active
-                    ? 'bg-emerald-50 text-emerald-800 font-bold shadow-xs border border-emerald-200/60'
-                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 active:bg-slate-100'
+                    ? 'bg-emerald-50 text-emerald-800 font-extrabold border border-emerald-200/70 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800/60'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50 active:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800'
                 }`}
               >
                 <span className="text-base">{n.icon}</span>
-                <span className="text-[10px] leading-tight line-clamp-2 text-center min-h-[24px] flex items-center">
+                <span className="text-3xs leading-tight line-clamp-2 text-center min-h-[24px] flex items-center">
                   {TAB_LABELS[n.href] ?? n.label}
                 </span>
               </Link>
@@ -151,7 +152,7 @@ export default function StudentNav() {
             className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-xl text-slate-600 hover:text-slate-900 hover:bg-slate-50 transition-all"
           >
             <span className="text-base leading-none">☰</span>
-            <span className="text-[10px] leading-tight">منو</span>
+            <span className="text-3xs leading-tight">منو</span>
           </button>
         </div>
       </nav>
@@ -159,8 +160,9 @@ export default function StudentNav() {
       {open && (
         <div className="md:hidden fixed inset-0 z-[60]" role="dialog" aria-modal="true" aria-label="منوی دانشجو">
           <div className="absolute inset-0 bg-slate-950/50" onClick={() => setOpen(false)} />
-          <aside className="absolute bottom-0 inset-x-0 max-h-[82vh] overflow-y-auto rounded-t-2xl bg-white shadow-2xl flex flex-col">
-            <div className="flex items-center justify-between p-4 border-b border-slate-100 sticky top-0 bg-white rounded-t-2xl">
+          <aside className="absolute bottom-0 inset-x-0 max-h-[82vh] overflow-y-auto rounded-t-3xl bg-white shadow-2xl flex flex-col pb-[env(safe-area-inset-bottom,0px)]">
+            <div aria-hidden className="mx-auto mt-2 h-1 w-10 rounded-full bg-slate-300 dark:bg-slate-600" />
+            <div className="flex items-center justify-between p-4 border-b border-slate-100 sticky top-0 bg-white">
               <p className="font-extrabold text-slate-900">منوی دانشجو</p>
               <button
                 type="button"
@@ -175,7 +177,7 @@ export default function StudentNav() {
               {NAV_ITEMS.map(n => {
                 const active = isActive(n);
                 return (
-                  <Link
+                  <Link prefetch={false}
                     key={n.href}
                     href={n.href}
                     onClick={() => setOpen(false)}
@@ -201,7 +203,7 @@ export default function StudentNav() {
                   </Link>
                 );
               })}
-              <Link
+              <Link prefetch={false}
                 href="/help/student"
                 onClick={() => setOpen(false)}
                 className="flex items-center justify-between px-3 py-2.5 rounded-xl text-sm font-bold text-slate-600 hover:text-emerald-800 hover:bg-emerald-50 transition"
@@ -210,7 +212,7 @@ export default function StudentNav() {
                   <span>📖</span>
                   <span>راهنمای دانشجو</span>
                 </div>
-                <span className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded">راهنما</span>
+                <span className="text-3xs bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded">راهنما</span>
               </Link>
             </div>
           </aside>

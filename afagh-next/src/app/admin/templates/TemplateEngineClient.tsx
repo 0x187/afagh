@@ -628,7 +628,7 @@ export default function TemplateEngineClient({ settings, initialTemplates }: { s
           </div>
 
           <div className="flex items-center gap-2">
-            <Link
+            <Link prefetch={false}
               href="/admin/exams"
               className="px-3.5 py-2 rounded-xl bg-indigo-800 hover:bg-indigo-700 text-white font-bold text-xs border border-indigo-600/50 flex items-center gap-1.5 transition"
             >
@@ -707,7 +707,7 @@ export default function TemplateEngineClient({ settings, initialTemplates }: { s
               <h3 className="font-black text-slate-900 text-sm">
                 📋 کاتالوگ رویدادهای اطلاع‌رسانی
               </h3>
-              <span className="text-[10px] text-slate-500 font-bold">انتخاب جهت ویرایش</span>
+              <span className="text-3xs text-slate-500 font-bold">انتخاب جهت ویرایش</span>
             </div>
 
             <div className="space-y-1.5">
@@ -736,14 +736,14 @@ export default function TemplateEngineClient({ settings, initialTemplates }: { s
                     </div>
 
                     <p
-                      className={`text-[11px] truncate mt-1 ${
+                      className={`text-2xs truncate mt-1 ${
                         isSelected ? 'text-indigo-200' : 'text-slate-500'
                       }`}
                     >
                       {tmpl.templateText}
                     </p>
 
-                    <div className="flex items-center justify-between text-[10px] mt-2 pt-1 border-t border-white/10">
+                    <div className="flex items-center justify-between text-3xs mt-2 pt-1 border-t border-white/10">
                       <span className={isSelected ? 'text-indigo-300' : 'text-slate-400'}>
                         کانال: 📲 چندکاناله (SMS + Bale + Eitaa)
                       </span>
@@ -820,7 +820,7 @@ export default function TemplateEngineClient({ settings, initialTemplates }: { s
                   <span className="font-black text-slate-800">
                     🏷️ جعبه متغیرهای پویا (جهت درج در متن، روی تگ کلیک کنید):
                   </span>
-                  <span className="text-[11px] text-slate-500">جایگذاری خودکار اطلاعات دانشجو</span>
+                  <span className="text-2xs text-slate-500">جایگذاری خودکار اطلاعات دانشجو</span>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-1.5">
@@ -833,23 +833,23 @@ export default function TemplateEngineClient({ settings, initialTemplates }: { s
                     >
                       <span>➕</span>
                       <span>{v.tag}</span>
-                      <span className="text-[10px] text-slate-500 font-sans font-normal">({v.label})</span>
+                      <span className="text-3xs text-slate-500 font-sans font-normal">({v.label})</span>
                     </button>
                   ))}
                 </div>
 
                 {/* افزودن دستی متغیر جدید */}
                 <div className="flex flex-wrap items-end gap-1.5 rounded-xl border border-dashed border-indigo-300 bg-indigo-50/50 p-2">
-                  <label className="text-[11px] font-bold text-slate-600">نام متغیر جدید
+                  <label className="text-2xs font-bold text-slate-600">نام متغیر جدید
                     <input value={newVarTag} onChange={e => setNewVarTag(e.target.value)} placeholder="نام_استاد" className="mt-1 w-32 rounded border px-2 py-1.5 text-xs font-mono" />
                   </label>
-                  <label className="text-[11px] font-bold text-slate-600">برچسب
+                  <label className="text-2xs font-bold text-slate-600">برچسب
                     <input value={newVarLabel} onChange={e => setNewVarLabel(e.target.value)} placeholder="نام استاد" className="mt-1 w-28 rounded border px-2 py-1.5 text-xs" />
                   </label>
-                  <label className="text-[11px] font-bold text-slate-600">نمونه برای پیش‌نمایش
+                  <label className="text-2xs font-bold text-slate-600">نمونه برای پیش‌نمایش
                     <input value={newVarSample} onChange={e => setNewVarSample(e.target.value)} placeholder="دکتر احمدی" className="mt-1 w-32 rounded border px-2 py-1.5 text-xs" />
                   </label>
-                  <button onClick={handleAddVariable} className="rounded-lg bg-indigo-700 px-3 py-1.5 text-[11px] font-black text-white hover:bg-indigo-800">
+                  <button onClick={handleAddVariable} className="rounded-lg bg-indigo-700 px-3 py-1.5 text-2xs font-black text-white hover:bg-indigo-800">
                     ➕ افزودن متغیر
                   </button>
                 </div>
@@ -877,7 +877,7 @@ export default function TemplateEngineClient({ settings, initialTemplates }: { s
                     <div className="flex items-center gap-1.5 text-xs text-slate-400">
                       <span>📱 پیام دریافتی روی تلفن همراه</span>
                     </div>
-                    <span className="text-[10px] font-mono text-emerald-400">سامانه جامع آفاق</span>
+                    <span className="text-3xs font-mono text-emerald-400">سامانه جامع آفاق</span>
                   </div>
 
                   <div className="p-3.5 bg-slate-800 rounded-2xl rounded-tr-none text-xs text-white leading-relaxed font-medium space-y-1 border border-slate-700">
@@ -885,7 +885,7 @@ export default function TemplateEngineClient({ settings, initialTemplates }: { s
                     <span className="text-[9px] text-slate-400 block text-left font-mono">هم‌اکنون · اعلان دانشگاه</span>
                   </div>
 
-                  <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                  <div className="flex items-center justify-between text-2xs text-slate-400 pt-1">
                     <span>تعداد کاراکتر: <strong>{charCount}</strong></span>
                     <span>تعداد پارت پیامک: <strong className="text-amber-400">{smsSegments} پارت فارسی</strong></span>
                   </div>
@@ -915,7 +915,7 @@ export default function TemplateEngineClient({ settings, initialTemplates }: { s
                       ))}
                     </div>
 
-                    <p className="text-slate-600 text-[11px]">
+                    <p className="text-slate-600 text-2xs">
                       کد پرسنلی (<span className="font-mono" dir="ltr">4000101</span>)، شمارهٔ دانشجویی، موبایل یا کد ملی را وارد کنید —
                       سامانه خودش آیدیِ همان پیام‌رسان را پیدا می‌کند:
                     </p>
@@ -966,7 +966,7 @@ export default function TemplateEngineClient({ settings, initialTemplates }: { s
                   </span>
                   <div>
                     <h3 className="font-black text-slate-900 text-sm">پیام‌رسان بله (Bale Bot API)</h3>
-                    <span className="text-[10px] text-emerald-700 font-bold">سازگار با پلتفرم بله بانک ملی</span>
+                    <span className="text-3xs text-emerald-700 font-bold">سازگار با پلتفرم بله بانک ملی</span>
                   </div>
                 </div>
                 <input
@@ -1009,7 +1009,7 @@ export default function TemplateEngineClient({ settings, initialTemplates }: { s
                   </span>
                   <div>
                     <h3 className="font-black text-slate-900 text-sm">پیام‌رسان ایتا (Eitaa Bot API)</h3>
-                    <span className="text-[10px] text-amber-700 font-bold">سازگار با API رسمی بات ایتا</span>
+                    <span className="text-3xs text-amber-700 font-bold">سازگار با API رسمی بات ایتا</span>
                   </div>
                 </div>
                 <input
@@ -1052,7 +1052,7 @@ export default function TemplateEngineClient({ settings, initialTemplates }: { s
                   </span>
                   <div>
                     <h3 className="font-black text-slate-900 text-sm">پیام‌رسان تلگرام (Telegram Bot API)</h3>
-                    <span className="text-[10px] text-sky-700 font-bold">پشتیبانی از پروکسی معکوس داخلی</span>
+                    <span className="text-3xs text-sky-700 font-bold">پشتیبانی از پروکسی معکوس داخلی</span>
                   </div>
                 </div>
                 <input
@@ -1095,7 +1095,7 @@ export default function TemplateEngineClient({ settings, initialTemplates }: { s
                   </span>
                   <div>
                     <h3 className="font-black text-slate-900 text-sm">پیام‌رسان سروش (Soroush Bot API)</h3>
-                    <span className="text-[10px] text-violet-700 font-bold">سازگار با API رسمی بات سروش‌پلاس</span>
+                    <span className="text-3xs text-violet-700 font-bold">سازگار با API رسمی بات سروش‌پلاس</span>
                   </div>
                 </div>
                 <input
@@ -1138,7 +1138,7 @@ export default function TemplateEngineClient({ settings, initialTemplates }: { s
                   </span>
                   <div>
                     <h3 className="font-black text-slate-900 text-sm">پنل پیامک انبوه و خدماتی (SMS Gateway)</h3>
-                    <span className="text-[10px] text-indigo-700 font-bold">ارسال پیامک با خط خدماتی (بلک‌لیست)</span>
+                    <span className="text-3xs text-indigo-700 font-bold">ارسال پیامک با خط خدماتی (بلک‌لیست)</span>
                   </div>
                 </div>
               </div>
@@ -1159,7 +1159,7 @@ export default function TemplateEngineClient({ settings, initialTemplates }: { s
 
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="font-bold text-slate-700 block text-[11px]">کلید API پیامک:</label>
+                  <label className="font-bold text-slate-700 block text-2xs">کلید API پیامک:</label>
                   <input
                     type="password"
                     value={botConfig.smsApiKey}
@@ -1169,7 +1169,7 @@ export default function TemplateEngineClient({ settings, initialTemplates }: { s
                   />
                 </div>
                 <div>
-                  <label className="font-bold text-slate-700 block text-[11px]">شماره خط اختصاصی:</label>
+                  <label className="font-bold text-slate-700 block text-2xs">شماره خط اختصاصی:</label>
                   <input
                     type="text"
                     value={botConfig.smsSenderNumber}
@@ -1242,7 +1242,7 @@ export default function TemplateEngineClient({ settings, initialTemplates }: { s
                   className="w-full border border-slate-300 rounded-xl p-2.5 font-mono text-xs bg-white"
                   dir="ltr"
                 />
-                <span className="text-[10px] text-slate-500">
+                <span className="text-3xs text-slate-500">
                   مثال: https://vc.example.ac.ir/bigbluebutton/api
                 </span>
               </div>
@@ -1258,7 +1258,7 @@ export default function TemplateEngineClient({ settings, initialTemplates }: { s
                   className="w-full border border-slate-300 rounded-xl p-2.5 font-mono text-xs bg-white"
                   dir="ltr"
                 />
-                <span className="text-[10px] text-slate-500">
+                <span className="text-3xs text-slate-500">
                   این کلید برای تولید هش Checksum طبق استاندارد BBB API استفاده می‌شود.
                 </span>
               </div>

@@ -4,9 +4,9 @@ import { and, asc, desc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import {
   academic_terms, alumni_profiles, clearance_checklist, clearance_departments,
-  course_offerings, courses, degree_level_configs, enrollments, graduation_audits,
+  courses, degree_level_configs, graduation_audits,
   issued_degrees, majors, notifications, students, student_ledger,
-  curriculum_courses, curriculum_versions, users,
+  curriculum_versions, users,
   thesis_progress, thesis_progress_reports, defense_jury_pools, defense_sessions, irandoc_logs, staff, classrooms,
 } from '@/db/schema';
 import { getBool, getNumber, getSetting } from '@/lib/settings';
@@ -21,6 +21,9 @@ import { aggregateAuditTranscript } from '@/lib/gpa-aggregation';
 import { resolveStudentCurriculum, resolutionReasonMessage } from '@/lib/curriculum-apply';
 import { safeRials } from '@/lib/money';
 import { appendAudit } from '@/lib/audit';
+import {
+  loadAuditStudentRow, loadCurriculumRequirementRows, loadGradedEnrollments,
+} from '@/lib/graduation/graduation-queries';
 
 // ═══════════════════════════════════════════════════════════════════
 //  موتور فارغ‌التحصیلی «رویدادمحور» (Zero-Touch Graduation)
@@ -109,17 +112,7 @@ export type AuditResult = {
  * باشد فقط «حداقل واحد» و معدل ملاک قرار می‌گیرد و دلیلش در گزارش می‌آید.
  */
 export async function auditStudent(studentId: number): Promise<AuditResult | null> {
-  const [row] = await db.select({
-    id: students.id, studentCode: students.studentCode, majorId: students.majorId,
-    entryYear: students.entryYear, degreeLevelId: students.degreeLevelId, regulationId: students.regulationId,
-    firstName: users.firstName, lastName: users.lastName,
-    majorName: majors.name, degreeCode: degree_level_configs.code,
-    passingGrade: degree_level_configs.defaultPassingGrade,
-  }).from(students)
-    .innerJoin(users, eq(users.id, students.userId))
-    .leftJoin(majors, eq(majors.id, students.majorId))
-    .leftJoin(degree_level_configs, eq(degree_level_configs.id, students.degreeLevelId))
-    .where(eq(students.id, studentId)).limit(1);
+  const row = await loadAuditStudentRow(studentId);
   if (!row) return null;
 
   // کف قبولی از آیین‌نامهٔ ملاک دانشجو (مثل موتور رسمی)، وگرنه پیش‌فرض مقطع
@@ -132,20 +125,7 @@ export async function auditStudent(studentId: number): Promise<AuditResult | nul
   const minGpa = await getNumber('GRAD_MIN_GPA', 12);
 
   // فقط سوابق نهایی/معاف/قبول‌بدون‌نمره — نمرات موقت (PENDING) نه «گذرانده»‌اند نه در معدل
-  const taken = await db.select({
-    courseId: course_offerings.courseId,
-    code: courses.code, title: courses.title, units: courses.units,
-    affectsGpa: courses.affectsGpa,
-    courseMinMark: courses.minPassedMark,
-    gradeValue: enrollments.gradeValue, gradeStatus: enrollments.gradeStatus,
-    samaGradeStatusCode: enrollments.samaGradeStatusCode,
-  }).from(enrollments)
-    .innerJoin(course_offerings, eq(course_offerings.id, enrollments.offeringId))
-    .innerJoin(courses, eq(courses.id, course_offerings.courseId))
-    .where(and(
-      eq(enrollments.studentId, studentId),
-      inArray(enrollments.gradeStatus, ['FINALIZED', 'EXEMPT', 'PASSED_NO_GRADE']),
-    ));
+  const taken = await loadGradedEnrollments(studentId);
 
   /**
    * تجمیع کارنامه در هستهٔ خالصِ `aggregateAuditTranscript` انجام می‌شود — همان
@@ -172,11 +152,7 @@ export async function auditStudent(studentId: number): Promise<AuditResult | nul
   let requiredUnits = Number(syl?.totalRequiredUnits ?? 0) || 0;
 
   if (syl) {
-    const req = await db.select({
-      courseId: curriculum_courses.courseId, code: courses.code, title: courses.title, units: courses.units,
-    }).from(curriculum_courses)
-      .innerJoin(courses, eq(courses.id, curriculum_courses.courseId))
-      .where(eq(curriculum_courses.curriculumVersionId, syl.id));
+    const req = await loadCurriculumRequirementRows(syl.id);
     for (const r of req) {
       if (!passedIds.has(r.courseId)) missing.push({ code: r.code, title: r.title, units: Number(r.units ?? 0) });
     }

@@ -3,12 +3,13 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { backfillRolesAction, bulkForcePasswordChangeAction, bulkResetPasswordsAction, bulkResetToNationalCodeAction, createStaffExpertAction, getCohortStats, getTranscript, getTranscriptRegulation, resetUserPasswordAction, saveUserRolesAction, setStudentRegulationAction, setUserActiveAction, updateStaffProfileAction, updateStudentProfileAction, type TranscriptRow, type StudentProfilePatch } from './actions';
+import { backfillRolesAction, bulkForcePasswordChangeAction, bulkResetPasswordsAction, bulkResetToNationalCodeAction, createStaffExpertAction, getCohortStats, getTranscript, getTranscriptRegulation, loadStaffListAction, resetUserPasswordAction, saveUserRolesAction, setStudentRegulationAction, setUserActiveAction, updateStaffProfileAction, updateStudentProfileAction, type TranscriptRow, type StudentProfilePatch } from './actions';
 import { requestStepUpAction } from '@/lib/step-up-actions';
 import type { RegulationConfig } from '@/lib/regulations-engine';
 import { ClientTh, ServerTh, useClientTable, type ColumnDef } from '@/components/DataTable';
 import { QUOTA_FA, STUDENT_STATUS_FA, gradeStatusChip, gradeStatusFa, studentStatusChip, studentStatusFa} from '@/lib/student-labels';
 import MobileCardList from '@/components/MobileCardList';
+import { useConfirm } from '@/components/ui/Confirm';
 
 // ── هستهٔ خالص و قرارداد داده از ماژول‌های جدا (ریفکتور دور ۱۱) ──
 import type { StudentItem, RegulationPick, Pagination, StaffItem, CodeLabels, TranscriptPrintOptions, OriginUniversity, CohortStats} from './types';
@@ -62,7 +63,12 @@ export default function StudentsManagerClient(props: {
   codeLabels?: CodeLabels | null;
   regulations?: RegulationPick[];
   students: StudentItem[];
-  staffList: StaffItem[];
+  /**
+   * فهرست استادان دیگر در رندر اولیه ارسال نمی‌شود (۱.۶۶MB → ~۱۲۰KB).
+   * با باز شدن تب «استادان» از اکشن `loadStaffListAction` واکشی می‌شود.
+   * این پراپ فقط برای سازگاری/تست باقی مانده است.
+   */
+  staffList?: StaffItem[];
   pagination?: Pagination;
   degrees?: { id: number; title: string }[];
   /** گزینه‌های محل تولد/صدور از geo (سراسری) — کد وزارت در سرور resolve می‌شود */
@@ -87,8 +93,26 @@ export default function StudentsManagerClient(props: {
   // ناوبری و انتخاب
   const [selectedStuIdx, setSelectedStuIdx] = useState<number>(0);
   const [selectedProfIdx, setSelectedProfIdx] = useState<number>(0);
+
+  /**
+   * فهرست استادان — **واکشی تنبل**.
+   * چرا؟ قبلاً ~۱۴۰۰ ردیف × ۳۵ فیلد در رندر اولیه به مرورگر می‌آمد
+   * (HTML ۱.۶۶MB / ۱۷۰KB gzip و رندر ۶۷۳ms). حالا فقط با باز کردن تب
+   * «استادان» یک‌بار واکشی و در همین state کش می‌شود.
+   */
+  const [staffList, setStaffList] = useState<StaffItem[]>(props.staffList ?? []);
+  const [staffRoleIds, setStaffRoleIds] = useState<Record<number, number[]>>(props.userRoleIds ?? {});
+  const [staffLoading, setStaffLoading] = useState(false);
+  const [staffLoadError, setStaffLoadError] = useState<string>('');
+  // جست‌وجوی استادان سمتِ سرور است — state باید قبل از effectِ واکشی تعریف شود
+  const [staffQuery, setStaffQuery] = useState('');
+  const [staffTotal, setStaffTotal] = useState<number | null>(null);
+  const staffRequestedRef = useRef(false);
   const [searchQuery, setSearchQuery] = useState<string>(props.pagination?.q ?? '');
   const [toastMsg, setToastMsg] = useState<string>('');
+  /* دیالوگ تأییدِ استایل‌دار به‌جای `window.confirm` بومی — برای عملیات
+     برگشت‌پذیرنشدنی (غیرفعال‌کردن حساب کامل) پیام هشدار و دکمهٔ قرمز دارد. */
+  const confirmDialog = useConfirm();
   const [quickActionModal, setQuickActionModal] = useState<string | null>(null);
   const [transcript, setTranscript] = useState<TranscriptRow[] | null>(null);
   const [transcriptLoading, setTranscriptLoading] = useState(false);
@@ -152,12 +176,18 @@ export default function StudentsManagerClient(props: {
   const openRoleModalFor = (st: StaffItem) => {
     if (!st.userId) { showToast('شناسه کاربری این پرونده یافت نشد.'); return; }
     setRoleMsg('');
-    setRoleSel(new Set(props.userRoleIds?.[st.userId] ?? []));
+    setRoleSel(new Set(staffRoleIds?.[st.userId] ?? []));
     setRoleModalFor({ userId: st.userId, name: `${st.firstName} ${st.lastName}` });
   };
   const handleToggleActive = async (userId: number | null | undefined, next: boolean, name: string) => {
     if (!userId) { showToast('شناسه کاربری این پرونده یافت نشد.'); return; }
-    if (!confirm(`حسابِ کامل «${name}» ${next ? 'فعال' : 'غیرفعال'} شود؟ (شامل: ورود، کارتابل، برنامه‌ریزی، نشست‌ها و OTPها)`)) return;
+    const ok = await confirmDialog({
+      title: next ? 'فعال‌سازی حساب کامل' : 'غیرفعال‌سازی حساب کامل',
+      body: `حساب «${name}» ${next ? 'فعال' : 'غیرفعال'} شود؟ شامل ورود، کارتابل، برنامه‌ریزی، نشست‌ها و OTPها.`,
+      confirmText: next ? 'فعال کن' : 'غیرفعال کن',
+      danger: !next,
+    });
+    if (!ok) return;
     const r = await setUserActiveAction(userId, next).catch(() => ({ ok: false, error: 'خطا در ارتباط با سرور.' }));
     showToast(r.ok ? (next ? '✅ حساب کامل فعال شد.' : '⛔ حساب کامل غیرفعال شد (ورود/کارتابل/برنامه‌ریزی/نشست‌ها قطع شدند).') : (r.error || 'انجام نشد.'));
     if (r.ok) router.refresh();
@@ -380,8 +410,43 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
     }
   };
 
+  /**
+   * واکشی فهرست استادان — با جست‌وجوی سمتِ سرور:
+   * قبلاً همهٔ ~۱۴۰۰ نفر × ۲۸ فیلد یکجا منتقل می‌شد (روی خطوط کم‌سرعت ده‌ها
+   * ثانیه). حالا سرور با ILIKE نرمال‌شدهٔ فارسی جستجو می‌کند و حداکثر ۱۰۰
+   * ردیف برمی‌گرداند؛ تایپ کاربر با debounce ۳۵۰ms دوباره واکشی می‌کند.
+   * اگر پراپ اولیه وجود داشته باشد (مسیر قدیمی/تست) واکشی نمیکند.
+   */
+  useEffect(() => {
+    if (mainView !== 'professors') return;
+    if ((props.staffList?.length ?? 0) > 0) return;
+    let alive = true;
+    setStaffLoading(true);
+    setStaffLoadError('');
+    const t = setTimeout(() => {
+      loadStaffListAction(staffQuery)
+        .then(res => {
+          if (!alive) return;
+          if (res.ok && res.staffList) {
+            setStaffList(res.staffList);
+            setStaffRoleIds(res.userRoleIds ?? {});
+            setStaffTotal(typeof res.total === 'number' ? res.total : null);
+          } else {
+            setStaffLoadError(res.error || 'فهرست استادان بارگذاری نشد.');
+          }
+        })
+        .catch(() => {
+          if (!alive) return;
+          setStaffLoadError('ارتباط برقرار نشد. دوباره تلاش کنید.');
+        })
+        .finally(() => { if (alive) setStaffLoading(false); });
+    }, staffQuery ? 350 : 0);
+    return () => { alive = false; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mainView, staffQuery]);
+
   const currentStudent = props.students[selectedStuIdx] || props.students[0];
-  const currentStaff = props.staffList[selectedProfIdx] || props.staffList[0];
+  const currentStaff = staffList[selectedProfIdx] || staffList[0];
 
   /** دانشگاه مبدا دانشجو برای درج در کارنامه (برجسته اگر منحله باشد) */
   const originUniversity: OriginUniversity | null = (() => {
@@ -545,8 +610,8 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
   const router = useRouter();
   const pathname = usePathname();
   const pg = props.pagination;
-  // جست‌وجوی دانشجو سمت سرور است (props.students فقط یک صفحه است)؛ جست‌وجوی استاد محلی
-  const [staffQuery, setStaffQuery] = useState('');
+  // جست‌وجوی دانشجو و استاد هر دو سمتِ سرور است (props.students فقط یک صفحه؛
+  // فهرست استادان حداکثر ۱۰۰ ردیف با ILIKE نرمال‌شدهٔ فارسی)
   const [staffVisible, setStaffVisible] = useState(100);
   const [staffTypeFilter, setStaffTypeFilter] = useState('ALL');
   // ── ساخت URL فقط با فیلترهای غیرحساس ──
@@ -617,7 +682,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
     else router.push(target);
   };
 
-  const staffQueryFiltered = props.staffList.filter(s =>
+  const staffQueryFiltered = staffList.filter(s =>
     (!staffQuery ||
     faIncludes(s.staffCode ?? '', staffQuery) ||
     faIncludes(s.nationalCode ?? '', staffQuery) ||
@@ -679,7 +744,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
           </button>
         </div>
 
-        <div className="text-[11px] text-slate-300 font-mono">
+        <div className="text-2xs text-slate-300 font-mono">
           {mainView === 'students' ? `دانشجو: ${currentStudent?.studentCode || '—'}` : `استاد: ${currentStaff?.staffCode || '—'}`}
         </div>
       </div>
@@ -741,7 +806,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
               >
                 ◀ بعدی
               </button>
-              <span className="text-[11px] text-slate-500 mr-2 font-mono">
+              <span className="text-2xs text-slate-500 mr-2 font-mono">
                 پرونده {selectedStuIdx + 1} از {props.students.length}
               </span>
             </div>
@@ -754,7 +819,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                 readOnly
                 className="bg-yellow-300 text-slate-950 font-mono font-bold text-sm px-3 py-1 border border-slate-500 rounded text-center w-36 tracking-wider shadow-inner"
               />
-              <span className="text-[11px] text-slate-600 mr-2">نام و نام خانوادگی:</span>
+              <span className="text-2xs text-slate-600 mr-2">نام و نام خانوادگی:</span>
               <b className="text-slate-900 bg-white px-3 py-1 border border-slate-300 rounded font-bold">
                 {currentStudent ? `${currentStudent.lastName} - ${currentStudent.firstName}` : '—'}
               </b>
@@ -782,13 +847,13 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                       <button
                         onClick={saveEntry}
                         disabled={entrySaving}
-                        className="px-2 py-1 rounded bg-blue-700 text-white font-bold text-[11px] hover:bg-blue-800 disabled:opacity-50"
+                        className="px-2 py-1 rounded bg-blue-700 text-white font-bold text-2xs hover:bg-blue-800 disabled:opacity-50"
                         title="ذخیرهٔ سال/ترم ورود (فقط مدیر سیستم)"
                       >
                         {entrySaving ? 'در حال ذخیره…' : '💾 ذخیرهٔ ورود'}
                       </button>
                     </div>
-                    <span className="text-slate-500 text-[10px]">
+                    <span className="text-slate-500 text-3xs">
                       {entryStartDate ? `* شروع: ${entryStartDate}` : null}
                       {currentStudent.entryDate ? ` — تاریخ ورود: ${dateToJalali(currentStudent.entryDate)}` : null}
                     </span>
@@ -850,7 +915,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                     </select>
                   </div>
                   {currentStudent.samaStatusCode && (
-                    <div className="grid grid-cols-3 gap-2 items-center text-[11px] text-slate-500">
+                    <div className="grid grid-cols-3 gap-2 items-center text-2xs text-slate-500">
                       <span>وضعیت در سما:</span>
                       <span className="col-span-2">کد {currentStudent.samaStatusCode} — {studentStatusFa(currentStudent.status, currentStudent.samaStatusCode, uniCodeOf(currentStudent.universityId))}</span>
                     </div>
@@ -935,20 +1000,20 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                   {/* ── حساب وب دانشجو: فعال/غیرفعال + تغییر رمز (فقط ADMIN) ── */}
                   <div className="grid grid-cols-3 gap-2 items-center border-t border-slate-200 pt-2 mt-2">
                     <span className="font-bold">🔐 حساب وب:</span>
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full text-center ${currentStudent.isActive === 0 ? 'bg-red-100 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200' : 'bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'}`}>
+                    <span className={`text-2xs font-bold px-2 py-0.5 rounded-full text-center ${currentStudent.isActive === 0 ? 'bg-red-100 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200' : 'bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'}`}>
                       {currentStudent.isActive === 0 ? '⛔ غیرفعال' : '✅ فعال'}
                     </span>
                     <div className="flex gap-1.5 justify-end">
                       <button
                         onClick={() => handleToggleActive(currentStudent.userId, currentStudent.isActive === 0, `${currentStudent.firstName} ${currentStudent.lastName}`)}
-                        className={`px-2.5 py-1 rounded text-[11px] font-bold border ${currentStudent.isActive === 0 ? 'bg-emerald-700 text-white hover:bg-emerald-800' : 'bg-red-50 text-red-800 border-red-300 hover:bg-red-100 dark:border-red-800 dark:bg-red-950 dark:text-red-200 dark:hover:bg-red-900'}`}
+                        className={`px-2.5 py-1 rounded text-2xs font-bold border ${currentStudent.isActive === 0 ? 'bg-emerald-700 text-white hover:bg-emerald-800' : 'bg-red-50 text-red-800 border-red-300 hover:bg-red-100 dark:border-red-800 dark:bg-red-950 dark:text-red-200 dark:hover:bg-red-900'}`}
                         title="فعال/غیرفعال‌سازی کامل حساب (ورود، کارتابل، برنامه‌ریزی، نشست‌ها، OTPها) — فقط مدیر سیستم"
                       >
                         {currentStudent.isActive === 0 ? 'فعال‌سازی کامل' : 'غیرفعال‌سازی کامل'}
                       </button>
                       <button
                         onClick={() => { setPwModalFor({ userId: currentStudent.userId ?? 0, name: `${currentStudent.firstName} ${currentStudent.lastName}` }); setPwInput(''); }}
-                        className="px-2.5 py-1 rounded text-[11px] font-bold bg-slate-700 text-white hover:bg-slate-800"
+                        className="px-2.5 py-1 rounded text-2xs font-bold bg-slate-700 text-white hover:bg-slate-800"
                         title="تغییر رمز عبور دانشجو (فقط مدیر سیستم)"
                       >
                         🔑 تغییر رمز
@@ -979,9 +1044,9 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                 <div className="border border-slate-300 p-3 rounded bg-slate-50 flex flex-col items-center justify-center space-y-2">
                   <PersonPhoto userId={currentStudent.userId} hasPhoto={!!currentStudent.photoKey} className="w-28 h-36" icon="👤" label="عکس پرسنلی" />
                   <div className="flex flex-col gap-1 w-full max-w-[140px]">
-                    <button onClick={() => showToast('📁 کادر انتخاب تصویر باز شد')} className="px-2 py-1 bg-white border border-slate-300 rounded hover:bg-slate-100 font-bold text-[11px]">فایل تصویر</button>
-                    <button onClick={() => showToast('تصویر حذف گردید')} className="px-2 py-1 bg-white border border-slate-300 rounded hover:bg-slate-100 text-red-700 text-[11px]">حذف تصویر</button>
-                    <button onClick={() => showToast('کپی تصویر انجام شد')} className="px-2 py-1 bg-white border border-slate-300 rounded hover:bg-slate-100 text-[11px]">کپی تصویر به فایل</button>
+                    <button onClick={() => showToast('📁 کادر انتخاب تصویر باز شد')} className="px-2 py-1 bg-white border border-slate-300 rounded hover:bg-slate-100 font-bold text-2xs">فایل تصویر</button>
+                    <button onClick={() => showToast('تصویر حذف گردید')} className="px-2 py-1 bg-white border border-slate-300 rounded hover:bg-slate-100 text-red-700 text-2xs">حذف تصویر</button>
+                    <button onClick={() => showToast('کپی تصویر انجام شد')} className="px-2 py-1 bg-white border border-slate-300 rounded hover:bg-slate-100 text-2xs">کپی تصویر به فایل</button>
                   </div>
                 </div>
 
@@ -1087,7 +1152,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                   <input type="text" value={profile.englishScore ?? ''} onChange={e => pf('englishScore', e.target.value)} className="w-20 bg-white border border-slate-300 px-2 py-1 rounded font-mono text-center font-bold" placeholder="—" />
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200 text-[11px] text-slate-600">
+                <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200 text-2xs text-slate-600">
                   <div className="bg-white p-1.5 border border-slate-200 rounded">
                     <span>اولین ثبت‌کننده: </span>
                     <b className="text-slate-800">{(profile.insertDate || profile.insertTime) ? 'سما' : '—'}</b>
@@ -1286,22 +1351,22 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                   <div className="grid grid-cols-3 gap-3">
                     <div className="border border-slate-200 p-2 rounded bg-white">
                       <p className="font-bold text-slate-800">📜 دانشنامه رسمی</p>
-                      <p className="text-[11px] text-slate-500 mt-1">تاریخ صدور: —</p>
-                      <p className="text-[11px] text-slate-500">شماره دبیرخانه: —</p>
+                      <p className="text-2xs text-slate-500 mt-1">تاریخ صدور: —</p>
+                      <p className="text-2xs text-slate-500">شماره دبیرخانه: —</p>
                     </div>
                     <div className="border border-slate-200 p-2 rounded bg-white">
                       <p className="font-bold text-slate-800">📑 ریزنمرات رسمی</p>
-                      <p className="text-[11px] text-slate-500 mt-1">تاریخ صدور: —</p>
-                      <p className="text-[11px] text-slate-500">شماره دبیرخانه: —</p>
+                      <p className="text-2xs text-slate-500 mt-1">تاریخ صدور: —</p>
+                      <p className="text-2xs text-slate-500">شماره دبیرخانه: —</p>
                     </div>
                     <div className="border border-slate-200 p-2 rounded bg-white">
                       <p className="font-bold text-slate-800">📄 گواهی موقت پایان تحصیلات</p>
-                      <p className="text-[11px] text-slate-500 mt-1">تاریخ صدور: —</p>
-                      <p className="text-[11px] text-slate-500">شماره دبیرخانه: —</p>
+                      <p className="text-2xs text-slate-500 mt-1">تاریخ صدور: —</p>
+                      <p className="text-2xs text-slate-500">شماره دبیرخانه: —</p>
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-around bg-slate-100 p-2 rounded border border-slate-200 font-semibold text-[11px]">
+                  <div className="flex flex-wrap items-center justify-around bg-slate-100 p-2 rounded border border-slate-200 font-semibold text-2xs">
                     <label className="flex items-center gap-1.5 cursor-pointer">
                       <input type="checkbox" className="w-4 h-4 text-emerald-600 rounded" />
                       <span>تسویه حساب داخلی دانشکده</span>
@@ -1330,16 +1395,16 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
               <div className="flex flex-wrap items-center justify-between gap-2 print:hidden">
                 <h3 className="font-extrabold text-slate-900">📊 کارنامهٔ {currentStudent.lastName} - {currentStudent.firstName} ({currentStudent.studentCode})</h3>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-[11px] text-slate-500 ml-1">{transcript ? `${transcript.length} درس` : ''}</span>
+                  <span className="text-2xs text-slate-500 ml-1">{transcript ? `${transcript.length} درس` : ''}</span>
                   <button
                     onClick={() => setTranscriptView('official')}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border ${transcriptView === 'official' ? 'bg-indigo-700 text-white border-indigo-700' : 'bg-slate-50 border-slate-300 hover:bg-slate-100'}`}
+                    className={`px-2.5 py-1 rounded-lg text-2xs font-bold border ${transcriptView === 'official' ? 'bg-indigo-700 text-white border-indigo-700' : 'bg-slate-50 border-slate-300 hover:bg-slate-100'}`}
                   >
                     🧾 کارنامه رسمی
                   </button>
                   <button
                     onClick={() => setTranscriptView('simple')}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border ${transcriptView === 'simple' ? 'bg-indigo-700 text-white border-indigo-700' : 'bg-slate-50 border-slate-300 hover:bg-slate-100'}`}
+                    className={`px-2.5 py-1 rounded-lg text-2xs font-bold border ${transcriptView === 'simple' ? 'bg-indigo-700 text-white border-indigo-700' : 'bg-slate-50 border-slate-300 hover:bg-slate-100'}`}
                   >
                     📋 جدول نمرات
                   </button>
@@ -1370,14 +1435,14 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                             setGradeEditModalOpen(true);
                           }
                         }}
-                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-amber-600 text-white hover:bg-amber-700"
+                        className="px-2.5 py-1 rounded-lg text-2xs font-bold bg-amber-600 text-white hover:bg-amber-700"
                         title="ثبت یا اصلاح نمره توسط آموزش / فارغ‌التحصیلان"
                       >
                         ✏️ ثبت / تغییر نمره
                       </button>
                       <button
                         onClick={openAuditLogs}
-                        className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-slate-700 text-white hover:bg-slate-800"
+                        className="px-2.5 py-1 rounded-lg text-2xs font-bold bg-slate-700 text-white hover:bg-slate-800"
                         title="مشاهده لاگ ممیزی و تاریخچه تغییرات نمرات دانشجو"
                       >
                         📜 لاگ ممیزی نمرات
@@ -1387,7 +1452,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                   {transcript && transcript.length > 0 && (
                     <button
                       onClick={() => doPrintTranscript('landscape')}
-                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-700 text-white hover:bg-emerald-800"
+                      className="px-2.5 py-1 rounded-lg text-2xs font-bold bg-emerald-700 text-white hover:bg-emerald-800"
                       title="چاپ کارنامه در کاغذ افقی (فرمت سما: ۳ نیمسال کنار هم)"
                     >
                       🖨️ چاپ افقی
@@ -1396,7 +1461,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                   {transcript && transcript.length > 0 && (
                     <button
                       onClick={() => doPrintTranscript('portrait')}
-                      className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-teal-700 text-white hover:bg-teal-800"
+                      className="px-2.5 py-1 rounded-lg text-2xs font-bold bg-teal-700 text-white hover:bg-teal-800"
                       title="چاپ کارنامه در کاغذ عمودی (نیمسال‌ها زیر هم)"
                     >
                       🖨️ چاپ عمودی
@@ -1404,7 +1469,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                   )}
                 </div>
                 {transcript && transcript.length > 0 && (
-                  <p className="text-[10px] text-slate-500">
+                  <p className="text-3xs text-slate-500">
                     ⚖️ مبنای محاسبه: <b>{currentStudent.regulationTitle}</b>
                     {(() => { const th = regThresholds(regConfig); return ` (قبولی ${faNum(th.pass, 0)} — مشروطی زیر ${faNum(th.prob, 0)}${th.minUnits > 0 ? ` — حدنصاب واحد ترم ${faNum(th.minUnits, 0)}` : ''}${th.exclFailed ? ' — حذف مردودی قبول‌شده از معدل کل' : ''})`; })()}
                   </p>
@@ -1412,7 +1477,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                 {/* ── تنظیمات چاپ کارنامه (تیک‌های سما) — در چاپ نمی‌آید ── */}
                 {transcript && transcript.length > 0 && transcriptView === 'official' && (
                   <div className="flex flex-wrap items-center gap-1.5 border-t border-slate-200 pt-2 print:hidden">
-                    <span className="text-[11px] font-bold text-slate-500">⚙️ تنظیمات چاپ:</span>
+                    <span className="text-2xs font-bold text-slate-500">⚙️ تنظیمات چاپ:</span>
                     {([
                       ['showLegend', 'توضیح وضع نمرات'],
                       ['showBreakdown', 'جدول وضعیت دروس'],
@@ -1426,7 +1491,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                     ] as [keyof TranscriptPrintOptions, string][]).map(([k, label]) => (
                       <label
                         key={k}
-                        className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[11px] font-bold border cursor-pointer ${printOptions[k] ? 'bg-indigo-50 border-indigo-300 text-indigo-900' : 'bg-slate-50 border-slate-300 text-slate-500'}`}
+                        className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-2xs font-bold border cursor-pointer ${printOptions[k] ? 'bg-indigo-50 border-indigo-300 text-indigo-900' : 'bg-slate-50 border-slate-300 text-slate-500'}`}
                       >
                         <input
                           type="checkbox"
@@ -1441,15 +1506,15 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                       <select
                         value={rankScope}
                         onChange={e => setRankScope(e.target.value as 'year' | 'term')}
-                        className="px-2 py-0.5 rounded-lg text-[11px] font-bold border border-indigo-300 bg-indigo-50 text-indigo-900"
+                        className="px-2 py-0.5 rounded-lg text-2xs font-bold border border-indigo-300 bg-indigo-50 text-indigo-900"
                         title="بازهٔ رتبه: هم‌ورودی‌های یک سال یا یک ترم"
                       >
                         <option value="year">هم‌ورودی سال</option>
                         <option value="term">هم‌ورودی ترم</option>
                       </select>
                     )}
-                    {cohortLoading && <span className="text-[11px] text-indigo-700">⏳ محاسبه رتبه…</span>}
-                    {cohortError && !cohortLoading && <span className="text-[11px] text-red-700 font-bold">⚠ رتبه محاسبه نشد — تیک را بردارید و دوباره بزنید</span>}
+                    {cohortLoading && <span className="text-2xs text-indigo-700">⏳ محاسبه رتبه…</span>}
+                    {cohortError && !cohortLoading && <span className="text-2xs text-red-700 font-bold">⚠ رتبه محاسبه نشد — تیک را بردارید و دوباره بزنید</span>}
                   </div>
                 )}
               </div>
@@ -1459,7 +1524,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                 <p className="text-center text-amber-700 bg-amber-50 border border-amber-200 rounded p-3 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">کارنامه‌ای برای این دانشجو یافت نشد (ممکن است نمرات در مرحلهٔ انتقال باشد).</p>
               ) : transcriptView === 'simple' ? (
                 <div className="overflow-x-auto border border-slate-300 rounded">
-                  <table className="w-full text-right text-[11px] rt">
+                  <table className="w-full text-right text-2xs rt">
                     <thead className="bg-slate-100 border-b border-slate-300 font-bold">
                       <tr>
                         <th className="p-1.5">ترم</th>
@@ -1481,7 +1546,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                           <td className="p-1.5 text-center font-mono font-bold">{r.gradeValue ?? '—'}</td>
                   <td className="p-1.5 text-center">
                     {r.gradeStatusTitle && <span className="ml-1 font-bold">{r.gradeStatusTitle}</span>}
-                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${gradeStatusChip(r.gradeStatus)}`}>
+                    <span className={`px-2 py-0.5 rounded-full text-3xs font-bold ${gradeStatusChip(r.gradeStatus)}`}>
                       {gradeStatusFa(r.gradeStatus)}
                     </span>
                   </td>
@@ -1489,7 +1554,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                     <td className="p-1.5 text-center">
                       <button
                         onClick={() => openEditGrade(r)}
-                        className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-amber-900"
+                        className="px-2 py-0.5 rounded text-3xs font-bold bg-amber-100 text-amber-900 hover:bg-amber-200 border border-amber-300 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-amber-900"
                         title="ویرایش یا اصلاح نمره"
                       >
                         ✏️ ویرایش
@@ -1548,11 +1613,11 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                 >
                   🔑 بازنشانی گروهی رمز
                 </button>
-                <span className="text-[10px] text-slate-500">در اولین ورود، اجباری به تغییر رمز — به‌همراه ساخت خودکار نقش‌های جاافتاده</span>
+                <span className="text-3xs text-slate-500">در اولین ورود، اجباری به تغییر رمز — به‌همراه ساخت خودکار نقش‌های جاافتاده</span>
               </div>
 
               {/* چیپ‌های وضعیت */}
-              <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
+              <div className="flex flex-wrap items-center gap-1.5 text-2xs">
                 <button onClick={() => nav({ status: 'ALL' })} className={`px-2.5 py-1 rounded-full border font-bold ${(!pg || pg.status === 'ALL') ? 'bg-slate-900 text-white border-slate-900' : 'bg-slate-50 border-slate-300 hover:bg-slate-100'}`}>
                   همه ({(props.statusCounts ?? []).reduce((a, c) => a + c.n, 0).toLocaleString('fa-IR')})
                 </button>
@@ -1565,7 +1630,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                 <select
                   value={pg?.degree ?? 0}
                   onChange={e => nav({ degree: e.target.value })}
-                  className="mr-auto bg-slate-50 border border-slate-300 rounded px-2 py-1 text-[11px]"
+                  className="mr-auto bg-slate-50 border border-slate-300 rounded px-2 py-1 text-2xs"
                 >
                   <option value={0}>همه مقاطع</option>
                   {(props.degrees ?? []).map(d => <option key={d.id} value={d.id}>{d.title}</option>)}
@@ -1599,11 +1664,11 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                       <td colSpan={8} className="p-1.5 bg-slate-50">
                         <button
                           onClick={applyStuFilters}
-                          className="px-3 py-1 bg-indigo-700 hover:bg-indigo-800 text-white text-[11px] font-bold rounded"
+                          className="px-3 py-1 bg-indigo-700 hover:bg-indigo-800 text-white text-2xs font-bold rounded"
                         >
                           اعمال فیلتر ستون‌ها (Enter)
                         </button>
-                        <span className="mr-2 text-[10px] text-slate-400">فیلتر هر ستون را بنویسید و Enter بزنید</span>
+                        <span className="mr-2 text-3xs text-slate-400">فیلتر هر ستون را بنویسید و Enter بزنید</span>
                       </td>
                     </tr>
                   </thead>
@@ -1617,7 +1682,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                               setSelectedStuIdx(realIdx >= 0 ? realIdx : 0);
                               setStuTab('info_combined');
                             }}
-                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-[11px] px-2.5 py-1 rounded font-bold whitespace-nowrap"
+                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-2xs px-2.5 py-1 rounded font-bold whitespace-nowrap"
                           >
                             مشاهده پرونده 🔍
                           </button>
@@ -1629,7 +1694,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                         <td className="p-2 whitespace-nowrap">{s.degreeLevel}</td>
                         <td className="p-2 font-mono whitespace-nowrap">{s.entryYear}</td>
                         <td className="p-2 whitespace-nowrap">
-                          <span title={s.samaStatusCode ? `کد سما: ${s.samaStatusCode}` : s.status} className={`${studentStatusChip(s.status)} text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap`}>
+                          <span title={s.samaStatusCode ? `کد سما: ${s.samaStatusCode}` : s.status} className={`${studentStatusChip(s.status)} text-3xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap`}>
                             {studentStatusFa(s.status, s.samaStatusCode, uniCodeOf((s as { universityId?: number | null }).universityId))}
                           </span>
                         </td>
@@ -1651,7 +1716,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                   { key: 'status', label: 'وضعیت', bare: true, render: (s) => (
                     <span
                       title={s.samaStatusCode ? `کد سما: ${s.samaStatusCode}` : s.status}
-                      className={`${studentStatusChip(s.status)} text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap`}
+                      className={`${studentStatusChip(s.status)} text-3xs font-bold px-2 py-0.5 rounded-full whitespace-nowrap`}
                     >
                       {studentStatusFa(s.status, s.samaStatusCode, uniCodeOf((s as { universityId?: number | null }).universityId))}
                     </span>
@@ -1665,7 +1730,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                       setSelectedStuIdx(realIdx >= 0 ? realIdx : 0);
                       setStuTab('info_combined');
                     }}
-                    className="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-[11px] px-2.5 py-1 rounded font-bold whitespace-nowrap"
+                    className="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-2xs px-2.5 py-1 rounded font-bold whitespace-nowrap"
                   >
                     مشاهده پرونده 🔍
                   </button>
@@ -1681,7 +1746,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                   <button disabled={pg.page >= pg.totalPages} onClick={() => nav({ page: String(pg.page + 1) })} className="px-3 py-1.5 bg-white border border-slate-300 rounded font-bold disabled:opacity-40 hover:bg-slate-50">◀ بعدی</button>
                 </div>
               )}
-              <p className="text-[10px] text-slate-400 text-center">ناوبری پرونده (قبلی/بعدی) در محدوده همین صفحه (۵۰ رکورد) است — برای پرونده خاص، جست‌وجو کنید.</p>
+              <p className="text-3xs text-slate-400 text-center">ناوبری پرونده (قبلی/بعدی) در محدوده همین صفحه (۵۰ رکورد) است — برای پرونده خاص، جست‌وجو کنید.</p>
             </div>
           )}
 
@@ -1739,11 +1804,11 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                 readOnly
                 className="bg-yellow-300 text-slate-950 font-mono font-bold text-sm px-3 py-1 border border-slate-500 rounded text-center w-28 shadow-inner"
               />
-              <span className="text-[11px] text-slate-500 mr-2">(برای جستجو کد استاد را وارد کنید)</span>
+              <span className="text-2xs text-slate-500 mr-2">(برای جستجو کد استاد را وارد کنید)</span>
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-[11px] text-slate-600">نام و نام خانوادگی استاد:</span>
+              <span className="text-2xs text-slate-600">نام و نام خانوادگی استاد:</span>
               <b className="text-slate-900 bg-white px-3 py-1 border border-slate-300 rounded font-bold">
                 {currentStaff ? `${currentStaff.firstName} ${currentStaff.lastName}` : '—'}
               </b>
@@ -1752,10 +1817,10 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                 <button
                   onClick={() => openRoleModalFor(currentStaff)}
                   className="px-3 py-1.5 rounded bg-indigo-700 hover:bg-indigo-800 text-white text-xs font-bold whitespace-nowrap"
-                  title={(`نقش‌های «${currentStaff.firstName} ${currentStaff.lastName}»: ${((props.userRoleIds?.[currentStaff.userId ?? 0] ?? []).map(id => roleTitle(props.rolesAll?.find(r => r.id === id) ?? { id, code: '؟', title: '' }))).join('، ') || 'هیچ'}`)}
+                  title={(`نقش‌های «${currentStaff.firstName} ${currentStaff.lastName}»: ${((staffRoleIds?.[currentStaff.userId ?? 0] ?? []).map(id => roleTitle(props.rolesAll?.find(r => r.id === id) ?? { id, code: '؟', title: '' }))).join('، ') || 'هیچ'}`)}
                 >
-                  {((props.userRoleIds?.[currentStaff.userId ?? 0] ?? []).length > 0)
-                    ? `⚙ ${(props.userRoleIds?.[currentStaff.userId ?? 0] ?? []).length} نقش`
+                  {((staffRoleIds?.[currentStaff.userId ?? 0] ?? []).length > 0)
+                    ? `⚙ ${(staffRoleIds?.[currentStaff.userId ?? 0] ?? []).length} نقش`
                     : '⚙ نقش‌ها'}
                 </button>
               ) : null}
@@ -1770,6 +1835,11 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
           </div>
 
           {/* ── بخش ۱ استاد: اطلاعات آموزشی (ادغام‌شده) ── */}
+          {profTab === 'info_combined' && !currentStaff && (
+            <div className="rounded-b-md border border-slate-400 bg-white p-6 text-center text-xs font-bold text-slate-600">
+              {staffLoading ? 'در حال بارگذاری دوسیهٔ استاد…' : 'استادی برای نمایش انتخاب نشده است.'}
+            </div>
+          )}
           {profTab === 'info_combined' && currentStaff && (
             <div ref={staffFormRef}>
             <div key={`prof-a-${currentStaff.id}`} className="bg-white p-3 sm:p-5 border border-slate-400 rounded-b-md space-y-3">
@@ -1780,19 +1850,19 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                   <div className="border border-slate-300 p-2.5 rounded bg-slate-50 flex flex-col items-center space-y-1.5">
                     <PersonPhoto userId={currentStaff.userId} hasPhoto={!!currentStaff.photoKey} className="w-24 h-28" icon="👨‍🏫" label="تصویر پرسنلی" />
                     <div className="flex gap-1">
-                      <button onClick={() => showToast('فایل تصویر پرسنلی استاد انتخاب شد')} className="px-2 py-0.5 bg-white border border-slate-300 rounded text-[10px]">فایل تصویر</button>
-                      <button onClick={() => showToast('تصویر حذف شد')} className="px-2 py-0.5 bg-white border border-slate-300 rounded text-red-700 text-[10px]">حذف</button>
+                      <button onClick={() => showToast('فایل تصویر پرسنلی استاد انتخاب شد')} className="px-2 py-0.5 bg-white border border-slate-300 rounded text-3xs">فایل تصویر</button>
+                      <button onClick={() => showToast('تصویر حذف شد')} className="px-2 py-0.5 bg-white border border-slate-300 rounded text-red-700 text-3xs">حذف</button>
                     </div>
                   </div>
 
                   <div className="border border-slate-300 p-2.5 rounded bg-slate-50 flex flex-col items-center space-y-1.5">
-                    <span className="font-bold text-red-700 text-[11px]">تصویر امضای الکترونیک استاد:</span>
-                    <div className="w-full h-16 bg-white border border-dashed border-slate-400 rounded flex items-center justify-center font-mono text-slate-400 text-[10px]">
+                    <span className="font-bold text-red-700 text-2xs">تصویر امضای الکترونیک استاد:</span>
+                    <div className="w-full h-16 bg-white border border-dashed border-slate-400 rounded flex items-center justify-center font-mono text-slate-400 text-3xs">
                       [نمونه امضای دیجیتال]
                     </div>
                     <div className="flex gap-1">
-                      <button onClick={() => showToast('فایل امضای الکترونیک بارگذاری شد')} className="px-2 py-0.5 bg-white border border-slate-300 rounded text-[10px]">بارگذاری امضا</button>
-                      <button onClick={() => showToast('امضا حذف شد')} className="px-2 py-0.5 bg-white border border-slate-300 rounded text-red-700 text-[10px]">حذف</button>
+                      <button onClick={() => showToast('فایل امضای الکترونیک بارگذاری شد')} className="px-2 py-0.5 bg-white border border-slate-300 rounded text-3xs">بارگذاری امضا</button>
+                      <button onClick={() => showToast('امضا حذف شد')} className="px-2 py-0.5 bg-white border border-slate-300 rounded text-red-700 text-3xs">حذف</button>
                     </div>
                   </div>
                 </div>
@@ -1927,20 +1997,20 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                   {/* ── حساب وب استاد: فعال/غیرفعال + تغییر رمز (فقط ADMIN) ── */}
                   <div className="grid grid-cols-3 gap-2 items-center border-t border-slate-200 pt-2 mt-1">
                     <span className="font-bold">🔐 حساب وب:</span>
-                    <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full text-center ${(currentStaff.userIsActive ?? 1) === 0 ? 'bg-red-100 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200' : 'bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'}`}>
+                    <span className={`text-2xs font-bold px-2 py-0.5 rounded-full text-center ${(currentStaff.userIsActive ?? 1) === 0 ? 'bg-red-100 text-red-800 dark:border-red-800 dark:bg-red-950 dark:text-red-200' : 'bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'}`}>
                       {(currentStaff.userIsActive ?? 1) === 0 ? '⛔ غیرفعال' : '✅ فعال'}
                     </span>
                     <div className="flex gap-1.5 justify-end">
                       <button
                         onClick={() => handleToggleActive(currentStaff.userId, (currentStaff.userIsActive ?? 1) === 0, `${currentStaff.firstName} ${currentStaff.lastName}`)}
-                        className="px-2 py-1 rounded text-[11px] font-bold bg-white border border-slate-300 hover:bg-slate-100"
+                        className="px-2 py-1 rounded text-2xs font-bold bg-white border border-slate-300 hover:bg-slate-100"
                         title="فعال/غیرفعال‌سازی کامل حساب (ورود، کارتابل، برنامه‌ریزی، نشست‌ها، OTPها) — فقط مدیر سیستم"
                       >
                         {(currentStaff.userIsActive ?? 1) === 0 ? 'فعال‌سازی کامل' : 'غیرفعال‌سازی کامل'}
                       </button>
                       <button
                         onClick={() => { setPwModalFor({ userId: currentStaff.userId ?? 0, name: `${currentStaff.firstName} ${currentStaff.lastName}` }); setPwInput(''); }}
-                        className="px-2 py-1 rounded text-[11px] font-bold bg-slate-700 text-white hover:bg-slate-800"
+                        className="px-2 py-1 rounded text-2xs font-bold bg-slate-700 text-white hover:bg-slate-800"
                         title="تغییر رمز عبور استاد (فقط مدیر سیستم)"
                       >
                         🔑 تغییر رمز
@@ -1951,13 +2021,13 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                             const uid = currentStaff.userId;
                             if (!uid) { showToast('شناسه کاربری یافت نشد.'); return; }
                             setRoleMsg('');
-                            setRoleSel(new Set(props.userRoleIds?.[uid] ?? []));
+                            setRoleSel(new Set(staffRoleIds?.[uid] ?? []));
                             setRoleModalFor({ userId: uid, name: `${currentStaff.firstName} ${currentStaff.lastName}` });
                           }}
-                          className="px-2 py-1 rounded text-[11px] font-bold bg-indigo-700 text-white hover:bg-indigo-800"
-                          title={(`نقش‌های فعلی: ${(((props.userRoleIds?.[currentStaff.userId] ?? [])).map(id => roleTitle(props.rolesAll?.find(r => r.id === id) ?? { id, code: '؟', title: '' }))).join('، ') || 'هیچ'}`)}
+                          className="px-2 py-1 rounded text-2xs font-bold bg-indigo-700 text-white hover:bg-indigo-800"
+                          title={(`نقش‌های فعلی: ${(((staffRoleIds?.[currentStaff.userId] ?? [])).map(id => roleTitle(props.rolesAll?.find(r => r.id === id) ?? { id, code: '؟', title: '' }))).join('، ') || 'هیچ'}`)}
                         >
-                          {(props.userRoleIds?.[currentStaff.userId] ?? []).length > 0 ? `⚙ ${(props.userRoleIds?.[currentStaff.userId] ?? []).length} نقش` : '⚙ نقش‌ها'}
+                          {(staffRoleIds?.[currentStaff.userId] ?? []).length > 0 ? `⚙ ${(staffRoleIds?.[currentStaff.userId] ?? []).length} نقش` : '⚙ نقش‌ها'}
                         </button>
                       ) : null}
                     </div>
@@ -1971,6 +2041,29 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
           {/* ── تب ۴ استاد: لیست اساتید ── */}
           {profTab === 'list' && (
             <div className="bg-white p-4 border border-slate-400 rounded-b-md space-y-3">
+              {/* فهرست استادان تنبل واکشی می‌شود — حالت بارگذاری/خطا */}
+              {staffLoading && (
+                <div className="flex items-center gap-2 rounded border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-bold text-indigo-900">
+                  <span className="inline-block h-3 w-3 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
+                  در حال بارگذاری فهرست استادان و کارکنان…
+                </div>
+              )}
+              {staffLoadError && !staffLoading && (
+                <div className="flex items-center justify-between gap-2 rounded border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-950">
+                  <span>⚠ {staffLoadError}</span>
+                  <button
+                    onClick={() => { staffRequestedRef.current = false; setMainView('students'); setTimeout(() => setMainView('professors'), 0); }}
+                    className="shrink-0 rounded border border-amber-700 bg-white px-2 py-0.5 font-bold"
+                  >
+                    تلاش دوباره
+                  </button>
+                </div>
+              )}
+              {!staffLoading && !staffLoadError && staffTotal != null && staffList.length < staffTotal && (
+                <div className="rounded border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-bold text-slate-700">
+                  نمایش {staffList.length.toLocaleString('fa-IR')} نفر از {staffTotal.toLocaleString('fa-IR')} نتیجه — برای رسیدن به فرد موردنظر در کادر جست‌وجو تایپ کنید (کد پرسنلی، کد ملی یا نام).
+                </div>
+              )}
               <div className="flex items-center justify-between gap-3 flex-wrap">
                 <input
                   type="text"
@@ -2030,11 +2123,11 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                         <td className="p-2 text-right whitespace-nowrap">
                           <button
                             onClick={() => {
-                              const realIdx = props.staffList.findIndex(x => x.id === st.id);
+                              const realIdx = staffList.findIndex(x => x.id === st.id);
                               setSelectedProfIdx(realIdx >= 0 ? realIdx : 0);
                               setProfTab('info_combined');
                             }}
-                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-[11px] px-2.5 py-1 rounded font-bold whitespace-nowrap"
+                            className="bg-indigo-50 hover:bg-indigo-100 text-indigo-800 border border-indigo-200 text-2xs px-2.5 py-1 rounded font-bold whitespace-nowrap"
                           >
                             مشاهده پرونده 🔍
                           </button>
@@ -2112,7 +2205,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
               </div>
               <div>
                 <p className="font-extrabold text-sm text-indigo-950">معرفی استاد جدید</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">ثبت مشخصات، استخدام و امضای الکترونیک</p>
+                <p className="text-2xs text-slate-500 mt-0.5">ثبت مشخصات، استخدام و امضای الکترونیک</p>
               </div>
             </button>
 
@@ -2126,7 +2219,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
               </div>
               <div>
                 <p className="font-extrabold text-sm text-slate-900">تغییر کلمه عبور جاری</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">تغییر رمز ورود و تنظیمات امنیتی</p>
+                <p className="text-2xs text-slate-500 mt-0.5">تغییر رمز ورود و تنظیمات امنیتی</p>
               </div>
             </button>
 
@@ -2140,7 +2233,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
               </div>
               <div>
                 <p className="font-extrabold text-sm text-slate-900">تخصیص استاد راهنمای جمعی</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">انتساب گروهی دانشجویان به اساتید راهنما</p>
+                <p className="text-2xs text-slate-500 mt-0.5">انتساب گروهی دانشجویان به اساتید راهنما</p>
               </div>
             </button>
 
@@ -2154,12 +2247,12 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
               </div>
               <div>
                 <p className="font-extrabold text-sm text-slate-900">ارسال پیامک به دانشجویان کلاس</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">ارسال اطلاعیه، لغو یا تغییر زمان جلسه</p>
+                <p className="text-2xs text-slate-500 mt-0.5">ارسال اطلاعیه، لغو یا تغییر زمان جلسه</p>
               </div>
             </button>
 
             {/* کاشی ۵: مدیریت جلسات درس */}
-            <Link
+            <Link prefetch={false}
               href="/admin/class-sessions"
               className="p-4 bg-gradient-to-b from-white to-slate-100 border-2 border-slate-300 hover:border-slate-500 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-3 text-right group"
             >
@@ -2168,12 +2261,12 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
               </div>
               <div>
                 <p className="font-extrabold text-sm text-slate-900">مدیریت جلسات درس (حضور و غیاب و جبرانی)</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">جدول جلسات درس با پرچم‌های تعطیل/فوق‌برنامه/فعال، ممیزی زمانی و لیست دانشجویان</p>
+                <p className="text-2xs text-slate-500 mt-0.5">جدول جلسات درس با پرچم‌های تعطیل/فوق‌برنامه/فعال، ممیزی زمانی و لیست دانشجویان</p>
               </div>
             </Link>
 
             {/* کاشی ۶: کاتالوگ و سرفصل رشته‌ها */}
-            <Link
+            <Link prefetch={false}
               href="/admin/curriculum"
               className="p-4 bg-gradient-to-b from-white to-slate-100 border-2 border-indigo-300 hover:border-indigo-500 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-3 text-right group"
             >
@@ -2182,7 +2275,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
               </div>
               <div>
                 <p className="font-extrabold text-sm text-indigo-950">کاتالوگ و سرفصل رشته‌ها</p>
-                <p className="text-[11px] text-slate-500 mt-0.5">مدیریت چارت، انتقال کاتالوگ و سقف واحدها</p>
+                <p className="text-2xs text-slate-500 mt-0.5">مدیریت چارت، انتقال کاتالوگ و سقف واحدها</p>
               </div>
             </Link>
           </div>
@@ -2257,7 +2350,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-1.5">
                 <div className="flex items-center justify-between">
                   <label className="block font-bold text-slate-700 text-xs">کد وضعیت نمره سما:</label>
-                  <span className="text-[11px] text-slate-500 font-mono">
+                  <span className="text-2xs text-slate-500 font-mono">
                     کد فعلی: {gradeEditTarget?.gradeStatusCode || '—'} {gradeEditTarget?.gradeStatusTitle ? `(${gradeEditTarget.gradeStatusTitle})` : ''}
                   </span>
                 </div>
@@ -2277,7 +2370,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                     ))}
                   </optgroup>
                 </select>
-                <p className="text-[10px] text-slate-500">
+                <p className="text-3xs text-slate-500">
                   {selectedSamaCode === 'AUTO'
                     ? '💡 کد به‌صورت هوشمند ابتدا از جدول دروس (courses) و سپس طبق آیین‌نامهٔ آموزشی دانشجو حل می‌شود.'
                     : '⚠️ شما به‌صورت دستی کد وضعیت این نمره را تعیین کرده‌اید.'}
@@ -2323,7 +2416,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                 </div>
               )}
 
-              <div className="bg-slate-50 border border-slate-200 rounded p-2.5 text-[11px] text-slate-600 space-y-1">
+              <div className="bg-slate-50 border border-slate-200 rounded p-2.5 text-2xs text-slate-600 space-y-1">
                 <p>🔒 <b>قوانین ممیزی:</b></p>
                 <ul className="list-disc list-inside space-y-0.5">
                   <li>این عملیات مستقیماً در لاگ ممیزی نمرات (<span className="font-mono">grade_change_log</span>) با نام کاربری، نقش و زمان دقیق ثبت می‌شود.</li>
@@ -2371,7 +2464,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
             </div>
             <div className="p-4 border-b border-slate-200 bg-slate-50 text-xs flex flex-wrap items-center justify-between gap-2">
               <p><b>دانشجو:</b> {currentStudent.firstName} {currentStudent.lastName} — <b>شماره دانشجویی:</b> <span className="font-mono">{currentStudent.studentCode}</span></p>
-              <span className="text-[11px] text-slate-500 font-mono">{auditLogs.length} رکورد ثبت‌شده</span>
+              <span className="text-2xs text-slate-500 font-mono">{auditLogs.length} رکورد ثبت‌شده</span>
             </div>
             <div className="p-4 overflow-y-auto flex-1 text-xs">
               {auditLogsLoading ? (
@@ -2380,7 +2473,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                 <p className="text-center text-slate-500 py-8 bg-slate-50 rounded-lg border border-slate-200">هیچ لاگ تغییری برای نمرات این دانشجو در سامانه ثبت نشده است.</p>
               ) : (
                 <div className="border border-slate-300 rounded-lg overflow-x-auto">
-                  <table className="w-full text-right text-[11px] rt">
+                  <table className="w-full text-right text-2xs rt">
                     <thead className="bg-slate-100 border-b border-slate-300 font-bold">
                       <tr>
                         <th className="p-2">#</th>
@@ -2402,17 +2495,17 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                           </td>
                           <td className="p-2">
                             <span className="font-bold">{log.actorFirstName || log.actorLastName ? `${log.actorFirstName ?? ''} ${log.actorLastName ?? ''}`.trim() : `کاربر #${log.actorUserId ?? 'سیستم'}`}</span>
-                            <span className="block text-[10px] text-slate-500 font-mono">[{log.actorRole || 'SYSTEM'}]</span>
+                            <span className="block text-3xs text-slate-500 font-mono">[{log.actorRole || 'SYSTEM'}]</span>
                           </td>
                           <td className="p-2">
-                            <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-slate-200 text-slate-800">
+                            <span className="px-2 py-0.5 rounded font-mono text-3xs font-bold bg-slate-200 text-slate-800">
                               {log.action}
                             </span>
                           </td>
                           <td className="p-2">
                             <span className="font-mono font-bold">{log.courseCode ?? '—'}</span>
-                            <span className="block text-[10px] text-slate-600 truncate max-w-[160px]" title={log.courseTitle ?? undefined}>{log.courseTitle ?? (log.termCode ? `ترم ${log.termCode}` : '—')}</span>
-                            {log.termCode && <span className="block text-[10px] text-slate-400 font-mono">{log.termCode}{log.termTitle ? ` — ${log.termTitle}` : ''}</span>}
+                            <span className="block text-3xs text-slate-600 truncate max-w-[160px]" title={log.courseTitle ?? undefined}>{log.courseTitle ?? (log.termCode ? `ترم ${log.termCode}` : '—')}</span>
+                            {log.termCode && <span className="block text-3xs text-slate-400 font-mono">{log.termCode}{log.termTitle ? ` — ${log.termTitle}` : ''}</span>}
                           </td>
                           <td className="p-2 text-center font-mono font-bold">
                             <span className="text-slate-500">{log.oldGradeValue ?? '—'}</span>
@@ -2488,7 +2581,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
               {bulkMode === 'force_change' ? (
                 <div className="rounded-lg bg-indigo-50 border border-indigo-300 p-3 text-indigo-800 leading-relaxed">
                   <b>🔐 اجبار به تغییر رمز</b>
-                  <p className="text-[10px] mt-1">رمز هیچ حسابی عوض نمی‌شود؛ همهٔ حساب‌های فعال این گروه در ورود بعدی ملزم به تعیین رمز جدید خواهند بود.</p>
+                  <p className="text-3xs mt-1">رمز هیچ حسابی عوض نمی‌شود؛ همهٔ حساب‌های فعال این گروه در ورود بعدی ملزم به تعیین رمز جدید خواهند بود.</p>
                 </div>
               ) : bulkMode === 'password' ? (
                 <div>
@@ -2508,14 +2601,14 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
               ) : (
                 <div className="rounded-lg bg-amber-50 border border-amber-300 p-3 text-amber-800 leading-relaxed">
                   <b>⚠ بازنشانی به کد ملی</b>
-                  <p className="text-[10px] mt-1">رمز همهٔ حساب‌های این گروه به <b>کد ملی</b> خودشان تغییر می‌کند. در اولین ورود ملزم به تغییر رمز خواهند بود.</p>
+                  <p className="text-3xs mt-1">رمز همهٔ حساب‌های این گروه به <b>کد ملی</b> خودشان تغییر می‌کند. در اولین ورود ملزم به تغییر رمز خواهند بود.</p>
                 </div>
               )}
               <label className="flex items-center gap-1.5 cursor-pointer pt-1">
                 <input type="checkbox" checked={bulkBackfill} onChange={e => setBulkBackfill(e.target.checked)} className="w-4 h-4 accent-slate-800 rounded" />
                 <span>همچنین نقش‌های جاافتادهٔ همهٔ حساب‌ها را بساز (ترمیم norole)</span>
               </label>
-              <p className="text-[10px] text-slate-500">این عملیات بی‌بازگشت است؛ رمز جاری همهٔ حساب‌های این گروه باطل می‌شود.</p>
+              <p className="text-3xs text-slate-500">این عملیات بی‌بازگشت است؛ رمز جاری همهٔ حساب‌های این گروه باطل می‌شود.</p>
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200">
                 <button type="button" onClick={() => setBulkOpen(false)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-lg">انصراف</button>
                 <button type="submit" disabled={bulkSaving} className="px-5 py-2 bg-red-700 hover:bg-red-800 disabled:bg-slate-400 text-white font-bold rounded-lg">
@@ -2554,7 +2647,7 @@ getTranscript(currentStudent.id).then(r => { setTranscript(r); }).catch(e => { c
                         className="accent-indigo-600"
                       />
                       <span className="font-bold flex-1">{roleTitle(r)}</span>
-                      <span className="font-mono text-[10px] text-slate-400" dir="ltr">{r.code}</span>
+                      <span className="font-mono text-3xs text-slate-400" dir="ltr">{r.code}</span>
                     </label>
                   ))}
                 </div>

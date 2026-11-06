@@ -38,6 +38,8 @@ interface RequestInboxItem {
   trackingCode: string;
   studentName: string;
   studentCode: string;
+  /** شناسهٔ دانشجو — برای میان‌بر پروندهٔ مالی در درخواست‌های FINANCE_STATEMENT */
+  studentId?: number | null;
   processTitle: string;
   processCode: string;
   status: string;
@@ -377,21 +379,33 @@ export default function AdminWorkflowsClient({
                       </td>
                       <td className="p-3">
                         <p className="font-bold text-slate-900">{req.studentName}</p>
-                        <p className="text-[11px] font-mono text-slate-400" dir="ltr">{req.studentCode}</p>
+                        <p className="text-2xs font-mono text-slate-400" dir="ltr">{req.studentCode}</p>
+                        {/* درخواست تأیید کارنامهٔ مالی: کارشناس بدون ترک کارتابل،
+                            پروندهٔ مالی همان دانشجو را می‌بیند و بعد تأیید/رد می‌کند. */}
+                        {req.processCode === 'FINANCE_STATEMENT' && req.studentId ? (
+                          <a
+                            href={`/admin/finance/student/${req.studentId}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="mt-1 inline-flex items-center gap-1 rounded-md border border-sky-200 bg-sky-50 px-2 py-0.5 text-3xs font-bold text-sky-800 transition hover:bg-sky-100"
+                          >
+                            📄 مشاهدهٔ کارنامهٔ مالی
+                          </a>
+                        ) : null}
                       </td>
                       <td className="p-3 font-semibold text-slate-800">
                         {req.processTitle}
                       </td>
                       <td className="p-3">
                         <p className="font-bold text-slate-800">{req.currentStepTitle || 'مرحله اول'}</p>
-                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">
+                        <span className="text-3xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">
                           نقش: {roleFa[req.currentRoleCode || ''] || req.currentRoleCode || 'کارشناس'}
                         </span>
                       </td>
                       <td className="p-3">
                         <div className="space-y-1">
                           <span
-                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            className={`px-2 py-0.5 rounded-full text-3xs font-bold ${
                               req.isBreached
                                 ? 'bg-red-100 text-red-900 border border-red-300 dark:border-red-800 dark:bg-red-950 dark:text-red-200'
                                 : 'bg-emerald-100 text-emerald-900 border border-emerald-300 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'
@@ -399,13 +413,13 @@ export default function AdminWorkflowsClient({
                           >
                             {req.isBreached ? '⚠️ تاخیر از SLA' : '✓ در مهلت مجاز'}
                           </span>
-                          <p className="text-[10px] text-slate-400 font-mono">
+                          <p className="text-3xs text-slate-400 font-mono">
                             {req.hoursElapsed} ساعت از {req.slaHours || 48} ساعت
                           </p>
                         </div>
                       </td>
                       <td className="p-3">
-                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-bold border ${statusBadge[req.status] || 'bg-slate-100'}`}>
+                        <span className={`px-2.5 py-1 rounded-full text-2xs font-bold border ${statusBadge[req.status] || 'bg-slate-100'}`}>
                           {statusFa[req.status] ?? req.status}
                         </span>
                       </td>
@@ -422,7 +436,7 @@ export default function AdminWorkflowsClient({
                                   note: '',
                                 })
                               }
-                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[11px] shadow transition"
+                              className="px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-2xs shadow transition"
                             >
                               ✓ تایید
                             </button>
@@ -436,7 +450,7 @@ export default function AdminWorkflowsClient({
                                   note: '',
                                 })
                               }
-                              className="px-2.5 py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-[11px] shadow transition"
+                              className="px-2.5 py-1 rounded-lg bg-red-600 hover:bg-red-700 text-white font-bold text-2xs shadow transition"
                             >
                               ✗ رد
                             </button>
@@ -450,7 +464,7 @@ export default function AdminWorkflowsClient({
                                   note: '',
                                 })
                               }
-                              className="px-2 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-[11px] transition"
+                              className="px-2 py-1 rounded-lg bg-purple-600 hover:bg-purple-700 text-white font-bold text-2xs transition"
                             >
                               اصلاح
                             </button>
@@ -464,13 +478,13 @@ export default function AdminWorkflowsClient({
                                   note: '',
                                 })
                               }
-                              className="px-2 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-[11px] transition"
+                              className="px-2 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-2xs transition"
                             >
                               ارجاع
                             </button>
                           </div>
                         ) : (
-                          <span className="text-slate-400 font-bold text-[11px]">مختومه</span>
+                          <span className="text-slate-400 font-bold text-2xs">مختومه</span>
                         )}
 
                         {/* اگر چک‌پوینت موازی دارد */}
@@ -481,7 +495,7 @@ export default function AdminWorkflowsClient({
                                 key={cp.id}
                                 disabled={cp.isCleared === 1}
                                 onClick={() => handleClearCheckpoint(cp.id)}
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold border transition ${
+                                className={`px-2 py-0.5 rounded text-3xs font-bold border transition ${
                                   cp.isCleared === 1
                                     ? 'bg-emerald-50 text-emerald-800 border-emerald-300 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'
                                     : 'bg-amber-50 hover:bg-amber-100 text-amber-900 border-amber-300 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200 dark:hover:bg-amber-900'
@@ -521,11 +535,11 @@ export default function AdminWorkflowsClient({
                 >
                   <div className="flex items-center justify-between">
                     <span className="font-extrabold">{proc.title}</span>
-                    <span className={`text-[10px] px-2 py-0.2 rounded-full ${selectedProcessId === proc.id ? 'bg-indigo-800 text-indigo-200' : 'bg-slate-100 text-slate-600'}`}>
+                    <span className={`text-3xs px-2 py-0.2 rounded-full ${selectedProcessId === proc.id ? 'bg-indigo-800 text-indigo-200' : 'bg-slate-100 text-slate-600'}`}>
                       {proc.steps?.length || 0} گام
                     </span>
                   </div>
-                  <p className={`text-[11px] truncate ${selectedProcessId === proc.id ? 'text-indigo-200' : 'text-slate-400'}`}>
+                  <p className={`text-2xs truncate ${selectedProcessId === proc.id ? 'text-indigo-200' : 'text-slate-400'}`}>
                     کد: {proc.code}
                   </p>
                 </div>
@@ -564,7 +578,7 @@ export default function AdminWorkflowsClient({
                             {step.stepOrder}
                           </span>
                           <span className="font-extrabold text-sm text-slate-900">{step.title}</span>
-                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
+                          <span className="text-2xs px-2 py-0.5 rounded-full bg-slate-200 text-slate-700">
                             نوع گام: {step.stepType}
                           </span>
                         </div>
@@ -611,7 +625,7 @@ export default function AdminWorkflowsClient({
                   {selectedProcess.formSchema?.map((f: any, i: number) => (
                     <div key={i} className="p-2.5 rounded-xl bg-white border border-slate-200 text-xs">
                       <p className="font-extrabold text-slate-800">{f.label}</p>
-                      <p className="text-[10px] text-slate-400 mt-0.5">کلید داده: {f.key} · نوع: {f.type}</p>
+                      <p className="text-3xs text-slate-400 mt-0.5">کلید داده: {f.key} · نوع: {f.type}</p>
                     </div>
                   ))}
                 </div>
@@ -650,14 +664,14 @@ export default function AdminWorkflowsClient({
                         <span className="font-mono font-black text-amber-300" dir="ltr">{uc.trackingCode}</span>
                         <span className="font-bold text-white">{uc.studentName}</span>
                       </div>
-                      <p className="text-[11px] text-slate-300">
+                      <p className="text-2xs text-slate-300">
                         {uc.processTitle} · {uc.currentStepTitle} ({roleFa[uc.roleCode] || uc.roleCode})
                       </p>
                     </div>
 
                     <div className="text-left space-y-1">
                       <span
-                        className={`px-2 py-0.5 rounded text-[10px] font-bold block ${
+                        className={`px-2 py-0.5 rounded text-3xs font-bold block ${
                           uc.isBreached
                             ? 'bg-red-500 text-white'
                             : 'bg-amber-400 text-slate-950'
@@ -665,7 +679,7 @@ export default function AdminWorkflowsClient({
                       >
                         {uc.isBreached ? '⚠️ نقض مهلت SLA' : `⏳ ${uc.hoursRemaining} ساعت باقی‌مانده`}
                       </span>
-                      <span className="text-[10px] text-slate-300 font-mono">
+                      <span className="text-3xs text-slate-300 font-mono">
                         سپری‌شده: {uc.hoursElapsed}h / {uc.slaHours}h
                       </span>
                     </div>
@@ -764,7 +778,7 @@ export default function AdminWorkflowsClient({
                       <td className="p-2.5 font-mono font-bold text-amber-700">{item.pendingCount} پرونده</td>
                       <td className="p-2.5">
                         <span
-                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                          className={`px-2.5 py-0.5 rounded-full text-3xs font-bold ${
                             item.statusLevel === 'BOTTLENECK'
                               ? 'bg-red-500 text-white shadow-sm'
                               : item.statusLevel === 'WARNING'
@@ -802,7 +816,7 @@ export default function AdminWorkflowsClient({
                       {dept.pendingCount} پرونده
                     </span>
                   </div>
-                  <div className="space-y-1 text-[11px] text-slate-500 pt-2 border-t border-slate-200">
+                  <div className="space-y-1 text-2xs text-slate-500 pt-2 border-t border-slate-200">
                     <p>میانگین زمان رسیدگی: <b className="text-slate-800 font-mono">{dept.avgWaitHours} ساعت</b></p>
                     <p>قدیمی‌ترین پرونده معلق: <b className="text-amber-800 font-mono">{dept.oldestPendingHours} ساعت پیش</b></p>
                   </div>
@@ -840,7 +854,7 @@ export default function AdminWorkflowsClient({
                     <tr key={idx} className="border-b border-slate-100 hover:bg-slate-50">
                       <td className="p-3">
                         <p className="font-extrabold text-slate-900">{st.fullName}</p>
-                        <span className="text-[10px] text-slate-400">{roleFa[st.actorRole] || st.actorRole}</span>
+                        <span className="text-3xs text-slate-400">{roleFa[st.actorRole] || st.actorRole}</span>
                       </td>
                       <td className="p-3 text-center font-mono font-bold text-indigo-950">
                         {st.totalResolved} پرونده
@@ -866,7 +880,7 @@ export default function AdminWorkflowsClient({
                             style={{ width: `${st.productivityScore}%` }}
                           />
                         </div>
-                        <span className="text-[10px] font-mono text-slate-500 mt-0.5 block">{st.productivityScore} / ۱۰۰</span>
+                        <span className="text-3xs font-mono text-slate-500 mt-0.5 block">{st.productivityScore} / ۱۰۰</span>
                       </td>
                     </tr>
                   ))}

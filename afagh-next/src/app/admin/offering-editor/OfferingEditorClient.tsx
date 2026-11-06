@@ -2,38 +2,39 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toGregorian, toJalaliFromDate } from '@/lib/calendar';
+import { normalizeExamDate } from '@/lib/shamsi';
 import {
   listOfferingsForEditor, saveOfferingEditorAction, getRoomsForEditor,
   listEduExpertsForEditor, addEduExpertToOfferingAction, removeEduExpertFromOfferingAction,
   type OfferingEditRow,
 } from './actions';
 
-/* ── تاریخِ امتحان: ذخیره در دیتابیس میلادی است (`schedules.examDate` از نوع date)،
-   ولی همهٔ سامانه شمسی کار می‌کند. پس در فرم شمسی نشان می‌دهیم و هنگام ذخیره
-   به میلادی برمی‌گردانیم. بدون این تبدیل، تاریخی که کاربر شمسی تایپ می‌کرد
-   مستقیماً در ستونِ date نوشته می‌شد و یا رد می‌شد یا روزِ اشتباه ذخیره می‌کرد. */
+/* ── تاریخِ امتحان: `schedules.examDate` (ستون date) برچسبِ **شمسی** نگه می‌دارد
+   (`1405-10-22`)، نه میلادی. پس در فرم همان را نشان می‌دهیم و هنگام ذخیره هم
+   همان قالب را می‌نویسیم.
+   ⚠ پیش‌تر خواندن با فرض میلادی بود (`gregToJalaliInput`) و برای ردیف‌های
+   شمسی تاریخِ بی‌معنا می‌ساخت (۱۴۰۵ میلادی → ۷۸۴ شمسی)؛ و نوشتن هم میلادی
+   می‌شد که ستون را دوقالبه می‌کرد. هر دو با `normalizeExamDate` یکدست شد. */
 const FA_DIGITS = '۰۱۲۳۴۵۶۷۸۹';
 const latinize = (v: string) =>
   String(v ?? '').replace(/[۰-۹]/g, (c) => String(FA_DIGITS.indexOf(c))).replace(/[٠-٩]/g, (c) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(c)));
 
-/** 'YYYY-MM-DD' میلادی → 'YYYY/MM/DD' شمسی (برای نمایش در فرم) */
-function gregToJalaliInput(iso: string | null | undefined): string {
-  const v = String(iso ?? '').trim().slice(0, 10);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return '';
-  const d = new Date(`${v}T00:00:00`);
-  if (Number.isNaN(d.getTime())) return '';
-  const j = toJalaliFromDate(d);
-  return `${j.jy}/${String(j.jm).padStart(2, '0')}/${String(j.jd).padStart(2, '0')}`;
+/** مقدار ذخیره‌شدهٔ ستون → 'YYYY/MM/DD' شمسی برای فرم (مقاوم به هر دو قالب) */
+function storedToJalaliInput(v: string | null | undefined): string {
+  return normalizeExamDate(v) ?? '';
 }
 
-/** 'YYYY/MM/DD' شمسی (ارقام فارسی هم قبول است) → 'YYYY-MM-DD' میلادی، وگرنه null */
-function jalaliInputToGreg(value: string): string | null {
+/** 'YYYY/MM/DD' شمسی (ارقام فارسی هم قبول است) → 'YYYY-MM-DD' شمسی برای ستون، وگرنه null */
+function jalaliInputToStored(value: string): string | null {
   const m = latinize(value).trim().match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
   if (!m) return null;
   const jy = Number(m[1]), jm = Number(m[2]), jd = Number(m[3]);
   if (jm < 1 || jm > 12 || jd < 1 || jd > 31) return null;
+  // اعتبارسنجی تقویمی با تبدیل رفت‌وبرگشت (۳۱ اسفند نامعتبر است و…)
   const g = toGregorian(jy, jm, jd);
-  return `${g.gy}-${String(g.gm).padStart(2, '0')}-${String(g.gd).padStart(2, '0')}`;
+  const back = toJalaliFromDate(new Date(g.gy, g.gm - 1, g.gd));
+  if (back.jy !== jy || back.jm !== jm || back.jd !== jd) return null;
+  return `${jy}-${String(jm).padStart(2, '0')}-${String(jd).padStart(2, '0')}`;
 }
 
 const DAYS = [{ v: 0, n: 'شنبه' }, { v: 1, n: 'یک‌شنبه' }, { v: 2, n: 'دوشنبه' }, { v: 3, n: 'سه‌شنبه' }, { v: 4, n: 'چهارشنبه' }, { v: 5, n: 'پنج‌شنبه' }, { v: 6, n: 'جمعه' }];
@@ -71,7 +72,7 @@ export default function OfferingEditorClient({ terms }: { terms: { id: number; t
     setOpen(r.offeringId);
     const copy: OfferingEditRow = JSON.parse(JSON.stringify(r));
     // تاریخِ امتحان در فرم شمسی است
-    if (copy.exam?.date) copy.exam.date = gregToJalaliInput(copy.exam.date);
+    if (copy.exam?.date) copy.exam.date = storedToJalaliInput(copy.exam.date);
     setDraft(copy);
     setReason('');
     setMsg(null);
@@ -85,7 +86,7 @@ export default function OfferingEditorClient({ terms }: { terms: { id: number; t
         ? {
             id: draft.exam.id,
             // فرم شمسی است؛ ستون دیتابیس میلادی — تبدیل این‌جا انجام می‌شود.
-            date: draft.exam.date ? (jalaliInputToGreg(draft.exam.date) ?? '') : '',
+            date: draft.exam.date ? (jalaliInputToStored(draft.exam.date) ?? '') : '',
             start: draft.exam.start ?? '',
             end: draft.exam.end ?? '',
           }
@@ -137,12 +138,12 @@ export default function OfferingEditorClient({ terms }: { terms: { id: number; t
           <tbody>
             {filtered.map(r => (
               <tr key={r.offeringId} className="border-t border-slate-100">
-                <td className="p-2"><b>{r.code}</b> {r.title}<div className="text-[10px] text-slate-500">{r.professorName}</div></td>
+                <td className="p-2"><b>{r.code}</b> {r.title}<div className="text-3xs text-slate-500">{r.professorName}</div></td>
                 <td className="p-2 text-center">{r.groupNumber}</td>
                 <td className="p-2 text-center">{r.capacity}</td>
                 <td className="p-2 text-center">{r.enrolledCount}</td>
                 <td className="p-2 text-slate-600">{r.classRows.map(c => `${DAYS.find(d => d.v === c.day)?.n ?? c.day} ${c.start}–${c.end}`).join('، ') || '—'}</td>
-                <td className="p-2 text-slate-600">{r.exam ? `${gregToJalaliInput(r.exam.date) || '—'} ${r.exam.start ?? ''}` : '—'}</td>
+                <td className="p-2 text-slate-600">{r.exam ? `${storedToJalaliInput(r.exam.date) || '—'} ${r.exam.start ?? ''}` : '—'}</td>
                 <td className="p-2 text-center"><button onClick={() => edit(r)} className="rounded-lg bg-indigo-700 px-3 py-1 text-white font-bold">✏️ ویرایش</button></td>
               </tr>
             ))}
@@ -162,7 +163,7 @@ export default function OfferingEditorClient({ terms }: { terms: { id: number; t
             <p className="text-xs font-black text-indigo-800">👤 کارشناسان آموزشِ این کلاس</p>
             <div className="flex flex-wrap items-center gap-1.5">
               {draft.eduExpertUserIds.map(id => (
-                <span key={id} className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-800">
+                <span key={id} className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-2xs font-bold text-indigo-800">
                   {experts.find(x => x.userId === id)?.name ?? `#${id}`}
                   <button
                     type="button"
@@ -174,7 +175,7 @@ export default function OfferingEditorClient({ terms }: { terms: { id: number; t
                 </span>
               ))}
               {!draft.eduExpertUserIds.length && (
-                <span className="text-[11px] text-slate-500">
+                <span className="text-2xs text-slate-500">
                   {draft.roomExpertUserIds?.length
                     ? 'بدون تخصیصِ صریح برای این درس — کارشناس از اتاقِ سانس‌های همین درس می‌آید:'
                     : 'خالی = کارشناس از دامنهٔ نقش‌های او پایین می‌آید.'}
@@ -187,7 +188,7 @@ export default function OfferingEditorClient({ terms }: { terms: { id: number; t
                 .map(id => (
                   <span
                     key={`room-${id}`}
-                    className="inline-flex items-center gap-1 rounded-full bg-teal-100 border border-teal-300 px-2 py-0.5 text-[11px] font-bold text-teal-900"
+                    className="inline-flex items-center gap-1 rounded-full bg-teal-100 border border-teal-300 px-2 py-0.5 text-2xs font-bold text-teal-900"
                     title="از تخصیصِ اتاق به ارث رسیده — برای تغییر، در صفحهٔ «تخصیص کارشناس به اتاق‌ها» عوض کنید"
                   >
                     {experts.find(x => x.userId === id)?.name ?? `#${id}`}
@@ -210,7 +211,7 @@ export default function OfferingEditorClient({ terms }: { terms: { id: number; t
                   .map(x => <option key={x.userId} value={x.userId}>{x.name}</option>)}
               </select>
             </div>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-2xs text-slate-500">
               {draft.eduExpertUserIds.length
                 ? `تخصیص صریح این کلاس (${draft.eduExpertUserIds.length} کارشناس) — بر تخصیص اتاق و نقش‌ها اولویت دارد.`
                 : draft.roomExpertUserIds?.length
@@ -218,11 +219,11 @@ export default function OfferingEditorClient({ terms }: { terms: { id: number; t
                   : 'تخصیص صریحی برای این کلاس ثبت نشده و اتاقِ سانس‌ها هم کارشناس ندارد.'}
             </p>
             {!experts.length && (
-              <p className="text-[11px] text-amber-700">
+              <p className="text-2xs text-amber-700">
                 هیچ کارشناس آموزشی با نقش EDU_EXPERT ثبت نشده — ابتدا در «تخصیص نقش‌ها» اضافه کنید.
               </p>
             )}
-            <a href="/admin/edu-expert-assign" className="inline-block text-[11px] font-bold text-indigo-700 underline">
+            <a href="/admin/edu-expert-assign" className="inline-block text-2xs font-bold text-indigo-700 underline">
               📋 تخصیص گروهی برای همهٔ کلاس‌های ترم →
             </a>
           </div>
@@ -255,13 +256,13 @@ export default function OfferingEditorClient({ terms }: { terms: { id: number; t
               onChange={e => setDraft({ ...draft, exam: draft.exam ? { ...draft.exam, date: e.target.value } : { id: null, date: e.target.value, start: '', end: '' } })}
               placeholder="۱۴۰۵/۱۱/۱۰"
               title="تاریخ شمسی — مثلاً ۱۴۰۵/۱۱/۱۰"
-              className={sel + ' w-32 ' + (draft.exam?.date && !jalaliInputToGreg(draft.exam.date) ? 'border-rose-400 bg-rose-50' : '')}
+              className={sel + ' w-32 ' + (draft.exam?.date && !jalaliInputToStored(draft.exam.date) ? 'border-rose-400 bg-rose-50' : '')}
             />
-            <span className="text-[10px] font-bold text-slate-500">شمسی</span>
+            <span className="text-3xs font-bold text-slate-500">شمسی</span>
             <input type="time" value={draft.exam?.start ?? ''} onChange={e => setDraft({ ...draft, exam: draft.exam ? { ...draft.exam, start: e.target.value } : { id: null, date: '', start: e.target.value, end: '' } })} className={sel} />
             <input type="time" value={draft.exam?.end ?? ''} onChange={e => setDraft({ ...draft, exam: draft.exam ? { ...draft.exam, end: e.target.value } : { id: null, date: '', start: '', end: e.target.value } })} className={sel} />
             {draft.exam && draft.exam.date && (
-              <button onClick={() => setDraft({ ...draft, exam: null })} className="text-[11px] text-rose-600 font-bold">حذف امتحان</button>
+              <button onClick={() => setDraft({ ...draft, exam: null })} className="text-2xs text-rose-600 font-bold">حذف امتحان</button>
             )}
           </div>
           <input value={reason} onChange={e => setReason(e.target.value)} placeholder="دلیل در صورت تداخل (حکم/مجوز) — در غیر این صورت خالی…" className={sel + ' w-full'} />

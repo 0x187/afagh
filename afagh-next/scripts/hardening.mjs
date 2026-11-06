@@ -214,13 +214,15 @@ try {
     'users','students','staff','sessions','enrollments','cart_items','notifications','student_requests',
     'transcript_snapshots','student_ledger','financial_clearances','seat_allocations',
     'student_class_attendance','student_documents','military_service_records','kyc_verifications',
-    'grade_appeals','grade_submission_otps','signature_otps','doc_sign_otps','professor_term_contracts',
+    'grade_appeals','grade_objections','grade_submission_otps','signature_otps','doc_sign_otps','professor_term_contracts',
     'professor_class_attendance','professor_exam_attendance','electronic_documents','payroll_statements',
     'exam_minutes','physical_access_logs','request_step_logs','request_parallel_checkpoints', // ۲۸ حساس
     'professor_availability_notes','professor_availabilities',
     'grade_change_log',
     'system_settings','integrations_config','audit_logs','api_audit_logs','admissions_staging',
     'person_source_identities','sanjesh_mappings','evaluation_responses','verification_otps','step_api_actions','document_signatures',
+    // ماژول سازمان سنجش (مهاجرت 0128) — دادهٔ خام داوطلبان، deny-all
+    'sanjesh_templates','sanjesh_files','sanjesh_file_fields','sanjesh_file_rows','sanjesh_value_maps',
     'curriculum_approvals', // ۱۲ deny-all (چرخهٔ تأیید برنامهٔ درسی: دفتر ممیزیِ فقط-مالک)
     'thesis_progress','thesis_progress_reports','defense_sessions','irandoc_logs','defense_jury_pools',
     // ── ۲۷ جدولِ بخش ⑧ pg-hardening.sql که پیش‌تر در هیچ دروازه‌ای سنجیده نمی‌شدند ──
@@ -248,6 +250,8 @@ try {
     'teaching_role_defs',
     'classroom_edu_experts',
     'course_offering_edu_experts',
+    // گزارش‌ساز (مهاجرت 0134) — «تعریفِ گزارش»؛ مالک/نقش/عمومی. دادهٔ دانشجویی ندارد.
+    'saved_reports',
   ];
   const checks = await client.query(
     `SELECT c.relname AS table_name, c.relrowsecurity AS rls_enabled

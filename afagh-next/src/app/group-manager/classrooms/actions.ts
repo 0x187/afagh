@@ -41,6 +41,8 @@ export async function saveClassroomAction(
     }
     const isActiveRaw = fd.get('isActive');
     const isActive = isActiveRaw == null ? 1 : (Number(isActiveRaw) ? 1 : 0);
+    const isExamHall = fd.get('isExamHall') == null ? 0 : 1;
+    const examCapacity = num(fd, 'examCapacity') || null;
     // دانشکده — جای «ساختمان» (ساختمان در سامانه تعریف ندارد)؛ فقط دانشکدهٔ همین دانشگاه
     let facultyId: number | null = null;
     let facultyName: string | null = null;
@@ -60,7 +62,7 @@ export async function saveClassroomAction(
     }
     // نام دانشکده در ستون قدیمی `buildingName` هم نوشته می‌شود تا صفحه‌هایی که
     // هنوز «ساختمان» را نمایش می‌دهند خالی نمانند (منبع حقیقت: facultyId).
-    const vals = { name, code, capacity: cap, roomType: str(fd, 'roomType') || null, facultyId, buildingName: facultyName, floor: str(fd, 'floor') || null, rowsCount: num(fd, 'rows') || null, colsCount: num(fd, 'cols') || null, isActive };
+    const vals = { name, code, capacity: cap, roomType: str(fd, 'roomType') || null, facultyId, buildingName: facultyName, floor: str(fd, 'floor') || null, rowsCount: num(fd, 'rows') || null, colsCount: num(fd, 'cols') || null, isActive, isExamHall, examCapacity };
     if (id) {
       await db.update(classrooms).set(vals).where(eq(classrooms.id, id));
     } else {

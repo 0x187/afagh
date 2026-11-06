@@ -1,12 +1,12 @@
 'use server';
 
 import { db } from '@/db';
-import { samin_staging, students, users, universities } from '@/db/schema';
+import { samin_staging, students } from '@/db/schema';
 import { requireRole } from '@/lib/auth';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { revalidatePath } from 'next/cache';
 import { buildSaminPayloadForStudent } from '@/lib/samin/samin-mapper';
-import { saminBulkImport } from '@/lib/samin/client';
+import { saminBulkImport, type SaminBulkResult } from '@/lib/samin/client';
 
 export async function enqueueForSamin(universityId: number): Promise<{ inserted: number; skipped: number }> {
   await requireRole(['ADMIN']);
@@ -15,22 +15,45 @@ export async function enqueueForSamin(universityId: number): Promise<{ inserted:
   // اگر هیچ دانشجویی با universityId نداشتیم (دادهٔ قدیم)، برای سازگاری همه را برای AFAGH در نظر می‌گیریم
   const ids = studs.length ? studs.map(s => s.id) : [];
 
+  // ⚡ پیش‌تر برای هر دانشجو یک SELECT «تکراری است؟» و یک INSERT جدا می‌رفت
+  // (تا ۵۰۰۰ دانشجو ⇒ تا ۱۰٬۰۰۰ رفت‌وبرگشتِ شبکه). حالا کلیدهای موجود یک‌بار
+  // خوانده می‌شوند و درج‌ها دسته‌ای (۵۰۰تایی) انجام می‌شود.
+  const existingRows = await db
+    .select({ pk: samin_staging.personPkInSource })
+    .from(samin_staging)
+    .where(and(eq(samin_staging.universityId, universityId), eq(samin_staging.entityCode, '1000')));
+  const existing = new Set(existingRows.map(r => String(r.pk ?? '')));
+
   let inserted = 0; let skipped = 0;
+  const values: {
+    universityId: number; entityCode: string; personPkInSource: string;
+    studentPkInSource: string; payload: Record<string, unknown>; status: string;
+  }[] = [];
+
   for (const sid of ids) {
     const payload = await buildSaminPayloadForStudent(sid);
     if (!payload) { skipped++; continue; }
     const pk = String(payload.person_pk_in_source || sid);
-    const [ex] = await db.select({ id: samin_staging.id }).from(samin_staging).where(and(eq(samin_staging.universityId, universityId), eq(samin_staging.entityCode, '1000'), eq(samin_staging.personPkInSource, pk))).limit(1);
-    if (ex) { skipped++; continue; }
-    await db.insert(samin_staging).values({
+    if (existing.has(pk)) { skipped++; continue; }
+    // کلید تازه در همان دسته هم نباید دوباره درج شود
+    existing.add(pk);
+    values.push({
       universityId,
       entityCode: '1000',
       personPkInSource: pk,
       studentPkInSource: String(payload.student_pk_in_source || sid),
-      payload: payload as any,
+      payload,
       status: 'PENDING',
-    }).onConflictDoNothing();
-    inserted++;
+    });
+  }
+
+  // درج دسته‌ای؛ شمارش از خروجی واقعی (نه از تعداد تلاش) تا با onConflict هم‌خوان باشد
+  for (let i = 0; i < values.length; i += 500) {
+    const chunk = values.slice(i, i + 500);
+    const done = await db.insert(samin_staging).values(chunk)
+      .onConflictDoNothing()
+      .returning({ id: samin_staging.id });
+    inserted += done.length;
   }
   revalidatePath('/admin/samin');
   return { inserted, skipped };
@@ -41,13 +64,16 @@ export async function sendToSamin(universityId: number, entityCode: string) {
   const batch = await db.select().from(samin_staging).where(and(eq(samin_staging.universityId, universityId), eq(samin_staging.entityCode, entityCode), eq(samin_staging.status, 'PENDING'))).limit(50);
   if (!batch.length) throw new Error('صفی برای ارسال نیست — ابتدا آماده‌سازی را بزنید');
 
-  const data_object = batch.map(r => (r.payload as any));
-  const res: any = await saminBulkImport(universityId, { data_object, entity_code: entityCode, import_type_code: '0' });
+  // payload در DB از نوع jsonb است (unknown) و امضای client هم unknown[] می‌خواهد
+  const data_object: unknown[] = batch.map(r => r.payload);
+  const res: SaminBulkResult =
+    await saminBulkImport(universityId, { data_object, entity_code: entityCode, import_type_code: '0' });
 
   const traceId = Number(res.trace_id ?? res.traceId ?? 0) || null;
-  for (const r of batch) {
-    await db.update(samin_staging).set({ status: 'SENT', traceId, sentAt: new Date() }).where(eq(samin_staging.id, r.id));
-  }
+  // یک UPDATE دسته‌ای به‌جای ۵۰ آپدیت تک‌ردیفی (همهٔ ردیف‌ها همان وضعیت/زمان را می‌گیرند)
+  await db.update(samin_staging)
+    .set({ status: 'SENT', traceId, sentAt: new Date() })
+    .where(inArray(samin_staging.id, batch.map(r => r.id)));
   revalidatePath('/admin/samin');
   return res;
 }
@@ -83,24 +109,22 @@ export async function sendSampleGraduatesToSamin(universityId: number, count = 2
     const payload = await buildSaminPayloadForStudent(r.id);
     if (!payload) continue;
     batch.push({
-      pk: String((payload as any).person_pk_in_source || r.id),
-      studentPk: String((payload as any).student_pk_in_source || r.id),
-      payload: payload as Record<string, unknown>,
+      pk: String(payload.person_pk_in_source || r.id),
+      studentPk: String(payload.student_pk_in_source || r.id),
+      payload,
     });
   }
   if (!batch.length) throw new Error('ساخت payload برای نمونه‌ها ناموفق بود (دادهٔ دانشجو ناقص است).');
 
-  // ثبت در همان صف تا در صفحه قابل رصد باشد (تکراری‌ها بی‌اثر)
-  for (const b of batch) {
-    await db.insert(samin_staging).values({
-      universityId,
-      entityCode: '1000',
-      personPkInSource: b.pk,
-      studentPkInSource: b.studentPk,
-      payload: b.payload as any,
-      status: 'PENDING',
-    }).onConflictDoNothing();
-  }
+  // ثبت در همان صف تا در صفحه قابل رصد باشد (تکراری‌ها بی‌اثر) — یک درجِ دسته‌ای
+  await db.insert(samin_staging).values(batch.map(b => ({
+    universityId,
+    entityCode: '1000',
+    personPkInSource: b.pk,
+    studentPkInSource: b.studentPk,
+    payload: b.payload,
+    status: 'PENDING',
+  }))).onConflictDoNothing();
 
   const res: any = await saminBulkImport(universityId, {
     data_object: batch.map((b) => b.payload),
@@ -109,14 +133,14 @@ export async function sendSampleGraduatesToSamin(universityId: number, count = 2
   });
 
   const traceId = Number(res?.trace_id ?? res?.traceId ?? 0) || null;
-  for (const b of batch) {
-    await db.update(samin_staging).set({ status: 'SENT', traceId, sentAt: new Date() })
-      .where(and(
-        eq(samin_staging.universityId, universityId),
-        eq(samin_staging.entityCode, '1000'),
-        eq(samin_staging.personPkInSource, b.pk),
-      ));
-  }
+  // یک UPDATE برای کل دسته (کلید یکتای staging: university+entity+personPk)
+  await db.update(samin_staging)
+    .set({ status: 'SENT', traceId, sentAt: new Date() })
+    .where(and(
+      eq(samin_staging.universityId, universityId),
+      eq(samin_staging.entityCode, '1000'),
+      inArray(samin_staging.personPkInSource, batch.map(b => b.pk)),
+    ));
   revalidatePath('/admin/samin');
   return { sent: batch.length, ...res };
 }

@@ -116,7 +116,7 @@ export default function ProfessorScheduleClient({ professor, termTitle, initialO
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-400 text-slate-950 print:border print:border-black">
+              <span className="px-2.5 py-0.5 rounded-full text-2xs font-bold bg-emerald-400 text-slate-950 print:border print:border-black">
                 برنامه آموزشی مصوب
               </span>
               <span className="text-xs text-indigo-200 print:text-slate-700">
@@ -135,13 +135,13 @@ export default function ProfessorScheduleClient({ professor, termTitle, initialO
             >
               <span>🖨️ چاپ برنامه هفتگی</span>
             </button>
-            <Link
+            <Link prefetch={false}
               href="/professor/attendance"
               className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow transition"
             >
               📋 ثبت حضور و غیاب
             </Link>
-            <Link
+            <Link prefetch={false}
               href="/professor/grades"
               className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow transition"
             >
@@ -285,7 +285,7 @@ export default function ProfessorScheduleClient({ professor, termTitle, initialO
         )}
 
         {scheduledRows.length > 0 && (
-          <ProfessorCalendarGrid entries={calendarEntries} />
+          <ProfessorCalendarGrid entries={calendarEntries} orientation="days-rows" />
         )}
 
         {unscheduled.length > 0 && (
@@ -293,11 +293,11 @@ export default function ProfessorScheduleClient({ professor, termTitle, initialO
             <h4 className="text-xs font-extrabold text-amber-900">
               کلاس‌های بدون ساعت‌بندی ثبت‌شده ({faNum(uniqueIds(unscheduled))} کلاس)
             </h4>
-            <p className="text-[11px] text-amber-800 leading-5">
+            <p className="text-2xs text-amber-800 leading-5">
               این کلاس‌ها در نیمسال جاری به شما تخصیص یافته‌اند، اما هنوز روز و ساعتی برایشان
               در جدول زمان‌بندی ثبت نشده است؛ به همین دلیل در جدول بالا دیده نمی‌شوند.
             </p>
-            <ul className="space-y-1 text-[11px] font-bold text-amber-900">
+            <ul className="space-y-1 text-2xs font-bold text-amber-900">
               {unscheduled.map(o => (
                 <li key={`${o.id}-${o.weekType}-unscheduled`}>
                   {o.code} · {o.title} (گروه {faNum(o.groupNumber)} · {faNum(o.units)} واحد)
@@ -344,7 +344,7 @@ export default function ProfessorScheduleClient({ professor, termTitle, initialO
                   <td className="p-2 border border-slate-200 font-extrabold text-slate-900">
                     <div>{item.title}</div>
                     {item.isCoTaught && (
-                      <div className="text-[10px] text-purple-700 font-bold">
+                      <div className="text-3xs text-purple-700 font-bold">
                         👥 درس مشترک با {item.coPartnerName} ({item.coRole === 'THEORY' ? 'بخش تئوری' : 'بخش عملی'})
                       </div>
                     )}
@@ -352,14 +352,14 @@ export default function ProfessorScheduleClient({ professor, termTitle, initialO
                   <td className="p-2 border border-slate-200 text-center font-bold">گروه {faNum(item.groupNumber)}</td>
                   <td className="p-2 border border-slate-200 text-center font-bold">{faNum(item.units)}</td>
                   <td className="p-2 border border-slate-200 text-center">
-                    <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${item.courseType === 'عملی' ? 'bg-amber-100 text-amber-900' : 'bg-blue-100 text-blue-900'}`}>
+                    <span className={`px-2 py-0.5 rounded font-bold text-3xs ${item.courseType === 'عملی' ? 'bg-amber-100 text-amber-900' : 'bg-blue-100 text-blue-900'}`}>
                       {item.courseType}
                     </span>
                   </td>
                   <td className="p-2 border border-slate-200 font-bold text-slate-800">
                     {item.dayName ? `${item.dayName} ${faNum(item.startTime)} الی ${faNum(item.endTime)}` : 'زمان‌بندی ثبت نشده'}
                     {sessionsOf(item.id) > 1 && (
-                      <div className="text-[10px] font-normal text-slate-500">
+                      <div className="text-3xs font-normal text-slate-500">
                         {faNum(sessionsOf(item.id))} جلسه در هفته
                       </div>
                     )}
@@ -372,21 +372,21 @@ export default function ProfessorScheduleClient({ professor, termTitle, initialO
                   </td>
                   <td className="p-2 border border-slate-200 text-center">
                     <div className="flex items-center justify-center gap-1.5">
-                      <Link
+                      <Link prefetch={false}
                         href={`/professor/attendance?offeringId=${item.id}`}
-                        className="px-2 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-bold text-[10px] transition"
+                        className="px-2 py-1 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-900 font-bold text-3xs transition"
                       >
                         📋 حضور و غیاب
                       </Link>
-                      <Link
+                      <Link prefetch={false}
                         href={`/professor/grades?offeringId=${item.id}`}
-                        className="px-2 py-1 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold text-[10px] transition"
+                        className="px-2 py-1 rounded-lg bg-indigo-100 hover:bg-indigo-200 text-indigo-900 font-bold text-3xs transition"
                       >
                         📝 ثبت نمره
                       </Link>
-                      <Link
+                      <Link prefetch={false}
                         href={`/professor/lesson-plan/${item.id}`}
-                        className="px-2 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-[10px] transition"
+                        className="px-2 py-1 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-900 font-bold text-3xs transition"
                       >
                         📋 طرح درس
                       </Link>

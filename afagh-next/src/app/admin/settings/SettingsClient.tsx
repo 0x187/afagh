@@ -4,10 +4,20 @@ import React, { useMemo, useState, useTransition } from 'react';
 import { resetSettingAction, saveSettingsAction, uploadLogoAction } from '@/lib/settings-actions';
 import { backupDatabaseAction, listMinioObjectsAction, downloadMinioObjectAction, restoreDatabaseAction, restoreMinioObjectAction, getBackupStatsAction } from './backup-actions';
 import { SECRET_MASK, type SettingView } from '@/lib/settings-shared';
+import { askConfirm } from '@/lib/ui-feedback';
 
 interface Props {
   settings: SettingView[];
   groups: string[];
+  /**
+   * پنل «داده‌های پایه» (مدیریت کلاس‌ها و…) به‌صورت گرهٔ آماده از سرور.
+   *
+   * ⚠ پیش‌تر این پنل در `page.tsx` زیرِ کل صفحه با `<details open>` رندر
+   * می‌شد؛ نتیجه اینکه با کلیک روی **هر** تبِ پیکربندی، فرم مدیریت کلاس‌ها هم
+   * انتهای صفحه باز بود و کاربر فکر می‌کرد دکمه‌ها درست کار نمی‌کنند. حالا
+   * تبِ مستقل خودش را دارد و فقط با انتخاب همان دکمه دیده می‌شود.
+   */
+  baseData?: React.ReactNode;
 }
 
 function BackupRestorePanel({ flash }: { flash: (ok: boolean, text: string) => void }) {
@@ -71,7 +81,8 @@ function BackupRestorePanel({ flash }: { flash: (ok: boolean, text: string) => v
       const file = input.files?.[0];
       if (!file) return;
       const text = await file.text();
-      if (!confirm('آیا از بازیابی دیتابیس مطمئنید؟ تمام داده‌های فعلی جایگزین می‌شوند.')) return;
+      const ok = await askConfirm({ title: 'بازیابی دیتابیس', body: 'آیا از بازیابی دیتابیس مطمئنید؟ تمام داده‌های فعلی جایگزین می‌شوند.', confirmText: 'بازیابی کن', danger: true });
+      if (!ok) return;
       startTransition(async () => {
         const r = await restoreDatabaseAction(text);
         if (r.ok) flash(true, `بازیابی انجام شد (${r.statements} دستور اجرا شد)`);
@@ -102,7 +113,7 @@ function BackupRestorePanel({ flash }: { flash: (ok: boolean, text: string) => v
             ].map(s => (
               <div key={s.label} className="bg-slate-50 rounded-lg p-3 border border-slate-200">
                 <div className="text-lg font-black text-indigo-700">{s.value}</div>
-                <div className="text-[11px] text-slate-500 mt-1">{s.label}</div>
+                <div className="text-2xs text-slate-500 mt-1">{s.label}</div>
               </div>
             ))}
           </div>
@@ -185,7 +196,7 @@ function LogoUploader({ current, pending, flash }: { current: string; pending: b
   return (
     <div className="flex items-center gap-3 w-full">
       <div className="w-16 h-16 shrink-0 rounded-lg border border-slate-300 bg-slate-50 flex items-center justify-center overflow-hidden">
-        {current ? <img src={current} alt="ارم فعلی" className="max-w-full max-h-full object-contain" /> : <span className="text-[10px] text-slate-400">بدون ارم</span>}
+        {current ? <img src={current} alt="ارم فعلی" className="max-w-full max-h-full object-contain" /> : <span className="text-3xs text-slate-400">بدون ارم</span>}
       </div>
       <form
         className="flex items-center gap-2"
@@ -209,9 +220,18 @@ function LogoUploader({ current, pending, flash }: { current: string; pending: b
   );
 }
 
-export default function SettingsClient({ settings, groups }: Props) {
+export default function SettingsClient({ settings, groups, baseData }: Props) {
   const [activeGroup, setActiveGroup] = useState<string>(groups[0]);
-  const [showBackup, setShowBackup] = useState(false);
+  /**
+   * تب فعال — سه حالت:
+   *   • 'settings' → تنظیمات گروه انتخاب‌شده (`activeGroup`)
+   *   • 'base'     → داده‌های پایه (مدیریت کلاس‌ها)
+   *   • 'backup'   → پشتیبان‌گیری و بازیابی
+   * پیش‌تر دو بولی جدا (`showBackup`) و یک `<details open>` بیرون از این
+   * کامپوننت بود؛ نتیجه اینکه داده‌های پایه همیشه انتهای صفحه باز می‌ماند و
+   * تفکیک تب‌ها به‌هم می‌ریخت.
+   */
+  const [tab, setTab] = useState<'settings' | 'base' | 'backup'>('settings');
   const [values, setValues] = useState<Record<string, string>>(
     () => Object.fromEntries(settings.map(s => [s.key, s.value])),
   );
@@ -288,9 +308,9 @@ export default function SettingsClient({ settings, groups }: Props) {
           return (
             <button
               key={g}
-              onClick={() => { setActiveGroup(g); setShowBackup(false); }}
+              onClick={() => { setActiveGroup(g); setTab('settings'); }}
               className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${
-                activeGroup === g && !showBackup
+                activeGroup === g && tab === 'settings'
                   ? 'bg-indigo-700 text-white border-indigo-700'
                   : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
               }`}
@@ -299,10 +319,22 @@ export default function SettingsClient({ settings, groups }: Props) {
             </button>
           );
         })}
+        {baseData && (
+          <button
+            onClick={() => setTab('base')}
+            className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${
+              tab === 'base'
+                ? 'bg-sky-700 text-white border-sky-700'
+                : 'bg-white text-sky-700 border-sky-200 hover:bg-sky-50'
+            }`}
+          >
+            🏫 داده‌های پایه (کلاس‌ها)
+          </button>
+        )}
         <button
-          onClick={() => setShowBackup(true)}
+          onClick={() => setTab('backup')}
           className={`px-4 py-2 rounded-xl text-sm font-bold border transition-colors ${
-            showBackup
+            tab === 'backup'
               ? 'bg-emerald-600 text-white border-emerald-600'
               : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'
           }`}
@@ -311,8 +343,10 @@ export default function SettingsClient({ settings, groups }: Props) {
         </button>
       </div>
 
-      {showBackup ? (
+      {tab === 'backup' ? (
         <BackupRestorePanel flash={flash} />
+      ) : tab === 'base' ? (
+        baseData
       ) : (
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="divide-y divide-slate-100">
@@ -323,14 +357,14 @@ export default function SettingsClient({ settings, groups }: Props) {
                 <div className="md:w-1/3 mb-2 md:mb-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="font-bold text-slate-800">{s.label}</span>
-                    <span className={`text-[11px] px-2 py-0.5 rounded-full border ${badge.cls}`}>{badge.text}</span>
+                    <span className={`text-2xs px-2 py-0.5 rounded-full border ${badge.cls}`}>{badge.text}</span>
                     {s.envOnly && (
-                      <span className="text-[11px] px-2 py-0.5 rounded-full border bg-amber-100 text-amber-800 border-amber-300">
+                      <span className="text-2xs px-2 py-0.5 rounded-full border bg-amber-100 text-amber-800 border-amber-300">
                         فقط ENV
                       </span>
                     )}
                   </div>
-                  <div className="text-[11px] text-slate-500 font-mono mt-1 ltr:text-left" dir="ltr">
+                  <div className="text-2xs text-slate-500 font-mono mt-1 ltr:text-left" dir="ltr">
                     {s.key} · ENV: {s.env}
                   </div>
                   {s.help && <p className="text-xs text-slate-500 mt-1 leading-6">{s.help}</p>}

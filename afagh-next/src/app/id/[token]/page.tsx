@@ -49,7 +49,7 @@ export default async function StudentCardGatePage({ params }: { params: Promise<
             </div>
           </div>
           <div className="pt-4 text-center">
-            <Link href="/id" className="text-xs text-indigo-400 hover:underline">← بازگشت به اسکنر حراست</Link>
+            <Link prefetch={false} href="/id" className="text-xs text-indigo-400 hover:underline">← بازگشت به اسکنر حراست</Link>
           </div>
         </div>
       </div>
@@ -98,11 +98,11 @@ export default async function StudentCardGatePage({ params }: { params: Promise<
               </div>
               <div className="space-y-1">
                 {res.degreeLevel && (
-                  <span className="rounded bg-indigo-900/80 px-2 py-0.5 text-[10px] font-bold text-indigo-300">{res.degreeLevel}</span>
+                  <span className="rounded bg-indigo-900/80 px-2 py-0.5 text-3xs font-bold text-indigo-300">{res.degreeLevel}</span>
                 )}
                 <h3 className="text-base font-black text-white">{res.fullName}</h3>
                 <p className="font-bold text-slate-300">{res.majorName ?? 'رشتهٔ ثبت‌نشده'}</p>
-                <p className="font-mono text-[11px] text-slate-400">ورودی: {faNum(res.entranceYear)}</p>
+                <p className="font-mono text-2xs text-slate-400">ورودی: {faNum(res.entranceYear)}</p>
               </div>
             </div>
 
@@ -117,7 +117,7 @@ export default async function StudentCardGatePage({ params }: { params: Promise<
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-400">شناسهٔ RFID:</span>
-                <span className="font-mono text-[10px] text-slate-400" dir="ltr">{res.rfidSerialNumber ?? '—'}</span>
+                <span className="font-mono text-3xs text-slate-400" dir="ltr">{res.rfidSerialNumber ?? '—'}</span>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-400">وضعیت تحصیلی:</span>
@@ -143,14 +143,14 @@ export default async function StudentCardGatePage({ params }: { params: Promise<
               </div>
             )}
 
-            <div className="pt-1 text-center font-mono text-[10px] text-slate-500">
+            <div className="pt-1 text-center font-mono text-3xs text-slate-500">
               استعلام زنده از پایگاه دادهٔ مرکزی · {new Date(res.checkedAt).toLocaleString('fa-IR')}
             </div>
           </div>
         </div>
 
         <div className="pt-4 text-center">
-          <Link href="/id" className="text-xs text-indigo-400 hover:underline">← بازگشت به اسکنر دوربین حراست</Link>
+          <Link prefetch={false} href="/id" className="text-xs text-indigo-400 hover:underline">← بازگشت به اسکنر دوربین حراست</Link>
         </div>
       </div>
     </div>

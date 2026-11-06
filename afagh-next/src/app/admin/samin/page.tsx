@@ -43,7 +43,7 @@ export default async function SaminPage({ searchParams }: { searchParams: Promis
               className={`text-xs px-3 py-1 rounded border flex items-center gap-1 ${u.code === activeUni?.code ? 'bg-indigo-600 text-white border-indigo-600' : 'bg-white hover:bg-slate-50'}`}
             >
               {u.title} ({u.code})
-              <span className={`px-1 rounded text-[10px] tabular-nums ${u.code === activeUni?.code ? 'bg-white/25' : (queueByUni.get(u.id) ?? 0) > 0 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-500'}`}>
+              <span className={`px-1 rounded text-3xs tabular-nums ${u.code === activeUni?.code ? 'bg-white/25' : (queueByUni.get(u.id) ?? 0) > 0 ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-500'}`}>
                 {(queueByUni.get(u.id) ?? 0).toLocaleString('fa-IR')}
               </span>
             </a>

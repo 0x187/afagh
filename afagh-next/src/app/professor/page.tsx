@@ -20,6 +20,7 @@ import { getSetting } from '@/lib/settings';
 import { getStaffByUser, requireRole } from '@/lib/auth';
 import VirtualClassroomWidget from '@/components/VirtualClassroomWidget';
 import MessengerOnboardBanner from '@/components/MessengerOnboardBanner';
+import PanelHero from '@/components/PanelHero';
 import { getTodayLiveClasses, hasVirtualClassroomSetup } from '@/lib/moodle-bbb';
 import { professorTermFilter } from '@/lib/professor-term-filter';
 import {
@@ -207,21 +208,32 @@ export default async function ProfessorHome() {
         />
       )}
 
-      {/* ── نوار وضعیت (جانشین چهار کادر حذف‌شدهٔ سربرگ) ──────────────────
-          یک ردیف باریک، چهار ستون مساوی: آیکن + مقدار + برچسب کوتاه.
-          ارتفاع کل ~۵۶px در برابر ~۱۳۵px کادرهای قبلی در سربرگ. */}
-      <div className="print:hidden grid grid-cols-4 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs [&>*+*]:border-r [&>*+*]:border-slate-200">
-        {stats.map(s => (
-          <div key={s.label} className="min-w-0 px-1.5 py-2.5 text-center" title={s.title}>
-            <div className="text-base leading-none" aria-hidden>{s.icon}</div>
-            <div className={`mt-1 truncate text-[11px] font-extrabold leading-tight ${s.tone}`}>{s.value}</div>
-            <div className="truncate text-[10px] leading-tight text-slate-500">{s.label}</div>
-          </div>
-        ))}
+      {/* ── ویترینِ صفحهٔ اول ────────────────────────────────────────────────
+          پیش‌تر یک نوارِ چهارکاشیِ تخت بود که هم بی‌عنوان شروع می‌شد و هم از
+          سربرگ جدا افتاده بود؛ حالا عنوان/نیمسال و همان چهار عدد در یک بلوکِ
+          واحد و هم‌تراز با ویترینِ سه کارتابل دیگر. */}
+      <PanelHero
+        tone="indigo"
+        icon="🎓"
+        eyebrow="کارتابل استاد"
+        title="میز کار استاد"
+        subtitle={
+          term?.title
+            ? `نیمسال جاری: ${term.title} — خلاصهٔ تدریس، حضور، قرارداد و مهلت نمرات شما`
+            : 'نیمسال جاری برای شما تعیین نشده است؛ در صورت نیاز با آموزش تماس بگیرید.'
+        }
+        stats={stats.map(s => ({ label: s.label, value: s.value, tone: s.tone, title: s.title }))}
+      />
+
+      {/* عنوانِ بخشِ دسترسی سریع — پیش‌تر شبکهٔ کاشی‌ها بدون سرفصل شروع می‌شد
+          و در موبایل معلوم نبود این کاشی‌ها «میان‌بر»اند یا محتوای صفحه. */}
+      <div className="print:hidden flex items-center justify-between gap-2 border-b border-slate-100 pb-1.5">
+        <h2 className="text-xs font-extrabold text-slate-900 sm:text-sm">دسترسی سریع</h2>
+        <span className="text-3xs font-bold text-slate-400">۱۱ میان‌بر</span>
       </div>
 
       <div className="print:hidden grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-2.5 sm:gap-4">
-        <Link
+        <Link prefetch={false}
           href="/professor/schedule"
           className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-indigo-400 hover:shadow-md transition space-y-2 group"
         >
@@ -229,29 +241,43 @@ export default async function ProfessorHome() {
             🗓️
           </div>
           <div>
-            <h3 className="font-extrabold text-[11px] sm:text-sm text-slate-900 leading-tight">برنامه هفتگی</h3>
-            <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 leading-4">
+            <h3 className="font-extrabold text-2xs sm:text-sm text-slate-900 leading-tight">برنامه هفتگی</h3>
+            <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 leading-4">
               مشاهده روزها، ساعات تشکیل، شماره کلاس فیزیکی و تواتر زوج/فرد
             </p>
           </div>
         </Link>
 
-        <Link
+        <Link prefetch={false}
+          href="/professor/virtual-classes"
+          className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-sky-400 hover:shadow-md transition space-y-2 group"
+        >
+          <div className="w-10 h-10 rounded-2xl bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-lg group-hover:scale-110 transition">
+            📡
+          </div>
+          <div>
+            <h3 className="font-extrabold text-2xs sm:text-sm text-slate-900 leading-tight">کلاس آنلاین</h3>
+            <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 leading-4">
+              تعریف جلسهٔ BigBlueButton برای هر کلاس و ورود به اتاق
+            </p>
+          </div>
+        </Link>
+
+        <Link prefetch={false}
           href="/professor/attendance"
           className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-emerald-400 hover:shadow-md transition space-y-2 group"
-        >
-          <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-lg group-hover:scale-110 transition">
+        >          <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-lg group-hover:scale-110 transition">
             📋
           </div>
           <div>
-            <h3 className="font-extrabold text-[11px] sm:text-sm text-slate-900 leading-tight">حضور و غیاب</h3>
-            <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 leading-4">
+            <h3 className="font-extrabold text-2xs sm:text-sm text-slate-900 leading-tight">حضور و غیاب</h3>
+            <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 leading-4">
               ثبت وضعیت هر جلسه، تاخیر، غیبت موجه و هشدار ماده ۳/۱۶
             </p>
           </div>
         </Link>
 
-        <Link
+        <Link prefetch={false}
           href="/professor/grades"
           className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-purple-400 hover:shadow-md transition space-y-2 group"
         >
@@ -259,14 +285,14 @@ export default async function ProfessorHome() {
             📝
           </div>
           <div>
-            <h3 className="font-extrabold text-[11px] sm:text-sm text-slate-900 leading-tight">ثبت نمرات</h3>
-            <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 leading-4">
+            <h3 className="font-extrabold text-2xs sm:text-sm text-slate-900 leading-tight">ثبت نمرات</h3>
+            <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 leading-4">
               تعیین سهم میان‌ترم و پایان‌ترم (جمع ۲۰)، نمرات مشترک و رسیدگی به اعتراضات
             </p>
           </div>
         </Link>
 
-        <Link
+        <Link prefetch={false}
           href="/professor/contract"
           className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-amber-400 hover:shadow-md transition space-y-2 group"
         >
@@ -274,14 +300,14 @@ export default async function ProfessorHome() {
             📑
           </div>
           <div>
-            <h3 className="font-extrabold text-[11px] sm:text-sm text-slate-900 leading-tight">قرارداد و مالی</h3>
-            <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 leading-4">
+            <h3 className="font-extrabold text-2xs sm:text-sm text-slate-900 leading-tight">قرارداد و مالی</h3>
+            <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 leading-4">
               مشاهده فرم رسمی، جزئیات مالی، نرخ هر ساعت و امضای دیجیتال
             </p>
           </div>
         </Link>
 
-        <Link
+        <Link prefetch={false}
           href="/professor/availability"
           className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-teal-400 hover:shadow-md transition space-y-2 group"
         >
@@ -289,14 +315,14 @@ export default async function ProfessorHome() {
             ⏰
           </div>
           <div>
-            <h3 className="font-extrabold text-[11px] sm:text-sm text-slate-900 leading-tight">ساعات حضور</h3>
-            <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 leading-4">
+            <h3 className="font-extrabold text-2xs sm:text-sm text-slate-900 leading-tight">ساعات حضور</h3>
+            <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 leading-4">
               اعلام بازه‌های زمانی حضور در ترم
             </p>
           </div>
         </Link>
 
-        <Link
+        <Link prefetch={false}
           href="/professor/performance"
           className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-sky-400 hover:shadow-md transition space-y-2 group"
         >
@@ -304,14 +330,14 @@ export default async function ProfessorHome() {
             📊
           </div>
           <div>
-            <h3 className="font-extrabold text-[11px] sm:text-sm text-slate-900 leading-tight">عملکرد</h3>
-            <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 leading-4">
+            <h3 className="font-extrabold text-2xs sm:text-sm text-slate-900 leading-tight">عملکرد</h3>
+            <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 leading-4">
               کارنامه عملکرد تدریس و ارزیابی‌ها
             </p>
           </div>
         </Link>
 
-        <Link
+        <Link prefetch={false}
           href="/professor/evaluation"
           className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-rose-400 hover:shadow-md transition space-y-2 group"
         >
@@ -319,14 +345,14 @@ export default async function ProfessorHome() {
             📈
           </div>
           <div>
-            <h3 className="font-extrabold text-[11px] sm:text-sm text-slate-900 leading-tight">ارزشیابی</h3>
-            <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 leading-4">
+            <h3 className="font-extrabold text-2xs sm:text-sm text-slate-900 leading-tight">ارزشیابی</h3>
+            <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 leading-4">
               ارزشیابی دانشجویان هر کلاس
             </p>
           </div>
         </Link>
 
-        <Link
+        <Link prefetch={false}
           href="/professor/broadcast"
           className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-indigo-400 hover:shadow-md transition space-y-2 group"
         >
@@ -334,14 +360,14 @@ export default async function ProfessorHome() {
             📣
           </div>
           <div>
-            <h3 className="font-extrabold text-[11px] sm:text-sm text-slate-900 leading-tight">پیام به کلاس</h3>
-            <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 leading-4">
+            <h3 className="font-extrabold text-2xs sm:text-sm text-slate-900 leading-tight">پیام به کلاس</h3>
+            <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 leading-4">
               ارسال پیام به دانشجویان کلاس‌های شما
             </p>
           </div>
         </Link>
 
-        <Link
+        <Link prefetch={false}
           href="/professor/documents"
           className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-slate-400 hover:shadow-md transition space-y-2 group"
         >
@@ -349,14 +375,14 @@ export default async function ProfessorHome() {
             📄
           </div>
           <div>
-            <h3 className="font-extrabold text-[11px] sm:text-sm text-slate-900 leading-tight">اسناد و امضا</h3>
-            <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 leading-4">
+            <h3 className="font-extrabold text-2xs sm:text-sm text-slate-900 leading-tight">اسناد و امضا</h3>
+            <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 leading-4">
               اسناد الکترونیک و امضای دیجیتال
             </p>
           </div>
         </Link>
 
-        <Link
+        <Link prefetch={false}
           href="/help/professor"
           className="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs hover:border-emerald-400 hover:shadow-md transition space-y-2 group"
         >
@@ -364,8 +390,8 @@ export default async function ProfessorHome() {
             📖
           </div>
           <div>
-            <h3 className="font-extrabold text-[11px] sm:text-sm text-slate-900 leading-tight">راهنما</h3>
-            <p className="hidden sm:block text-[11px] text-slate-500 mt-0.5 leading-4">
+            <h3 className="font-extrabold text-2xs sm:text-sm text-slate-900 leading-tight">راهنما</h3>
+            <p className="hidden sm:block text-2xs text-slate-500 mt-0.5 leading-4">
               راهنمای استفاده و PDF
             </p>
           </div>
@@ -394,7 +420,7 @@ export default async function ProfessorHome() {
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">فهرست دروس تخصیص‌یافته به همراه عملیات سریع</p>
             </div>
-            <Link href="/professor/schedule" className="text-xs font-bold text-indigo-700 hover:underline">
+            <Link prefetch={false} href="/professor/schedule" className="text-xs font-bold text-indigo-700 hover:underline">
               مشاهده تقویم هفتگی ←
             </Link>
           </div>
@@ -419,11 +445,11 @@ export default async function ProfessorHome() {
                   <div className="flex items-center gap-2">
                     <p className={`font-extrabold text-sm ${c.isCoTaught ? 'text-purple-950' : 'text-slate-900'}`}>{c.title}</p>
                     {c.isMerged ? (
-                      <span className="px-2 py-0.5 rounded bg-teal-200 text-teal-950 font-bold text-[10px]">🔗 کلاس ادغامی</span>
+                      <span className="px-2 py-0.5 rounded bg-teal-200 text-teal-950 font-bold text-3xs">🔗 کلاس ادغامی</span>
                     ) : c.isCoTaught ? (
-                      <span className="px-2 py-0.5 rounded bg-purple-200 text-purple-950 font-bold text-[10px]">👥 درس مشترک</span>
+                      <span className="px-2 py-0.5 rounded bg-purple-200 text-purple-950 font-bold text-3xs">👥 درس مشترک</span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-900 font-bold text-[10px]">گروه {faNum(c.group)}</span>
+                      <span className="px-2 py-0.5 rounded bg-indigo-100 text-indigo-900 font-bold text-3xs">گروه {faNum(c.group)}</span>
                     )}
                   </div>
                   <p className={`text-xs mt-0.5 font-bold ${c.isCoTaught ? 'text-purple-800' : 'text-slate-500'}`}>
@@ -434,10 +460,10 @@ export default async function ProfessorHome() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span className={`badge font-bold text-xs ${c.isCoTaught ? 'bg-purple-100 text-purple-900' : 'bg-sky-100 text-sky-800'}`}>{faNum(c.enrolled)}/{faNum(c.capacity)} دانشجو</span>
-                  <Link href={`/professor/attendance?offeringId=${c.offeringId}`} className="px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-900 font-bold text-xs hover:bg-emerald-200 transition">
+                  <Link prefetch={false} href={`/professor/attendance?offeringId=${c.offeringId}`} className="px-2.5 py-1 rounded-xl bg-emerald-100 text-emerald-900 font-bold text-xs hover:bg-emerald-200 transition">
                     حضور و غیاب
                   </Link>
-                  <Link href={`/professor/grades?offeringId=${c.offeringId}`} className="px-2.5 py-1 rounded-xl bg-indigo-100 text-indigo-900 font-bold text-xs hover:bg-indigo-200 transition">
+                  <Link prefetch={false} href={`/professor/grades?offeringId=${c.offeringId}`} className="px-2.5 py-1 rounded-xl bg-indigo-100 text-indigo-900 font-bold text-xs hover:bg-indigo-200 transition">
                     ثبت نمره
                   </Link>
                 </div>
@@ -460,7 +486,7 @@ export default async function ProfessorHome() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">وضعیت امضا:</span>
-                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold text-[10px]">
+                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold text-3xs">
                   {DEMO_DASHBOARD_CONTRACT.signatureStatus}
                 </span>
               </div>
@@ -482,7 +508,7 @@ export default async function ProfessorHome() {
               </div>
 
               <div className="pt-2">
-                <Link
+                <Link prefetch={false}
                   href="/professor/contract"
                   className="w-full block text-center py-2.5 rounded-xl bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-xs shadow transition"
                 >
@@ -498,7 +524,7 @@ export default async function ProfessorHome() {
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-slate-500">وضعیت سند:</span>
-                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold text-[10px]">
+                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 font-bold text-3xs">
                   {signatureStatus === 'SIGNED' ? 'امضا شده' : signatureStatus === 'PENDING' ? 'در انتظار امضای دیجیتال' : 'ثبت نشده'}
                 </span>
               </div>
@@ -512,7 +538,7 @@ export default async function ProfessorHome() {
               </div>
 
               <div className="pt-2">
-                <Link
+                <Link prefetch={false}
                   href="/professor/contract"
                   className="w-full block text-center py-2.5 rounded-xl bg-indigo-700 hover:bg-indigo-800 text-white font-extrabold text-xs shadow transition"
                 >
@@ -527,7 +553,7 @@ export default async function ProfessorHome() {
                   ? `برای نیمسال «${selectedTerm.title}» قرارداد حق‌التدریسی ثبت نشده است.`
                   : 'برای نیمسال جاری دانشگاه شما قرارداد حق‌التدریسی ثبت نشده است.'}
               </div>
-              <Link
+              <Link prefetch={false}
                 href="/professor/documents"
                 className="w-full block text-center py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs transition"
               >

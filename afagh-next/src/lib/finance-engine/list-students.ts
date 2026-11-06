@@ -40,66 +40,107 @@ export interface FinanceListFilters {
   search?: string | null;
   /** فقط دانشجویان بدهکار */
   onlyDebtors?: boolean;
+  /** تعداد ردیف در هر صفحه (کارتابل حالا صفحه‌بندی شده است) */
   limit?: number;
+  /** جابه‌جایی صفحه — فقط در حالت «ردیف‌ها» استفاده می‌شود */
+  offset?: number;
   universityId?: number | null;
   /**
-   * دامنهٔ نیمسال: با تعویض سوییچر نیمسال سربرگ، همهٔ اعداد (شهریه، تخفیف،
+   * دامنهٔ نیمسال: با تعویض سوییچر نیمسال، همهٔ اعداد (شهریه، تخفیف،
    * بنیاد، پرداخت، چک، وام و مانده) فقط از همین نیمسال خوانده می‌شوند.
    * `null` یعنی «همهٔ نیمسال‌ها» — رفتار قبلی و مبنای کارنامهٔ تجمیعی.
    */
   termId?: number | null;
 }
 
+/** خلاصهٔ اعداد کارتابل برای نوار KPI (جمع کل، نه فقط صفحهٔ جاری). */
+export interface FinanceSummary {
+  charges: number;
+  discounts: number;
+  sponsorships: number;
+  payments: number;
+  chequesCleared: number;
+  loans: number;
+  balance: number;
+  pendingCheques: number;
+  debtorCount: number;
+  studentCount: number;
+}
+
+const ZERO_SUMMARY: FinanceSummary = {
+  charges: 0, discounts: 0, sponsorships: 0, payments: 0,
+  chequesCleared: 0, loans: 0, balance: 0, pendingCheques: 0,
+  debtorCount: 0, studentCount: 0,
+};
+
 /**
- * فهرست دانشجویان برای کارتابل کارشناس مالی.
- *
- * مانده از دفتر مالی جمع زده می‌شود: بدهی − پرداخت. چک وصول‌نشده
- * «پرداخت» شمرده نمی‌شود، ولی در ستون جداگانه نشان داده می‌شود تا
- * کارشناس بداند چه مبلغی در راه است.
+ * شرط‌های فیلتر مشترک برای لیست / خلاصه / شمارنده — یک منبع واحد.
+ * 🔒 دامنهٔ دانشگاه همیشه اعمال می‌شود (fail-closed روی id=0).
  */
-export async function listFinanceStudents(
-  filters: FinanceListFilters = {}, universityId?: number
-): Promise<FinanceStudentRow[]> {
+function buildWhere(filters: FinanceListFilters, universityId?: number): SQL[] {
   const where: SQL[] = [];
   if (filters.majorId) where.push(eq(students.majorId, filters.majorId));
   if (filters.degreeLevelId) where.push(eq(students.degreeLevelId, filters.degreeLevelId));
   if (filters.entryYear) where.push(eq(students.entryYear, filters.entryYear));
   const effectiveUniversityId = universityId ?? filters.universityId;
-  // ⚠ id=0 یعنی DENY_UNI: کاربر به هیچ دانشگاهی مجاز نیست. شرطِ سادهٔ
-  // «اگر مقدار داشت» اینجا فیلتر را کنار می‌گذاشت و همهٔ دانشگاه‌ها را
-  // لو می‌داد؛ به‌جایش فهرست باید خالی باشد (fail-closed).
-  if (effectiveUniversityId === 0) return [];
-  // null یعنی «عمداً بدون فیلتر دانشگاه» (تماس‌های داخلی) — اما هر مقدار
-  // دیگری یعنی دانشگاهِ فعال و باید واقعاً اعمال شود.
+  if (effectiveUniversityId === 0) return []; // DENY_UNI → هیچ
   if (effectiveUniversityId !== null && effectiveUniversityId !== undefined) {
     where.push(eq(students.universityId, effectiveUniversityId));
   }
-
   if (filters.search && filters.search.trim()) {
-    // کدهای ذخیره‌شده انگلیسی‌اند؛ ارقام فارسی ورودی نرمال می‌شود تا کدهای SA/SS هم پیدا شوند.
-    // 🔒 فرار wildcard ورودی کاربر (با ESCAPE '\')
     const needle = `%${escapeLikeChars(toEnDigits(filters.search.trim()))}%`;
     const searchCond = or(
       sql`${users.firstName} ILIKE ${needle} ESCAPE '\\'`,
       sql`${users.lastName} ILIKE ${needle} ESCAPE '\\'`,
       sql`${users.nationalCode} ILIKE ${needle} ESCAPE '\\'`,
-      sql`${students.studentCode} ILIKE ${needle} ESCAPE '\\'`
+      sql`${students.studentCode} ILIKE ${needle} ESCAPE '\\'`,
     );
     if (searchCond) where.push(searchCond);
   }
+  return where;
+}
 
-  const limit = Math.min(Math.max(filters.limit ?? 500, 1), 2000);
+/** شرط‌های دامنهٔ نیمسال برای هر پنج کوئری تجمیعی. */
+function termConds(termId?: number | null) {
+  const scopeTermId = typeof termId === 'number' && termId > 0 ? termId : null;
+  return {
+    ledgerTermCond: scopeTermId ? eq(student_ledger.termId, scopeTermId) : undefined,
+    discountTermCond: scopeTermId ? eq(student_discounts.termId, scopeTermId) : undefined,
+    sponsorTermCond: scopeTermId ? eq(student_sponsorships.termId, scopeTermId) : undefined,
+    chequeTermCond: scopeTermId ? eq(payment_cheques.termId, scopeTermId) : undefined,
+    loanTermCond: scopeTermId ? eq(student_loans.termId, scopeTermId) : undefined,
+  };
+}
 
-  // دامنهٔ نیمسال — روی هر پنج کوئری تجمیعی اعمال می‌شود تا با تعویض
-  // سوییچر نیمسال، همهٔ اعداد با هم عوض شوند (نه فقط پرداخت‌ها).
-  // ردیف‌های بی‌ترم (termId = NULL) متعلق به هیچ نیمسالی نیستند و در
-  // دیدِ یک نیمسالِ مشخص نمی‌آیند؛ در حالت «همهٔ نیمسال‌ها» سرِ جایشان می‌مانند.
+/**
+ * موتور مشترک کارتابل.
+ *
+ *  - mode='rows'   → فقط یک صفحه (limit/offset) را برمی‌گرداند؛ بارِ شبکه و
+ *                     پارس مرورگر ~۱۰برابر کمتر می‌شود (۱۰۰ ردیف به‌جای ۱۰۰۰+).
+ *  - mode='totals' → روی **کل** دانشجویانِ فیلتر‌شده (سقف ۲۰۰۰) جمع می‌زند و
+ *                     فقط خلاصهٔ اعداد را برمی‌گرداند — نوار KPI همچنان درست
+ *                     است و با تعویض صفحه تغییر نمی‌کند.
+ *
+ * مانده از دفتر مالی جمع زده می‌شود: بدهی − پرداخت. چک وصول‌نشده «پرداخت»
+ * شمرده نمی‌شود، ولی در ستون جداگانه نشان داده می‌شود.
+ */
+async function computeFinance(
+  filters: FinanceListFilters,
+  universityId: number | undefined,
+  mode: 'rows' | 'totals',
+): Promise<FinanceStudentRow[] | FinanceSummary> {
+  const where = buildWhere(filters, universityId);
+  const eff = universityId ?? filters.universityId;
+  if (eff === 0) return mode === 'rows' ? [] : { ...ZERO_SUMMARY };
+
   const scopeTermId = typeof filters.termId === 'number' && filters.termId > 0 ? filters.termId : null;
-  const ledgerTermCond = scopeTermId ? eq(student_ledger.termId, scopeTermId) : undefined;
-  const discountTermCond = scopeTermId ? eq(student_discounts.termId, scopeTermId) : undefined;
-  const sponsorTermCond = scopeTermId ? eq(student_sponsorships.termId, scopeTermId) : undefined;
-  const chequeTermCond = scopeTermId ? eq(payment_cheques.termId, scopeTermId) : undefined;
-  const loanTermCond = scopeTermId ? eq(student_loans.termId, scopeTermId) : undefined;
+  const tc = termConds(scopeTermId);
+
+  const isRows = mode === 'rows';
+  const limit = isRows
+    ? Math.min(Math.max(filters.limit ?? 100, 1), 2000)
+    : Math.min(Math.max(filters.limit ?? 2000, 1), 2000);
+  const offset = isRows ? Math.max(filters.offset ?? 0, 0) : 0;
 
   const base = await db.select({
     studentId: students.id,
@@ -118,9 +159,10 @@ export async function listFinanceStudents(
     .leftJoin(degree_level_configs, eq(degree_level_configs.id, students.degreeLevelId))
     .where(where.length ? and(...where) : undefined)
     .orderBy(asc(students.studentCode))
-    .limit(limit);
+    .limit(limit)
+    .offset(offset);
 
-  if (base.length === 0) return [];
+  if (base.length === 0) return isRows ? [] : { ...ZERO_SUMMARY };
   const ids = base.map((r) => r.studentId);
 
   // شش کوئری تجمیعی به‌جای حلقه به ازای هر دانشجو — هزینه مستقل از تعداد
@@ -133,7 +175,7 @@ export async function listFinanceStudents(
       transactionType: student_ledger.transactionType,
       total: sql<number>`SUM(${student_ledger.amount})`,
     }).from(student_ledger)
-      .where(and(inArray(student_ledger.studentId, ids), ledgerTermCond))
+      .where(and(inArray(student_ledger.studentId, ids), tc.ledgerTermCond))
       .groupBy(student_ledger.studentId, student_ledger.termId, student_ledger.transactionType),
 
     db.select({
@@ -144,7 +186,7 @@ export async function listFinanceStudents(
       percent: student_discounts.percent,
       amount: student_discounts.amount,
     }).from(student_discounts)
-      .where(and(inArray(student_discounts.studentId, ids), eq(student_discounts.status, 'APPROVED'), discountTermCond)),
+      .where(and(inArray(student_discounts.studentId, ids), eq(student_discounts.status, 'APPROVED'), tc.discountTermCond)),
 
     db.select({
       id: student_sponsorships.id,
@@ -157,7 +199,7 @@ export async function listFinanceStudents(
       .where(and(
         inArray(student_sponsorships.studentId, ids),
         inArray(student_sponsorships.status, ['CONFIRMED', 'PAID']),
-        sponsorTermCond
+        tc.sponsorTermCond,
       )),
 
     db.select({
@@ -165,7 +207,7 @@ export async function listFinanceStudents(
       status: payment_cheques.status,
       total: sql<number>`SUM(${payment_cheques.amount})`,
     }).from(payment_cheques)
-      .where(and(inArray(payment_cheques.studentId, ids), chequeTermCond))
+      .where(and(inArray(payment_cheques.studentId, ids), tc.chequeTermCond))
       .groupBy(payment_cheques.studentId, payment_cheques.status),
 
     db.select({
@@ -173,16 +215,13 @@ export async function listFinanceStudents(
       status: student_loans.status,
       total: sql<number>`SUM(${student_loans.amount})`,
     }).from(student_loans)
-      .where(and(inArray(student_loans.studentId, ids), loanTermCond))
+      .where(and(inArray(student_loans.studentId, ids), tc.loanTermCond))
       .groupBy(student_loans.studentId, student_loans.status),
   ]);
 
   const NO_TERM = 0;
-
   const termChargesByStudent = new Map<number, TermCharge[]>();
   const paymentsByStudent = new Map<number, number>();
-  // واژگان کانونی ledger-balance: همهٔ انواع بدهی (شامل شهریه قدیمی FIXED/VARIABLE
-  // و TUITION_ADJUST_DEC = مبلغ موضوعی منفی) و اعتبار (بیتس + ADJUST_INC + تخفیف‌ها)
   const ledgerCreditsByStudent = new Map<number, number>();
   for (const r of ledgerAgg) {
     const type = String(r.transactionType).toUpperCase();
@@ -265,9 +304,58 @@ export async function listFinanceStudents(
     };
   });
 
-  list.sort((a, b) => b.balance - a.balance || String(a.studentCode).localeCompare(String(b.studentCode)));
+  if (isRows) {
+    list.sort((a, b) => b.balance - a.balance || String(a.studentCode).localeCompare(String(b.studentCode)));
+    const rows = filters.onlyDebtors ? list.filter((r) => r.balance > 0) : list;
+    return rows as FinanceStudentRow[];
+  }
 
-  return filters.onlyDebtors ? list.filter((r) => r.balance > 0) : list;
+  // mode='totals' → فقط جمع کل (نه مرتب‌سازی/فیلتر صفحه)
+  const sum = list.reduce((acc, s) => ({
+    charges: acc.charges + s.charges,
+    discounts: acc.discounts + s.discounts,
+    sponsorships: acc.sponsorships + s.sponsorships,
+    payments: acc.payments + s.payments,
+    chequesCleared: acc.chequesCleared + s.chequesCleared,
+    loans: acc.loans + s.loans,
+    balance: acc.balance + s.balance,
+    pendingCheques: acc.pendingCheques + s.pendingCheques,
+    debtorCount: acc.debtorCount + (s.balance > 0 ? 1 : 0),
+    studentCount: acc.studentCount + 1,
+  }), { ...ZERO_SUMMARY });
+  return sum as FinanceSummary;
+}
+
+/** لیست صفحه‌بندی‌شده برای جدول کارتابل (۱۰۰ ردیف/صفحه). */
+export async function listFinanceStudents(
+  filters: FinanceListFilters = {}, universityId?: number
+): Promise<FinanceStudentRow[]> {
+  return (await computeFinance(filters, universityId, 'rows')) as FinanceStudentRow[];
+}
+
+/** خلاصهٔ اعداد کارتابل روی کل دانشجویانِ فیلتر‌شده (نوار KPI). */
+export async function summarizeFinanceStudents(
+  filters: FinanceListFilters = {}, universityId?: number
+): Promise<FinanceSummary> {
+  return (await computeFinance(filters, universityId, 'totals')) as FinanceSummary;
+}
+
+/** تعداد کل دانشجویانِ مطابق فیلتر — برای نوار صفحه‌بندی. */
+export async function countFinanceStudents(
+  filters: FinanceListFilters = {}, universityId?: number
+): Promise<number> {
+  const where = buildWhere(filters, universityId);
+  const eff = universityId ?? filters.universityId;
+  if (eff === 0) return 0;
+  const hasSearch = !!(filters.search && filters.search.trim());
+  let baseQuery: any = db
+    .select({ c: sql<number>`count(*)::bigint` })
+    .from(students);
+  if (hasSearch) {
+    baseQuery = baseQuery.innerJoin(users, eq(users.id, students.userId));
+  }
+  const [row] = await baseQuery.where(where.length ? and(...where) : undefined);
+  return Number(row?.c ?? 0);
 }
 
 /** گزینه‌های فیلتر کارتابل — رشته، مقطع و ورودی‌های موجود در دیتابیس */

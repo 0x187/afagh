@@ -22,16 +22,13 @@ import {
   scheduling_allocations, scheduling_room_grants, staff, term_scheduling_states,
 } from '@/db/schema';
 import { auditChain, type AuditTx } from '@/lib/audit-chain';
+import { advisoryLock } from '@/lib/advisory-lock';
 import {
   allocateQuotaShifts, canAllocateInPhase, canEditInPhase, canTransition,
-  calculateSlotScore, distributeGroupsByFaculty, overlaps, suggestedGroupCount,
+  calculateSlotScore, countInternalGaps, distributeGroupsByFaculty, overlaps, suggestedGroupCount,
   toMinutes, validateGroupDrafts,
   type GroupDraftInput, type Shift, type RoomGrantInput,
 } from '@/lib/scheduling-core';
-
-async function advisoryLock(tx: AuditTx, ns: string, a: number, b = 0) {
-  await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`${ns}:${a}:${b}`}, 0))`);
-}
 
 const hm = (t: string | null | undefined) => (t ? String(t).slice(0, 5) : '');
 const hhmmss = (t: string) => (t.length === 5 ? `${t}:00` : t);
@@ -101,19 +98,38 @@ const WEEKLY_DURATION_MIN = 90;
  */
 export async function supplyGroupDrafts(actorUserId: number | null, px: SupplyInput) {
   const { termId, courseId, ownerDepartmentId, isSharedService } = px;
+  const { getCurrentUniversity } = await import('@/lib/university-scope');
+  const curUni = await getCurrentUniversity().catch(() => null);
+  const uniId = curUni && curUni.id > 0 ? curUni.id : null;
+
   const [course] = await db.select().from(courses).where(eq(courses.id, courseId)).limit(1);
   if (!course) throw new Error('درس یافت نشد.');
   if (isSharedService && course.offeringScope !== 'GENERAL_SERVICE') {
     throw new Error('این درس در کاتالوگ به‌عنوان درس خدماتی سراسری تعریف نشده است.');
   }
+  // درس باید متعلق به گروه سازنده باشد (قلمرو)
+  if (course.departmentId != null && course.departmentId !== ownerDepartmentId) {
+    throw new Error('این درس متعلق به گروه دیگری است و نمی‌توانید برای آن ارائه بسازید.');
+  }
   // اساتید باید متعلق به گروه سازنده باشند (قلمرو)
   const profIds = px.drafts.map(d => Number(d.professorId));
-  const profs = await db.select({ id: staff.id, departmentId: staff.departmentId })
+  const profs = await db.select({ id: staff.id, departmentId: staff.departmentId, universityId: staff.universityId })
     .from(staff).where(inArray(staff.id, profIds));
   for (const p of profs) {
     if (Number(p.departmentId) !== ownerDepartmentId) {
       throw new Error(`استاد ${p.id} از گروه دیگری است — فقط اساتید گروه سازنده مجازند.`);
     }
+    if (uniId && p.universityId && Number(p.universityId) !== uniId) {
+      throw new Error('استاد انتخاب‌شده متعلق به دانشگاه دیگری است.');
+    }
+  }
+
+  // ترم باید متعلق به دانشگاه فعال باشد
+  const { academic_terms } = await import('@/db/schema');
+  const [termRow] = await db.select({ id: academic_terms.id, universityId: academic_terms.universityId }).from(academic_terms).where(eq(academic_terms.id, termId)).limit(1);
+  if (!termRow) throw new Error('ترم یافت نشد.');
+  if (uniId && termRow.universityId && Number(termRow.universityId) !== uniId) {
+    throw new Error('ترم انتخاب‌شده متعلق به دانشگاه دیگری است.');
   }
 
   const drafts = validateGroupDrafts(px.drafts, isSharedService);
@@ -155,14 +171,15 @@ export async function supplyGroupDrafts(actorUserId: number | null, px: SupplyIn
       }
     }
 
-    // ۳) ظرفیت فیزیکی کلاس
-    const roomRows = await tx.select({ id: classrooms.id, capacity: classrooms.capacity })
+    // ۳) ظرفیت فیزیکی کلاس و مالکیت دانشگاه
+    const roomRows = await tx.select({ id: classrooms.id, capacity: classrooms.capacity, universityId: classrooms.universityId })
       .from(classrooms).where(inArray(classrooms.id, drafts.map(d => d.classroomId)));
-    const roomCap = new Map(roomRows.map(r => [Number(r.id), Number(r.capacity)]));
+    const roomCap = new Map(roomRows.map(r => [Number(r.id), { cap: Number(r.capacity), uni: r.universityId as number | null }]));
     for (const d of drafts) {
-      const cap = roomCap.get(d.classroomId);
-      if (cap === undefined) throw new Error(`کلاس فیزیکی گروه ${d.groupNumber} یافت نشد.`);
-      if (cap < d.capacity) throw new Error(`ظرفیت فیزیکی کلاس گروه ${d.groupNumber} (${cap}) کمتر از ظرفیت درخواستی (${d.capacity}) است.`);
+      const r = roomCap.get(d.classroomId);
+      if (!r) throw new Error(`کلاس فیزیکی گروه ${d.groupNumber} یافت نشد.`);
+      if (r.cap < d.capacity) throw new Error(`ظرفیت فیزیکی کلاس گروه ${d.groupNumber} (${r.cap}) کمتر از ظرفیت درخواستی (${d.capacity}) است.`);
+      if (uniId && r.uni && Number(r.uni) !== uniId) throw new Error('کلاس انتخاب‌شده متعلق به دانشگاه دیگری است.');
     }
 
     // ۴) درج دسته‌ای (بدون N+1)
@@ -173,6 +190,7 @@ export async function supplyGroupDrafts(actorUserId: number | null, px: SupplyIn
       ownerDepartmentId, isSharedService: isSharedService ? 1 : 0,
       equivalenceClusterId: course.clusterId,
       offeringType: 'NORMAL',
+      universityId: uniId,
     }))).returning({ id: course_offerings.id, groupNumber: course_offerings.groupNumber });
 
     const offeringByGroup = new Map(inserted.map(o => [Number(o.groupNumber), Number(o.id)]));
@@ -183,10 +201,12 @@ export async function supplyGroupDrafts(actorUserId: number | null, px: SupplyIn
       startTime: hhmmss(d.startTime),
       endTime: hhmmss(d.endTime),
       roomId: d.classroomId,
+      universityId: uniId,
     })));
     await tx.insert(offering_professors).values(drafts.map(d => ({
       offeringId: offeringByGroup.get(d.groupNumber)!,
       staffId: d.professorId, role: 'MAIN_LECTURER', sharePercentage: '100.00',
+      universityId: uniId,
     })));
 
     await auditChain(tx, actorUserId, 'SCHEDULING_SUPPLY_CREATED', 'academic_term', termId, {
@@ -283,13 +303,41 @@ export async function allocateSections(actorUserId: number | null, px: {
 // ─────────────────────────── سهمیهٔ کلاس‌ها + استخر شناور ───────────────────────────
 
 /** تخصیص اولیهٔ سهمیه (سالن، شیفت) گروه‌های هر دانشکده بر اساس جمعیت دانشجویی */
-export async function allocateRoomQuotas(actorUserId: number | null, termId: number) {
+export async function allocateRoomQuotas(actorUserId: number | null, termId: number): Promise<{ ok: true; grants: number }> {
+  /**
+   * `enforceOwner` = مالکیت صریح است، پس حتی اگر سهمیهٔ قبلی به گروه دیگری داده
+   * شده باشد، مالکش اصلاح می‌شود. `status` دست‌نخورده می‌ماند تا تصمیم
+   * «آزاد شده برای استخر مشترک» با اجرای دوباره از بین نرود.
+   */
+  const grantsAll: { departmentId: number; classroomId: number; shift: Shift; enforceOwner?: boolean }[] = [];
+
+  /**
+   * سالن‌هایی که «گروه مسئول» صریح دارند (`classrooms."departmentId"`) از استخرِ
+   * ظرفیت‌محور بیرون می‌مانند و هر دو شیفت مستقیم به همان گروه می‌رسد.
+   *
+   * چرا لازم است؟ باشگاه‌ها و استخر به «گروه مشترک تربیت بدنی» تعلق دارند، نه به
+   * دانشکده‌ای که اتفاقاً در آن ثبت شده‌اند. اگر در توزیع ظرفیت‌محور شرکت کنند،
+   * ممکن است سهمیه‌شان به گروه حقوق یا حسابداری برسد — که غلط است.
+   *
+   * سالنِ بدون گروه مسئول دقیقاً مثل قبل رفتار می‌کند (سازگاری کامل).
+   */
+  const owned = (await db.execute(sql`
+    select id, "departmentId" from classrooms
+    where "departmentId" is not null
+    order by id
+  `)).rows as { id: number; departmentId: number }[];
+  for (const r of owned) {
+    grantsAll.push({ classroomId: Number(r.id), departmentId: Number(r.departmentId), shift: 'MORNING', enforceOwner: true });
+    grantsAll.push({ classroomId: Number(r.id), departmentId: Number(r.departmentId), shift: 'EVENING', enforceOwner: true });
+  }
+
   const faculties = await db.execute(sql`select id from faculties order by id`);
-  const grantsAll: { departmentId: number; classroomId: number; shift: Shift }[] = [];
 
   for (const f of (faculties.rows as { id: number }[])) {
     const roomRows = (await db.execute(sql`
-      select id, capacity from classrooms where "facultyId" = ${f.id} order by id
+      select id, capacity from classrooms
+      where "facultyId" = ${f.id} and "departmentId" is null
+      order by id
     `)).rows as { id: number; capacity: number }[];
     if (!roomRows.length) continue;
     const deptRows = (await db.execute(sql`
@@ -316,12 +364,22 @@ export async function allocateRoomQuotas(actorUserId: number | null, termId: num
   await db.transaction(async tx => {
     await advisoryLock(tx, 'sched_quota', termId);
     for (const g of grantsAll) {
-      const [ins] = await tx
-        .insert(scheduling_room_grants)
-        .values({ termId, classroomId: g.classroomId, shift: g.shift, ownerDepartmentId: g.departmentId })
-        .onConflictDoNothing()
-        .returning({ id: scheduling_room_grants.id });
-      if (ins) n++;
+      const [row] = g.enforceOwner
+        ? await tx
+            .insert(scheduling_room_grants)
+            .values({ termId, classroomId: g.classroomId, shift: g.shift, ownerDepartmentId: g.departmentId })
+            // مالکیت صریح بر تصمیم قبلی اولویت دارد؛ فقط مالک عوض می‌شود.
+            .onConflictDoUpdate({
+              target: [scheduling_room_grants.termId, scheduling_room_grants.classroomId, scheduling_room_grants.shift],
+              set: { ownerDepartmentId: g.departmentId },
+            })
+            .returning({ id: scheduling_room_grants.id })
+        : await tx
+            .insert(scheduling_room_grants)
+            .values({ termId, classroomId: g.classroomId, shift: g.shift, ownerDepartmentId: g.departmentId })
+            .onConflictDoNothing()
+            .returning({ id: scheduling_room_grants.id });
+      if (row) n++;
     }
     await auditChain(tx, actorUserId, 'SCHEDULING_QUOTA_ALLOCATED', 'academic_term', termId, { grants: n });
   });
@@ -331,7 +389,7 @@ export async function allocateRoomQuotas(actorUserId: number | null, termId: num
 /** آزادسازی شیفت مازاد (فقط مالک) → ورود به استخر مشترک دانشکده */
 export async function releaseRoomShift(actorUserId: number | null, px: {
   termId: number; departmentId: number; classroomId: number; shift: Shift;
-}) {
+}): Promise<{ ok: true }> {
   return db.transaction(async tx => {
     await advisoryLock(tx, 'sched_pool', px.termId, px.classroomId);
     const [g] = await tx
@@ -356,7 +414,7 @@ export async function releaseRoomShift(actorUserId: number | null, px: {
 /** قرض‌گرفتن شیفت آزادشده از استخر (هر گروه‌ای) */
 export async function borrowReleasedShift(actorUserId: number | null, px: {
   termId: number; classroomId: number; shift: Shift; departmentId: number;
-}) {
+}): Promise<{ ok: true }> {
   return db.transaction(async tx => {
     await advisoryLock(tx, 'sched_pool', px.termId, px.classroomId);
     const [g] = await tx
@@ -508,14 +566,29 @@ export async function getSmartSuggestions(px: {
 
   const suggested: { dayOfWeek: number; startTime: string; endTime: string; classroomId: number; classroomName: string; classroomCapacity: number; score: number; reasons: string[] }[] = [];
 
+  // بلوک‌های اشغالِ استاد به تفکیک روز — مبنای «پشت سر هم و بدون ساعت خالی».
+  const busyByDay = new Map<number, { start: number; end: number }[]>();
+  for (const b of busyRows) {
+    const list = busyByDay.get(b.day) ?? [];
+    list.push({ start: b.start, end: b.end });
+    busyByDay.set(b.day, list);
+  }
+
   for (const a of availRows) {
     const day = Number(a.dayOfWeek);
     const wStart = toMinutes(hm(a.startTime));
     const wEnd = toMinutes(hm(a.endTime));
     const preferred = a.termId !== null;
+    const dayBlocks = busyByDay.get(day) ?? [];
+    const dayAlreadyUsed = dayBlocks.length > 0;
+    const gapsBefore = countInternalGaps(dayBlocks);
     for (let start = wStart; start + duration <= wEnd; start += 30) {
       const end = start + duration;
       if (busyRows.some(b => b.day === day && overlaps(start, end, b.start, b.end))) continue;
+      // چسبیده به بلوک موجود؟ و آیا ساعت خالی جدید می‌سازد؟
+      const adjacentToExisting = dayBlocks.some(b => b.end === start || b.start === end);
+      const gapsAfter = countInternalGaps([...dayBlocks, { start, end }]);
+      const gapsCreated = Math.max(0, gapsAfter - gapsBefore);
       for (const room of roomRows) {
         if (occupiedRows.some(o => o.day === day && o.room === Number(room.id) && overlaps(start, end, o.start, o.end))) continue;
         const { score, reasons } = calculateSlotScore({
@@ -525,8 +598,13 @@ export async function getSmartSuggestions(px: {
           inAvailableWindow: true,
           roomCapacity: Number(room.capacity),
           requiredCapacity: px.capacity,
+          adjacentToExisting,
+          dayAlreadyUsed,
+          gapsCreated,
         });
-        if (score < 0) continue;
+        // امتیاز فقط «ترتیب» می‌سازد، نه فیلتر: یک اسلاتِ معتبر نباید فقط
+        // به‌خاطر جریمهٔ ساعت خالی از فهرست حذف شود.
+        if (Number(room.capacity) < px.capacity) continue;
         suggested.push({
           dayOfWeek: day,
           startTime: toHHMM(start), endTime: toHHMM(end),

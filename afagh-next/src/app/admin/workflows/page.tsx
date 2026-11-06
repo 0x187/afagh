@@ -19,7 +19,7 @@ import AdminWorkflowsClient from './AdminWorkflowsClient';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminWorkflowsPage() {
-  await requireRole(['ADMIN', 'EDU_EXPERT']);
+  await requireRole(['ADMIN', 'EDU_EXPERT', 'FINANCE_EXPERT', 'FINANCE']);
   await ensureDbSchemaPatches();
   await ensureDefaultProcesses();
 
@@ -100,6 +100,8 @@ export default async function AdminWorkflowsPage() {
       formData: student_requests.formData,
       currentStepId: student_requests.currentStepId,
       satisfactionScore: student_requests.satisfactionScore,
+      // برای میان‌بر «مشاهدهٔ پروندهٔ مالی» در کارتابل (درخواست FINANCE_STATEMENT)
+      studentId: student_requests.studentId,
       studentCode: students.studentCode,
       firstName: users.firstName,
       lastName: users.lastName,
@@ -160,6 +162,7 @@ export default async function AdminWorkflowsPage() {
       trackingCode: r.trackingCode,
       studentName: `${r.firstName} ${r.lastName}`,
       studentCode: r.studentCode,
+      studentId: r.studentId,
       processTitle: r.procTitle,
       processCode: r.procCode,
       status: r.status,

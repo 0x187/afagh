@@ -7,6 +7,7 @@ import ProfessorTermFilterBanner from '../term-filter-banner';
 import { termsFor } from '@/lib/terms';
 import { professorTermFilter } from '@/lib/professor-term-filter';
 import { isDemoProfessorUser } from '@/lib/demo-accounts';
+import { getTimeSlots } from '@/lib/schedule-config';
 import {
   DEMO_ACADEMIC_RANK,
   DEMO_AVAILABILITY_TERM,
@@ -30,6 +31,8 @@ export default async function ProfessorAvailabilityPage() {
   }
 
   const demo = await isDemoProfessorUser(user.id);
+  // زنگ‌های آموزشی از تنظیمات دانشگاه (طول زنگ، شروع/پایان روز، استراحت)
+  const timeSlots = await getTimeSlots();
 
   const uniId = demo ? DEMO_UNIVERSITY_ID : me.universityId ?? user.universityId ?? null;
   const terms = demo ? [] : await termsFor(uniId);
@@ -56,6 +59,7 @@ export default async function ProfessorAvailabilityPage() {
               : [DEMO_AVAILABILITY_TERM]
           }
           initialTermId={selectedTerm?.id ?? null}
+          timeSlots={timeSlots}
         />
       </div>
     );
@@ -92,6 +96,7 @@ export default async function ProfessorAvailabilityPage() {
           isCurrent: Boolean(t.isCurrent),
         }))}
         initialTermId={selectedTerm?.id ?? null}
+        timeSlots={timeSlots}
       />
     </div>
   );

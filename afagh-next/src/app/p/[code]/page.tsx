@@ -138,14 +138,14 @@ export default async function RoomCheckinPage({
       <div className="w-14 h-14 bg-gradient-to-tr from-indigo-950 to-indigo-800 rounded-2xl flex items-center justify-center mx-auto shadow-lg text-white font-black text-xl border-2 border-amber-400">
         آ
       </div>
-      <div className="text-[11px] font-bold text-slate-500">{uniTitle ?? 'سامانه جامع آفاق'}</div>
+      <div className="text-2xs font-bold text-slate-500">{uniTitle ?? 'سامانه جامع آفاق'}</div>
       <h1 className="text-xl font-black text-slate-900">ثبت حضور استاد</h1>
       <div className="text-xs font-bold text-slate-600">
         اتاق {faDigits(room.name)}
         {roomLine ? <span className="text-slate-400"> — {faDigits(roomLine)}</span> : null}
       </div>
       {room.isActive === 0 ? (
-        <div className="text-[10px] font-bold text-amber-700">این اتاق در سامانه غیرفعال است.</div>
+        <div className="text-3xs font-bold text-amber-700">این اتاق در سامانه غیرفعال است.</div>
       ) : null}
     </div>
   );
@@ -157,7 +157,7 @@ export default async function RoomCheckinPage({
         <Card>
           {header}
           <Notice kind="info" text="برای ثبت حضور باید با حساب استاد وارد سامانه شوید." />
-          <Link
+          <Link prefetch={false}
             href={`/login?next=${encodeURIComponent(`/p/room-${roomId}`)}`}
             className="block w-full py-3 rounded-2xl bg-indigo-900 hover:bg-indigo-950 text-white font-black text-xs text-center shadow-md transition"
           >
@@ -287,7 +287,7 @@ export default async function RoomCheckinPage({
       <details open>
         <summary className="cursor-pointer list-none flex items-center justify-between gap-2">
           <span className="text-sm font-black text-slate-900">کنترل حضور و غیاب این اتاق</span>
-          <span className={`text-[10px] font-black rounded-full px-2 py-0.5 ${
+          <span className={`text-3xs font-black rounded-full px-2 py-0.5 ${
             ctrlGroups.length > 0 && ctrlDone === ctrlGroups.length
               ? 'bg-emerald-100 text-emerald-800'
               : 'bg-amber-100 text-amber-800'
@@ -313,14 +313,14 @@ export default async function RoomCheckinPage({
                     r.recordedAt ? 'border-emerald-200 bg-emerald-50/60' : 'border-slate-200 bg-white'
                   }`}
                 >
-                  <div className="text-[10px] font-bold text-slate-500 w-12 shrink-0 leading-4" dir="ltr">
+                  <div className="text-3xs font-bold text-slate-500 w-12 shrink-0 leading-4" dir="ltr">
                     {faDigits(r.startTime)}
                     <br />
                     {faDigits(r.endTime)}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="text-[11px] font-black text-slate-800 truncate">{r.courseTitle}</span>
+                      <span className="text-2xs font-black text-slate-800 truncate">{r.courseTitle}</span>
                       {g.merged ? (
                         <span
                           title={`این کلاس از ${g.members.length} عرضه تشکیل شده: ${memberTitles}`}
@@ -330,7 +330,7 @@ export default async function RoomCheckinPage({
                         </span>
                       ) : null}
                     </div>
-                    <div className="text-[10px] font-bold text-slate-500 truncate">
+                    <div className="text-3xs font-bold text-slate-500 truncate">
                       {r.professorName} · گروه {faDigits(r.groupNumber)}
                     </div>
                     {g.merged && memberTitles ? (
@@ -475,7 +475,7 @@ export default async function RoomCheckinPage({
       <details open>
         <summary className="cursor-pointer list-none flex items-center justify-between gap-2">
           <span className="text-sm font-black text-slate-900">برنامهٔ هفتگی این اتاق</span>
-          <span className="text-[10px] font-bold text-slate-500">
+          <span className="text-3xs font-bold text-slate-500">
             {faDigits(weekly.length)} سانس در هفته
           </span>
         </summary>
@@ -485,19 +485,19 @@ export default async function RoomCheckinPage({
             <Notice kind="info" text="برای این اتاق در ترم جاری برنامه‌ای ثبت نشده است." />
             {twinRooms.length > 0 ? (
               <div className="space-y-1.5">
-                <div className="text-[10px] font-black text-slate-700">
+                <div className="text-3xs font-black text-slate-700">
                   این نام برای چند اتاق ثبت شده؛ این اتاق‌های هم‌نام برنامه دارند:
                 </div>
                 {twinRooms.map(t => (
-                  <Link
+                  <Link prefetch={false}
                     key={t.id}
                     href={`/p/room-${t.id}`}
                     className="flex items-center justify-between rounded-2xl border border-indigo-200 bg-indigo-50 px-3 py-2"
                   >
-                    <span className="text-[11px] font-black text-indigo-900">
+                    <span className="text-2xs font-black text-indigo-900">
                       اتاق {faDigits(room.name)} — رکورد #{faDigits(t.id)}
                     </span>
-                    <span className="text-[10px] font-bold text-indigo-700">{faDigits(t.slots)} سانس ←</span>
+                    <span className="text-3xs font-bold text-indigo-700">{faDigits(t.slots)} سانس ←</span>
                   </Link>
                 ))}
               </div>
@@ -511,7 +511,7 @@ export default async function RoomCheckinPage({
               return (
                 <div key={d}>
                   <div className="flex items-center gap-2 mb-1.5">
-                    <span className={`text-[11px] font-black ${isToday ? 'text-indigo-800' : 'text-slate-700'}`}>
+                    <span className={`text-2xs font-black ${isToday ? 'text-indigo-800' : 'text-slate-700'}`}>
                       {DAY_NAMES[d]}
                     </span>
                     {isToday ? (
@@ -523,7 +523,7 @@ export default async function RoomCheckinPage({
                   </div>
 
                   {slots.length === 0 ? (
-                    <div className="text-[10px] font-bold text-slate-400 py-1">کلاسی نیست</div>
+                    <div className="text-3xs font-bold text-slate-400 py-1">کلاسی نیست</div>
                   ) : (
                     <div className="space-y-1.5">
                       {slots.map(s => {
@@ -548,14 +548,14 @@ export default async function RoomCheckinPage({
                                   : 'border-slate-200 bg-white'
                             }`}
                           >
-                            <div className="text-[10px] font-bold text-slate-500 w-12 shrink-0 leading-4" dir="ltr">
+                            <div className="text-3xs font-bold text-slate-500 w-12 shrink-0 leading-4" dir="ltr">
                               {faDigits(s.startTime)}
                               <br />
                               {faDigits(s.endTime)}
                             </div>
                             <div className="min-w-0 flex-1">
-                              <div className="text-[11px] font-black text-slate-800 truncate">{s.courseTitle}</div>
-                              <div className="text-[10px] font-bold text-slate-500 truncate">
+                              <div className="text-2xs font-black text-slate-800 truncate">{s.courseTitle}</div>
+                              <div className="text-3xs font-bold text-slate-500 truncate">
                                 {s.professorName} · گروه {faDigits(s.groupNumber)}
                               </div>
                             </div>
@@ -617,11 +617,11 @@ export default async function RoomCheckinPage({
             ) : null}
             {upcoming.length > 0 ? (
               <div className="space-y-2">
-                <div className="text-[11px] font-black text-slate-700">جلسات بعدی شما در این اتاق</div>
+                <div className="text-2xs font-black text-slate-700">جلسات بعدی شما در این اتاق</div>
                 {upcoming.map(u => (
                   <div key={u.id} className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2">
                     <div className="text-xs font-black text-slate-800">{u.courseTitle}</div>
-                    <div className="text-[10px] font-bold text-slate-500 mt-0.5" dir="ltr">
+                    <div className="text-3xs font-bold text-slate-500 mt-0.5" dir="ltr">
                       {faDigits(u.courseCode)} · {faDigits(u.sessionDate)} · {timeLabel(u.startTime, u.endTime)}
                     </div>
                   </div>
@@ -643,14 +643,14 @@ export default async function RoomCheckinPage({
                   </span>
                 ) : null}
               </div>
-              <div className="text-[11px] font-bold text-slate-500" dir="ltr">
+              <div className="text-2xs font-bold text-slate-500" dir="ltr">
                 {faDigits(focus.courseCode)} · گروه {faDigits(focus.groupNumber)}
               </div>
-              <div className="text-[11px] font-bold text-slate-600">
+              <div className="text-2xs font-bold text-slate-600">
                 {timeLabel(focus.startTime, focus.endTime)}
               </div>
               {focusGroup?.merged && focusMemberTitles ? (
-                <div className="text-[10px] font-bold text-violet-700/80" title={focusMemberTitles}>
+                <div className="text-3xs font-bold text-violet-700/80" title={focusMemberTitles}>
                   کلاس ادغامی: {focusMemberTitles}
                 </div>
               ) : null}
@@ -661,7 +661,7 @@ export default async function RoomCheckinPage({
                 <div className="text-2xl">✅</div>
                 <div className="text-xs font-black text-emerald-800">حضور شما ثبت شده است</div>
                 {focus.recorded.recordedAt ? (
-                  <div className="text-[10px] font-bold text-emerald-700">
+                  <div className="text-3xs font-bold text-emerald-700">
                     زمان ثبت: {faDigits(new Date(focus.recorded.recordedAt).toLocaleTimeString('fa-IR', { hour: '2-digit', minute: '2-digit' }))}
                   </div>
                 ) : null}
@@ -677,7 +677,7 @@ export default async function RoomCheckinPage({
                   ثبت حضور من
                 </button>
                 {focus.window ? (
-                  <div className="text-[10px] font-bold text-slate-500 text-center">
+                  <div className="text-3xs font-bold text-slate-500 text-center">
                     بازهٔ مجاز ثبت: {faDigits(focus.window.from)} تا {faDigits(focus.window.to)}
                   </div>
                 ) : null}
@@ -698,7 +698,7 @@ export default async function RoomCheckinPage({
           </>
         )}
 
-        <div className="text-[10px] font-bold text-slate-400 text-center pt-2 border-t border-slate-100">
+        <div className="text-3xs font-bold text-slate-400 text-center pt-2 border-t border-slate-100">
           {faDigits(now.jalali)} · این صفحه فقط برای ثبت حضورِ کلاس است
           {ctrlCan ? ' (شما به‌عنوان کنترل‌کنندهٔ حضور این اتاق شناخته شدید).' : ' (استاد یا کنترل‌کنندهٔ حضور).'}
         </div>

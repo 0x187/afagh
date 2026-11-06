@@ -44,7 +44,7 @@ export default async function MyDocuments() {
             <div>
               <p className="font-medium">{d.type ?? d.category ?? 'مدرک'}</p>
               <p className="text-xs text-slate-500">{d.uploadedAt ? new Date(d.uploadedAt).toLocaleDateString('fa-IR') : ''}</p>
-              {d.status === 'REJECTED' && d.reason && <p className="text-[11px] text-red-600">دلیل رد: {d.reason}</p>}
+              {d.status === 'REJECTED' && d.reason && <p className="text-2xs text-red-600">دلیل رد: {d.reason}</p>}
             </div>
             <div className="flex items-center gap-2">
               <span className={'badge ' + (stColor[d.status ?? 'PENDING'] ?? '')}>{stFa[d.status ?? 'PENDING'] ?? d.status}</span>

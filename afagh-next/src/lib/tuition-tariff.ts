@@ -27,16 +27,26 @@ export { pickTariffRate, tariffCourseAmount, tariffAmountOrZero } from '@/lib/tu
  * است؛ در نبود تعرفه، لایهٔ فراخوان به موتور برمی‌گردد.
  */
 
+/** فرادادهٔ تعرفهٔ هر نیمسال — همان کد گروهی که نرخها از آن خوانده شدند. */
+export interface TariffTermMeta {
+  /** «کد گروه تعرفه» (tuition_term_tariff.uPriceCode) بهازای هر نیمسال */
+  groupCodes: Record<number, string | null>;
+}
+
 /**
  * ریز شهریهٔ متغیر دروس بر پایهٔ تعرفهٔ تفصیلی، برای چند نیمسال.
- * هر نیمسال بدون تعرفه در نتیجه نمی‌آید (کلید غایب) تا فراخوان از موتور استفاده کند.
+ * هر نیمسال بدون تعرفه در نتیجه نمیآید (کلید غایب) تا فراخوان از موتور استفاده کند.
+ * meta اختیاری است: کد گروه تعرفهٔ هر نیمسال را بدون پرسوجوی اضافه برمیگرداند.
  */
 export async function computeTariffCourseLinesForTerms(
   studentId: number,
   termIds: number[],
+  meta?: TariffTermMeta,
 ): Promise<Record<number, TariffLine[]>> {
   const ids = [...new Set((termIds || []).filter((t) => Number.isFinite(t) && t > 0))];
   if (!ids.length) return {};
+  // هر نیمسال ابتدا «بدون کد» فرض میشود؛ اگر تعرفهای یافت شد پر میشود.
+  if (meta) for (const id of ids) meta.groupCodes[id] = null;
 
   const [stu] = await db
     .select({ majorId: students.majorId, entryYear: students.entryYear, universityId: students.universityId })
@@ -63,6 +73,7 @@ export async function computeTariffCourseLinesForTerms(
       maliType: tuition_term_tariff.maliType,
       th: tuition_term_tariff.thPrice,
       op: tuition_term_tariff.opPrice,
+      uPriceCode: tuition_term_tariff.uPriceCode,
     })
     .from(tuition_term_tariff)
     .where(and(
@@ -72,6 +83,9 @@ export async function computeTariffCourseLinesForTerms(
     ));
   // کلید تطبیق «سالِ تعرفه» است (نرخ سما سالانه است، نه هر نیمسال)
   const byYear = new Map<number, Map<number, TariffRate>>();
+  // رأیگیریِ «کد گروه تعرفه» برای هر سال: ردیفها بهازای هر نوع درس مالی تکرار
+  // میشوند؛ پرتکرارترین کد همان گروه تعرفهای است که نرخها از آن آمدند.
+  const groupVotes = new Map<number, Map<string, number>>();
   for (const r of rateRows) {
     const raw = r.termYear ?? Number(String(r.termCode ?? '').slice(0, 4));
     const year = Number(raw);
@@ -79,6 +93,26 @@ export async function computeTariffCourseLinesForTerms(
     const m = byYear.get(year) || new Map<number, TariffRate>();
     m.set(Number(r.maliType), { th: toNum(r.th), op: toNum(r.op) });
     byYear.set(year, m);
+    const code = String(r.uPriceCode ?? '').trim();
+    if (code) {
+      const votes = groupVotes.get(year) || new Map<string, number>();
+      votes.set(code, (votes.get(code) ?? 0) + 1);
+      groupVotes.set(year, votes);
+    }
+  }
+  if (meta) {
+    const groupByYear = new Map<number, string>();
+    for (const [year, votes] of groupVotes) {
+      let best = '';
+      let bestN = 0;
+      for (const [code, n] of votes) {
+        if (n > bestN) { best = code; bestN = n; }
+      }
+      if (best) groupByYear.set(year, best);
+    }
+    for (const [termId, code] of codeById) {
+      meta.groupCodes[termId] = groupByYear.get(Number(String(code).slice(0, 4))) ?? null;
+    }
   }
   if (!byYear.size) return {};
 

@@ -25,9 +25,14 @@ export function doPrintTranscript(orientation: 'landscape' | 'portrait' = 'lands
   // حاشیهٔ عمودی عمداً کم است تا فضای کاغذ به جدول برسد (پاصفحهٔ شمارهٔ صفحه ~۵mm می‌خواهد)
   const margins = orientation === 'portrait' ? '8mm 7mm 11mm 7mm' : '8mm 10mm 13mm 10mm';
   const size = orientation === 'portrait' ? 'A4 portrait' : 'A4 landscape';
+  /**
+   * ⚠ `@page` باید در سطحِ بالا باشد، نه داخلِ `@media print`.
+   * قاعدهٔ گروهی (`@page` داخل `@media`) از نظر مشخصات CSS نامعتبر است و
+   * مرورگر بی‌صدا نادیده‌اش می‌گرفت؛ نتیجه این بود که چاپ با اندازه و حاشیهٔ
+   * پیش‌فرضِ مرورگر انجام می‌شد و سند به‌هم می‌ریخت.
+   */
   pageStyle.textContent =
-    `@media print { @page { size: ${size}; margin: ${margins};` +
-    ' @bottom-center { content: \'صفحه \' counter(page) \' از \' counter(pages); font-size: 8pt; color: #475569; font-family: "Vazirmatn", Tahoma, sans-serif; } } }';
+    `@page { size: ${size}; margin: ${margins}; }`;
   document.head.appendChild(pageStyle);
   const done = () => {
     document.body.classList.remove('printing-transcript', 'printing-portrait');

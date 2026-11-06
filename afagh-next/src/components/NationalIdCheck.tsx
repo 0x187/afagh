@@ -90,7 +90,7 @@ export default function NationalIdCheck({ token, dark = false }: { token: string
           </span>
         )}
       </div>
-      <p className={`mt-2 text-[10px] ${label}`}>
+      <p className={`mt-2 text-3xs ${label}`}>
         تلاش‌ها محدود است ({fa(8)} بار در {fa(10)} دقیقه برای هر سند).
       </p>
     </div>

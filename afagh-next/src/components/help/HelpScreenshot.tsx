@@ -46,11 +46,11 @@ export default function HelpScreenshot({ role, slug, n, caption, alt }: Props) {
         >
           <span className="text-2xl">🖼️</span>
           <span className="text-xs font-black text-slate-500">تصویر این مرحله</span>
-          <span className="max-w-md text-[11px] leading-relaxed text-slate-400">{caption}</span>
+          <span className="max-w-md text-2xs leading-relaxed text-slate-400">{caption}</span>
         </div>
       )}
-      <figcaption className="flex items-start gap-2 px-4 py-2.5 text-[11px] leading-relaxed text-slate-500">
-        <span className="mt-0.5 shrink-0 rounded-md bg-slate-800 px-1.5 py-0.5 text-[10px] font-black text-white">
+      <figcaption className="flex items-start gap-2 px-4 py-2.5 text-2xs leading-relaxed text-slate-500">
+        <span className="mt-0.5 shrink-0 rounded-md bg-slate-800 px-1.5 py-0.5 text-3xs font-black text-white">
           {faNum(n)}
         </span>
         <span>{caption}</span>

@@ -296,7 +296,7 @@ export default function RegulationsClient(props: {
               <span>➕</span>
               <span>تعریف آیین‌نامه جدید</span>
             </button>
-            <Link
+            <Link prefetch={false}
               href="/admin/curriculum"
               className="bg-indigo-800/80 hover:bg-indigo-800 text-indigo-100 font-bold text-xs px-3.5 py-2.5 rounded-xl transition-all border border-indigo-700/60"
             >
@@ -315,7 +315,7 @@ export default function RegulationsClient(props: {
               نسخه‌های فعال آیین‌نامه‌ها
             </h3>
             {/* سرستون‌های مرتب‌سازی فهرست — کلیک: صعودی ▲ / نزولی ▼ / بدون سورت ↕ */}
-            <div className="mb-2 flex flex-wrap items-center gap-1 text-[11px]">
+            <div className="mb-2 flex flex-wrap items-center gap-1 text-2xs">
               <span className="text-slate-400">مرتب‌سازی:</span>
               {([
                 ['title', 'عنوان'],
@@ -357,14 +357,14 @@ export default function RegulationsClient(props: {
                   >
                     <div className="flex items-center justify-between mb-1">
                       <span className="font-black truncate">{reg.title}</span>
-                      <span className="text-[10px] bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-mono">
+                      <span className="text-3xs bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded font-mono">
                         {reg.degreeLevelTitle || 'مقطع'}
                       </span>
                     </div>
-                    <div className="flex items-center justify-between text-[11px] text-slate-500 font-normal">
+                    <div className="flex items-center justify-between text-2xs text-slate-500 font-normal">
                       <span>ورودی {faNum(reg.effectiveFromYear)} به بعد</span>
                       <span
-                        className={`text-[10px] font-bold px-1.5 py-0.2 rounded ${
+                        className={`text-3xs font-bold px-1.5 py-0.2 rounded ${
                           reg.rulesConfig?.grading_and_gpa?.failed_course_gpa_policy ===
                           'EXCLUDE_IF_PASSED'
                             ? 'bg-emerald-100 text-emerald-800'
@@ -684,7 +684,7 @@ export default function RegulationsClient(props: {
                     }
                     className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-mono"
                   />
-                  <span className="text-[11px] text-slate-500">
+                  <span className="text-2xs text-slate-500">
                     ۱۲.۰۰ برای کارشناسی، ۱۴.۰۰ برای کارشناسی ارشد
                   </span>
                 </div>
@@ -707,7 +707,7 @@ export default function RegulationsClient(props: {
                     }
                     className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-mono"
                   />
-                  <span className="text-[11px] text-slate-500">معمولاً ۳ نیمسال متوالی</span>
+                  <span className="text-2xs text-slate-500">معمولاً ۳ نیمسال متوالی</span>
                 </div>
 
                 <div>
@@ -728,7 +728,7 @@ export default function RegulationsClient(props: {
                     }
                     className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-mono"
                   />
-                  <span className="text-[11px] text-slate-500">معمولاً ۴ نیمسال برای کارشناسی</span>
+                  <span className="text-2xs text-slate-500">معمولاً ۴ نیمسال برای کارشناسی</span>
                 </div>
 
                 <div>
@@ -749,7 +749,7 @@ export default function RegulationsClient(props: {
                     }
                     className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-mono"
                   />
-                  <span className="text-[11px] text-slate-500">
+                  <span className="text-2xs text-slate-500">
                     ۸ نیمسال کارشناسی پیوسته، ۴ نیمسال ارشد
                   </span>
                 </div>
@@ -771,7 +771,7 @@ export default function RegulationsClient(props: {
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    <label className="block text-2xs font-bold text-slate-600 mb-1">
                       کف واحد عادی:
                     </label>
                     <input
@@ -790,7 +790,7 @@ export default function RegulationsClient(props: {
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    <label className="block text-2xs font-bold text-slate-600 mb-1">
                       سقف واحد عادی:
                     </label>
                     <input
@@ -809,7 +809,7 @@ export default function RegulationsClient(props: {
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    <label className="block text-2xs font-bold text-slate-600 mb-1">
                       سقف واحد دانشجوی مشروط:
                     </label>
                     <input
@@ -831,7 +831,7 @@ export default function RegulationsClient(props: {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    <label className="block text-2xs font-bold text-slate-600 mb-1">
                       حداقل معدل دانشجوی ممتاز (معدل الف):
                     </label>
                     <input
@@ -851,7 +851,7 @@ export default function RegulationsClient(props: {
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    <label className="block text-2xs font-bold text-slate-600 mb-1">
                       سقف واحد دانشجوی ممتاز (معدل الف):
                     </label>
                     <input
@@ -880,7 +880,7 @@ export default function RegulationsClient(props: {
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    <label className="block text-2xs font-bold text-slate-600 mb-1">
                       سقف واحد عادی تابستان:
                     </label>
                     <input
@@ -899,7 +899,7 @@ export default function RegulationsClient(props: {
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    <label className="block text-2xs font-bold text-slate-600 mb-1">
                       سقف واحد تابستان برای دانشجوی ترم آخر:
                     </label>
                     <input
@@ -928,7 +928,7 @@ export default function RegulationsClient(props: {
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    <label className="block text-2xs font-bold text-slate-600 mb-1">
                       سقف واحد ترم آخر:
                     </label>
                     <input
@@ -1029,7 +1029,7 @@ export default function RegulationsClient(props: {
                         EXCLUDE_IF_PASSED (آیین‌نامه مصوب ۱۳۹۷ به بعد)
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-600 leading-relaxed pr-6">
+                    <p className="text-2xs text-slate-600 leading-relaxed pr-6">
                       اگر دانشجو در درسی مردود شود و در ترم‌های بعد آن درس را با نمره قبولی پاس
                       کند، <b>نمره مردودی قبلی از صورت و مخرج معدل کل کسر و حذف می‌شود</b>.
                     </p>
@@ -1064,7 +1064,7 @@ export default function RegulationsClient(props: {
                         KEEP_ALWAYS (آیین‌نامه مصوب ۱۳۹۰)
                       </span>
                     </div>
-                    <p className="text-[11px] text-slate-600 leading-relaxed pr-6">
+                    <p className="text-2xs text-slate-600 leading-relaxed pr-6">
                       تمام نمرات مردودی و قبولی دانشجو همیشه در محاسبه معدل کل ضرب شده و در کارنامه
                       باقی می‌مانند.
                     </p>
@@ -1090,7 +1090,7 @@ export default function RegulationsClient(props: {
                     }
                     className="w-full sm:w-1/2 p-2.5 rounded-xl border border-slate-300 text-xs font-mono"
                   />
-                  <span className="text-[11px] text-slate-500">
+                  <span className="text-2xs text-slate-500">
                     ۱۰ برای کاردانی و کارشناسی، ۱۲ برای ارشد، ۱۴ برای دکتری
                   </span>
                 </div>
@@ -1116,12 +1116,12 @@ export default function RegulationsClient(props: {
                       }
                       className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-mono"
                     />
-                    <span className="text-[11px] text-slate-500">
+                    <span className="text-2xs text-slate-500">
                       فقط تبصره ۱۳۹۱: مردودی قبلی فقط با قبولی ۱۴+ حذف می‌شود.
                     </span>
                     {formConfig.grading_and_gpa.failed_course_gpa_policy === 'EXCLUDE_IF_PASSED_1391' &&
                       formConfig.grading_and_gpa.retakeMinGrade == null && (
-                        <span className="block text-[11px] text-amber-700 font-bold">
+                        <span className="block text-2xs text-amber-700 font-bold">
                           ⚠ سیاست ۱۳۹۱ انتخاب شده ولی حد نصاب خالی است (فعلاً همان کف قبولی اعمال می‌شود).
                         </span>
                       )}
@@ -1146,7 +1146,7 @@ export default function RegulationsClient(props: {
                       className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-mono"
                       dir="ltr"
                     />
-                    <span className="text-[11px] text-slate-500">
+                    <span className="text-2xs text-slate-500">
                       اگر پر شود، به‌جای کد خودکار آیین‌نامه روی مردودیِ جبران‌شده می‌نشیند.
                     </span>
                   </div>
@@ -1193,7 +1193,7 @@ export default function RegulationsClient(props: {
                       <span className="block font-bold text-xs text-slate-800">
                         فقط بهترین نمرهٔ درس تکراری در معدل کل شمرده شود
                       </span>
-                      <span className="block text-[11px] text-slate-500 leading-relaxed mt-0.5">
+                      <span className="block text-2xs text-slate-500 leading-relaxed mt-0.5">
                         اگر دانشجو درسی را که <b>قبلاً هم قبول شده</b> دوباره برای ارتقای معدل اخذ
                         کند، با فعال‌کردن این گزینه فقط <b>بالاترین</b> نمره‌ی آن درس (و واحدش
                         یک‌بار) در معدل کل حساب می‌شود؛ در غیر این صورت هر بار اخذ، جدا در معدل
@@ -1224,7 +1224,7 @@ export default function RegulationsClient(props: {
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    <label className="block text-2xs font-bold text-slate-600 mb-1">
                       سقف واحد تابستان برای سهمیه شاهد:
                     </label>
                     <input
@@ -1249,12 +1249,12 @@ export default function RegulationsClient(props: {
                       }
                       className="w-full p-2 rounded-lg border border-slate-300 text-xs font-mono"
                     />
-                    <span className="text-[10px] text-slate-500">
+                    <span className="text-3xs text-slate-500">
                       طبق بخشنامه وزارت علوم: ۸ واحد در تابستان عادی
                     </span>
                   </div>
                   <div>
-                    <label className="block text-[11px] font-bold text-slate-600 mb-1">
+                    <label className="block text-2xs font-bold text-slate-600 mb-1">
                       سنوات ارفاقی پیش‌فرض سهمیه شاهد (نیمسال):
                     </label>
                     <input
@@ -1378,31 +1378,31 @@ export default function RegulationsClient(props: {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
                 {/* Result Card 1 */}
                 <div className="p-4 bg-white/10 rounded-xl border border-white/10 space-y-1">
-                  <span className="text-[11px] text-indigo-300 font-bold">
+                  <span className="text-2xs text-indigo-300 font-bold">
                     سقف مجاز انتخاب واحد:
                   </span>
                   <div className="text-2xl font-black text-emerald-400">
                     {faNum(simResults.allowedMax)} واحد
                   </div>
-                  <p className="text-[11px] text-slate-300">
+                  <p className="text-2xs text-slate-300">
                     کف واحد مجاز: {faNum(simResults.minAllowed)} واحد
                   </p>
                 </div>
 
                 {/* Result Card 2 */}
                 <div className="p-4 bg-white/10 rounded-xl border border-white/10 space-y-1">
-                  <span className="text-[11px] text-indigo-300 font-bold">وضعیت فارغ‌التحصیلی:</span>
+                  <span className="text-2xs text-indigo-300 font-bold">وضعیت فارغ‌التحصیلی:</span>
                   <div className="text-sm font-extrabold text-amber-300">
                     {simResults.isGraduating ? '🎓 دانشجوی ترم آخر' : 'تحصیل عادی'}
                   </div>
-                  <p className="text-[11px] text-slate-300">
+                  <p className="text-2xs text-slate-300">
                     {faNum(simResults.rem)} واحد تا فراغت از تحصیل
                   </p>
                 </div>
 
                 {/* Result Card 3 */}
                 <div className="p-4 bg-white/10 rounded-xl border border-white/10 space-y-1">
-                  <span className="text-[11px] text-indigo-300 font-bold">وضعیت حساب دانشجو:</span>
+                  <span className="text-2xs text-indigo-300 font-bold">وضعیت حساب دانشجو:</span>
                   <div
                     className={`text-sm font-extrabold ${
                       simResults.isBlocked ? 'text-rose-400' : 'text-emerald-400'
@@ -1410,7 +1410,7 @@ export default function RegulationsClient(props: {
                   >
                     {simResults.isBlocked ? '⛔ مسدود (کمیسیون سجاد)' : '✅ فعال و مجاز'}
                   </div>
-                  <p className="text-[11px] text-slate-300">
+                  <p className="text-2xs text-slate-300">
                     {simResults.isBlockedProbation
                       ? 'تجاوز از سقف مشروطی'
                       : simResults.isBlockedTenure

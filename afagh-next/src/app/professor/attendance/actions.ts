@@ -89,7 +89,11 @@ export async function saveSessionAttendanceAction(sessionId: number, entries: At
         const rows: (typeof student_class_attendance.$inferInsert)[] = [];
         for (const e of clean) {
           const enrollmentId = enrollmentByStudent.get(e.studentId);
-          if (enrollmentId !== undefined) rows.push({ sessionId: sid, enrollmentId, status: e.status });
+          if (enrollmentId === undefined) continue;
+          const mins = e.status === 'LATE' && Number.isFinite(e.lateMinutes)
+            ? Math.min(60, Math.max(1, Math.round(Number(e.lateMinutes))))
+            : null;
+          rows.push({ sessionId: sid, enrollmentId, status: e.status, lateMinutes: mins });
         }
         await tx.delete(student_class_attendance).where(eq(student_class_attendance.sessionId, sid));
         if (rows.length) await tx.insert(student_class_attendance).values(rows);

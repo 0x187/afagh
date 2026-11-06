@@ -39,21 +39,21 @@ export default function AnalyticsTab({ offering }: AnalyticsTabProps) {
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl text-center">
           <div className="text-2xl font-black text-emerald-800">{faNum(stats.passed)}</div>
-          <div className="text-[11px] font-black text-emerald-700 mt-1">تعداد قبول</div>
+          <div className="text-2xs font-black text-emerald-700 mt-1">تعداد قبول</div>
         </div>
         <div className="p-4 bg-rose-50 border border-rose-200 rounded-2xl text-center">
           <div className="text-2xl font-black text-rose-800">{faNum(stats.failed)}</div>
-          <div className="text-[11px] font-black text-rose-700 mt-1">تعداد مردود</div>
+          <div className="text-2xs font-black text-rose-700 mt-1">تعداد مردود</div>
         </div>
         <div className="p-4 bg-sky-50 border border-sky-200 rounded-2xl text-center">
           <div className="text-2xl font-black text-sky-800">
             {gradedCount > 0 ? faNum(Number(stats.average.toFixed(2))) : '—'}
           </div>
-          <div className="text-[11px] font-black text-sky-700 mt-1">میانگین کلاس</div>
+          <div className="text-2xs font-black text-sky-700 mt-1">میانگین کلاس</div>
         </div>
         <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl text-center">
           <div className="text-2xl font-black text-slate-800">{faNum(offering.students.length)}</div>
-          <div className="text-[11px] font-black text-slate-600 mt-1">تعداد دانشجو</div>
+          <div className="text-2xs font-black text-slate-600 mt-1">تعداد دانشجو</div>
         </div>
       </div>
 
@@ -67,7 +67,7 @@ export default function AnalyticsTab({ offering }: AnalyticsTabProps) {
         )}
         {bars.map(b => (
           <div key={b.label} className="flex items-center gap-3">
-            <div className="w-24 text-[11px] font-black text-slate-600">{b.label} <span className="text-slate-400 font-bold">({b.range})</span></div>
+            <div className="w-24 text-2xs font-black text-slate-600">{b.label} <span className="text-slate-400 font-bold">({b.range})</span></div>
             <div className="flex-1 bg-slate-100 rounded-full h-5 overflow-hidden">
               <div
                 className={`h-full ${b.color} rounded-full transition-all duration-500`}
@@ -79,7 +79,7 @@ export default function AnalyticsTab({ offering }: AnalyticsTabProps) {
         ))}
       </div>
 
-      <p className="text-[10px] text-slate-400 font-bold leading-5">
+      <p className="text-3xs text-slate-400 font-bold leading-5">
         💡 تحلیل فوق به‌صورت زنده از آخرین نمرات محاسبه می‌شود؛ پس از قفل قطعی درس، این آمار برای نیمسال بایگانی می‌گردد.
       </p>
     </div>

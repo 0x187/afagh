@@ -7,7 +7,7 @@
  * پیش‌بینی تعداد گروه، توزیع سهمیهٔ کلاس‌ها، ماشین فازها و سلامت برنامه.
  */
 import {
-  allocateQuotaShifts, calculateSlotScore, canAllocateInPhase, canEditInPhase,
+  allocateQuotaShifts, calculateSlotScore, canAllocateInPhase, canEditInPhase, countInternalGaps,
   canTransition, classifyUtilization, distributeGroupsByFaculty, GENDERS,
   MAX_GROUPS, overlaps, SCORE, shiftOf, shiftUtilization, suggestedGroupCount,
   toMinutes, validateGroupDrafts, type Shift,
@@ -88,6 +88,28 @@ console.log('\n۳) امتیازدهی پیشنهادها (زونینگ + ترج�
   eq('ظرفیت ناکافی → منفی (هرگز پیشنهاد نمی‌شود)', capLow.score, SCORE.capacityOver);
   eq('دلیل ظرفیت ناکافی', capLow.reasons[0].includes('کمتر از نیاز'), true);
   const noFac = calculateSlotScore({ roomFacultyId: null, targetFacultyId: null, inPreferredWindow: true, inAvailableWindow: true, roomCapacity: 40, requiredCapacity: 40 });
+
+  // ── فشرده‌سازی روز استاد: «پشت سر هم، بدون ساعت خالی» ──
+  const base = { roomFacultyId: 2, targetFacultyId: 2, inPreferredWindow: true, inAvailableWindow: true, roomCapacity: 40, requiredCapacity: 40 };
+  const plain = calculateSlotScore({ ...base });
+  const adjacent = calculateSlotScore({ ...base, adjacentToExisting: true });
+  eq('اسلات چسبیده به کلاس موجود امتیاز بیشتری دارد', adjacent.score > plain.score, true);
+  eq('پاداش چسبیدن = SCORE.adjacentBlock', adjacent.score - plain.score, SCORE.adjacentBlock);
+  const sameDay = calculateSlotScore({ ...base, dayAlreadyUsed: true });
+  eq('همان روزِ کلاس‌های دیگر امتیاز بیشتری دارد', sameDay.score > plain.score, true);
+  const withGap = calculateSlotScore({ ...base, adjacentToExisting: true, gapsCreated: 1 });
+  eq('ساعت خالی امتیاز را کم می‌کند', withGap.score < adjacent.score, true);
+  eq('جریمهٔ یک ساعت خالی = SCORE.internalGap', withGap.score - adjacent.score, SCORE.internalGap);
+  eq('دو ساعت خالی دو برابر جریمه', calculateSlotScore({ ...base, gapsCreated: 2 }).score - plain.score, SCORE.internalGap * 2);
+  eq('بدون ساعت خالی جریمه‌ای نیست', plain.score, calculateSlotScore({ ...base, gapsCreated: 0 }).score);
+
+  // countInternalGaps
+  eq('۸-۱۰ و ۱۲-۱۴ → یک ساعت خالی', countInternalGaps([{ start: 480, end: 600 }, { start: 720, end: 840 }]), 1);
+  eq('۸-۱۰ و ۱۰-۱۲ → بدون خالی', countInternalGaps([{ start: 480, end: 600 }, { start: 600, end: 720 }]), 0);
+  eq('یک بلوک → بدون خالی', countInternalGaps([{ start: 480, end: 600 }]), 0);
+  eq('سه بلوک پشت سر هم → بدون خالی', countInternalGaps([{ start: 480, end: 600 }, { start: 600, end: 720 }, { start: 720, end: 840 }]), 0);
+  eq('سه بلوک با دو فاصله → ۲', countInternalGaps([{ start: 480, end: 600 }, { start: 660, end: 720 }, { start: 780, end: 840 }]), 2);
+  eq('ترتیب ورودی مهم نیست', countInternalGaps([{ start: 720, end: 840 }, { start: 480, end: 600 }]), 1);
   eq('بدون دانشکدهٔ هدف → امتیاز پایهٔ مکانی', noFac.score, SCORE.crossFaculty + SCORE.preferredTime + SCORE.capacityPerfect);
   const noAvail = calculateSlotScore({ roomFacultyId: 2, targetFacultyId: 2, inPreferredWindow: false, inAvailableWindow: false, roomCapacity: 40, requiredCapacity: 40 });
   eq('خارج از ساعات حضور → -۱۰۰', noAvail.score, -100);

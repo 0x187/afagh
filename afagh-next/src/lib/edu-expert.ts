@@ -287,7 +287,10 @@ export interface ClassroomSessionRow {
 export interface ClassroomAssignRow {
   roomId: number;
   roomName: string;
+  /** هم‌نویسیِ نام دانشکده در ستون قدیمیِ `buildingName` — فقط برای سازگاری */
   buildingName: string | null;
+  /** نام دانشکدهٔ مالکِ اتاق (منبع حقیقت: `classrooms.facultyId`) */
+  facultyName: string | null;
   floor: string | null;
   /** تعدادِ سانسِ هفتگیِ برگزارشده در این اتاق در این ترم */
   sessionCount: number;
@@ -295,11 +298,6 @@ export interface ClassroomAssignRow {
   offeringCount: number;
   /** گروه‌های سازندهٔ درس‌های همین اتاق — برای اینکه معلوم باشد چه کسانی اینجا کلاس دارند */
   departments: string[];
-  /** گروهِ صریحاً مسئولِ این اتاق (مهاجرت ۰۱۱۴) — NULL = تعیین نشده */
-  departmentId: number | null;
-  departmentName: string | null;
-  /** مدیرگروهِ همان گروه مسئول (`departments.headStaffId`) */
-  headName: string | null;
   expertIds: number[];
   sessions: ClassroomSessionRow[];
 }
@@ -366,7 +364,10 @@ export async function listClassroomExpertAssignments(
      ساختمان/طبقه/گروه مسئول همه خالی. صفحه دروغ می‌گفت ولی کسی نمی‌فهمید.
      پس حالا: اول با ستونِ تازه تلاش می‌کنیم، اگر خطای ساختار داد (مهاجرت
      اجرا نشده) بدونِ آن ستون دوباره تلاش می‌کنیم — صفحه هرگز جعلِ نام نمی‌کند. */
-  type RoomMeta = { id: number; name: string; buildingName: string | null; floor: string | null; departmentId: number | null };
+  type RoomMeta = {
+    id: number; name: string; buildingName: string | null; floor: string | null;
+    facultyId: number | null; departmentId: number | null;
+  };
   const roomMetaOf = async (withDept: boolean): Promise<RoomMeta[]> => {
     const base = db
       .select({
@@ -374,6 +375,7 @@ export async function listClassroomExpertAssignments(
         name: classrooms.name,
         buildingName: classrooms.buildingName,
         floor: classrooms.floor,
+        facultyId: classrooms.facultyId,
         ...(withDept ? { departmentId: classrooms.departmentId } : {}),
       })
       .from(classrooms)
@@ -401,26 +403,24 @@ export async function listClassroomExpertAssignments(
       .orderBy(asc(classroom_edu_experts.id)).catch(() => []),
   ]);
 
+  /* دانشکدهٔ مالکِ اتاق.
+     «ساختمان» در سامانه موجودیت ندارد؛ از وقتی فرم کلاس‌ها به `facultyId`
+     منتقل شد، `buildingName` فقط هم‌نویسیِ نام دانشکده است (برای مصرف‌کننده‌های
+     قدیمی). اینجا نام را از منبع حقیقت می‌خوانیم و اگر نبود به همان هم‌نویسی
+     برمی‌گردیم تا کارتِ اتاق هرگز خالی نماند. */
+  const facultyIds = [...new Set(
+    rooms.map((r) => r.facultyId).filter((v): v is number => typeof v === 'number'),
+  )];
+  const facultyRows = facultyIds.length
+    ? await db.select({ id: faculties.id, name: faculties.name }).from(faculties)
+        .where(inArray(faculties.id, facultyIds)).catch(() => [])
+    : ([] as { id: number; name: string }[]);
+  const facultyNameById = new Map(facultyRows.map((f) => [f.id, f.name]));
+
   const roomById = new Map(rooms.map((r) => [r.id, r]));
   const deptName = new Map(depts.map((d) => [d.id, d.name]));
   const profName = new Map(profs.map((p) => [p.id, `${p.firstName || ''} ${p.lastName || ''}`.trim()]));
 
-  /* مدیرگروهِ گروهِ مسئولِ هر اتاق — نامِ مدیر لازم است تا مدیر سامانه در همان
-     کارت ببیند «این اتاق در اختیار چه کسی است». */
-  const ownerDeptIds = [...new Set(
-    rooms.map((r) => r.departmentId).filter((v): v is number => typeof v === 'number'),
-  )];
-  const ownerDepts = ownerDeptIds.length
-    ? await db.select({ id: departments.id, name: departments.name, headStaffId: departments.headStaffId })
-        .from(departments).where(inArray(departments.id, ownerDeptIds)).catch(() => [])
-    : ([] as { id: number; name: string; headStaffId: number | null }[]);
-  const ownerDeptById = new Map(ownerDepts.map((d) => [d.id, d]));
-  const headIds = [...new Set(ownerDepts.map((d) => d.headStaffId).filter((v): v is number => typeof v === 'number'))];
-  const heads = headIds.length
-    ? await db.select({ id: staff.id, firstName: users.firstName, lastName: users.lastName })
-        .from(staff).innerJoin(users, eq(users.id, staff.userId)).where(inArray(staff.id, headIds)).catch(() => [])
-    : ([] as { id: number; firstName: string | null; lastName: string | null }[]);
-  const headNameById = new Map(heads.map((h) => [h.id, `${h.firstName || ''} ${h.lastName || ''}`.trim()]));
   const expertsByRoom = new Map<number, number[]>();
   for (const a of assignments) {
     const list = expertsByRoom.get(a.classroomId) ?? [];
@@ -438,16 +438,13 @@ export async function listClassroomExpertAssignments(
         roomId,
         roomName: room?.name ?? `اتاق ${roomId}`,
         buildingName: room?.buildingName ?? null,
+        facultyName: room?.facultyId != null
+          ? (facultyNameById.get(room.facultyId) ?? room.buildingName ?? null)
+          : (room?.buildingName ?? null),
         floor: room?.floor ?? null,
         sessionCount: 0,
         offeringCount: 0,
         departments: [],
-        departmentId: room?.departmentId ?? null,
-        departmentName: room?.departmentId != null ? (ownerDeptById.get(room.departmentId)?.name ?? null) : null,
-        headName: (() => {
-          const hid = room?.departmentId != null ? ownerDeptById.get(room.departmentId)?.headStaffId : null;
-          return hid != null ? (headNameById.get(hid) ?? null) : null;
-        })(),
         expertIds: expertsByRoom.get(roomId) ?? [],
         sessions: [],
       };

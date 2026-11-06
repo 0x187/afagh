@@ -31,7 +31,7 @@ function Kpi({ icon, value, title, sub, tone = 'text-indigo-950' }: { icon: stri
       <span className="text-2xl">{icon}</span>
       <p className={`font-mono text-2xl font-black ${tone}`}>{value}</p>
       <p className="text-xs font-bold text-slate-700">{title}</p>
-      {sub && <p className="text-[11px] text-slate-500">{sub}</p>}
+      {sub && <p className="text-2xs text-slate-500">{sub}</p>}
     </div>
   );
 }
@@ -82,11 +82,11 @@ export default async function ProfessorPerformancePage() {
         </div>
 
         <div className="space-y-1 rounded-2xl border border-white/20 bg-white/10 p-4 text-left backdrop-blur-md">
-          <span className="block text-[11px] text-indigo-200">رتبهٔ ارزشیابی در میان اساتید دارای کلاس:</span>
+          <span className="block text-2xs text-indigo-200">رتبهٔ ارزشیابی در میان اساتید دارای کلاس:</span>
           <p className="text-2xl font-black text-amber-300">
             {perf.peers.evalRank ? `مقام ${fa(perf.peers.evalRank)} از ${fa(perf.peers.count)}` : 'هنوز ارزشیابی نشده‌اید'}
           </p>
-          <p className="text-[10px] text-emerald-300">
+          <p className="text-3xs text-emerald-300">
             {perf.peers.responseRank
               ? `سرعت پاسخگویی به پرونده‌ها: مقام ${fa(perf.peers.responseRank)} از ${fa(perf.peers.responders)}`
               : 'پروندهٔ مختومه‌ای برای سنجش سرعت پاسخگویی ندارید'}
@@ -162,11 +162,11 @@ export default async function ProfessorPerformancePage() {
             <CompareBar label="نمرهٔ ارزشیابی دانشجویان" mine={perf.evaluation.score} peers={perf.peers.avgEvalScore} unit="" max={5} />
             <CompareBar label="نرخ برگزاری جلسات" mine={perf.sessions.heldRate} peers={perf.sessions.holdTarget} unit="٪" max={100} />
           </div>
-          <p className="text-[11px] leading-relaxed text-slate-500">
+          <p className="text-2xs leading-relaxed text-slate-500">
             خط عمودی تیره روی هر نوار، میانگین واقعی {fa(perf.peers.count)} استاد دارای کلاس در همین ترم است.
             {perf.evaluation.respondents > 0 ? ` نمرهٔ ارزشیابی شما از ${fa(perf.evaluation.respondents)} پاسخ دانشجویی محاسبه شده است.` : ''}
           </p>
-          <Link href="/professor/evaluation" className="inline-block rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-extrabold text-white hover:bg-slate-800">
+          <Link prefetch={false} href="/professor/evaluation" className="inline-block rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-extrabold text-white hover:bg-slate-800">
             📈 کارنامهٔ تفصیلی ارزشیابی
           </Link>
         </div>
@@ -190,7 +190,7 @@ export default async function ProfessorPerformancePage() {
             <span className={`text-xs font-bold ${perf.incentive.eligible ? 'text-emerald-400' : 'text-slate-400'}`}>
               {perf.incentive.eligible ? `✓ واجد دریافت ${fa(perf.incentive.percent)}٪ ضریب ترجیحی` : '✗ فعلاً واجد شرایط نیستید'}
             </span>
-            <Link href="/professor/contract" className="rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-extrabold text-white shadow hover:bg-indigo-700">
+            <Link prefetch={false} href="/professor/contract" className="rounded-xl bg-indigo-600 px-3 py-1.5 text-xs font-extrabold text-white shadow hover:bg-indigo-700">
               💼 قرارداد و امور پرسنلی
             </Link>
           </div>

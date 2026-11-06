@@ -1,4 +1,4 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, count, eq, inArray } from 'drizzle-orm';
 import Link from 'next/link';
 import { db } from '@/db';
 import { academic_terms, courses, majors, students, users } from '@/db/schema';
@@ -17,27 +17,48 @@ const SEM_LABEL: Record<number, string> = { 9: 'تابستان' };
 export default async function GrantsPage({
   searchParams,
 }: {
-  searchParams?: { major?: string; year?: string; student?: string; msg?: string; err?: string };
+  /**
+   * ⚠ در Next.js 15/16 `searchParams` یک **Promise** است. پیش‌تر اینجا به‌صورت
+   * آبجکت خام تایپ و خوانده می‌شد؛ نتیجه این بود که `sp.major`/`sp.year`/`sp.student`
+   * همیشه undefined می‌ماندند و پارامترهای فرمِ «نمایش دانشجویان» (که با GET
+   * ارسال می‌شوند) **بی‌صدا نادیده گرفته می‌شدند** — صفحه با رشته/ورودیِ پیش‌فرض
+   * رندر می‌شد و فهرست دانشجویان خالی می‌ماند. (باگ گزارش‌شدهٔ کاربر)
+   */
+  searchParams: Promise<{ major?: string; year?: string; student?: string; msg?: string; err?: string }>;
 }) {
   const { depts } = await requireDepHead();
   const deptIds = depts.map(d => d.id);
-  const sp = searchParams ?? {};
+  const sp = (await searchParams) ?? {};
 
   const majorsInScope = deptIds.length
     ? await db.select({ id: majors.id, name: majors.name, departmentId: majors.departmentId })
         .from(majors).where(inArray(majors.departmentId, deptIds)).orderBy(majors.name)
     : [];
 
-  const years = majorsInScope.length
-    ? await db.selectDistinct({ y: students.entryYear })
+  /*
+    ترکیبِ (رشته، ورودی) که واقعاً دانشجو دارد — به‌جای پیش‌فرضِ «اولین رشته +
+    جدیدترین ورودی». پیش‌تر پیش‌فرض روی رشته‌ای می‌افتاد که هیچ دانشجویی نداشت
+    (مثلاً «زیست شناسی سلولی و مولکولی») و صفحه همیشه با «دانشجویی یافت نشد»
+    باز می‌شد، حتی وقتی داده وجود داشت.
+  */
+  const pairs = majorsInScope.length
+    ? await db.select({ majorId: students.majorId, year: students.entryYear, n: count() })
         .from(students)
         .where(inArray(students.majorId, majorsInScope.map(m => m.id)))
-        .orderBy(students.entryYear)
+        .groupBy(students.majorId, students.entryYear)
     : [];
-  const yearList = years.map(r => r.y).filter((y): y is number => y != null).reverse();
 
-  const majorId = sp.major ? Number(sp.major) : (majorsInScope[0]?.id ?? 0);
-  const year = sp.year ? Number(sp.year) : (yearList[0] ?? 0);
+  const yearsFor = (mid: number) =>
+    pairs.filter(p => p.majorId === mid && p.year != null).map(p => p.year!).sort((a, b) => b - a);
+
+  const firstMajorWithStudents = majorsInScope.find(m => pairs.some(p => p.majorId === m.id)) ?? majorsInScope[0];
+
+  const majorId = sp.major ? Number(sp.major) : (firstMajorWithStudents?.id ?? 0);
+
+  const yearOptions = yearsFor(majorId);
+  const year = sp.year ? Number(sp.year) : (yearOptions[0] ?? 0);
+  // ورودیِ درخواستیِ لینک‌های قدیمی باید در لیست دیده شود، حتی اگر دانشجو نداشته باشد
+  if (year && !yearOptions.includes(year)) yearOptions.unshift(year);
 
   const studentRows = (majorId && year)
     ? await db.select({
@@ -128,7 +149,7 @@ export default async function GrantsPage({
         <label className="space-y-1 text-xs font-bold text-slate-700">
           <span className="block">ورودی</span>
           <select name="year" defaultValue={year} className="rounded-lg border border-slate-300 px-2 py-1.5 text-xs">
-            {yearList.map(y => <option key={y} value={y}>{faNum(y)}</option>)}
+            {yearOptions.map(y => <option key={y} value={y}>{faNum(y)}</option>)}
           </select>
         </label>
         <button type="submit" className="rounded-lg bg-teal-800 px-3 py-1.5 text-xs font-bold text-white hover:bg-teal-900">
@@ -161,7 +182,7 @@ export default async function GrantsPage({
                     <td className="p-2 dir-ltr text-right font-mono text-slate-600">{s.studentCode}</td>
                     <td className="p-2 text-slate-600">{faNum(s.entryYear)}{s.entryTerm === 2 ? '/۲' : ''}</td>
                     <td className="p-2">
-                      <Link
+                      <Link prefetch={false}
                         href={`/group-manager/grants?major=${majorId}&year=${year}&student=${s.id}`}
                         className="rounded-lg bg-slate-100 px-2 py-1 font-bold text-slate-700 hover:bg-slate-200"
                       >
@@ -243,7 +264,7 @@ export default async function GrantsPage({
                                 <input type="hidden" name="courseId" value={c.id} />
                                 <input
                                   name="reason" placeholder="دلیل (اختیاری)"
-                                  className="w-28 rounded-lg border border-slate-300 px-1.5 py-1 text-[11px]"
+                                  className="w-28 rounded-lg border border-slate-300 px-1.5 py-1 text-2xs"
                                 />
                                 <button className="rounded-lg bg-teal-700 px-2 py-1 font-bold text-white hover:bg-teal-800">
                                   تخصیص

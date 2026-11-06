@@ -11,7 +11,6 @@ import {
   clearTermEduExpertAction,
   removeClassroomExpertAction,
   removeOfferingEduExpertAction,
-  setClassroomDepartmentAction,
   type EduExpertAssignInit,
 } from './actions';
 
@@ -48,9 +47,6 @@ export default function EduExpertAssignClient({ init }: { init: EduExpertAssignI
   const [selectedRooms, setSelectedRooms] = useState<Set<number>>(new Set());
   const [openRoom, setOpenRoom] = useState<number | null>(null);
   const [roomOverrides, setRoomOverrides] = useState<Map<number, number[]>>(new Map());
-  /* گروهِ مسئولِ هر اتاق — همان چیزی که مدیرگروه را هم مشخص می‌کند.
-     ادغامِ «تخصیص کارشناس به اتاق» با «تخصیص کلاس به مدیرگروه». */
-  const [deptOverrides, setDeptOverrides] = useState<Map<number, number | null>>(new Map());
   const [bulkExpert, setBulkExpert] = useState<number | null>(null);
 
   /* ── استثناها ── */
@@ -66,13 +62,6 @@ export default function EduExpertAssignClient({ init }: { init: EduExpertAssignI
   }, [init.candidates]);
 
   const roomExpertIds = (r: Room): number[] => roomOverrides.get(r.roomId) ?? r.expertIds;
-  const roomDeptId = (r: Room): number | null =>
-    deptOverrides.has(r.roomId) ? (deptOverrides.get(r.roomId) ?? null) : r.departmentId;
-  const deptById = useMemo(() => {
-    const m = new Map<number, EduExpertAssignInit['departments'][number]>();
-    for (const d of init.departments) m.set(d.id, d);
-    return m;
-  }, [init.departments]);
   const offExpertIds = (r: Row): number[] => offOverrides.get(r.offeringId) ?? r.assignedUserIds;
 
   const rooms = useMemo(() => {
@@ -82,7 +71,7 @@ export default function EduExpertAssignClient({ init }: { init: EduExpertAssignI
       if (!q) return true;
       return (
         r.roomName.includes(q) ||
-        (r.buildingName ?? '').includes(q) ||
+        (r.facultyName ?? r.buildingName ?? '').includes(q) ||
         r.departments.some((d) => d.includes(q)) ||
         (roomOverrides.get(r.roomId) ?? r.expertIds).some((id) => (nameOf.get(id) ?? '').includes(q))
       );
@@ -132,22 +121,6 @@ export default function EduExpertAssignClient({ init }: { init: EduExpertAssignI
     if (res.ok) {
       setRoomOverrides((p) => new Map(p).set(r.roomId, res.userIds ?? roomExpertIds(r).filter((x) => x !== userId)));
       setMsg({ ok: true, text: 'کارشناس از اتاق حذف شد.' });
-      router.refresh();
-    } else setMsg({ ok: false, text: res.error ?? 'خطا' });
-  }
-
-  /** تعیین/برداشتنِ گروهِ مسئولِ اتاق — مدیرگروه از همین گروه خوانده می‌شود. */
-  async function setRoomDept(r: Room, departmentId: number | null) {
-    setMsg(null);
-    const res = await setClassroomDepartmentAction(r.roomId, departmentId);
-    if (res.ok) {
-      setDeptOverrides((p) => new Map(p).set(r.roomId, departmentId));
-      setMsg({
-        ok: true,
-        text: departmentId
-          ? `گروه مسئولِ ${r.roomName} ثبت شد.`
-          : `گروه مسئولِ ${r.roomName} برداشته شد.`,
-      });
       router.refresh();
     } else setMsg({ ok: false, text: res.error ?? 'خطا' });
   }
@@ -346,7 +319,7 @@ export default function EduExpertAssignClient({ init }: { init: EduExpertAssignI
               </label>
             </div>
 
-            <p className="text-[11px] leading-5 text-slate-600">
+            <p className="text-2xs leading-5 text-slate-600">
               کارشناس را به <b>اتاق</b> بدهید، نه به درس. هر درسی که در آن اتاق سانس دارد خودکار مالِ همان کارشناس می‌شود و با
               جابه‌جاییِ برنامه هم خودش را به‌روز می‌کند. برای حالتِ خاص، تبِ «استثناهای درس».
             </p>
@@ -376,8 +349,8 @@ export default function EduExpertAssignClient({ init }: { init: EduExpertAssignI
                     />
                     <div className="flex-1 min-w-0">
                       <p className="font-black text-sm">{r.roomName}</p>
-                      <p className="text-[11px] text-slate-500">
-                        {[r.buildingName, r.floor ? `طبقه ${r.floor}` : null].filter(Boolean).join(' · ') || 'بدون ساختمان'}
+                      <p className="text-2xs text-slate-500">
+                        {[r.facultyName ?? r.buildingName, r.floor ? `طبقه ${r.floor}` : null].filter(Boolean).join(' · ') || 'بدون دانشکده'}
                         {' · '}
                         {r.sessionCount} سانس · {r.offeringCount} درس
                       </p>
@@ -385,56 +358,14 @@ export default function EduExpertAssignClient({ init }: { init: EduExpertAssignI
                   </div>
 
                   {!!r.departments.length && (
-                    <p className="text-[11px] text-slate-500">گروه‌ها: {r.departments.join(' · ')}</p>
+                    <p className="text-2xs text-slate-500">گروه‌ها: {r.departments.join(' · ')}</p>
                   )}
-
-                  {/* ── گروهِ مسئولِ اتاق (مدیرگروه) ──────────────────────
-                      ادغامِ تخصیصِ اتاق با تخصیصِ کلاس به مدیرگروه: مدیر سامانه
-                      همین‌جا می‌گوید این اتاق در اختیارِ کدام گروه است و نامِ
-                      مدیرگروهش را هم بلافاصله می‌بیند. */}
-                  <div className="rounded-xl border border-slate-200 bg-slate-50 px-2 py-1.5 space-y-1">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-[10px] font-black text-slate-600 shrink-0">گروه مسئول</span>
-                      {/* عرضِ کامل + بدون min-w-0: سلکتِ باریک نام‌های بلند فارسی را
-                          به «…» برش می‌زند و کاربر نمی‌تواند بخواند. */}
-                      <select
-                        dir="rtl"
-                        className="input flex-1 min-w-[7rem] text-[11px] py-0.5 h-7"
-                        value={roomDeptId(r) ?? ''}
-                        disabled={pending}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setRoomDept(r, v ? Number(v) : null);
-                        }}
-                      >
-                        <option value="">— تعیین نشده —</option>
-                        {init.departments.map((d) => (
-                          <option key={d.id} value={d.id}>
-                            {d.name}
-                            {d.facultyName ? ` (${d.facultyName})` : ''}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-                    <div className="text-[10px] font-bold text-slate-500 pr-1">
-                      {(() => {
-                        const id = roomDeptId(r);
-                        if (id == null) {
-                          return 'بدون گروه مسئول — مسئولیت از سانس‌های همین اتاق استنتاج می‌شود.';
-                        }
-                        const d = deptById.get(id);
-                        return d?.headName
-                          ? `مدیرگروه: ${d.headName}`
-                          : 'برای این گروه مدیرگروه ثبت نشده است.';
-                      })()}
-                    </div>
-                  </div>
 
                   <div className="flex flex-wrap items-center gap-1">
                     {ids.map((id) => (
                       <span
                         key={id}
-                        className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-800"
+                        className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-2xs font-bold text-indigo-800"
                       >
                         {nameOf.get(id) ?? `#${id}`}
                         <button
@@ -448,14 +379,14 @@ export default function EduExpertAssignClient({ init }: { init: EduExpertAssignI
                         </button>
                       </span>
                     ))}
-                    {!ids.length && <span className="text-[11px] text-amber-700">بدون کارشناس</span>}
+                    {!ids.length && <span className="text-2xs text-amber-700">بدون کارشناس</span>}
                   </div>
 
                   {/* انتخاب‌گرِ کارشناس در سطرِ جداگانه و با عرضِ کامل — نام‌ها
                       بلندند («… — کنترل‌کنندهٔ حضور») و در سلکتِ ۷رِمی بریده می‌شوند. */}
                   <select
                     dir="rtl"
-                    className="input w-full text-[11px] py-1 h-8"
+                    className="input w-full text-2xs py-1 h-8"
                     value=""
                     disabled={pending}
                     onChange={(e) => {
@@ -475,7 +406,7 @@ export default function EduExpertAssignClient({ init }: { init: EduExpertAssignI
                   </select>
 
                   <button
-                    className="text-[11px] font-bold text-indigo-700 underline"
+                    className="text-2xs font-bold text-indigo-700 underline"
                     onClick={() => setOpenRoom(open ? null : r.roomId)}
                   >
                     {open ? 'بستنِ برنامهٔ هفتگی' : `برنامهٔ هفتگی (${r.sessionCount} سانس)`}
@@ -485,16 +416,16 @@ export default function EduExpertAssignClient({ init }: { init: EduExpertAssignI
                     <div className="space-y-2 border-t border-slate-200 pt-2">
                       {days.map((d) => (
                         <div key={d}>
-                          <p className="text-[11px] font-black text-slate-700 mb-1">{DAYS[d] ?? d}</p>
+                          <p className="text-2xs font-black text-slate-700 mb-1">{DAYS[d] ?? d}</p>
                           <div className="space-y-1">
                             {(byDay.get(d) ?? []).map((s) => (
                               <div key={s.scheduleId} className="flex items-center gap-2 rounded-lg bg-slate-50 px-2 py-1">
-                                <span className="text-[11px] text-slate-500 w-16 shrink-0">
+                                <span className="text-2xs text-slate-500 w-16 shrink-0">
                                   {s.start}–{s.end}
                                 </span>
                                 <div className="min-w-0 flex-1">
-                                  <p className="text-[11px] font-bold truncate">{s.courseTitle}</p>
-                                  <p className="text-[10px] text-slate-500 truncate">
+                                  <p className="text-2xs font-bold truncate">{s.courseTitle}</p>
+                                  <p className="text-3xs text-slate-500 truncate">
                                     {s.professorName} · گروه {s.groupNumber}
                                   </p>
                                 </div>
@@ -503,7 +434,7 @@ export default function EduExpertAssignClient({ init }: { init: EduExpertAssignI
                           </div>
                         </div>
                       ))}
-                      {!days.length && <p className="text-[11px] text-slate-400">سانسی ثبت نشده.</p>}
+                      {!days.length && <p className="text-2xs text-slate-400">سانسی ثبت نشده.</p>}
                     </div>
                   )}
                 </div>
@@ -561,7 +492,7 @@ export default function EduExpertAssignClient({ init }: { init: EduExpertAssignI
               </label>
             </div>
 
-            <p className="text-[11px] leading-5 text-slate-600">
+            <p className="text-2xs leading-5 text-slate-600">
               این تب فقط برای <b>استثنا</b> است: درسی که باید کارشناسِ خاصی بگیرد، مستقل از اتاقش. برای کارِ روزمره از تبِ
               «اتاق‌ها» استفاده کنید.
             </p>
@@ -618,7 +549,7 @@ export default function EduExpertAssignClient({ init }: { init: EduExpertAssignI
                           {ids.map((id) => (
                             <span
                               key={id}
-                              className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-800"
+                              className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-2xs font-bold text-indigo-800"
                             >
                               {nameOf.get(id) ?? `#${id}`}
                               <button
@@ -633,7 +564,7 @@ export default function EduExpertAssignClient({ init }: { init: EduExpertAssignI
                             </span>
                           ))}
                           {!ids.length && (
-                            <span className="text-[11px] text-slate-400">
+                            <span className="text-2xs text-slate-400">
                               {r.resolvedUserId
                                 ? `${SOURCE_LABEL[r.source ?? 'none']}: ${nameOf.get(r.resolvedUserId) ?? r.resolvedUserId}`
                                 : 'بدون کارشناس'}
@@ -641,7 +572,7 @@ export default function EduExpertAssignClient({ init }: { init: EduExpertAssignI
                           )}
                           <select
                             dir="rtl"
-                            className="input text-[11px] py-0.5 h-7 min-w-[9rem]"
+                            className="input text-2xs py-0.5 h-7 min-w-[9rem]"
                             value=""
                             disabled={pending}
                             onChange={(e) => {
@@ -732,7 +663,7 @@ export default function EduExpertAssignClient({ init }: { init: EduExpertAssignI
                     {ids.map((id) => (
                       <span
                         key={id}
-                        className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-[11px] font-bold text-indigo-800"
+                        className="inline-flex items-center gap-1 rounded-full bg-indigo-100 px-2 py-0.5 text-2xs font-bold text-indigo-800"
                       >
                         {nameOf.get(id) ?? `#${id}`}
                         <button
@@ -747,7 +678,7 @@ export default function EduExpertAssignClient({ init }: { init: EduExpertAssignI
                       </span>
                     ))}
                     {!ids.length && (
-                      <span className="text-[11px] text-slate-400">
+                      <span className="text-2xs text-slate-400">
                         {r.resolvedUserId
                           ? `${SOURCE_LABEL[r.source ?? 'none']}: ${nameOf.get(r.resolvedUserId) ?? r.resolvedUserId}`
                           : 'بدون کارشناس'}
@@ -755,7 +686,7 @@ export default function EduExpertAssignClient({ init }: { init: EduExpertAssignI
                     )}
                     <select
                       dir="rtl"
-                      className="input text-[11px] py-0.5 h-7 min-w-[9rem]"
+                      className="input text-2xs py-0.5 h-7 min-w-[9rem]"
                       value=""
                       disabled={pending}
                       onChange={(e) => {

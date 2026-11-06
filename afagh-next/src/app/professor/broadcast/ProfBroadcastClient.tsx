@@ -155,7 +155,7 @@ export default function ProfBroadcastClient({ classes }: { classes: MyClass[] })
           {history.map(h => (
             <div key={h.eventCode} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3 text-xs leading-6">
               <p className="font-bold text-slate-800">{h.body || '—'}</p>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-2xs text-slate-500">
                 🕐 {h.sentAt ? new Date(h.sentAt).toLocaleString('fa-IR') : '—'} · 👥 {h.total.toLocaleString('fa-IR')} نفر
               </p>
             </div>

@@ -40,15 +40,15 @@ export default function VerifyDegreeIndexPage() {
           </button>
         </form>
 
-        <div className="text-[11px] text-slate-500 pt-3 border-t border-slate-100 space-y-2">
+        <div className="text-2xs text-slate-500 pt-3 border-t border-slate-100 space-y-2">
           <p className="font-bold">
             کد استعلام زیر کد QR روی دانشنامه، گواهینامهٔ موقت یا ریزنمرات رسمی چاپ شده است.
             نتیجهٔ استعلام مستقیماً از پایگاه دادهٔ رسمی دانشگاه خوانده می‌شود.
           </p>
           <div className="flex flex-wrap gap-2 justify-center pt-1">
-            <Link href="/verify" className="text-indigo-600 hover:underline">استعلام سایر مدارک</Link>
+            <Link prefetch={false} href="/verify" className="text-indigo-600 hover:underline">استعلام سایر مدارک</Link>
             <span className="text-slate-300">·</span>
-            <Link href="/verify-certificate" className="text-indigo-600 hover:underline">گواهینامهٔ دورهٔ آزاد</Link>
+            <Link prefetch={false} href="/verify-certificate" className="text-indigo-600 hover:underline">گواهینامهٔ دورهٔ آزاد</Link>
           </div>
         </div>
       </div>

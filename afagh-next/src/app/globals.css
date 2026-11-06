@@ -47,6 +47,17 @@
   src: url('/fonts/vazirmatn-latin-700.woff2') format('woff2');
   unicode-range: U+0000-00FF, U+2000-206F;
 }
+/* وزن ۹۰۰ (تیترهای font-black): فایلِ آن از قبل در public/fonts بود ولی هیچ
+   @font-faceای نداشت، پس ۱٬۲۵۳ کاربردِ `font-black` در کد با وزن ۷۰۰ رندر
+   می‌شد و سلسله‌مراتب تیتر/متن عملاً یکسان بود. با این بلوک، تفاوت وزنیِ
+   کد به‌صورت بصری بازمی‌گردد. (preload آن در app/layout.tsx اضافه شده است.) */
+@font-face {
+  font-family: 'Vazirmatn';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 900;
+  src: url('/fonts/vazirmatn-900.woff2') format('woff2');
+}
 
 @tailwind base;
 @tailwind components;
@@ -63,8 +74,10 @@ body { @apply bg-slate-100 text-slate-800 font-sans; }
    اگر عنصری پهن‌تر از عرضِ صفحه باشد، در RTL کل صفحه به‌سمت چپ جابه‌جا و
    «نیمه‌خالی/بُرش‌خورده» دیده می‌شد (مثلاً جدولِ هفتگیِ ۹۶۰px یا نوارِ کنترلِ هدر).
    این قاعده فقط در موبایل فعال است (سایدبارِ چسبانِ دسکتاپ دست‌نخورده می‌ماند) و
-   از overflow-x:hidden استفاده می‌کند تا هیچ اسکرولِ افقیِ سراسری نماند. */
-@media (max-width: 768px) {
+   از overflow-x:hidden استفاده می‌کند تا هیچ اسکرولِ افقیِ سراسری نماند.
+   ⚠️ عمداً `screen` دارد: در چاپ، `overflow-x:hidden` روی body محتوای پهن را
+   می‌بُرد و ستون‌های جدول‌های چاپی از کاغذ بیرون می‌زدند. */
+@media screen and (max-width: 768px) {
   html, body { overflow-x: hidden; max-width: 100%; }
   /* گاردِ همه‌شمولِ فرم‌ها: هیچ ورودی‌ای در موبایل نباید از ظرفش پهن‌تر شود.
      صفحه‌های فرم (پذیرش، پروندهٔ دانشجو، تنظیمات و…) هرکدام مارک‌آپ دستی
@@ -141,6 +154,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-text); bo
 .dark .text-emerald-700, .dark .text-emerald-800 { color: #6ee7b7 !important; }
 .dark .text-emerald-600 { color: #34d399 !important; }
 .dark .text-indigo-700, .dark .text-indigo-800 { color: #a5b4fc !important; }
+.dark .text-indigo-900 { color: #e0e7ff !important; }
 .dark .text-indigo-600 { color: #818cf8 !important; }
 .dark .text-amber-700, .dark .text-amber-800 { color: #fcd34d !important; }
 .dark .text-amber-600 { color: #fbbf24 !important; }
@@ -409,12 +423,119 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-text); bo
 .dark .border-teal-300 { border-color: #0d9488 !important; }
 .dark .hover\:bg-rose-200:hover { background-color: #9f1239 !important; }
 
-.card { @apply bg-white rounded-2xl shadow-sm border border-slate-200 p-4; }
+/* کارتِ پایه — پرکاربردترین سطحِ سامانه (۴۰۰+ کاربرد).
+   ⚠ باگِ رفع‌شده: `@apply bg-white` رنگِ **ثابتِ سفید** تولید می‌کرد و چون این
+   قاعده بعد از `@tailwind utilities` می‌آید، بر نگاشتِ تم در خط ۱۲۴ هم غالب
+   می‌شد؛ نتیجه اینکه در **حالت تیره** همهٔ `.card`ها سفید می‌ماندند. حالا رنگ
+   از توکنِ سطح خوانده می‌شود (روشن: سفید، تیره: کارتِ تیره) و ارتفاع هم از
+   پلهٔ دومِ سایه می‌آید تا کارت از بوم جدا دیده شود. */
+.card {
+  @apply rounded-2xl border p-4;
+  background-color: var(--ui-card);
+  border-color: var(--ui-stroke);
+  box-shadow: var(--ui-shadow-2);
+}
 .btn { @apply inline-flex items-center justify-center gap-1 rounded-xl px-4 py-2 text-sm font-medium transition disabled:opacity-50 disabled:cursor-not-allowed; }
 .btn-primary { @apply btn bg-emerald-600 text-white hover:bg-emerald-700; }
 .btn-ghost { @apply btn bg-slate-100 text-slate-700 hover:bg-slate-200; }
-.input { @apply w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500; }
 .badge { @apply inline-block rounded-full px-2.5 py-0.5 text-xs font-medium; }
+
+/* ─────────────────────────────────────────────────────────────
+   ⚠️ `.input` باید داخل `@layer components` بماند — این یک باگ واقعی بود.
+
+   `@tailwind utilities` در بالای همین فایل (خط ۵۳) قرار دارد، پس هر کلاسِ
+   ساده‌ای که بعد از آن تعریف شود در آبشار **بعد از** utilities می‌آید. با
+   وزن یکسانِ انتخابگر (۰٫۱٫۰) همین «بعدتر بودن» کافی است که برنده شود.
+   نتیجه: `w-full` داخل `.input` بر `w-16` / `w-20` / `w-24` در JSX غالب
+   می‌شد و هر ورودیِ کوتاهِ عمدی تمام‌عرض می‌شد — چیدمان فشرده ناممکن بود
+   و فرم‌ها (مثل کارتابل «ارائه» مدیر گروه) هر فیلد را در یک سطر می‌ریختند.
+   کدبیس قبلاً با `!py-1 !px-2` دورش زده بود، ولی برای عرض چنین راهی نداشت.
+
+   با انتقال به `@layer components`، محتوا در جای `@tailwind components`
+   (قبل از utilities) تزریق می‌شود و utilities همیشه برنده‌اند — همان
+   معنایی که همه انتظار دارند. ضمناً `border-rose-300` و `text-xs` هم دیگر
+   بی‌صدا نادیده گرفته نمی‌شوند (استایل اعتبارسنجی که قبلاً کار نمی‌کرد).
+   گارد: tests/input-width-precedence.test.ts
+   ───────────────────────────────────────────────────────────── */
+@layer components {
+  .input { @apply w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500/35; }
+  /* نشانگرِ فوکوسِ عمومی (:focus-visible در بالای فایل) روی .input دوتایی
+     نشود؛ همین‌جا و **داخل** لایه، تا هیچ `.input`ای بیرون از
+     `@layer components` تعریف نشود (گارد: tests/input-width-precedence.test.ts). */
+  .input:focus-visible { outline: none; }
+}
+
+/* ─────────────────────────────────────────────────────────────
+    دسترسی‌پذیری پایه — فوکوس مرئی و «پرش به محتوا»
+    پیش از این `focus-visible` در کل پروژه صفر بود و ۵۱ ورودی با
+    `focus:outline-none` بدون جانشین، حلقهٔ فوکوس را کامل حذف می‌کردند؛
+    کاربر کیبورد (کارشناس مالی/آموزش که ساعت‌ها فرم پر می‌کند) مسیرش را
+    گم می‌کرد. این قاعده فقط با کیبورد فعال می‌شود و ماوس را دست نمی‌زند.
+   ───────────────────────────────────────────────────────────── */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+/* حلقهٔ فوکوسِ .input عمداً داخل @layer components تعریف شد (بالاتر). */
+
+.skip-link {
+  position: absolute;
+  inset-inline-start: 8px;
+  top: -48px;
+  z-index: 90;
+  background: #0f172a;
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  transition: top 0.15s ease;
+}
+.skip-link:focus { top: 8px; }
+
+/* ─────────────────────────────────────────────────────────────
+    انیمیشن ورود — جانشین پلاگین نصب‌نشدهٔ `tailwindcss-animate`
+    کد از قرارداد وِیژن ۴ استفاده می‌کند (`animate-in fade-in zoom-in-95`)
+    ولی پلاگینش نصب نیست، پس ۴۸ کلاس **بی‌صدا بی‌اثر** بودند. اینجا همان
+    قرارداد با متغیرهای CSS پیاده می‌شود تا بدون تغییرِ حتی یک خط JSX،
+    دیالوگ‌ها و توست‌ها با ورودِ نرم ظاهر شوند.
+   ───────────────────────────────────────────────────────────── */
+@layer utilities {
+  .animate-in { animation: ui-enter 0.2s ease-out both; }
+  .animate-in.duration-150 { animation-duration: 0.15s; }
+  .animate-in.duration-200 { animation-duration: 0.2s; }
+  .animate-in.duration-300 { animation-duration: 0.3s; }
+  .fade-in { --enter-opacity: 0; }
+  .zoom-in-95 { --enter-scale: 0.95; }
+  .zoom-in-90 { --enter-scale: 0.9; }
+  .slide-in-from-top-4 { --enter-y: -1rem; }
+  .slide-in-from-bottom-4 { --enter-y: 1rem; }
+
+  @keyframes ui-enter {
+    from {
+      opacity: var(--enter-opacity, 1);
+      transform: translate3d(0, var(--enter-y, 0), 0) scale(var(--enter-scale, 1));
+    }
+    to { opacity: 1; transform: none; }
+  }
+}
+
+/* احترام به «کاهش حرکت» سیستم‌عامل (پیش از این صفر مورد در پروژه بود،
+   در حالی که animate-ping/pulse و ۵۲۶ گذار داشتیم). */
+@media (prefers-reduced-motion: reduce) {
+  .animate-in,
+  .animate-in.duration-150,
+  .animate-in.duration-200,
+  .animate-in.duration-300 { animation: none !important; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 
 /* ─────────────────────────────────────────────────────────────
    چاپ «فقط فرم» — همان رفتار کارت ورود به جلسه، برای همهٔ فرم‌ها
@@ -450,6 +571,29 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-text); bo
   .transcript-print-area table.tr-doc > tfoot > tr { break-inside: avoid; page-break-inside: avoid; }
   .transcript-print-area .tr-signatures { border-top: 2px solid #334155; }
   .transcript-print-area table.tr-doc td.tr-doc-cell { padding: 0; border: 0; vertical-align: top; min-width: 0; }
+  /* ── دفاعِ سوم: چاپ همیشه چیدمانِ جدولیِ دسکتاپ را می‌گیرد ──
+     حتی اگر قاعدهٔ موبایل (mobile-tables.css) سهواً در چاپ اجرا شود، اینجا
+     ساختارِ جدول را به حالتِ استاندارد برمی‌گردانیم تا ستون‌ها روی هم
+     نریزند. `table.rt` کلاسِ «پاسخ‌دهی موبایل» است و در عرض‌های کم جدول را
+     به کارتِ عمودی تبدیل می‌کند — در چاپ نباید اثری داشته باشد. */
+  .transcript-print-area table.rt,
+  .transcript-print-area table.rt > thead,
+  .transcript-print-area table.rt > tbody,
+  .transcript-print-area table.rt > tfoot,
+  .transcript-print-area table.rt > tr,
+  .transcript-print-area table.rt > colgroup,
+  .transcript-print-area table.rt tr,
+  .transcript-print-area table.rt th,
+  .transcript-print-area table.rt td { display: revert !important; }
+  .transcript-print-area table.rt > thead { display: table-header-group !important; }
+  .transcript-print-area table.rt > tbody { display: table-row-group !important; }
+  .transcript-print-area table.rt > tfoot { display: table-footer-group !important; }
+  .transcript-print-area table.rt tr { display: table-row !important; }
+  .transcript-print-area table.rt th,
+  .transcript-print-area table.rt td { display: table-cell !important; }
+  /* برچسب‌های تزریقیِ موبایل (data-label) در چاپ حذف می‌شوند */
+  .transcript-print-area table.rt td::before { content: none !important; }
+  .transcript-print-area table.rt td > * { flex: initial !important; min-width: 0 !important; }
   .transcript-print-area .tr-info-grid > div { min-width: 0; overflow-wrap: anywhere; }
   .transcript-print-area .tr-term-table td { overflow-wrap: anywhere; }
   .transcript-print-area .tr-signatures span { min-width: 0; }
@@ -479,9 +623,10 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-text); bo
   body.printing-portrait .transcript-print-area .tr-term-table th,
   body.printing-portrait .transcript-print-area .tr-term-table td { padding: 1pt 1.5pt !important; }
   body.printing-portrait .transcript-print-area .tr-term-footer { font-size: 7pt; }
-  /* کارنامهٔ مالی در کاغذ عمودی (مثلاً چاپ مرورگر): دو کارت در هر ردیف تا جدول دروس از کادر بیرون نزند */
+  /* کارنامهٔ مالی در کاغذ عمودی: بعد از افزودن «واحد نظری/عملی» و کد نوع درس،
+     جدول ۸ستونه در دو کارتِ ~96mm جا نمیشود؛ یک کارتِ تمامعرض (~194mm) چاپ میشود. */
   @media print and (orientation: portrait) {
-    .transcript-print-area .tr-fin-row { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+    .transcript-print-area .tr-fin-row { grid-template-columns: minmax(0, 1fr) !important; }
   }
 
   /* ══ کارنامهٔ مالی — چاپ عمودی A4، فشرده و کم‌مصرف ══
@@ -495,45 +640,63 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-text); bo
   .tr-fin-root table.tr-doc > thead { display: table-header-group !important; }
   .tr-fin-root table.tr-doc > tfoot { display: table-footer-group !important; }
 
-  /* بدنهٔ سند یک ردیف بزرگ است؛ اجازهٔ شکستن بین صفحات را دارد، وگرنه
-     مرورگر کل سند را یک‌جا نگه می‌دارد و محتوا بریده/سرریز می‌شود. */
+  /* ⚠ مدلِ کارتیِ قدیمی (tr-fin-root) کلِ بدنه را در **یک** ردیف می‌ریزد؛
+     `break-inside: avoid` روی همان تک‌ردیف باعث می‌شد Chrome کل سند را به
+     صفحهٔ بعد هل بدهد و صفحهٔ اول فقط سربرگ بماند (چاپ «صفحهٔ خالی/بریده»).
+     اینجا عمداً auto است تا محتوا بلافاصله بعد از سربرگ جریان بگیرد.
+     مدل تخت (tr-flat-root) ردیف‌های کوچک دارد و قاعدهٔ avoid خودش را جدا دارد. */
   .tr-fin-root table.tr-doc > tbody > tr.tr-doc-row { break-inside: auto !important; page-break-inside: auto !important; }
-  .tr-fin-root .term-block { overflow: visible !important; }
+  /* سرستون ریز دروس در ادامهٔ صفحه تکرار شود تا جدولِ بریده بی‌سرستون نماند */
+  .tr-fin-root .tr-fin-courses thead { display: table-header-group !important; }
+  /* ⚠ عمداً hidden (نه visible): با visible، جدولِ ریز دروسِ با چیدمانِ ثابت
+     از کادرِ کارت بیرون می‌زد و روی کارتِ کنارش می‌افتاد — همان «به‌هم‌ریختگیِ
+     چاپ». داخلِ کارت هم `min-width: 0` لازم است تا ستون‌های گرید بتوانند
+     کوچک شوند و جدول به عرضِ سلول قناعت کند. */
+  .tr-fin-root .term-block { overflow: hidden !important; min-width: 0 !important; }
+  .tr-fin-root .term-block > * { min-width: 0 !important; }
 
-  /* سربرگ: ارتفاع کم تا فضای صفحه به جدول برسد */
-  .tr-fin-root thead .tr-doc-cell > div { padding: 2mm 2mm 1.2mm !important; }
-  .tr-fin-root thead p { font-size: 7pt !important; line-height: 1.3 !important; }
-  .tr-fin-root thead h2 { font-size: 10.5pt !important; padding-bottom: 0.4mm !important; }
+  /* سربرگ: فشرده‌ترین حالتِ خوانا — سربرگ در «هر صفحه» تکرار می‌شود و
+     بلند بودنش مستقیم به اتلاف کاغذ ترجمه می‌شود (کاهش ۹→۵ صفحه). */
+  .tr-fin-root thead .tr-doc-cell > div { padding: 1.2mm 1.6mm 0.8mm !important; }
+  .tr-fin-root thead p { font-size: 6.4pt !important; line-height: 1.2 !important; }
+  .tr-fin-root thead h2 { font-size: 9.5pt !important; padding-bottom: 0.3mm !important; }
   .tr-fin-root thead img,
-  .tr-fin-root thead .rounded-full { width: 9mm !important; height: 9mm !important; font-size: 8pt !important; margin-bottom: 0.6mm !important; }
+  .tr-fin-root thead .rounded-full { width: 7.5mm !important; height: 7.5mm !important; font-size: 7.2pt !important; margin-bottom: 0.3mm !important; }
 
-  /* جدول مشخصات */
-  .tr-fin-root .tr-fin-info { font-size: 7.2pt !important; }
-  .tr-fin-root .tr-fin-info td { padding: 0.5mm 1.2mm !important; }
+  /* جدول مشخصات و جمع کل — فشرده */
+  .tr-fin-root .tr-fin-info { font-size: 6.6pt !important; }
+  .tr-fin-root .tr-fin-info td { padding: 0.4mm 1mm !important; }
 
   /* جمع کل دوره */
-  .tr-fin-root .tr-fin-totals { font-size: 7.2pt !important; }
+  .tr-fin-root .tr-fin-totals { font-size: 6.6pt !important; }
   .tr-fin-root .tr-fin-totals th,
   .tr-fin-root .tr-fin-totals td { padding: 0.45mm 0.8mm !important; }
   .tr-fin-root .tr-fin-totals h3 { font-size: 8pt !important; padding: 0.5mm 2mm !important; }
   .tr-fin-root .tr-breakdown > h3 { font-size: 8pt !important; padding: 0.5mm 2mm !important; }
 
-  /* گرید ترم‌ها: در عرض A4 عمودی دقیقاً ۲ کارت در هر ردیف */
-  .tr-fin-root .tr-fin-row { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 1.5mm !important; }
+  /* گرید ترمها در چاپ **تکستونه (یک کارت تمامعرض)**:
+     جدول دروس اکنون ۸ ستون دارد (ردیف/کد/نام/نظری/عملی/نمره/نوع مالی/مبلغ)
+     و سربرگ ترم چهار قلم (نام/وضع/مبنا/کد گروه) دارد؛ دو کارتِ ~96mm خوانا نیست.
+     ردیف بیرونی و خودِ گرید در چاپ آزاد میشکنند تا کارتهای پشتسرهم
+     بین صفحهها تقسیم شوند، ولی هر کارت (term-block) avoid میماند. */
+  .tr-fin-root .tr-fin-row { grid-template-columns: minmax(0, 1fr) !important; gap: 1.2mm !important; break-inside: auto !important; page-break-inside: auto !important; }
+  .tr-fin-root .term-block { break-inside: avoid !important; page-break-inside: avoid !important; }
+  /* عنوان «ریز ترم‌به‌ترم» از کارت اولش جدا نشود */
+  .tr-fin-root .tr-courses-title { break-after: avoid !important; page-break-after: avoid !important; }
   .tr-fin-root .term-block { border-width: 0.6pt !important; border-radius: 1.2mm !important; }
-  /* سربرگ کارت ترم: عنوان کامل باید خوانا بماند (۷.۸pt) و بریده نشود */
-  .tr-fin-root .term-block > div:first-child { padding: 0.7mm 1.2mm !important; }
-  .tr-fin-root .term-block h4 { font-size: 7.8pt !important; line-height: 1.35 !important; white-space: normal !important; }
+  /* سربرگ کارت ترم: فشرده ولی خوانا (چهار قلم باید در یک ردیف چاپ شود) */
+  .tr-fin-root .term-block > div:first-child { padding: 0.5mm 1mm !important; }
+  .tr-fin-root .term-block h4 { font-size: 7.2pt !important; line-height: 1.25 !important; white-space: normal !important; }
 
   /* ردیف‌های مبلغ ترم: عدد در یک خط می‌ماند، ارتفاع هر ردیف حداقل */
-  .tr-fin-root .tr-term-table { font-size: 6.6pt !important; line-height: 1.25 !important; }
-  .tr-fin-root .tr-term-table td { padding: 0.3mm 1mm !important; }
+  .tr-fin-root .tr-term-table { font-size: 6.1pt !important; line-height: 1.15 !important; }
+  .tr-fin-root .tr-term-table td { padding: 0.2mm 0.8mm !important; }
   .tr-fin-root .tr-term-table td:last-child { white-space: nowrap; }
 
   /* خلاصهٔ ترم (پایین کارت): سه قلم در هر سطر، هر قلم برچسب+مبلغ در یک سلول
      تا هیچ عددی بریده نشود (overflow/ellipsis عمداً حذف شد). */
-  .tr-fin-root .tr-fin-sum { font-size: 6.2pt !important; line-height: 1.25 !important; }
-  .tr-fin-root .tr-fin-sum td { padding: 0.25mm 1mm !important; }
+  .tr-fin-root .tr-fin-sum { font-size: 5.8pt !important; line-height: 1.15 !important; }
+  .tr-fin-root .tr-fin-sum td { padding: 0.18mm 0.8mm !important; }
   .tr-fin-root .tr-fin-sum td > div { display: flex; align-items: baseline; justify-content: space-between; gap: 1mm; }
   .tr-fin-root .tr-fin-sum td > div > span:last-child { white-space: nowrap; flex: 0 0 auto; }
 
@@ -543,7 +706,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-text); bo
   .tr-fin-root .tr-fin-verify p { font-size: 6.5pt !important; line-height: 1.4 !important; }
 
   /* ریز شهریهٔ متغیر دروس */
-  .tr-fin-root .tr-fin-courses { font-size: 6pt !important; }
+  .tr-fin-root .tr-fin-courses { font-size: 6.6pt !important; }
   .tr-fin-root .tr-fin-courses th,
   .tr-fin-root .tr-fin-courses td { padding: 0.25mm 0.6mm !important; }
   .tr-fin-root .tr-fin-courses .tr-course-title { overflow-wrap: anywhere; word-break: break-word; }
@@ -551,6 +714,14 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-text); bo
   /* رویدادها: یک خط برای هر رویداد، متن اضافی با … کوتاه می‌شود */
   .tr-fin-root .term-block ul { padding: 0.5mm 1.2mm !important; }
   .tr-fin-root .term-block li { font-size: 6pt !important; line-height: 1.3 !important; }
+  /* فرادادهٔ پرداخت (فیش/پرداخت‌کننده/حساب/کارت/سند) در چاپ: یک خطِ فشرده،
+     بی‌شکستنِ هر قلم، و یادداشت اصل با «…» کوتاه می‌شود تا ارتفاع نگیرد. */
+  .tr-fin-root .term-block li .flex-wrap { gap: 0 1.2mm !important; font-size: 5.6pt !important; }
+  .tr-fin-root .term-block li .flex-wrap > span { white-space: nowrap; }
+  .tr-fin-root .term-block li .flex-wrap > span.w-full {
+    display: block !important; width: 100% !important;
+    overflow: hidden !important; text-overflow: ellipsis !important;
+  }
 
   /* چک‌ها و وام‌ها */
   .tr-fin-root .tr-fin-list { font-size: 6.8pt !important; }
@@ -561,6 +732,66 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-text); bo
   .tr-fin-root .tr-signatures { border-top-width: 1pt !important; }
   .tr-fin-root .tr-signatures > div { padding: 1.5mm 3mm 1.5mm !important; font-size: 6.8pt !important; }
   .tr-fin-root .tr-signatures p { margin-bottom: 4mm !important; }
+  /* سربرگ ترم (نام/وضع نیمسال / مبنای نرخ / کد گروه تعرفه) و کد نوع درس مالی
+     باید در خروجی چاپ/PDF حتماً دیده شوند. */
+  .tr-fin-root .tr-term-meta { font-size: 6.4pt !important; line-height: 1.25 !important; }
+  .tr-fin-root .tr-term-meta b { font-weight: 700 !important; }
+  .tr-flat-root .tr-term-meta { font-size: 6.8pt !important; margin-bottom: 1mm !important; }
+  .tr-flat-root .tr-term-meta tr { break-inside: avoid !important; page-break-inside: avoid !important; }
+  .tr-fin-root .tr-mali-code, .tr-flat-root .tr-mali-code { display: inline !important; color: #334155 !important; }
+
+  /* ══ کارنامهٔ مالی — مدل دومِ تخت (FinancialTranscriptFlat) ══
+     همهٔ قواعد فقط روی .tr-flat-root اعمال می‌شوند تا با مدل کارتی تداخل نکند. */
+  .tr-flat-root .tr-print-hide { display: none !important; }
+  .tr-flat-root table.tr-doc > thead { display: table-header-group !important; }
+  .tr-flat-root table.tr-doc > tfoot { display: table-footer-group !important; }
+  /* ردیف‌های مدل تخت: ردیفِ اول همهٔ ترم‌ها را دارد و بلندتر از یک صفحه است؛
+     avoid روی آن، کلِ ردیف را به صفحهٔ بعد می‌برد و صفحهٔ اول/دوم را خالی می‌کند.
+     پس ردیف آزاد می‌شکند و شکستنِ داخل بلوک‌ها (کارت ترم/جدول) جدا کنترل می‌شود. */
+  .tr-flat-root table.tr-doc > tbody > tr.tr-doc-row { break-inside: auto !important; page-break-inside: auto !important; }
+  .tr-flat-root .tr-fin-table thead { display: table-header-group !important; }
+  /* سطرهای جدول هرگز نصفه به صفحهٔ بعد نروند — در خروجی چاپ، ردیف نصفه
+     (مثلاً شماره/کد درس در یک صفحه و مبلغش در صفحهٔ بعد) سند را بی‌اعتبار می‌کند.
+     شکستن فقط بینِ سطرها مجاز است. */
+  .tr-flat-root .tr-fin-table tr,
+  .tr-flat-root .tr-fin-totals tr { break-inside: avoid !important; page-break-inside: avoid !important; }
+  /* در مدل کارتی هم سطرهای ریز دروس نصفه نشوند */
+  .tr-fin-root .tr-fin-courses tr { break-inside: avoid !important; page-break-inside: avoid !important; }
+  .tr-flat-root table.tr-doc > tbody > tr.tr-doc-row > td { vertical-align: top; }
+  .tr-flat-root thead .tr-doc-cell { padding: 0 !important; }
+  .tr-flat-root thead .tr-fin-titlebar { padding: 1.5mm 3mm 0.8mm !important; }
+  .tr-flat-root thead .tr-fin-titlebar p { margin: 0 !important; line-height: 1.3 !important; }
+  .tr-flat-root thead .tr-fin-head { font-size: 6.6pt !important; }
+  .tr-flat-root thead .tr-fin-head-col { padding: 1mm 1.4mm !important; }
+  .tr-flat-root thead .tr-fin-head-col p { margin: 0 !important; }
+  .tr-flat-root thead .tr-fin-head-col dl { margin: 0.4mm 0 0 !important; }
+  .tr-flat-root thead .tr-unverified-band { margin: 1mm 3mm !important; font-size: 6.8pt !important; padding: 0.6mm 1.5mm !important; }
+  .tr-flat-root .tr-fin-block { margin-top: 2mm !important; }
+  .tr-flat-root .tr-fin-block-title { font-size: 8pt !important; padding: 0.5mm 1.5mm !important; margin: 0 !important; }
+  .tr-flat-root .tr-fin-table { font-size: 6.6pt !important; line-height: 1.25 !important; }
+  .tr-flat-root .tr-fin-table th,
+  .tr-flat-root .tr-fin-table td { padding: 0.3mm 0.8mm !important; }
+  .tr-flat-root .tr-fin-table th { background: #f1f5f9 !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  .tr-flat-root .tr-fin-table .tr-course-title { overflow-wrap: anywhere; word-break: break-word; }
+  .tr-flat-root .tr-fin-breakdown { font-size: 6.8pt !important; }
+  .tr-flat-root .tr-fin-breakdown > h3 { font-size: 8pt !important; padding: 0.5mm 2mm !important; margin: 0 !important; }
+  .tr-flat-root .tr-fin-totals { font-size: 6.8pt !important; }
+  .tr-flat-root .tr-fin-totals th,
+  .tr-flat-root .tr-fin-totals td { padding: 0.4mm 0.9mm !important; }
+  .tr-flat-root .tr-fin-verify { margin-top: 1.5mm; break-inside: avoid !important; page-break-inside: avoid !important; }
+  .tr-flat-root .tr-fin-verify .fin-verify-qr { width: 24mm !important; height: 24mm !important; overflow: hidden !important; }
+  .tr-flat-root .tr-fin-verify .fin-verify-qr > svg {
+    display: block !important;
+    width: 100% !important;
+    height: 100% !important;
+  }
+  .tr-flat-root .tr-fin-verify svg { max-width: 100% !important; }
+  .tr-flat-root .tr-fin-verify p { font-size: 6.5pt !important; line-height: 1.4 !important; }
+  .tr-flat-root tfoot .tr-fin-note { font-size: 6.5pt !important; line-height: 1.35 !important; padding: 1mm 3mm !important; }
+  .tr-flat-root .tr-signatures { border-top-width: 1pt !important; }
+  .tr-flat-root .tr-signatures > div { padding: 1.5mm 3mm 1.5mm !important; font-size: 6.8pt !important; }
+  .tr-flat-root .tr-signatures p { margin-bottom: 4mm !important; }
+
   .prof-week-print { direction: rtl !important; }
   .prof-week-print .prof-week-scroll { overflow: visible !important; border: none !important; border-radius: 0 !important; break-inside: avoid !important; page-break-inside: avoid !important; }
   .prof-week-print .prof-cal { min-width: 0 !important; width: 100% !important; --cal-hour: 44px !important; break-inside: avoid !important; page-break-inside: avoid !important; }
@@ -606,10 +837,67 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-text); bo
   .prof-week-print .prof-week-badge { border: 1pt solid #000 !important; background: #ffffff !important; color: #000000 !important; font-weight: 800 !important; box-shadow: none !important; }
   .prof-week-print .prof-week-legend { border: 1pt solid #000 !important; border-radius: 4pt !important; padding: 2pt 4pt !important; margin-bottom: 3pt !important; color: #000000 !important; background: #ffffff !important; font-size: 8pt !important; }
   .prof-week-print .prof-week-print-head { display: block !important; direction: rtl !important; border: 1.5pt solid #000 !important; border-radius: 6pt !important; padding: 3pt 6pt !important; margin-bottom: 4pt !important; font-size: 8.5pt !important; line-height: 1.45 !important; color: #000000 !important; background: #ffffff !important; }
-  /* چاپ چارت ترم‌بندی: فقط شبکهٔ ترم‌ها چاپ شود (بدون استخر دروس و کنترل‌ها) */
-  @media print {
-    .curriculum-print-area .print\\:hidden { display: none !important; }
+  /* ══ چاپ چارت ترم‌بندی: فقط شبکهٔ ترم‌ها، فشرده و در یک صفحهٔ A4 ══
+     هنگام چاپ، دکمهٔ «چاپ چارت» کلاس printing-curriculum را به بدنه اضافه
+     می‌کند تا این قواعد فقط برای چارت اعمال شوند. سربرگ وب (header/nav)،
+     بنرها و نوار فیلتر/مرتب‌سازی همگی با print:hidden یا قواعد کلی بالا حذف
+     می‌شوند؛ اینجا فقط چیدمانِ خودِ چارت فشرده می‌شود تا در یک صفحه جا شود. */
+  body.printing-curriculum .curriculum-shell { background: #ffffff !important; padding: 0 !important; }
+  body.printing-curriculum main { padding: 0 !important; max-width: 100% !important; }
+
+  .curriculum-print-area {
+    display: block !important;
+    background: #ffffff !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
   }
+  .curriculum-print-area > * + * { margin-top: 2mm !important; }
+  .curriculum-print-area,
+  .curriculum-print-area * { font-size: 7pt !important; line-height: 1.25 !important; }
+  .curriculum-print-area .font-mono { font-size: 6.5pt !important; }
+  .curriculum-print-area .grid { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 2mm !important; }
+  .curriculum-print-area .rounded-xl {
+    border-radius: 1.5mm !important;
+    padding: 2mm !important;
+    border-width: 0.5pt !important;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+  }
+  .curriculum-print-area,
+  .curriculum-print-area * { print-color-adjust: exact !important; -webkit-print-color-adjust: exact !important; }
+  /* هدر/فوتر چاپی چارت — فونت درشت‌تر از قاعدهٔ کلی 7pt (specificity بالاتر برنده است) */
+  .curriculum-print-area .chart-print-header { font-size: 9.5pt !important; line-height: 1.45 !important; font-weight: 700 !important; color: #0f172a !important; }
+  .curriculum-print-area .chart-print-header .t { font-size: 12.5pt !important; font-weight: 900 !important; }
+  .curriculum-print-area .chart-print-footer { font-size: 8pt !important; line-height: 1.3 !important; color: #0f172a !important; }
+  .curriculum-print-area .chart-print-footer table { font-size: 8pt !important; border-collapse: collapse !important; width: 100% !important; }
+  .curriculum-print-area .chart-print-footer th,
+  .curriculum-print-area .chart-print-footer td { border: 0.5pt solid #334155 !important; padding: 1pt 2pt !important; text-align: center !important; }
+  .curriculum-print-area .chart-print-footer th { font-weight: 800 !important; background: #f1f5f9 !important; }
+
+  /* ══ چاپ چارت تحصیلی دانشجو: هدر مشخصات + تیک گذرانده‌ها، جدول فشرده ══
+     چک‌باکس هر درس defaultChecked={isPassed} است؛ روی کاغذ درس‌های
+     گذرانده ☑ و بقیه ☐ چاپ می‌شوند. سربرگ وب (بنر سبز/لینک‌ها) با
+     print:hidden حذف و فقط جداول + جمع‌بندی چاپ می‌شود. */
+  .student-chart-print { background: #ffffff !important; }
+  /* جداول درون overflow-x-auto در چاپ بریده نشوند */
+  .student-chart-print .overflow-x-auto { overflow: visible !important; }
+  .student-chart-print table { font-size: 8pt !important; table-layout: auto !important; width: 100% !important; }
+  /* خط جدول در کاغذ واضح باشد (border-slate-100 روی کاغذ دیده نمی‌شود) */
+  .student-chart-print table th, .student-chart-print table td { border: 0.4pt solid #94a3b8 !important; }
+  .student-chart-print thead th { background: #f1f5f9 !important; color: #0f172a !important; font-weight: 800 !important; }
+  .student-chart-print .chart-print-header { font-size: 9.5pt !important; line-height: 1.5 !important; font-weight: 700 !important; color: #0f172a !important; }
+  .student-chart-print .chart-print-header .t { font-size: 12.5pt !important; font-weight: 900 !important; }
+  .student-chart-print table { font-size: 8pt !important; }
+  .student-chart-print thead { display: table-header-group !important; }
+  .student-chart-print tr { break-inside: avoid !important; page-break-inside: avoid !important; }
+  .student-chart-print th, .student-chart-print td { padding: 1.5pt 3pt !important; }
+  .student-chart-print input[type='checkbox'] { width: 3.2mm !important; height: 3.2mm !important; accent-color: #047857 !important; }
+  .student-chart-print .card { box-shadow: none !important; }
+  .student-chart-print, .student-chart-print * { print-color-adjust: exact !important; -webkit-print-color-adjust: exact !important; }
 
   /* ─────────────────────────────────────────────────────────────
      سردر کلاسی (پوستر درب اتاق) — یک برگ A4 افقی: ۷ ستون شنبه→جمعه،
@@ -709,7 +997,7 @@ input:focus, select:focus, textarea:focus { border-color: var(--accent-text); bo
    در صفحه‌های باریک: جدول‌ها خوانا می‌مانند و ظرف‌های اسکرول،
    لمسِ روان می‌گیرند تا هیچ داشبوردی از عرض بیرون نزند.
    ───────────────────────────────────────────────────────────── */
-@media (max-width: 640px) {
+@media screen and (max-width: 640px) {
   table { font-size: 0.72rem; }
   th, td { padding-left: 0.4rem; padding-right: 0.4rem; }
   .overflow-x-auto, .overflow-auto { -webkit-overflow-scrolling: touch; }
@@ -794,4 +1082,616 @@ html {
 .hdr-controls > div > button:not(.hidden),
 .hdr-controls > details > summary {
   display: inline-flex;
+}
+
+/* ═════════════════════════════════════════════════════════════
+   پالایشِ حرفه‌ایِ ظاهر — فقط «صفحه» (چاپ دست‌نخورده می‌ماند)
+   شامل: رندرِ نرم‌ترِ فونت، حلقهٔ فوکوسِ یکدست، ریتمِ تیترها،
+   اسکرول‌بارِ ظریف و سایهٔ نرم/لایه‌ای برای کارت‌های سطح.
+   ═════════════════════════════════════════════════════════════ */
+@media screen {
+  /* رندرِ نرم‌ترِ فونت (فارسی/لاتین) */
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* حلقهٔ فوکوسِ یکدست و دیدنی — دسترس‌پذیری + ظاهرِ حرفه‌ای */
+  :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+    outline: 2px solid rgba(79, 70, 229, 0.65);
+    outline-offset: 2px;
+  }
+
+  /* ریتمِ تیترها: فشردگیِ عمودیِ کمتر و فاصلهٔ حروفِ منظم */
+  h1, h2, h3, h4, h5, h6 {
+    line-height: 1.45;
+    letter-spacing: -0.01em;
+  }
+
+  /* اسکرول‌بارِ ظریف و هم‌خوان با تم */
+  * { scrollbar-width: thin; scrollbar-color: var(--b-300) transparent; }
+  *::-webkit-scrollbar { width: 10px; height: 10px; }
+  *::-webkit-scrollbar-track { background: transparent; }
+  *::-webkit-scrollbar-thumb {
+    background: var(--b-300);
+    border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  *::-webkit-scrollbar-thumb:hover { background: var(--b-400); background-clip: content-box; }
+
+  /* کارت‌های سطح (الگوی غالب): سایهٔ نرم و لایه‌ای به‌جای سایهٔ تختِ shadow-sm.
+     فقط در حالت غیر-hover تا افکتِ hover کارت‌ها حفظ شود و مودال‌ها
+     (که shadow-2xl دارند) دست‌نخورده بمانند. */
+  .bg-white.rounded-2xl.shadow-sm:not(:hover),
+  .bg-white.rounded-3xl.shadow-sm:not(:hover) {
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 10px 28px -14px rgba(15, 23, 42, 0.14);
+  }
+  .dark .bg-white.rounded-2xl.shadow-sm:not(:hover),
+  .dark .bg-white.rounded-3xl.shadow-sm:not(:hover) {
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 10px 28px -14px rgba(0, 0, 0, 0.6);
+  }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   تعاملِ یکدست — گذارِ نرم، حالتِ غیرفعال و فوکوسِ فرم‌ها
+   ───────────────────────────────────────────────────────────── */
+@media screen {
+  button, [role="button"], a, input, select, textarea {
+    transition: background-color .15s ease, border-color .15s ease,
+                color .15s ease, box-shadow .15s ease, opacity .15s ease;
+  }
+  button:disabled, [aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: .55;
+  }
+  /* فوکوسِ ورودی‌های متنی: مرزِ برند + هالهٔ ملایم (بدون حذفِ outlineِ کیبورد) */
+  input:not([type="checkbox"]):not([type="radio"]):focus,
+  select:focus, textarea:focus {
+    border-color: rgba(79, 70, 229, 0.6);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.10);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   لایهٔ طراحیِ یکپارچهٔ کارتابل‌ها — نسخهٔ ۲
+   ───────────────────────────────────────────────────────────────────────────
+   هدف: یک زبانِ بصریِ واحد برای **هر چهار کارتابل** (مدیریت / استاد / دانشجو /
+   مدیر گروه) در **حالت روشن، تیره و موبایل**.
+
+   چرا اینجا و نه در هر صفحه: صفحه‌ها با یوتیلیتی‌های خام تیلویند نوشته شده‌اند
+   (صدها فایل). هر تغییری در سطحِ «توکن + کلاس‌های مشترک» به‌طور خودکار به همه
+   می‌رسد و ریسکِ شکستنِ یک صفحهٔ خاص را صفر می‌کند.
+
+   ⚠ قواعد این بلوک:
+     ۱) فقط متغیرِ جدید اضافه می‌کند؛ هیچ متغیرِ قبلی را بازنویسی نمی‌کند.
+     ۲) `!important` فقط جایی که باید بر یوتیلیتی‌های `!important`دارِ بالا غلبه کند.
+     ۳) همه‌چیز داخل `@media screen` است تا **چاپ** دست‌نخورده بماند.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* سطوح (surface) */
+  --ui-page: #f3f5fa;
+  --ui-page-2: #eaeef7;
+  --ui-card: #ffffff;
+  --ui-sunken: #f7f9fc;
+  /* خطوط */
+  --ui-stroke: #e4e9f2;
+  --ui-stroke-strong: #d3dae7;
+  /* متن */
+  --ui-text: #0f172a;
+  --ui-text-soft: #5b6779;
+  /* برند */
+  --ui-brand: #4f46e5;
+  --ui-brand-2: #6366f1;
+  --ui-brand-ink: #ffffff;
+  --ui-ring: rgba(79, 70, 229, 0.38);
+  /* ارتفاع (elevation) — سه پلهٔ روشن و قابل‌تشخیص */
+  --ui-shadow-1: 0 1px 2px rgba(16, 24, 40, 0.05);
+  --ui-shadow-2: 0 1px 2px rgba(16, 24, 40, 0.05), 0 10px 26px -14px rgba(16, 24, 40, 0.18);
+  --ui-shadow-3: 0 2px 6px rgba(16, 24, 40, 0.07), 0 22px 50px -22px rgba(16, 24, 40, 0.30);
+  /* درخششِ پس‌زمینهٔ صفحه (یک لکهٔ نرم در گوشهٔ بالا) */
+  --ui-glow: radial-gradient(1100px 380px at 92% -8%, rgba(99, 102, 241, 0.10), transparent 62%),
+             radial-gradient(800px 320px at 4% 0%, rgba(14, 165, 233, 0.07), transparent 60%);
+}
+
+.dark {
+  --ui-page: #0a101c;
+  --ui-page-2: #0d1524;
+  /* عمداً برابر با `--bg-secondary` تیره (#1e293b): خیلی از کارت‌ها کلاس
+     `card bg-white` دارند و `bg-white` با `!important` رنگِ `--bg-secondary`
+     را می‌گذارد؛ اگر اینجا رنگِ دیگری بود، دو کارتِ کنارِ هم دو تیرهٔ متفاوت
+     می‌گرفتند. */
+  --ui-card: #1e293b;
+  --ui-sunken: #101827;
+  --ui-stroke: #253248;
+  --ui-stroke-strong: #33415c;
+  --ui-text: #eef2f9;
+  --ui-text-soft: #93a1b5;
+  --ui-brand: #6366f1;
+  --ui-brand-2: #818cf8;
+  --ui-ring: rgba(129, 140, 248, 0.45);
+  --ui-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.50);
+  --ui-shadow-2: 0 1px 2px rgba(0, 0, 0, 0.50), 0 12px 30px -16px rgba(0, 0, 0, 0.75);
+  --ui-shadow-3: 0 2px 6px rgba(0, 0, 0, 0.55), 0 26px 60px -26px rgba(0, 0, 0, 0.85);
+  --ui-glow: radial-gradient(1100px 380px at 92% -8%, rgba(99, 102, 241, 0.16), transparent 62%),
+             radial-gradient(800px 320px at 4% 0%, rgba(14, 165, 233, 0.09), transparent 60%);
+}
+
+@media screen {
+  /* ── ۱) بومِ صفحه ────────────────────────────────────────────────────────
+     پس‌زمینهٔ تخت جای خود را به یک «بومِ» آرام با درخششِ گوشه می‌دهد.
+     فقط `background-image` می‌نشیند تا رنگِ پایهٔ هر کارتابل (که با کلاس
+     تیلویند روی همان عنصر است) دست‌نخورده بماند. */
+  .app-page {
+    /* رنگِ بومِ یکسان برای هر چهار کارتابل — رنگِ برندِ هر کارتابل در سربرگ
+       و کارت‌ها می‌ماند، نه در پس‌زمینهٔ صفحه. `!important` لازم است چون
+       یوتیلیتی‌های `bg-*` بالاتر در همین فایل `!important` دارند. */
+    background-color: var(--ui-page) !important;
+    background-image: var(--ui-glow);
+    background-repeat: no-repeat;
+    background-attachment: scroll;
+  }
+
+  /* ── ۲) سربرگِ کارتابل ──────────────────────────────────────────────────
+     یک درخششِ ملایم از بالا + خطِ موییِ روشن در پایین. روی هر رنگی
+     (ایندیگو/سبز/فیروزه‌ای/صورتی/نارنجی) کار می‌کند چون با شفافیتِ سفید
+     ساخته شده، نه با رنگِ ثابت. */
+  .app-header {
+    position: relative;
+    isolation: isolate;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+    box-shadow: 0 10px 30px -20px rgba(2, 6, 23, 0.65);
+  }
+  .app-header::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 58%),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.10), rgba(0, 0, 0, 0) 42%);
+  }
+  /* در دارک، درخشش کمی قوی‌تر تا سربرگ از بوم جدا شود */
+  .dark .app-header::before {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0) 60%),
+      linear-gradient(90deg, rgba(0, 0, 0, 0.28), rgba(0, 0, 0, 0) 45%);
+  }
+
+  /* ── ۳) کارتِ استاندارد ──────────────────────────────────────────────────
+     الگوی غالبِ صفحه‌ها: `bg-white rounded-* border shadow-sm`. */
+  .ui-card {
+    background-color: var(--ui-card) !important;
+    border: 1px solid var(--ui-stroke);
+    border-radius: 0.875rem;
+    box-shadow: var(--ui-shadow-2);
+  }
+  .ui-card--flat { box-shadow: var(--ui-shadow-1); }
+  .ui-card--sunken { background-color: var(--ui-sunken) !important; }
+
+  /* کارت‌های «سطح» موجود که فقط border دارند و سایه ندارند: یک سایهٔ سبک
+     بگیرند تا از بوم جدا شوند (بدون دست‌زدن به مودال‌ها که shadow-xl دارند). */
+  .bg-white.rounded-xl.border:not([class*='shadow']),
+  .bg-white.rounded-2xl.border:not([class*='shadow']),
+  .bg-white.rounded-3xl.border:not([class*='shadow']) {
+    box-shadow: var(--ui-shadow-1);
+  }
+
+  /* ── ۴) سربرگِ بخش (الگوی تیتر + زیرتیتر + دکمه‌ها) ───────────────────── */
+  .ui-section-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--ui-stroke);
+  }
+  .ui-section-title {
+    font-weight: 800;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--ui-text);
+  }
+  .ui-section-sub {
+    font-weight: 700;
+    font-size: 0.6875rem;
+    line-height: 1.6;
+    color: var(--ui-text-soft);
+  }
+
+  /* ── ۵) دکمه‌ها ─────────────────────────────────────────────────────────
+     سه نقشِ روشن: اصلی (پر)، نرم (کم‌رنگ) و خطر. همه با ارتفاع/شعاع/فونتِ یکسان
+     تا در یک ردیف هم‌تراز بنشینند. */
+  .ui-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    height: 2rem;
+    padding: 0 0.75rem;
+    border-radius: 0.5rem;
+    border: 1px solid transparent;
+    font-size: 0.75rem;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color .15s ease, border-color .15s ease, color .15s ease, box-shadow .15s ease, transform .12s ease;
+  }
+  .ui-btn:active:not(:disabled) { transform: translateY(0.5px); }
+  .ui-btn:disabled { opacity: .55; cursor: not-allowed; }
+
+  .ui-btn-primary {
+    background-color: var(--ui-brand);
+    color: var(--ui-brand-ink);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, .12), 0 6px 16px -10px var(--ui-brand);
+  }
+  .ui-btn-primary:hover:not(:disabled) { background-color: var(--ui-brand-2); }
+
+  .ui-btn-soft {
+    background-color: var(--ui-sunken);
+    color: var(--ui-text);
+    border-color: var(--ui-stroke);
+  }
+  .ui-btn-soft:hover:not(:disabled) { background-color: var(--ui-page-2); border-color: var(--ui-stroke-strong); }
+
+  .ui-btn-ghost { background-color: transparent; color: var(--ui-text-soft); }
+  .ui-btn-ghost:hover:not(:disabled) { background-color: var(--ui-sunken); color: var(--ui-text); }
+
+  .ui-btn-danger { background-color: #e11d48; color: #fff; }
+  .ui-btn-danger:hover:not(:disabled) { background-color: #be123c; }
+
+  .ui-btn-sm { height: 1.75rem; padding: 0 0.625rem; font-size: 0.6875rem; border-radius: 0.4375rem; }
+
+  /* ── ۶) چیپِ وضعیت ──────────────────────────────────────────────────────*/
+  .ui-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    border: 1px solid var(--ui-stroke);
+    background-color: var(--ui-sunken);
+    color: var(--ui-text-soft);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    line-height: 1.5;
+    white-space: nowrap;
+  }
+
+  /* ── ۷) قابِ جدول ───────────────────────────────────────────────────────
+     همان الگویی که در تب دروس به‌کار رفت، اینجا عمومی می‌شود: هر جدولِ `.rt`
+     که داخل قابِ گرد باشد گوشه‌ها را نمی‌شکند. */
+  .ui-table-frame {
+    border: 1px solid var(--ui-stroke);
+    border-radius: 0.75rem;
+    background-color: var(--ui-card);
+    box-shadow: var(--ui-shadow-1);
+    overflow: hidden;
+  }
+
+  /* ── ۸) نوارِ پایینِ موبایل (کارتابل استاد/دانشجو) ─────────────────────
+     `env(safe-area-inset-bottom)` برای آیفون‌های ناچ‌دار.
+     ⚠ عمداً **بدون** `backdrop-filter`: در `StudentNav` مستند شده که بلور روی
+     المانِ `fixed` عاملِ اصلیِ تأخیرِ لمس در موبایل است؛ اینجا هم تکرار نمی‌شود. */
+  .ui-bottom-nav {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background-color: var(--ui-card);
+    border-top: 1px solid var(--ui-stroke);
+    box-shadow: 0 -8px 22px -18px rgba(2, 6, 23, .45);
+  }
+
+  /* ── ۹) موبایل: اندازهٔ لمس و فاصله‌ها ──────────────────────────────────
+     هدفِ لمس حداقل ۴۰px برای اکشن‌های اصلیِ نوارها و آیکون‌ها. */
+  @media (max-width: 767px) {
+    .ui-btn { height: 2.25rem; }
+    .ui-btn-sm { height: 2rem; }
+    .ui-section-head { gap: 0.5rem; }
+    /* سربرگِ چسبان در موبایل کمی فشرده‌تر تا محتوا زودتر دیده شود */
+    .app-header { box-shadow: 0 6px 18px -14px rgba(2, 6, 23, .55); }
+  }
+
+  /* ── ۱۰) احترام به «کاهش حرکت» ──────────────────────────────────────────*/
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.001ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.001ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   دارک‌مود — گونه‌های opacity که در overrideهای بالا جا افتاده بودند.
+   علتِ لکه‌های روشن در دارک: کلاس‌هایی مثل `bg-slate-50/80` با اسلش جدا
+   شده‌اند و قاعدهٔ سادهٔ `.bg-slate-50` روی آن‌ها اثر نمیکند ⇒ در دارک همان
+   رنگِ روشنِ تیلویند میماند (دقیقاً همان کاشی‌های «میز کار استاد» که در
+   موبایل روشن دیده میشدند). اینجا هر گونه با پلهٔ تیرهٔ همان خانواده و
+   همان شفافیت نگاشت میشود.
+   توجه: سفیدِ کم‌شفافیت (bg-white/5 … bg-white/25) عمداً دست‌نخورده است —
+   idiom خودِ حالتِ تیره است و باید همان بماند.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.dark .bg-amber-100\/60 { background-color: rgba(120, 53, 15, 0.6) !important; }
+.dark .bg-amber-50\/30 { background-color: rgba(120, 53, 15, 0.3) !important; }
+.dark .bg-amber-50\/40 { background-color: rgba(120, 53, 15, 0.4) !important; }
+.dark .bg-amber-50\/95 { background-color: #78350f !important; }
+.dark .bg-emerald-100\/60 { background-color: rgba(6, 78, 59, 0.6) !important; }
+.dark .bg-emerald-100\/80 { background-color: #064e3b !important; }
+.dark .bg-emerald-50\/10 { background-color: rgba(6, 78, 59, 0.1) !important; }
+.dark .bg-emerald-50\/30 { background-color: rgba(6, 78, 59, 0.3) !important; }
+.dark .bg-emerald-50\/40 { background-color: rgba(6, 78, 59, 0.4) !important; }
+.dark .bg-gray-50\/60 { background-color: rgba(30, 41, 59, 0.6) !important; }
+.dark .bg-indigo-50\/30 { background-color: rgba(49, 46, 129, 0.3) !important; }
+.dark .bg-indigo-50\/40 { background-color: rgba(49, 46, 129, 0.4) !important; }
+.dark .bg-rose-100\/60 { background-color: rgba(136, 19, 55, 0.6) !important; }
+.dark .bg-rose-100\/80 { background-color: #881337 !important; }
+.dark .bg-rose-50\/30 { background-color: rgba(136, 19, 55, 0.3) !important; }
+.dark .bg-sky-50\/30 { background-color: rgba(12, 74, 110, 0.3) !important; }
+.dark .bg-sky-50\/50 { background-color: rgba(12, 74, 110, 0.5) !important; }
+.dark .bg-sky-50\/60 { background-color: rgba(12, 74, 110, 0.6) !important; }
+.dark .bg-slate-200\/60 { background-color: rgba(51, 65, 85, 0.6) !important; }
+.dark .bg-slate-200\/70 { background-color: rgba(51, 65, 85, 0.7) !important; }
+.dark .bg-slate-200\/80 { background-color: #334155 !important; }
+.dark .bg-slate-200\/90 { background-color: #334155 !important; }
+.dark .bg-slate-50\/30 { background-color: rgba(30, 41, 59, 0.3) !important; }
+.dark .bg-slate-50\/80 { background-color: #1e293b !important; }
+.dark .bg-white\/50 { background-color: #1e293b !important; }
+.dark .bg-white\/70 { background-color: #1e293b !important; }
+.dark .bg-white\/80 { background-color: #1e293b !important; }
+.dark .bg-white\/95 { background-color: #1e293b !important; }
+
+/* گونه‌های hover/focus/md با opacity — همان پلهٔ تیرهٔ خانواده */
+.dark .hover\:amber-100\/60:hover { background-color: rgba(120, 53, 15, 0.6) !important; }
+.dark .hover\:amber-50\/50:hover { background-color: rgba(120, 53, 15, 0.5) !important; }
+.dark .hover\:emerald-100\/60:hover { background-color: rgba(6, 78, 59, 0.6) !important; }
+.dark .hover\:emerald-50\/40:hover { background-color: rgba(6, 78, 59, 0.4) !important; }
+.dark .hover\:emerald-50\/50:hover { background-color: rgba(6, 78, 59, 0.5) !important; }
+.dark .hover\:emerald-50\/60:hover { background-color: rgba(6, 78, 59, 0.6) !important; }
+.dark .hover\:gray-50\/60:hover { background-color: rgba(30, 41, 59, 0.6) !important; }
+.dark .hover\:indigo-50\/40:hover { background-color: rgba(49, 46, 129, 0.4) !important; }
+.dark .hover\:indigo-50\/50:hover { background-color: rgba(49, 46, 129, 0.5) !important; }
+.dark .hover\:indigo-50\/60:hover { background-color: rgba(49, 46, 129, 0.6) !important; }
+.dark .hover\:rose-100\/60:hover { background-color: rgba(136, 19, 55, 0.6) !important; }
+.dark .hover\:rose-50\/50:hover { background-color: rgba(136, 19, 55, 0.5) !important; }
+.dark .hover\:sky-50\/50:hover { background-color: rgba(12, 74, 110, 0.5) !important; }
+.dark .hover\:slate-100\/80:hover { background-color: #334155 !important; }
+.dark .hover\:slate-50\/60:hover { background-color: rgba(30, 41, 59, 0.6) !important; }
+.dark .hover\:slate-50\/70:hover { background-color: rgba(30, 41, 59, 0.7) !important; }
+.dark .hover\:slate-50\/80:hover { background-color: #1e293b !important; }
+.dark .hover\:white\/80:hover { background-color: #1e293b !important; }
+.dark .md\:indigo-50\/50 { background-color: rgba(49, 46, 129, 0.5) !important; }
+
+
+/* ═══════════════════════════════════════════════════════════════════════
+   چاپ گزارشها — «سند ایزوله» (ReportPrint + src/lib/print-report.ts)
+
+   چرا ایزوله: نسخهٔ قبل یک overlay با `position:fixed` داخل همان صفحه چاپ
+   میشد. کروم عناصر fixed را فقط در یک viewport رسم میکند؛ نتیجه نوار تاریک
+   کنار کاغذ، جدول بریده، نبود سربرگ و سرستونهای تکرارنشده بود. حالا کپیِ
+   الگوی چاپی در ریشهٔ body قرار میگیرد و همهٔ فرزندان دیگر body پنهانند.
+
+   حاشیهٔ کاغذ: `@page { margin: 0 }` (در سطح بالا، تزریق رانتایم) سربرگ و
+   پاصفحهٔ خود مرورگر (تاریخ / آدرس سایت / «۱/۲») را حذف میکند، چون کروم
+   آنها را فقط داخل حاشیهٔ @page رسم میکند. حاشیهٔ واقعی با `padding` روی
+   ریشه و `box-decoration-break: clone` روی تکتک صفحات تکرار میشود.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* الگو فقط منبعِ کلون است؛ روی نمایشگر دیده نمیشود */
+
+/* ═══════════════════════════════════════════════════════════════════════
+   چاپ گزارشها — «سند ایزولۀ صفحبندیشده» (ReportPrint + print-report.ts)
+
+   نسخهٔ دوم: سند در ریشهٔ body کلون میشود، سپس `paginateReportPrint()`
+   آن را به برگههای A4 تقسیم میکند. هر برگه سربرگ و سرستون تکراری،
+   جایگاه امضاهای قابلتنظیم و «صفحۀ N از M» واقعی دارد.
+
+   ⚠ قواعد `#report-print-root …` **عمداً بیرون از `@media print`** نوشته
+   شدهاند: ریشهٔ چاپی پیش از بازشدن دیالوگ، بیرون از دید ولی لایهبندیشده
+   است و همان جا ارتفاع ردیفها اندازهگیری میشود. اگر قواعد فقط در مدیای
+   چاپ اعمال شوند، اندازهگیری با چیدمان نمایشگر انجام میشود و برگهها غلط
+   درمیآیند. داخل `@media print` فقط «پنهانسازی بقیهٔ صفحه» و «آزادکردن
+   ریشه» انجام میشود.
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* الگو فقط منبعِ کلون است؛ روی نمایشگر دیده نمیشود */
+.report-print-template { display: none; }
+#report-print-root .report-print-template { display: block; }
+
+/* ابعاد کاغذ — همان مقادیر PAPER در src/lib/print-report.ts */
+#report-print-root[data-rp-orientation="landscape"] { --rp-page-w: 297mm; --rp-page-h: 210mm; --rp-pad: 8mm; --rp-foot: 21mm; }
+#report-print-root[data-rp-orientation="portrait"]  { --rp-page-w: 210mm; --rp-page-h: 297mm; --rp-pad: 9mm; --rp-foot: 21mm; }
+
+/* روی نمایشگر: بیرون از دید ولی لایهبندیشده (برای اندازهگیری) */
+#report-print-root {
+  position: fixed !important;
+  left: -10000px !important;
+  top: 0 !important;
+  width: var(--rp-page-w, 297mm) !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: #ffffff !important;
+  color: #000000 !important;
+  font-family: Vazirmatn, Tahoma, sans-serif !important;
+  direction: rtl;
+  visibility: hidden;
+  z-index: -1;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+#report-print-root .rp-doc { width: 100%; font-size: 8.5pt; line-height: 1.5; color: #000000; }
+#report-print-root a { color: #000000 !important; text-decoration: none !important; }
+
+/* ── برگهها ── */
+#report-print-root .rp-page {
+  width: var(--rp-page-w, 297mm);
+  height: calc(var(--rp-page-h, 210mm) - 0.2mm);
+  padding: var(--rp-pad, 8mm);
+  box-sizing: border-box;
+  position: relative;
+  overflow: hidden;
+  background: #ffffff;
+  break-after: page;
+  page-break-after: always;
+}
+#report-print-root .rp-page-last { break-after: auto; page-break-after: auto; }
+#report-print-root .rp-page-body { width: 100%; }
+/* پروب اندازهگیری: همان عرض/پادینگ، بیرون از دید، بدون شکست صفحه */
+#report-print-root .rp-probe {
+  position: absolute !important;
+  left: -200000px !important;
+  top: 0 !important;
+  height: auto !important;
+  overflow: visible !important;
+  break-after: auto !important;
+  page-break-after: auto !important;
+}
+
+/* ── سربرگ سند: آرم + نام دانشگاه + عنوان + متا (تاریخ در چپ) ── */
+#report-print-root .rp-head {
+  border-bottom: 0.7pt solid #111111;
+  padding-bottom: 2mm;
+  margin-bottom: 2.5mm;
+}
+#report-print-root .rp-head-row { display: flex; align-items: center; gap: 3mm; }
+#report-print-root .rp-logo {
+  width: 14mm; height: 14mm; flex: 0 0 auto;
+  object-fit: contain; display: block;
+}
+#report-print-root .rp-logo-fallback {
+  font-size: 11mm; line-height: 14mm; text-align: center;
+}
+#report-print-root .rp-brand-block { min-width: 0; }
+#report-print-root .rp-brand { font-size: 11pt; font-weight: 800; }
+#report-print-root .rp-system { font-size: 7.5pt; color: #444444; margin-top: 0.3mm; }
+#report-print-root .rp-title { font-size: 14pt; font-weight: 800; margin: 1.2mm 0 0.5mm; }
+#report-print-root .rp-sub { font-size: 8pt; color: #333333; }
+#report-print-root .rp-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 4mm;
+  font-size: 8pt;
+  margin-top: 2mm;
+}
+/* در برگههای ادامه سربرگ فشردهتر است تا کاغذ هدر نرود */
+#report-print-root .rp-head-repeat .rp-logo { width: 9mm; height: 9mm; }
+#report-print-root .rp-head-repeat .rp-logo-fallback { font-size: 7mm; line-height: 9mm; }
+#report-print-root .rp-head-repeat .rp-brand { font-size: 9pt; }
+#report-print-root .rp-head-repeat .rp-system { display: none; }
+#report-print-root .rp-head-repeat .rp-title { font-size: 11pt; }
+#report-print-root .rp-head-repeat .rp-sub { font-size: 7pt; }
+
+/* ── جدول: عرض ثابت + colgroup، سرستون تکراری، ردیف نشکند ── */
+#report-print-root table.rp-table {
+  width: 100% !important;
+  max-width: 100% !important;
+  border-collapse: collapse !important;
+  table-layout: fixed !important;
+  border: 0.6pt solid #333333 !important;
+  font-size: 8pt;
+}
+#report-print-root table.rp-table > thead { display: table-header-group; }
+#report-print-root table.rp-table > tbody { display: table-row-group; }
+#report-print-root table.rp-table tr { break-inside: avoid; page-break-inside: avoid; }
+#report-print-root table.rp-table th,
+#report-print-root table.rp-table td {
+  border: 0.4pt solid #777777 !important;
+  padding: 1.1mm 1.2mm !important;
+  text-align: right;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+  word-break: normal;
+  hyphens: none;
+  font-size: 8pt;
+  line-height: 1.4;
+  min-width: 0;
+}
+#report-print-root table.rp-table th {
+  background: #f0f0f0 !important;
+  font-weight: 800;
+  white-space: normal;
+}
+/* ⚠ نسخهٔ قبل white-space:nowrap داشت؛ شمارهٔ فیش/حساب/پیگیری بلند از
+   ستون بیرون میزد و روی ستون تاریخ میافتاد. حالا ارقام بلند میشکنند. */
+#report-print-root table.rp-table td.rp-num {
+  font-variant-numeric: tabular-nums;
+  direction: ltr;
+  text-align: right;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+#report-print-root table.rp-table td.rp-longnum { word-break: break-all; }
+
+/* ── خلاصهٔ گزارش (فقط برگهٔ آخر) ── */
+#report-print-root .rp-summary {
+  margin-top: 2.5mm;
+  padding-top: 1.5mm;
+  border-top: 0.6pt solid #111111;
+  font-size: 8.5pt;
+  font-weight: 700;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+/* ── پاصفحهٔ هر برگه: جایگاه امضاها + «صفحۀ N از M» ── */
+#report-print-root .rp-page-foot {
+  position: absolute;
+  left: var(--rp-pad, 8mm);
+  right: var(--rp-pad, 8mm);
+  bottom: var(--rp-pad, 8mm);
+  height: var(--rp-foot, 21mm);
+  border-top: 0.6pt solid #111111;
+  padding-top: 1.5mm;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1mm;
+}
+#report-print-root .rp-page-signs { display: flex; justify-content: space-between; gap: 4mm; }
+#report-print-root .rp-sign {
+  flex: 1 1 0;
+  min-width: 0;
+  border-top: 0.5pt solid #555555;
+  padding-top: 1mm;
+  text-align: center;
+  font-size: 7.5pt;
+  overflow-wrap: anywhere;
+}
+#report-print-root .rp-page-num { text-align: center; font-size: 8pt; font-weight: 800; }
+
+@media print {
+  /* ۱) فقط ریشهٔ چاپی بماند — نوار تاریک، منو، کارتها و دکمهها حذف شوند */
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  body.printing-report > *:not(#report-print-root) { display: none !important; }
+  body.printing-report #report-print-root {
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    visibility: visible !important;
+    width: auto !important;
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: Vazirmatn, Tahoma, sans-serif !important;
+    direction: rtl;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+  .report-print-template { display: none !important; }
+  #report-print-root .report-print-template { display: block !important; }
+  #report-print-root .rp-probe { display: none !important; }
 }

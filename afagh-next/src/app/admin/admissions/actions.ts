@@ -4,15 +4,21 @@ import { revalidatePath } from 'next/cache';
 import { requireRole } from '@/lib/auth';
 import {
   ensureDefaultSanjeshMappings,
-  importStagedToStudents,
+  assignStudentNumbers,
+  finalRegisterStudents,
+  findExistingRecordsForStaging,
+  checkFormulaUniqueness,
   parseAndStageSanjeshData,
   registerManualStudent,
+  resyncStagingMappings,
 } from '@/lib/admissions-engine';
 import { executeIrandocCheck } from '@/lib/api-integrations';
+import { isEntryMethod } from '@/lib/entry-methods';
 import { db } from '@/db';
-import { admissions_staging, majors, sanjesh_mappings, student_id_formulas } from '@/db/schema';
-import { and, eq, isNull, or } from 'drizzle-orm';
+import { admissions_staging, majors, sanjesh_mappings, student_id_formula_models, student_id_formulas } from '@/db/schema';
+import { and, eq, isNull, or, sql } from 'drizzle-orm';
 import { getCurrentUniversity } from '@/lib/university-scope';
+import { validateFormula } from '@/lib/student-id-formula';
 
 export async function stageSanjeshDataAction(rawText: string, entryYear = 1405) {
   await requireRole(['ADMIN', 'EDU_EXPERT']);
@@ -27,11 +33,57 @@ export async function stageSanjeshDataAction(rawText: string, entryYear = 1405) 
   }
 }
 
-export async function importStagedStudentsAction(stagingIds: number[]) {
+export async function listExistingForStagingAction() {
+  await requireRole(['ADMIN', 'EDU_EXPERT']);
+  try {
+    const uni = await getCurrentUniversity().catch(() => null);
+    const items = await findExistingRecordsForStaging(uni?.id ?? null);
+    return { ok: true, items };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'خطا در بارگذاری پرونده‌های موجود.', items: [] };
+  }
+}
+
+export async function setStagingDecisionAction(
+  stagingId: number,
+  decision: 'ALLOW_DUPLICATE' | 'REJECT' | 'CLEAR' | 'REPLACE',
+) {
+  await requireRole(['ADMIN', 'EDU_EXPERT']);
+  try {
+    if (decision === 'REJECT') {
+      await db.update(admissions_staging)
+        .set({ status: 'REJECTED', decisionNote: 'REJECTED_BY_ADMIN' })
+        .where(eq(admissions_staging.id, stagingId));
+    } else if (decision === 'ALLOW_DUPLICATE') {
+      await db.update(admissions_staging)
+        .set({ status: 'RESOLVED', decisionNote: 'ALLOW_DUPLICATE' })
+        .where(eq(admissions_staging.id, stagingId));
+    } else if (decision === 'REPLACE') {
+      await db.update(admissions_staging)
+        .set({ status: 'RESOLVED', decisionNote: 'REPLACED' })
+        .where(eq(admissions_staging.id, stagingId));
+    } else {
+      await db.update(admissions_staging)
+        .set({ status: 'RESOLVED', decisionNote: null })
+        .where(eq(admissions_staging.id, stagingId));
+    }
+    revalidatePath('/admin/admissions');
+    return { ok: true };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'ثبت تصمیم انجام نشد.' };
+  }
+}
+
+export async function assignStudentNumbersAction(
+  stagingIds: number[],
+  entryMethod: string,
+  starts?: Record<number, number>,
+) {
   await requireRole(['ADMIN', 'EDU_EXPERT']);
 
   try {
-    const result = await importStagedToStudents(stagingIds);
+    if (!isEntryMethod(entryMethod)) return { ok: false, error: 'روش ورود را انتخاب کنید.' };
+    const result = await assignStudentNumbers(stagingIds, { entryMethod, starts });
     revalidatePath('/admin/admissions');
     revalidatePath('/admin/students');
     return {
@@ -41,9 +93,28 @@ export async function importStagedStudentsAction(stagingIds: number[]) {
       failures: result.failures,
     };
   } catch (err: any) {
-    return { ok: false, error: err?.message || 'خطا در ثبت نهایی دانشجویان.' };
+    return { ok: false, error: err?.message || 'خطا در صدور شماره دانشجویی.' };
   }
 }
+
+export async function finalRegisterStudentsAction(stagingIds: number[]) {
+  await requireRole(['ADMIN', 'EDU_EXPERT']);
+
+  try {
+    const result = await finalRegisterStudents(stagingIds);
+    revalidatePath('/admin/admissions');
+    revalidatePath('/admin/students');
+    return {
+      ok: true,
+      count: result.imported.length,
+      items: result.imported,
+      failures: result.failures,
+    };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'خطا در ثبت قطعی.' };
+  }
+}
+
 
 export async function saveSanjeshMappingAction(sanjeshCode: string, internalMajorId: number, quota?: string) {
   await requireRole(['ADMIN']);
@@ -68,7 +139,7 @@ export async function saveSanjeshMappingAction(sanjeshCode: string, internalMajo
     if (existing) {
       await db
         .update(sanjesh_mappings)
-        .set({ internalMajorId, sanjeshQuota: quota || 'سهمیه عادی' })
+        .set({ internalMajorId, ...(quota ? { sanjeshQuota: quota } : {}) })
         .where(and(eq(sanjesh_mappings.id, existing.id), uniScope(sanjesh_mappings.universityId)));
     } else {
       await db.insert(sanjesh_mappings).values({
@@ -80,11 +151,33 @@ export async function saveSanjeshMappingAction(sanjeshCode: string, internalMajo
       });
     }
 
-    // به‌روزرسانی رکوردهای staging متناظر که در حالت انتظار بودند
+    // به‌روزرسانی رکوردهای staging متناظر که در حالت انتظار بودند.
+    // ⚠ فقط ردیف‌های **همین کد رشته** — پیش‌تر شرط کد نداشت و نگاشت یک کد،
+    // همهٔ ردیف‌های در انتظار (حتی رشته‌های دیگر) را به همان رشته می‌چسباند.
+    // ردیف‌هایی که با نسخهٔ قدیمی ساخته شده‌اند، JSON ندارند و خط خام در
+    // rawSanjeshData دارند؛ کدشان از profileJson.fields خوانده می‌شود.
     await db
       .update(admissions_staging)
       .set({ mappedMajorId: internalMajorId, status: 'RESOLVED' })
-      .where(and(eq(admissions_staging.status, 'PENDING_MAPPING'), uniScope(admissions_staging.universityId)));
+      .where(
+        and(
+          eq(admissions_staging.status, 'PENDING_MAPPING'),
+          sql`(
+            (CASE WHEN ${admissions_staging.rawSanjeshData} LIKE '{%'
+                  THEN ${admissions_staging.rawSanjeshData}::jsonb ->> 'sanjeshCode' END) = ${sanjeshCode}
+            OR
+            (CASE WHEN ${admissions_staging.profileJson} LIKE '{%'
+                  THEN COALESCE(
+                    ${admissions_staging.profileJson}::jsonb #>> '{fields,fieldPlaceCode}',
+                    ${admissions_staging.profileJson}::jsonb #>> '{fields,fieldCode}'
+                  ) END) = ${sanjeshCode}
+          )`,
+          uniScope(admissions_staging.universityId),
+        ),
+      );
+
+    // کمربند ایمنی: هر نگاشتِ دیگری که ردیفش عقب مانده هم همگام می‌شود
+    await resyncStagingMappings();
 
     revalidatePath('/admin/admissions');
     return { ok: true };
@@ -93,8 +186,7 @@ export async function saveSanjeshMappingAction(sanjeshCode: string, internalMajo
   }
 }
 
-export async function saveStudentIdFormulaAction(degreeLevelId: number, formula: string) {
-  await requireRole(['ADMIN']);
+export async function saveStudentIdFormulaAction(degreeLevelId: number, formula: string) {  await requireRole(['ADMIN']);
 
   try {
     const uni = await getCurrentUniversity().catch(() => null);
@@ -105,6 +197,15 @@ export async function saveStudentIdFormulaAction(degreeLevelId: number, formula:
       .from(student_id_formulas)
       .where(and(eq(student_id_formulas.degreeLevelId, degreeLevelId), uniScope(student_id_formulas.universityId)))
       .limit(1);
+
+    const check = await checkFormulaUniqueness(
+      formula,
+      degreeLevelId,
+      uni.id,
+      1405,
+      (existing?.currentSequence ?? 0) + 1,
+    );
+    if (!check.ok) return { ok: false, error: check.error };
 
     if (existing) {
       await db
@@ -125,6 +226,68 @@ export async function saveStudentIdFormulaAction(degreeLevelId: number, formula:
     return { ok: true };
   } catch (err: any) {
     return { ok: false, error: err?.message || 'خطا در ذخیره فرمول شماره دانشجویی.' };
+  }
+}
+
+/** افزودن یک «مدل فرمول» به کتابخانه — الگو، نه فرمولِ فعالِ مقطع */
+export async function saveFormulaModelAction(title: string, formula: string, note?: string) {
+  await requireRole(['ADMIN']);
+  try {
+    const t = String(title ?? '').trim();
+    const f = String(formula ?? '').trim();
+    if (!t) return { ok: false, error: 'عنوان مدل الزامی است.' };
+    if (!f) return { ok: false, error: 'فرمول الزامی است.' };
+
+    const errs = validateFormula(f);
+    if (errs.length > 0) return { ok: false, error: errs.join(' ؛ ') };
+
+    const uni = await getCurrentUniversity().catch(() => null);
+    if (!uni) return { ok: false, error: 'دانشگاه فعال نامشخص است.' };
+
+    const [dup] = await db
+      .select({ id: student_id_formula_models.id })
+      .from(student_id_formula_models)
+      .where(
+        and(
+          eq(student_id_formula_models.title, t),
+          or(eq(student_id_formula_models.universityId, uni.id), isNull(student_id_formula_models.universityId)),
+        ),
+      )
+      .limit(1);
+    if (dup) return { ok: false, error: `مدلی با عنوان «${t}» از قبل وجود دارد.` };
+
+    await db.insert(student_id_formula_models).values({
+      universityId: uni.id,
+      title: t,
+      formula: f,
+      note: note ? String(note).slice(0, 200) : null,
+    });
+
+    revalidatePath('/admin/admissions');
+    return { ok: true };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'خطا در ذخیرهٔ مدل فرمول.' };
+  }
+}
+
+/** حذف یک مدل از کتابخانه (فرمول فعالِ مقطع‌ها دست‌نخورده می‌ماند) */
+export async function deleteFormulaModelAction(id: number) {
+  await requireRole(['ADMIN']);
+  try {
+    const uni = await getCurrentUniversity().catch(() => null);
+    if (!uni) return { ok: false, error: 'دانشگاه فعال نامشخص است.' };
+    await db
+      .delete(student_id_formula_models)
+      .where(
+        and(
+          eq(student_id_formula_models.id, id),
+          or(eq(student_id_formula_models.universityId, uni.id), isNull(student_id_formula_models.universityId)),
+        ),
+      );
+    revalidatePath('/admin/admissions');
+    return { ok: true };
+  } catch (err: any) {
+    return { ok: false, error: err?.message || 'خطا در حذف مدل فرمول.' };
   }
 }
 

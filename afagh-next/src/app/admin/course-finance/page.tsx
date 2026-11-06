@@ -174,7 +174,7 @@ export default async function CourseFinancePage({
             نمایش همهٔ دروس (نه فقط تعیین‌نشده‌ها)
           </label>
           <button className="btn-primary !py-1.5">اعمال</button>
-          {q && <Link href="/admin/course-finance" className="btn-ghost !py-1.5">پاک‌کردن</Link>}
+          {q && <Link prefetch={false} href="/admin/course-finance" className="btn-ghost !py-1.5">پاک‌کردن</Link>}
         </form>
       </div>
 
@@ -184,7 +184,7 @@ export default async function CourseFinancePage({
             {onlyMissing ? 'دروس تعیین‌نشده' : 'همهٔ دروس'} — {fa(rows.length)} ردیف
           </h2>
           {rows.length >= PAGE_SIZE && (
-            <span className="text-[11px] text-amber-700">
+            <span className="text-2xs text-amber-700">
               فقط {fa(PAGE_SIZE)} ردیف اول نمایش داده شده؛ برای دیدن بقیه جست‌وجو کنید.
             </span>
           )}
@@ -263,7 +263,7 @@ export default async function CourseFinancePage({
             const rate = rateByType.get(n);
             const nonCharging = MALI_TYPE_NON_CHARGING.has(n);
             return (
-              <div key={k} className="flex items-center justify-between rounded-lg border border-slate-200 px-2 py-1 text-[11px]">
+              <div key={k} className="flex items-center justify-between rounded-lg border border-slate-200 px-2 py-1 text-2xs">
                 <span>
                   <b className="font-mono">{k}</b> — {label}
                 </span>
@@ -274,13 +274,13 @@ export default async function CourseFinancePage({
             );
           })}
         </div>
-        <p className="mt-2 text-[11px] text-slate-500">
+        <p className="mt-2 text-2xs text-slate-500">
           انواع «بی‌نرخ» (۰، ۵، ۹، ۱۲، ۱۳، ۱۵) در سند رسمی سما هم نرخ ندارند؛ انتخابشان برای
           درس عادی به‌معنای صفر شدن شهریه است. فقط اگر مطمئنید درس نباید شهریه بگیرد از آن‌ها استفاده کنید.
         </p>
       </div>
 
-      <p className="text-[11px] text-slate-500">
+      <p className="text-2xs text-slate-500">
         آخرین به‌روزرسانی فهرست انواع درس مالی از سما (LT7) در{' '}
         <span dir="ltr" className="font-mono">courses_bak_mali_20261023</span> پشتیبان‌گیری شده است.
         نمونهٔ برچسب فعلی برای کد ۳: <b>{maliTypeLabel(3)}</b>.
@@ -298,7 +298,7 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: 'ro
         : 'border-slate-200 bg-slate-50 text-slate-800';
   return (
     <div className={`rounded-xl border px-3 py-2 ${cls}`}>
-      <p className="text-[10px] opacity-80">{label}</p>
+      <p className="text-3xs opacity-80">{label}</p>
       <p className="font-mono text-base font-bold" dir="ltr">{value}</p>
     </div>
   );

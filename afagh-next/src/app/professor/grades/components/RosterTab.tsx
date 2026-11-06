@@ -17,6 +17,8 @@ import React, {
   useOptimistic,
   useState,
 } from 'react';
+import { useToast } from '@/components/ui/Toast';
+import { askConfirm } from '@/lib/ui-feedback';
 import {
   SaveGradePayload,
   SaveGradeState,
@@ -57,6 +59,9 @@ type OptimisticUpdate = {
 };
 
 export default function RosterTab({ offering, termTitle, lastAutoSaveTime, onRequestFinalizeOtp, dispatch }: RosterTabProps) {
+  /* پیام‌ها از توستِ سراسری می‌آیند (نه alert بومی): ثبت نمره جریان پیوسته‌ای
+     است و دیالوگ بومی آن را در هر خطا متوقف می‌کرد. */
+  const toast = useToast();
   const [searchStudentQuery, setSearchStudentQuery] = useState('');
   const [saveState, saveAction, isSaving] = useActionState<SaveGradeState, SaveGradePayload>(saveGradeAction, { ok: true });
   // زمان آخرین ذخیرهٔ موفق از پاسخ واقعی سرور (نه تایمر محلی)
@@ -78,7 +83,7 @@ export default function RosterTab({ offering, termTitle, lastAutoSaveTime, onReq
   useEffect(() => { setUnfinalizeStatus(offering.unfinalizeStatus); }, [offering.id, offering.unfinalizeStatus]);
   const submitUnfinalize = async () => {
     if (unfinalizeReason.trim().length < 10) {
-      alert('دلیل درخواست الزامی است (حداقل ۱۰ نویسه).');
+      toast('دلیل درخواست الزامی است (حداقل ۱۰ نویسه).', 'error');
       return;
     }
     setUnfinalizeBusy(true);
@@ -91,7 +96,7 @@ export default function RosterTab({ offering, termTitle, lastAutoSaveTime, onReq
           const s = m[offering.id]?.status ?? offering.memberOfferingIds?.map(id => m[id]?.status).find(Boolean);
           if (s) setUnfinalizeStatus(s);
         }
-        alert(res.error || 'ثبت درخواست ناموفق بود.');
+        toast(res.error || 'ثبت درخواست ناموفق بود.', 'error');
         return;
       }
       setUnfinalizeStatus('PENDING');
@@ -120,7 +125,7 @@ export default function RosterTab({ offering, termTitle, lastAutoSaveTime, onReq
     if (isFinalized) return;
     const access = canEditScore(st, offering, field);
     if (!access.ok) {
-      alert(access.reason);
+      toast(access.reason, 'error');
       return;
     }
     const value = raw === '' ? undefined : Number(raw);
@@ -157,7 +162,7 @@ export default function RosterTab({ offering, termTitle, lastAutoSaveTime, onReq
 
   const handleSubmitTemporary = () => {
     if (!isRubricValid(offering.rubric) && !offering.isCoTaught) {
-      alert('خطا: مجموع بارم‌بندی باید دقیقاً ۲۰ باشد.');
+      toast('مجموع بارم‌بندی باید دقیقاً ۲۰ باشد.', 'error');
       return;
     }
     dispatch({ type: 'SUBMIT_TEMPORARY' });
@@ -230,26 +235,32 @@ export default function RosterTab({ offering, termTitle, lastAutoSaveTime, onReq
               ورود نمرات درس {offering.title} (گروه {faNum(offering.groupNumber)})
             </h3>
             {isFinalized && (
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black bg-emerald-600 text-white shadow-xs">
+              <span className="px-2.5 py-0.5 rounded-full text-3xs font-black bg-emerald-600 text-white shadow-xs">
                 🔒 فریز و قفل قطعی شده
               </span>
             )}
-            {isLoading && <span className="text-[10px] font-bold text-sky-600 animate-pulse">در حال همگام‌سازی...</span>}
+            {isLoading && <span className="text-3xs font-bold text-sky-600 animate-pulse">در حال همگام‌سازی...</span>}
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
             {offering.isCoTaught
               ? `درس مشترک: نمره هر بخش از ۲۰ وارد شده و نمره کل طبق سهمیه مصوب (${faNum((offering.coTaughtDetails?.theoryWeightRatio || 0.6) * 100)}٪ تئوری + ${faNum((offering.coTaughtDetails?.labWeightRatio || 0.4) * 100)}٪ عملی) محاسبه می‌گردد.`
               : `بر اساس بارم: میان‌ترم (${faNum(offering.rubric.midterm)})، تکالیف (${faNum(offering.rubric.homework)})، حضور (${faNum(offering.rubric.participation)})، عملی (${faNum(offering.rubric.practical)})، پایان‌ترم (${faNum(offering.rubric.finalExam)})`}
           </p>
-          <p className="text-[10px] text-slate-400 font-bold mt-1">
+          <p className="text-3xs text-slate-400 font-bold mt-1">
             ⏱ ذخیرهٔ خودکار آخرین بار: {faNum(lastAutoSaveTime)}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <button
-            onClick={() => {
-              if (!confirm(`آیا از افزودن ۰.۵ نمره ارفاق/تشویقی به تمامی دانشجویان مطمئن هستید؟`)) return;
+            onClick={async () => {
+              const ok = await askConfirm({
+                title: 'ارفاق گروهی',
+                body: 'آیا از افزودن ۰.۵ نمره ارفاق/تشویقی به تمامی دانشجویان مطمئن هستید؟',
+                confirmText: 'اعمال کن',
+                danger: true,
+              });
+              if (!ok) return;
               dispatch({ type: 'APPLY_BONUS_MARK', payload: 0.5 });
               flashToast(dispatch, '✨ نمره تشویقی (+۰.۵ نمره) با موفقیت اعمال شد.');
             }}
@@ -281,7 +292,7 @@ export default function RosterTab({ offering, termTitle, lastAutoSaveTime, onReq
               try {
                 const res = await onRequestFinalizeOtp();
                 if (res.ok && res.demoOtp) setDemoOtp(res.demoOtp);
-                if (!res.ok && res.error) alert(res.error);
+                if (!res.ok && res.error) toast(res.error, 'error');
               } finally {
                 setOtpBusy(false);
               }
@@ -305,12 +316,12 @@ export default function RosterTab({ offering, termTitle, lastAutoSaveTime, onReq
         <div className="rounded-2xl border border-amber-300 bg-amber-50 p-4 space-y-3">
           <div className="flex flex-wrap items-center gap-2">
             {offering.gradeDeadline && (
-              <span className="px-2.5 py-1 rounded-full bg-white border border-amber-300 text-amber-900 text-[11px] font-black">
+              <span className="px-2.5 py-1 rounded-full bg-white border border-amber-300 text-amber-900 text-2xs font-black">
                 ⏳ مهلت ثبت نمرهٔ ترم: {faNum(offering.gradeDeadline)}
               </span>
             )}
             {offering.isThesis && (
-              <span className="px-2.5 py-1 rounded-full bg-purple-800 text-white text-[11px] font-black">
+              <span className="px-2.5 py-1 rounded-full bg-purple-800 text-white text-2xs font-black">
                 🎓 پایان‌نامه
               </span>
             )}
@@ -335,7 +346,7 @@ export default function RosterTab({ offering, termTitle, lastAutoSaveTime, onReq
                 </button>
               ) : (
                 <div className="space-y-3 bg-white rounded-xl border border-amber-200 p-3">
-                  <div className="rounded-xl bg-slate-900 text-white p-3 text-[11px] font-bold leading-6">
+                  <div className="rounded-xl bg-slate-900 text-white p-3 text-2xs font-bold leading-6">
                     <div className="font-black text-amber-300 mb-1">⚠ پیامدهای بازگشایی:</div>
                     <ol className="list-decimal pr-5 space-y-0.5">
                       <li>بازگشایی با نام شما در لاگ ممیزی ثبت می‌شود.</li>
@@ -399,11 +410,11 @@ export default function RosterTab({ offering, termTitle, lastAutoSaveTime, onReq
                 <>
                   <th className="p-2.5 border border-slate-800 font-bold bg-indigo-950">
                     نمره تئوری (از ۲۰)
-                    <div className="text-[10px] text-indigo-300 font-normal">سهم {faNum((offering.coTaughtDetails?.theoryWeightRatio || 0.6) * 100)}٪</div>
+                    <div className="text-3xs text-indigo-300 font-normal">سهم {faNum((offering.coTaughtDetails?.theoryWeightRatio || 0.6) * 100)}٪</div>
                   </th>
                   <th className="p-2.5 border border-slate-800 font-bold bg-purple-950">
                     نمره عملی (از ۲۰)
-                    <div className="text-[10px] text-purple-300 font-normal">سهم {faNum((offering.coTaughtDetails?.labWeightRatio || 0.4) * 100)}٪</div>
+                    <div className="text-3xs text-purple-300 font-normal">سهم {faNum((offering.coTaughtDetails?.labWeightRatio || 0.4) * 100)}٪</div>
                   </th>
                 </>
               ) : (
@@ -438,7 +449,7 @@ export default function RosterTab({ offering, termTitle, lastAutoSaveTime, onReq
                     <div className="flex flex-col">
                       <span>{st.fullName}</span>
                       {offering.appeals.find(a => a.studentId === st.studentId) && (
-                        <span className="mt-1 text-[10px] text-amber-800 font-bold">
+                        <span className="mt-1 text-3xs text-amber-800 font-bold">
                           📩 {offering.appeals.find(a => a.studentId === st.studentId)?.status === 'OPEN' ? 'اعتراض باز' : 'اعتراض بسته'}
                         </span>
                       )}
@@ -472,19 +483,19 @@ export default function RosterTab({ offering, termTitle, lastAutoSaveTime, onReq
                   <td className="p-2 border border-slate-200 text-center">
                     {finalScore !== undefined ? (
                       isPass
-                        ? <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">قبول</span>
-                        : <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-[10px]">مردود</span>
+                        ? <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-3xs">قبول</span>
+                        : <span className="px-2 py-0.5 rounded-full bg-rose-100 text-rose-800 font-bold text-3xs">مردود</span>
                     ) : (
-                      <span className="text-[10px] text-slate-400 font-bold">ناتمام</span>
+                      <span className="text-3xs text-slate-400 font-bold">ناتمام</span>
                     )}
                   </td>
                   <td className="p-2 border border-slate-200 text-center">
                     {isFinalized || st.status === 'FINALIZED' ? (
-                      <span className="px-2 py-0.5 rounded bg-emerald-700 text-white font-bold text-[10px]">🔒 قطعی</span>
+                      <span className="px-2 py-0.5 rounded bg-emerald-700 text-white font-bold text-3xs">🔒 قطعی</span>
                     ) : st.status === 'TEMPORARY' ? (
-                      <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-bold text-[10px]">📢 موقت</span>
+                      <span className="px-2 py-0.5 rounded bg-amber-100 text-amber-900 font-bold text-3xs">📢 موقت</span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded bg-slate-200 text-slate-700 font-bold text-[10px]">پیش‌نویس</span>
+                      <span className="px-2 py-0.5 rounded bg-slate-200 text-slate-700 font-bold text-3xs">پیش‌نویس</span>
                     )}
                   </td>
                 </tr>
@@ -507,7 +518,7 @@ export default function RosterTab({ offering, termTitle, lastAutoSaveTime, onReq
                 </div>
                 <div className="text-center">
                   <div className="font-black text-lg text-slate-900">{finalScore !== undefined ? faNum(finalScore) : '—'}</div>
-                  <div className="text-[10px] text-slate-400 font-bold">از ۲۰</div>
+                  <div className="text-3xs text-slate-400 font-bold">از ۲۰</div>
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
@@ -552,7 +563,7 @@ export default function RosterTab({ offering, termTitle, lastAutoSaveTime, onReq
               <button
                 onClick={async () => {
                   if (!otpCode.trim()) {
-                    alert('کد تأیید را وارد کنید.');
+                    toast('کد تأیید را وارد کنید.', 'error');
                     return;
                   }
                   setFinalizing(true);
@@ -566,7 +577,7 @@ export default function RosterTab({ offering, termTitle, lastAutoSaveTime, onReq
                       memberOfferingIds: offering.memberOfferingIds,
                     });
                     if (!res.ok) {
-                      alert(res.error || 'تأیید ناموفق بود.');
+                      toast(res.error || 'تأیید ناموفق بود.', 'error');
                       return;
                     }
                     dispatch({ type: 'SIGN_OFFERING' });
@@ -594,7 +605,7 @@ export default function RosterTab({ offering, termTitle, lastAutoSaveTime, onReq
       )}
 
       {saveState?.error && (
-        <p className="text-[11px] font-bold text-rose-600">⚠ خطای ذخیره: {saveState.error}</p>
+        <p className="text-2xs font-bold text-rose-600">⚠ خطای ذخیره: {saveState.error}</p>
       )}
     </div>
   );

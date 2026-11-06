@@ -2,7 +2,7 @@ node_modules/
 .next/
 # پشتیبانِ دستیِ .next — وقتی گاردِ safe-delete اجازهٔ rm -rf نمی‌دهد، پوشه را
 # موقتاً کنار می‌گذاریم؛ این نسخه‌ها هرگز نباید وارد گیت شوند.
-.next-bak-*/
+.next-bak*/
 .env
 *.tsbuildinfo
 # تولید خودکار next dev — در گیت نگه داشته نمی‌شود
@@ -22,3 +22,7 @@ outbox/
 
 # اسکریپت‌های یک‌بارمصرفِ اتصال که اعتبارنامهٔ سما را داخل کد دارند — هرگز commit نشوند
 conn-*.mts
+
+# خروجی TSV حجیمِ بک‌فیلِ مستندسازت (با scp به سرور منتقل می‌شود، نه git)
+scripts/legacy-payment-provenance.tsv
+scripts/sama-course-nature.tsv

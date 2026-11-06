@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState, useTransition } from 'react';
+import { notify, askConfirm } from '@/lib/ui-feedback';
 
 const faNum = (v: unknown) => Number(v ?? 0).toLocaleString('fa-IR');
 
@@ -84,22 +85,28 @@ export default function WelfareClient() {
         });
         refreshAll();
       } catch (e) {
-        alert(e instanceof Error ? e.message : 'خطا');
+        notify(e instanceof Error ? e.message : 'خطا', 'error');
       }
     });
 
-  const remove = (f: Fund) => {
+  const remove = async (f: Fund) => {
     if (f.loanCount > 0) {
-      alert(`این صندوق ${faNum(f.loanCount)} وام دارد؛ اول وام‌ها را به صندوق دیگری منتقل کنید.`);
+      notify(`این صندوق ${faNum(f.loanCount)} وام دارد؛ اول وام‌ها را به صندوق دیگری منتقل کنید.`, 'error');
       return;
     }
-    if (!confirm(`صندوق «${f.title}» حذف شود؟`)) return;
+    const ok = await askConfirm({
+      title: 'حذف صندوق',
+      body: `صندوق «${f.title}» حذف شود؟`,
+      confirmText: 'حذف کن',
+      danger: true,
+    });
+    if (!ok) return;
     startTransition(async () => {
       try {
         await api(`${BASE}?id=${f.id}`, { method: 'DELETE' });
         loadFunds();
       } catch (e) {
-        alert(e instanceof Error ? e.message : 'خطا');
+        notify(e instanceof Error ? e.message : 'خطا', 'error');
       }
     });
   };
@@ -143,7 +150,7 @@ export default function WelfareClient() {
             }`}
           >
             <div className="font-medium text-slate-800">📥 وام‌های بدون صندوق</div>
-            <div className="text-[11px] text-slate-500">انتساب‌نیافته‌ها</div>
+            <div className="text-2xs text-slate-500">انتساب‌نیافته‌ها</div>
           </button>
           {funds.map((f) => (
             <div
@@ -163,21 +170,21 @@ export default function WelfareClient() {
                   {f.title}
                   {!f.isActive && <span className="text-slate-400"> (غیرفعال)</span>}
                 </div>
-                <div className="text-[11px] text-slate-500">
+                <div className="text-2xs text-slate-500">
                   {f.code} — {faNum(f.loanCount)} وام
                 </div>
               </button>
               <div className="mt-1 flex gap-1">
                 <button
                   onClick={() => setModal({ edit: f })}
-                  className="rounded bg-slate-100 hover:bg-slate-200 px-2 py-0.5 text-[11px]"
+                  className="rounded bg-slate-100 hover:bg-slate-200 px-2 py-0.5 text-2xs"
                 >
                   ویرایش
                 </button>
                 <button
                   onClick={() => remove(f)}
                   disabled={busy}
-                  className="rounded bg-rose-100 hover:bg-rose-200 px-2 py-0.5 text-[11px] text-rose-700"
+                  className="rounded bg-rose-100 hover:bg-rose-200 px-2 py-0.5 text-2xs text-rose-700"
                 >
                   حذف
                 </button>
@@ -207,7 +214,7 @@ export default function WelfareClient() {
               <tr key={l.id} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="py-2 px-2">
                   <div className="font-medium text-slate-800">{l.studentName}</div>
-                  <div className="text-[11px] text-slate-500">{l.studentCode}</div>
+                  <div className="text-2xs text-slate-500">{l.studentCode}</div>
                 </td>
                 <td className="py-2 px-2">{l.lender}</td>
                 <td className="py-2 px-2">{faNum(l.amount)}</td>
@@ -218,7 +225,7 @@ export default function WelfareClient() {
                     value={l.welfareFundId ? String(l.welfareFundId) : ''}
                     disabled={busy}
                     onChange={(e) => assign(l.id, e.target.value ? Number(e.target.value) : null)}
-                    className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-[11px]"
+                    className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-2xs"
                   >
                     <option value="">بدون صندوق</option>
                     {funds
@@ -297,7 +304,7 @@ function FundForm({
 
   const save = async () => {
     if (!code.trim() || !title.trim()) {
-      alert('کد و عنوان صندوق الزامی است');
+      notify('کد و عنوان صندوق الزامی است', 'error');
       return;
     }
     setSaving(true);
@@ -327,7 +334,7 @@ function FundForm({
       }
       onSaved();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'خطا');
+      notify(e instanceof Error ? e.message : 'خطا', 'error');
     } finally {
       setSaving(false);
     }
@@ -340,16 +347,16 @@ function FundForm({
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] font-medium text-slate-600">کد (انگلیسی، یکتا)</span>
+              <span className="text-2xs font-medium text-slate-600">کد (انگلیسی، یکتا)</span>
               <input value={code} onChange={(e) => setCode(e.target.value)} dir="ltr" className={inputCls} />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] font-medium text-slate-600">عنوان</span>
+              <span className="text-2xs font-medium text-slate-600">عنوان</span>
               <input value={title} onChange={(e) => setTitle(e.target.value)} className={inputCls} />
             </label>
           </div>
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-medium text-slate-600">توضیح</span>
+            <span className="text-2xs font-medium text-slate-600">توضیح</span>
             <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className={inputCls} />
           </label>
           <label className="flex items-center gap-2 text-xs text-slate-700">

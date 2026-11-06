@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { applyGradesAction, clearGradeStagingAction, compareGradesAction } from './actions';
 import { ImportReport, Msg, ReportBox, Stat, Uploader, fmt } from './ui';
+import { askConfirm } from '@/lib/ui-feedback';
 
 type GradeCompare = {
   total: number; same: number; diff: number; missingInNew: number; noStudent: number; noTerm: number; noCourse: number;
@@ -53,7 +54,13 @@ export default function GradesTab({ sourceCode, stats }: { sourceCode: string; s
   }
 
   async function clearStaging() {
-    if (!confirm('همهٔ نمرات موقتِ این مبدأ از جدول staging حذف شود؟ (نمرات ثبت‌شده در سامانه دست نمی‌خورد)')) return;
+    const ok = await askConfirm({
+      title: 'پاک‌کردن نمرات موقت',
+      body: 'همهٔ نمرات موقتِ این مبدأ از جدول staging حذف شود؟ (نمرات ثبت‌شده در سامانه دست نمی‌خورد)',
+      confirmText: 'پاک کن',
+      danger: true,
+    });
+    if (!ok) return;
     setBusy('clear');
     const r = await clearGradeStagingAction(sourceCode);
     setBusy('');
@@ -108,7 +115,7 @@ export default function GradesTab({ sourceCode, stats }: { sourceCode: string; s
             <input type="checkbox" disabled={!withDiff} checked={overwrite} onChange={e => setOverwrite(e.target.checked)} />
             نمرهٔ موجود در سامانه بازنویسی شود
           </label>
-          <button className="ms-auto text-[11px] text-slate-400 hover:text-red-600" disabled={!!busy} onClick={clearStaging}>پاک‌کردن جدول موقت</button>
+          <button className="ms-auto text-2xs text-slate-400 hover:text-red-600" disabled={!!busy} onClick={clearStaging}>پاک‌کردن جدول موقت</button>
         </div>
         {msg && <Msg kind={msg.kind === 'err' ? 'err' : msg.kind === 'warn' ? 'warn' : 'ok'}>{msg.text}</Msg>}
         {!staged && <Msg kind="info">هنوز نمره‌ای وارد نشده — فایل اکسل نمرات را بارگذاری کنید.</Msg>}
@@ -126,7 +133,7 @@ export default function GradesTab({ sourceCode, stats }: { sourceCode: string; s
             <div className="flex flex-wrap gap-2">
               {['ALL', 'DIFF', 'MISSING_IN_NEW', 'SAME', 'NO_STUDENT', 'NO_TERM', 'NO_COURSE'].map(s => (
                 <button key={s} onClick={() => setFilter(s)}
-                  className={'rounded-lg px-2 py-1 text-[11px] ' + (filter === s ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600')}>
+                  className={'rounded-lg px-2 py-1 text-2xs ' + (filter === s ? 'bg-indigo-600 text-white' : 'bg-slate-100 text-slate-600')}>
                   {s === 'ALL' ? 'همه' : ST_FA[s]}
                 </button>
               ))}
@@ -144,12 +151,12 @@ export default function GradesTab({ sourceCode, stats }: { sourceCode: string; s
                       <td className="p-2 font-bold">{r.legacy}</td>
                       <td className="p-2">{r.current}</td>
                       <td className="p-2"><span className={'badge ' + (ST_CLS[r.status] ?? '')}>{ST_FA[r.status] ?? r.status}</span></td>
-                      <td className="p-2 text-[11px] text-slate-500">{r.note}</td>
+                      <td className="p-2 text-2xs text-slate-500">{r.note}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              {shown.length > 200 && <p className="p-2 text-[11px] text-slate-400">۲۰۰ ردیف اول نمایش داده شد — برای فهرست کامل خروجی اکسل بگیرید.</p>}
+              {shown.length > 200 && <p className="p-2 text-2xs text-slate-400">۲۰۰ ردیف اول نمایش داده شد — برای فهرست کامل خروجی اکسل بگیرید.</p>}
             </div>
           </>
         )}

@@ -15,14 +15,19 @@ import { getStudentByUser, requireRole } from '@/lib/auth';
 import { getTermScope } from '@/lib/term-scope';
 import { getSetting } from '@/lib/settings';
 import { ensureDefaultProcesses } from '@/lib/workflow-engine';
+import { isGraduateDegreeLevel, isThesisProcess } from '@/lib/request-visibility';
 import StudentRequestsClient from './StudentRequestsClient';
 
 export const dynamic = 'force-dynamic';
 
-export default async function StudentRequestsPage() {
+export default async function StudentRequestsPage({ searchParams }: { searchParams: Promise<{ process?: string }> }) {
   const user = await requireRole(['STUDENT']);
   const me = await getStudentByUser(user.id);
   if (!me) return <p className="card p-6 text-center text-slate-500">پروندهٔ دانشجویی یافت نشد.</p>;
+
+  // لینک‌های مستقیم (مثل «ثبت درخواست تأیید» از صفحهٔ مالی) می‌توانند فرآیند را پیش‌انتخاب کنند
+  const sp = await searchParams;
+  const initialProcessCode = String(sp?.process ?? '').trim() || null;
 
   await ensureDefaultProcesses();
 
@@ -41,8 +46,14 @@ export default async function StudentRequestsPage() {
 
   // درخواست «عدم رعایت پیش‌نیاز/هم‌نیاز» به‌صورت هوشمند از انتخاب واحد ثبت می‌شود؛
   // بنابراین نیازی به ثبت دستی آن در میز خدمات نیست و از فهرست حذف می‌شود.
+  // درخواست‌های پایان‌نامه/پروپوزال/دفاع فقط برای تحصیلات تکمیلی (ارشد/دکتری) معنا
+  // دارند؛ دانشجوی کاردانی/کارشناسی آن‌ها را در فهرست نمی‌بیند.
+  const showThesisRequests = isGraduateDegreeLevel(
+    level ? { code: level.code, title: level.title, isGraduate: level.isGraduate } : null
+  );
   const processesList = rawProcesses
     .filter(p => p.code !== 'PREREQ_WAIVER')
+    .filter(p => showThesisRequests || !isThesisProcess(p))
     .map(p => {
     let schema: any[] = [];
     try {
@@ -169,6 +180,7 @@ export default async function StudentRequestsPage() {
         universityTitle={uniTitle}
         universityLogo={uniLogo}
         processes={processesList}
+        initialProcessCode={initialProcessCode}
         myRequests={myRequestsFormatted}
       />
     </div>

@@ -14,7 +14,11 @@ export default function AddCourseModal() {
     bankLoading,
     bankQuery,
     bankSelected,
+    bankShowAll,
+    bankTotal,
     bankVisible,
+    refreshBank,
+    showMoreBank,
     busy,
     closeAddCourse,
     codePrefix,
@@ -23,7 +27,6 @@ export default function AddCourseModal() {
     modal,
     roleForBank,
     setAddCourseForm,
-    setBank,
     setBankQuery,
     setBankRoles,
     setBankSelected,
@@ -62,18 +65,30 @@ export default function AddCourseModal() {
                     />
                     <button
                       type="button"
-                      onClick={() => { setBank([]); }}
-                      className="px-3 rounded-lg bg-indigo-100 text-indigo-900 font-extrabold text-[10px] shrink-0"
+                      onClick={refreshBank}
+                      className="px-3 rounded-lg bg-indigo-100 text-indigo-900 font-extrabold text-3xs shrink-0"
                     >
                       {bankLoading ? '…' : 'به‌روزرسانی'}
                     </button>
                   </div>
                 </label>
               </div>
+              {/* سرور حداکثر ۱۰۰ درس برمیگرداند؛ اگر کلِ بانک بیشتر است،
+                  کاربر باید جستجو کند تا به بقیه برسد. */}
+              {bankTotal > bank.length && (
+                <p className="rounded-lg bg-amber-50 border border-amber-200 px-2 py-1 text-3xs font-bold text-amber-800">
+                  نمایش {faNum(bank.length)} از {faNum(bankTotal)} درس — برای دیدن بقیه، کد یا عنوان را جستجو کنید.
+                </p>
+              )}
+              {bank.length === 0 && !bankLoading && bankQuery.trim() && (
+                <p className="rounded-lg bg-slate-50 border border-slate-200 px-2 py-1 text-3xs font-bold text-slate-500">
+                  درسی با این عبارت پیدا نشد.
+                </p>
+              )}
               {bank.length > 0 && (
                 <>
                   <div className="flex items-center justify-between gap-2 rounded-lg bg-indigo-50/70 border border-indigo-100 px-2.5 py-1.5">
-                    <label className="flex items-center gap-2 font-black text-indigo-900 cursor-pointer text-[11px]">
+                    <label className="flex items-center gap-2 font-black text-indigo-900 cursor-pointer text-2xs">
                       <input
                         type="checkbox"
                         className="accent-indigo-700 w-4 h-4"
@@ -82,11 +97,11 @@ export default function AddCourseModal() {
                       />
                       انتخاب همهٔ نمایش‌داده‌شده ({faNum(bankVisible.length)} درس)
                     </label>
-                    <span className="text-[10px] font-black text-indigo-700">{faNum(bankSelected.size)} انتخاب شد</span>
+                    <span className="text-3xs font-black text-indigo-700">{faNum(bankSelected.size)} انتخاب شد</span>
                   </div>
                   <div className="max-h-56 overflow-y-auto rounded-lg border border-slate-200 divide-y divide-slate-100">
                     {bankVisible.map(b => (
-                      <div key={b.id} className="flex items-center gap-2 px-2.5 py-1.5 hover:bg-indigo-50 text-[11px] font-bold">
+                      <div key={b.id} className="flex items-center gap-2 px-2.5 py-1.5 hover:bg-indigo-50 text-2xs font-bold">
                         <input
                           type="checkbox"
                           className="accent-indigo-700 w-3.5 h-3.5 shrink-0"
@@ -111,15 +126,27 @@ export default function AddCourseModal() {
                           value={roleForBank(b)}
                           onChange={e => setBankRoles(prev => ({ ...prev, [b.id]: e.target.value }))}
                           title={`نوع بانک: ${b.courseType}`}
-                          className="border border-slate-300 rounded px-1 py-0.5 font-bold text-[10px] bg-white shrink-0"
+                          className="border border-slate-300 rounded px-1 py-0.5 font-bold text-3xs bg-white shrink-0"
                         >
                           {Object.entries(ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}{roleFromBankType(b.courseType) === k ? ' •' : ''}</option>)}
                         </select>
                       </div>
                     ))}
                     {bankFiltered.length > bankVisible.length && (
-                      <div className="px-2.5 py-1.5 text-[10px] text-slate-400 font-bold text-center">
-                        … و {faNum(bankFiltered.length - bankVisible.length)} مورد دیگر — فیلتر را دقیق‌تر کنید
+                      <div className="px-2.5 py-1.5 text-3xs text-slate-400 font-bold text-center space-y-1">
+                        <div>… و {faNum(bankFiltered.length - bankVisible.length)} مورد دیگر</div>
+                        <button
+                          type="button"
+                          onClick={showMoreBank}
+                          className="px-2.5 py-1 rounded-lg bg-indigo-100 text-indigo-900 font-extrabold text-3xs hover:bg-indigo-200"
+                        >
+                          نمایش همهٔ {faNum(bankFiltered.length)} مورد
+                        </button>
+                      </div>
+                    )}
+                    {bankShowAll && bankFiltered.length > 0 && (
+                      <div className="px-2.5 py-1.5 text-3xs text-emerald-700 font-bold text-center">
+                        همهٔ {faNum(bankFiltered.length)} مورد نمایش داده شد.
                       </div>
                     )}
                   </div>
@@ -137,7 +164,7 @@ export default function AddCourseModal() {
                   {Object.entries(ROLE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
               </label>
-              <p className="text-[11px] text-slate-500 font-bold leading-relaxed">
+              <p className="text-2xs text-slate-500 font-bold leading-relaxed">
                 نوع هر ردیف به‌صورت پیش‌فرض از بانک خوانده می‌شود (•) و تکی قابل تغییر است. دروس بدون ترم افزوده می‌شوند؛ ترم‌بندی در مرحلهٔ بعد — تب «📅 ترم‌بندی چارت».
               </p>
             </div>

@@ -8,12 +8,12 @@
 
 import React, { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { CurriculumCtx } from './curriculum-context';
-import { allBankSelected, buildRuleTree, semesterUnitTotal, departmentNames, facultyNames, filterBankCourses, filterMajorsByTree, groupBySemester, isOverflowSemester, leafCourseCodesOf, resolveTab, termGrid, typeSummaryRows, unitsByRoleMap, validateMinGrade, visibleBank, overflowSemesters } from './curriculum-core';
+import { allBankSelected, buildRuleTree, nonCourseConditionsOf, semesterUnitTotal, dependencyWarningsMap, departmentNames, facultyNames, filterBankCourses, filterMajorsByTree, groupBySemester, isOverflowSemester, leafCourseCodesOf, resolveTab, termGrid, typeSummaryRows, unitsByRoleMap, countsByRoleMap, validateMinGrade, visibleBank, overflowSemesters } from './curriculum-core';
 import type { BankCourse, CurriculumTab, CurriculumWorkspace, MajorItem, VersionDetail, VersionRow } from './types';
 import { getCurriculumOverviewAction, getCurriculumVersionDetailAction, listCourseBankAction, listDepartmentsAction } from './actions/read';
 import { createCurriculumRevisionAction, createCurriculumVersionAction, updateCurriculumMetaAction } from './actions/versions';
 import { addCourseToCurriculumAction, assignCourseToSemesterAction, bulkAddCoursesAction, createCourseBankAction, markGraduationRequiredBulkAction, removeCourseFromCurriculumAction, syncRolesFromBankAction, updateCourseInCurriculumAction } from './actions/courses';
-import { setCourseCorequisiteAction, setCourseGradeStatusCodesAction, setCoursePassingGradeAction, setCoursePrerequisiteAction } from './actions/rules';
+import { setCourseCorequisiteAction, setCourseGradeStatusCodesAction, setCoursePassingGradeAction, setCoursePrerequisiteAction, syncRequisiteRulesAction } from './actions/rules';
 import { approveCurriculumAction, archiveCurriculumAction, publishCurriculumAction, rejectCurriculumAction, submitCurriculumForApprovalAction, validateCurriculumAction } from './actions/lifecycle';
 import { describeLogicNode } from '@/lib/curriculum-types';
 import { parseRoleUnitTargets } from '@/lib/curriculum-validator';
@@ -25,10 +25,12 @@ function useCurriculumWorkspace(
   initialTab?: string | null,
   initialVersionId?: number | null,
   initialDetail?: VersionDetail | null,
+  universityTitle?: string,
 ) {
   const [majors, setMajors] = useState<MajorItem[]>(initial.majors);
   const [versions, setVersions] = useState<VersionRow[]>(initial.versions);
   const [tracks] = useState(initial.tracks);
+  const [terms, setTerms] = useState(initial.terms ?? []);
   const [selectedMajorId, setSelectedMajorId] = useState<number>(
     initial.versions.find(v => v.id === (initialVersionId ?? -1))?.majorId ?? initial.majors[0]?.id ?? 0
   );
@@ -40,6 +42,12 @@ function useCurriculumWorkspace(
   const [bankQuery, setBankQuery] = useState('');
   const [codePrefix, setCodePrefix] = useState('');
   const [bankSelected, setBankSelected] = useState<Set<number>>(new Set());
+  /** نمایش همهٔ نتایج بانک (نه فقط ۶۰ مورد اول) */
+  const [bankShowAll, setBankShowAll] = useState(false);
+  /** تعداد کلِ دروسِ هم‌خوان با جست‌وجو (برای برچسبِ «X از Y») */
+  const [bankTotal, setBankTotal] = useState(0);
+  /** غیرت: هر بار که تغییر کند، بانک دوباره از سرور خوانده می‌شود (دکمهٔ «به‌روزرسانی») */
+  const [bankNonce, setBankNonce] = useState(0);
   const [bankRoles, setBankRoles] = useState<Record<number, string>>({});
   const [bulkRoleType, setBulkRoleType] = useState('CORE');
 
@@ -49,7 +57,7 @@ function useCurriculumWorkspace(
 
   // فرم‌ها
   const [newVersionForm, setNewVersionForm] = useState({
-    versionCode: '', title: '', entryYearFrom: 1405, totalRequiredUnits: 140, maxUnitsPerTerm: 20, cloneFromId: '',
+    versionCode: '', title: '', entryYearFrom: 1405, entryYearTo: '', totalRequiredUnits: 140, maxUnitsPerTerm: 20, cloneFromId: '',
   });
   // فرم ویرایش مشخصات نسخه (فقط DRAFT — اکشن خودش گیت می‌زند)
   const [editVersionId, setEditVersionId] = useState<number | null>(null);
@@ -64,9 +72,11 @@ function useCurriculumWorkspace(
   const [depts, setDepts] = useState<{ id: number; name: string }[]>([]);
   const [deptsLoading, setDeptsLoading] = useState(false);
   const [ruleCourseId, setRuleCourseId] = useState<number | null>(null);
-  const [ruleForm, setRuleForm] = useState({ pre: [] as string[], preOp: 'AND' as 'AND' | 'OR', co: [] as string[], coOp: 'AND' as 'AND' | 'OR', minGrade: '', passGradeStatusCode: '', failGradeStatusCode: '' });
+  const [ruleForm, setRuleForm] = useState({ pre: [] as string[], preOp: 'AND' as 'AND' | 'OR', co: [] as string[], coOp: 'AND' as 'AND' | 'OR', minGrade: '', passGradeStatusCode: '', failGradeStatusCode: '', minUnits: '', minTerm: '' });
   const [activeTab, setActiveTab] = useState<CurriculumTab>(resolveTab(initialTab));
   const [transferMajorId, setTransferMajorId] = useState(0);
+  /** نیم‌سال ورودیِ نسخهٔ مقصد در «انتقال کاتالوگ» (0 = تعیین‌نشده) */
+  const [transferEntryTermId, setTransferEntryTermId] = useState(0);
   const [dragCourseId, setDragCourseId] = useState<number | null>(null);
   const [dropTarget, setDropTarget] = useState<number | 'pool' | null>(null);
   const [facultyFilter, setFacultyFilter] = useState('');
@@ -85,6 +95,7 @@ function useCurriculumWorkspace(
     if (!w.ok) { showToast(w.error, 'error'); return; }
     setMajors(w.data.majors.map(m => ({ ...m, code: m.code ?? String(m.id) })));
     setVersions(w.data.versions);
+    setTerms(w.data.terms ?? []);
   }, []);
 
   const reloadDetail = useCallback(async (versionId: number) => {
@@ -113,16 +124,28 @@ function useCurriculumWorkspace(
     reloadDetail(selectedVersionId);
   }, [selectedVersionId, reloadDetail]);
 
-  // بانک دروس (هنگام نیاز برای افزودن — هم مودال افزودن، هم مودال ویرایش نسخه)
+  // بانک دروس — جست‌وجوی سمتِ سرور (کد یا عنوان درس) + سقف ردیف.
+  // پیش‌تر *همه* دروس دانشگاه بی‌سقف می‌آمد و این‌جا فیلتر می‌شد؛ حالا سرور
+  // فیلتر می‌کند و فقط ۱۰۰ ردیف برمی‌گرداند. هر بار که مودال باز شود یا
+  // کاربر جست‌وجو کند (debounce) یا روی «به‌روزرسانی» بزند (bankNonce)، بانک
+  // دوباره خوانده می‌شود.
   useEffect(() => {
-    if ((modal !== 'ADD_COURSE' && modal !== 'EDIT_VERSION') || bank.length > 0 || bankLoading) return;
+    if (modal !== 'ADD_COURSE' && modal !== 'EDIT_VERSION') return;
+    let alive = true;
     setBankLoading(true);
-    listCourseBankAction().then(r => {
-      setBankLoading(false);
-      if (r.ok) setBank(r.data);
-      else showToast(r.error, 'error');
-    });
-  }, [modal, bank.length, bankLoading, showToast]);
+    const t = setTimeout(() => {
+      listCourseBankAction(bankQuery.trim(), 100).then(r => {
+        if (!alive) return;
+        setBankLoading(false);
+        if (r.ok) { setBank(r.data); setBankTotal(r.total); }
+        else showToast(r.error, 'error');
+      }).catch(() => { if (alive) setBankLoading(false); });
+    }, bankQuery ? 350 : 0);
+    return () => { alive = false; clearTimeout(t); };
+  }, [modal, bankQuery, bankNonce, showToast]);
+
+  /** دکمهٔ «به‌روزرسانی» مودال‌ها: بانک را دوباره از سرور می‌خواند */
+  const refreshBank = () => setBankNonce(n => n + 1);
 
   // گروه‌های آموزشی (هنگام نیاز برای تعریف درس جدید)
   useEffect(() => {
@@ -208,11 +231,13 @@ function useCurriculumWorkspace(
       versionCode: f.versionCode.trim(),
       title: f.title.trim() || `برنامهٔ ${majors.find(m => m.id === selectedMajorId)?.name ?? ''} ${f.versionCode.trim()}`,
       entryYearFrom: f.entryYearFrom,
+      // خالی = «به بعد» (کاتالوگی که سال‌ها بدون تغییر می‌ماند)
+      entryYearTo: f.entryYearTo ? Number(f.entryYearTo) : null,
       totalRequiredUnits: f.totalRequiredUnits,
       maxUnitsPerTerm: f.maxUnitsPerTerm || null,
       cloneFromId: f.cloneFromId ? Number(f.cloneFromId) : undefined,
     }));
-    if (ok) { setModal(null); setNewVersionForm({ versionCode: '', title: '', entryYearFrom: 1405, totalRequiredUnits: 140, maxUnitsPerTerm: 20, cloneFromId: '' }); reloadOverview(); }
+    if (ok) { setModal(null); setNewVersionForm({ versionCode: '', title: '', entryYearFrom: 1405, entryYearTo: '', totalRequiredUnits: 140, maxUnitsPerTerm: 20, cloneFromId: '' }); reloadOverview(); }
   };
 
   // ── ویرایش مشخصات نسخه (فقط DRAFT؛ اکشن خودش گیت می‌زند) ──
@@ -234,7 +259,16 @@ function useCurriculumWorkspace(
     if (editVersionId == null) return;
     const f = editVersionForm;
     if (!f.versionCode.trim() || !f.entryYearFrom) { showToast('کد نسخه و سال ورودی الزامی است.', 'error'); return; }
-    const ok = await run(() => updateCurriculumMetaAction(editVersionId, {
+    // نسخهٔ منتشرشده: فقط پنجرهٔ ورودی فرستاده می‌شود (اکشن سرور هم بقیه را رد می‌کند)
+    const editing = versions.find(v => v.id === editVersionId);
+    const entryOnly = editing ? editing.status !== 'DRAFT' : !isDraft;
+    if (entryOnly && f.entryYearTo.trim() && Number(f.entryYearTo) < f.entryYearFrom) {
+      showToast('«ورودی تا» نمی‌تواند کوچک‌تر از «ورودی از» باشد.', 'error'); return;
+    }
+    const ok = await run(() => updateCurriculumMetaAction(editVersionId, entryOnly ? {
+      entryYearFrom: f.entryYearFrom,
+      entryYearTo: f.entryYearTo.trim() ? Number(f.entryYearTo) : null,
+    } : {
       versionCode: f.versionCode.trim(),
       title: f.title.trim(),
       entryYearFrom: f.entryYearFrom,
@@ -266,16 +300,40 @@ function useCurriculumWorkspace(
     if (!src) return;
     const targetMajor = majors.find(m => m.id === (transferMajorId || selectedMajorId));
     if (!targetMajor) return;
-    const ok = await run(() => createCurriculumVersionAction({
-      majorId: targetMajor.id,
-      versionCode: `${src.entryYearFrom}-T1`,
-      title: `${targetMajor.name} — کپی از نسخهٔ ${src.versionCode} (${src.title})`,
-      entryYearFrom: src.entryYearFrom,
-      totalRequiredUnits: Number(src.totalRequiredUnits) || 140,
-      maxUnitsPerTerm: detail?.version.maxUnitsPerTerm ?? 20,
-      cloneFromId: src.id,
-    }));
-    if (ok) { reloadOverview(); setActiveTab('CATALOG'); }
+    // گارد انتخاب اشتباه مقصد: نام رشتهٔ مبدأ/مقصد + تعداد دروس قبل از کپی عمیق پرسیده شود
+    const courseCount = detail?.courses.length ?? 0;
+    if (!window.confirm(
+      `کپی عمیق چارت «${src.versionCode}» (${courseCount} درس) به رشتهٔ مقصد «${targetMajor.name}» انجام شود؟\n`
+      + `یک نسخهٔ DRAFT جدید در رشتهٔ مقصد ساخته می‌شود و دروس + پیش‌نیازها + ترم‌بندی کامل کپی می‌شوند.`
+    )) return;
+    // کد یکتا برای رشتهٔ مقصد: اگر «{سال}-T1» از قبل هست، به T2، T3، … برس
+    // (وگرنه انتقال دوم به همان رشته با خطای «کد تکراری» شکست می‌خورد)
+    const base = `${src.entryYearFrom}-T`;
+    let n = 1;
+    while (versions.some(v => v.majorId === targetMajor.id && v.versionCode === `${base}${n}`)) n += 1;
+    const newCode = `${base}${n}`;
+    setBusy(true);
+    try {
+      const r = await createCurriculumVersionAction({
+        majorId: targetMajor.id,
+        versionCode: newCode,
+        title: `${targetMajor.name} — کپی از نسخهٔ ${src.versionCode} (${src.title})`,
+        entryYearFrom: src.entryYearFrom,
+        entryTermId: transferEntryTermId || null,
+        totalRequiredUnits: Number(src.totalRequiredUnits) || 140,
+        maxUnitsPerTerm: detail?.version.maxUnitsPerTerm ?? 20,
+        cloneFromId: src.id,
+      });
+      if (!r.ok) { showToast(r.error, 'error'); return; }
+      await reloadOverview();
+      // پرش به رشته و نسخهٔ مقصد (تب دروس) تا کاربر فوراً دروس کپی‌شده را ببیند
+      setSelectedMajorId(targetMajor.id);
+      setSelectedVersionId(r.data.id);
+      setActiveTab('COURSES');
+      showToast(`کپی عمیق انجام شد: ${courseCount} درس به رشتهٔ «${targetMajor.name}» منتقل شد (نسخهٔ ${newCode}).`, 'success');
+    } finally {
+      setBusy(false);
+    }
   };
 
   // ── ویرایش دروس (فقط DRAFT؛ اکشن خودش گیت می‌زند) ──
@@ -309,6 +367,17 @@ function useCurriculumWorkspace(
     if (!window.confirm('نقش همهٔ دروس این نسخه از روی «نوع درس» بانک بازخوانی می‌شود و تغییرات دستی نقش‌ها از بین می‌رود. ادامه می‌دهید؟')) return;
     const ok = await run(() => syncRolesFromBankAction(selectedVersionId));
     if (ok) reloadDetail(selectedVersionId);
+  };
+
+  /**
+   * «پیش‌نیاز / هم‌نیاز» را از **جدول دروس** می‌خواند و در قواعد همین نسخه
+   * ثبت می‌کند. قواعد دستیِ موجود دست نمی‌خورند (overwrite=false).
+   */
+  const handleSyncRequisites = async (overwrite = false) => {
+    if (selectedVersionId == null) { showToast('اول یک نسخه را انتخاب کنید.', 'error'); return; }
+    if (overwrite && !window.confirm('قواعد پیش‌نیاز/هم‌نیازِ موجود این نسخه با متن «جدول دروس» بازنویسی می‌شود. ادامه می‌دهید؟')) return;
+    const ok = await run(() => syncRequisiteRulesAction(selectedVersionId, overwrite));
+    if (ok) await reloadDetail(selectedVersionId);
   };
 
   const handleMarkGradReq = async () => {
@@ -355,12 +424,16 @@ function useCurriculumWorkspace(
     const pre = detail?.rules.find(r => r.courseId === courseId && r.ruleType === 'PREREQ');
     const co = detail?.rules.find(r => r.courseId === courseId && r.ruleType === 'COREQ');
     const course = detail?.courses.find(c => c.courseId === courseId);
+    // شرط‌های غیردرسی («۴۷ واحد پاس‌کرده» / «حداقل ترم ۷») از همان درخت خوانده می‌شوند
+    const extra = nonCourseConditionsOf(pre?.logicTree);
     setRuleForm({
       pre: leafCourseCodesOf(pre?.logicTree), preOp: pre?.logicTree.operator ?? 'AND',
       co: leafCourseCodesOf(co?.logicTree), coOp: co?.logicTree.operator ?? 'AND',
       minGrade: course?.minGrade != null ? String(course.minGrade) : '',
       passGradeStatusCode: course?.passGradeStatusCode ?? '',
       failGradeStatusCode: course?.failGradeStatusCode ?? '',
+      minUnits: extra.unitsPassed.length > 0 ? String(extra.unitsPassed[0]) : (course?.prereqMinUnits != null ? String(course.prereqMinUnits) : ''),
+      minTerm: extra.minSemester.length > 0 ? String(extra.minSemester[0]) : (course?.prereqMinTerm != null ? String(course.prereqMinTerm) : ''),
     });
     setRuleCourseId(courseId);
     setModal('RULES');
@@ -376,7 +449,12 @@ function useCurriculumWorkspace(
 
   const handleSaveRules = async () => {
     if (selectedVersionId == null || ruleCourseId == null) return;
-    const okPre = await run(() => setCoursePrerequisiteAction(selectedVersionId, ruleCourseId, buildRuleTree(ruleForm.pre, ruleForm.preOp)));
+    // شرط‌های غیردرسی هم داخل همان درخت PREREQ ذخیره می‌شوند (AND با شرط‌های درسی)
+    const numOrNull = (v: string) => (v.trim() === '' ? null : Number(v));
+    const okPre = await run(() => setCoursePrerequisiteAction(
+      selectedVersionId, ruleCourseId,
+      buildRuleTree(ruleForm.pre, ruleForm.preOp, { unitsPassed: numOrNull(ruleForm.minUnits), minSemester: numOrNull(ruleForm.minTerm) }),
+    ));
     if (!okPre) return;
     const okCo = await run(() => setCourseCorequisiteAction(selectedVersionId, ruleCourseId, buildRuleTree(ruleForm.co, ruleForm.coOp)));
     if (!okCo) return;
@@ -404,8 +482,10 @@ function useCurriculumWorkspace(
   const ruleText = (courseId: number, type: string): string | null => {
     const r = detail?.rules.find(x => x.courseId === courseId && x.ruleType === type);
     if (!r || (r.logicTree.conditions ?? []).length === 0) return null;
-    const titleOf = (code: string) => detail?.courses.find(x => x.code === code)?.title ?? code;
-    return describeLogicNode(r.logicTree, titleOf);
+    // عنوان از چارت، و اگر کد در چارت نبود از بانک (extraTitles) — بعد کد خام
+    const titleOf = (code: string) => detail?.courses.find(x => x.code === code)?.title ?? detail?.extraTitles?.[code] ?? code;
+    // sortByCode: دروس بر اساس کد مرتب شوند (نه ترتیب ذخیره‌شده و نه الفبای عنوان)
+    return describeLogicNode(r.logicTree, titleOf, { sortByCode: true });
   };
 
   const ruleCourse = ruleCourseId != null ? detail?.courses.find(c => c.courseId === ruleCourseId) ?? null : null;
@@ -490,6 +570,8 @@ function useCurriculumWorkspace(
   const isDraft = (detail?.version.status ?? selectedVersion?.status) === 'DRAFT';
   const { bySemester: semesterCourses, unassigned: unassignedCourses } = useMemo(() => groupBySemester(detail?.courses), [detail?.courses]);
   const totalPlannedUnits = semesterUnitTotal(detail?.courses);
+  // هشدار پوشش/ترتیب پیش‌نیاز و هم‌نیاز (نمایش هنگام چیدمان)
+  const depWarnings = useMemo(() => dependencyWarningsMap(detail?.courses, detail?.rules), [detail?.courses, detail?.rules]);
 
   // ── چارت ترمی بر اساس مقطع: تعداد ترم از DB، وگرنه استنتاج ──
   const degreeMajor = majors.find(m => m.id === (selectedVersion?.majorId ?? selectedMajorId));
@@ -504,8 +586,14 @@ function useCurriculumWorkspace(
   const isOverflowTerm = (sem: number) => isOverflowSemester(sem, planTerms);
 
   // ── فیلتر بانک: جستجو + پیشوند کد رشته ──
-  const bankFiltered = useMemo(() => filterBankCourses(bank, bankQuery, codePrefix), [bank, bankQuery, codePrefix]);
-  const bankVisible = visibleBank(bankFiltered);
+  // دروسی که همین حالا در چارتِ این نسخه هستند از فهرست بانک حذف می‌شوند؛
+  // این‌طور بعد از افزودن ۶۰ درسِ اول، ۶۰ درسِ بعدی خودشان دیده می‌شوند.
+  const inChartIds = useMemo(() => new Set((detail?.courses ?? []).map(c => c.courseId)), [detail?.courses]);
+  const bankFiltered = useMemo(
+    () => filterBankCourses(bank, bankQuery, codePrefix).filter(b => !inChartIds.has(b.id)),
+    [bank, bankQuery, codePrefix, inChartIds],
+  );
+  const bankVisible = bankShowAll ? bankFiltered : visibleBank(bankFiltered);
   const allFilteredSelected = allBankSelected(bankVisible, bankSelected);
   const roleForBank = (b: { id: number; courseType: string }) => bankRoles[b.id] ?? roleFromBankType(b.courseType);
   const toggleSelectAllBank = () => {
@@ -529,6 +617,7 @@ function useCurriculumWorkspace(
     [detail?.version]
   );
   const unitsByRole = useMemo(() => unitsByRoleMap(detail?.courses), [detail?.courses]);
+  const countsByRole = useMemo(() => countsByRoleMap(detail?.courses), [detail?.courses]);
   const roleTargetsKey = `${detail?.version.id ?? 0}:${JSON.stringify(roleTargets)}`;
 
   const handleSaveRoleTargets = async (targets: Record<string, number>) => {
@@ -540,6 +629,7 @@ function useCurriculumWorkspace(
   return {
     activeTab,
     addCourseForm,
+    universityTitle: universityTitle ?? '',
     allFilteredSelected,
     bank,
     bankFiltered,
@@ -548,6 +638,10 @@ function useCurriculumWorkspace(
     bankRoles,
     bankSelected,
     bankVisible,
+    bankShowAll,
+    bankTotal,
+    refreshBank,
+    showMoreBank: () => setBankShowAll(true),
     bulkRoleType,
     busy,
     chartTermCount,
@@ -561,6 +655,7 @@ function useCurriculumWorkspace(
     deptsLoading,
     detail,
     detailLoading,
+    depWarnings,
     dragCourseId,
     dropTarget,
     editVersionForm,
@@ -585,6 +680,7 @@ function useCurriculumWorkspace(
     handleSaveRoleTargets,
     handleSaveRules,
     handleSubmit,
+    handleSyncRequisites,
     handleSyncRoles,
     handleTransferToMajor,
     handleUpdateGradReq,
@@ -661,18 +757,22 @@ function useCurriculumWorkspace(
     totalPlannedUnits,
     tracks,
     transferMajorId,
+    transferEntryTermId,
+    setTransferEntryTermId,
+    terms,
     typeSummary,
     unassignedCourses,
     unitsByRole,
+    countsByRole,
     versions,
   };
 }
 
 export type CurriculumValue = ReturnType<typeof useCurriculumWorkspace>;
 
-export function CurriculumProvider({ initial, tab, version, detail, children }: {
-  initial: CurriculumWorkspace; tab?: string | null; version?: number | null; detail?: VersionDetail | null; children: ReactNode;
+export function CurriculumProvider({ initial, tab, version, detail, universityTitle, children }: {
+  initial: CurriculumWorkspace; tab?: string | null; version?: number | null; detail?: VersionDetail | null; universityTitle?: string; children: ReactNode;
 }) {
-  const value = useCurriculumWorkspace(initial, tab, version, detail);
+  const value = useCurriculumWorkspace(initial, tab, version, detail, universityTitle);
   return <CurriculumCtx.Provider value={value}>{children}</CurriculumCtx.Provider>;
 }

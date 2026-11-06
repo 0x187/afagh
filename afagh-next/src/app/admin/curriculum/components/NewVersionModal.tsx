@@ -51,10 +51,16 @@ export default function NewVersionModal() {
                   ))}
                 </select>
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <label className="block font-bold text-slate-700">
                   ورودی از:
                   <input type="number" value={newVersionForm.entryYearFrom} onChange={e => setNewVersionForm({ ...newVersionForm, entryYearFrom: Number(e.target.value) })}
+                    className="mt-1 w-full border border-slate-300 rounded-lg p-2" />
+                </label>
+                <label className="block font-bold text-slate-700">
+                  ورودی تا:
+                  <input type="number" placeholder="خالی = به بعد" value={newVersionForm.entryYearTo}
+                    onChange={e => setNewVersionForm({ ...newVersionForm, entryYearTo: e.target.value })}
                     className="mt-1 w-full border border-slate-300 rounded-lg p-2" />
                 </label>
                 <label className="block font-bold text-slate-700">
@@ -68,7 +74,10 @@ export default function NewVersionModal() {
                     className="mt-1 w-full border border-slate-300 rounded-lg p-2" />
                 </label>
               </div>
-              <p className="text-[10px] text-slate-400 font-bold">
+              <p className="text-3xs text-slate-400 font-bold">
+                «ورودی تا» را خالی بگذارید اگر کاتالوگ برای همهٔ ورودی‌های بعد از «ورودی از» معتبر است (کاتالوگی که سال‌ها تغییر نمی‌کند).
+              </p>
+              <p className="text-3xs text-slate-400 font-bold">
                 (کپی عمیق از نسخهٔ مرجع = از دکمهٔ «ایجاد نسخهٔ جدید R+1» روی همان نسخه استفاده کنید)
               </p>
             </div>

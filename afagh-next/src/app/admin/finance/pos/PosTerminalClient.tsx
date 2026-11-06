@@ -19,7 +19,7 @@ type Terminal = {
 const fa = (n: number) => Number(n || 0).toLocaleString('fa-IR');
 
 const inputCls = 'w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500';
-const labelCls = 'flex flex-col gap-1 text-[11px] font-medium text-slate-600';
+const labelCls = 'flex flex-col gap-1 text-2xs font-medium text-slate-600';
 const btnCls = 'rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50';
 const dangerBtn = 'rounded-lg bg-rose-600 hover:bg-rose-700 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50';
 
@@ -134,7 +134,7 @@ export default function PosTerminalClient({ terminal, universityId }: Props) {
           {terminal.lastHeartbeatAt ? `🟢 آنلاین (${new Date(terminal.lastHeartbeatAt).toLocaleString('fa-IR')})` : '🔴 آفلاین'}
         </span>
       </div>
-      <p className="text-[11px] text-slate-500">مکان: {terminal.location ?? 'تعیین نشده'} | TID: {terminal.terminalId} | MID: {terminal.merchantId}</p>
+      <p className="text-2xs text-slate-500">مکان: {terminal.location ?? 'تعیین نشده'} | TID: {terminal.terminalId} | MID: {terminal.merchantId}</p>
 
       {msg && (
         <p className={`rounded-lg px-3 py-2 text-xs ${msg.ok ? 'bg-emerald-50 text-emerald-800' : 'bg-rose-50 text-rose-800'}`}>
@@ -227,7 +227,7 @@ export default function PosTerminalClient({ terminal, universityId }: Props) {
             <p className="text-center text-slate-500 py-4 text-xs">تراکنشی یافت نشد</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-right text-[11px] rt">
+              <table className="w-full text-right text-2xs rt">
                 <thead>
                   <tr className="border-b border-slate-100 text-slate-500">
                     <th className="pb-1">STAN</th>

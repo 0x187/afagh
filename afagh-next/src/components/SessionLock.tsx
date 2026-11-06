@@ -126,13 +126,17 @@ export default function SessionLock({ name, timeoutMin = 15, initialLocked = fal
 
   return (
     <div className="fixed inset-0 z-[100] bg-slate-950/85 backdrop-blur-sm flex items-center justify-center p-4 print:hidden" dir="rtl">
-      <form onSubmit={unlock} className="bg-white rounded-2xl shadow-2xl max-w-sm w-full border border-slate-300 overflow-hidden">
+      {/* ⚠ دو فرم باید «خواهر» باشند، نه تودرتو: HTML فرمِ تودرتو را نامعتبر
+          می‌داند و پارسر مرورگر تگِ فرمِ داخلی را دور می‌ریزد؛ نتیجه این بود که
+          دکمهٔ خروج فرمی برای ارسال نداشت و فقط فرمِ بازگشایی را submit می‌کرد
+          (با رمز خالی → «رمز عبور را وارد کنید»). */}
+      <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full border border-slate-300 overflow-hidden">
         <div className="bg-slate-900 text-white px-5 py-4 text-center">
           <div className="text-3xl">🔒</div>
           <h3 className="font-extrabold text-sm mt-1">صفحه به‌علت بیکاری قفل شد</h3>
-          <p className="text-[11px] text-slate-300 mt-1">{name} — برای ادامه رمز عبور را وارد کنید.</p>
+          <p className="text-2xs text-slate-300 mt-1">{name} — برای ادامه رمز عبور را وارد کنید.</p>
         </div>
-        <div className="p-5 space-y-3">
+        <form onSubmit={unlock} className="p-5 space-y-3">
           <input
             type="password"
             autoFocus
@@ -152,8 +156,21 @@ export default function SessionLock({ name, timeoutMin = 15, initialLocked = fal
           >
             {busy ? 'در حال بررسی…' : '🔓 بازگشایی'}
           </button>
-        </div>
-      </form>
+        </form>
+        {/* خروج از حساب — فرم جدا (فرم تودرتو نامعتبر است): نشست می‌بندد و به /login می‌رود.
+            برای کارت‌خوان مشترک/سیستم عمومی که کاربر بعدی رمزِ قبلی را ندارد.
+            عمداً به مسیر HTTP می‌رود نه Server Action: پشت پروکسی/CDN اگر اکشن
+            به‌دلیل Origin/Host رد شود، کاربر پشت قفل گیر می‌کند و راه خروجی ندارد.
+            فرم معمولی حتی بدون JS هم کار می‌کند. */}
+        <form action="/api/session/logout" method="post" className="px-5 pb-5">
+          <button
+            type="submit"
+            className="w-full rounded-xl border border-rose-300 bg-rose-50 hover:bg-rose-100 text-rose-800 font-black text-xs py-2 transition-colors"
+          >
+            🚪 خروج از حساب کاربری
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

@@ -17,10 +17,10 @@ export default function NotFound() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2 justify-center">
-          <Link href="/" className="px-5 py-2.5 rounded-2xl bg-indigo-900 hover:bg-indigo-950 text-white font-black text-xs shadow-md transition">
+          <Link prefetch={false} href="/" className="px-5 py-2.5 rounded-2xl bg-indigo-900 hover:bg-indigo-950 text-white font-black text-xs shadow-md transition">
             بازگشت به صفحهٔ نخست
           </Link>
-          <Link href="/verify" className="px-5 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs transition">
+          <Link prefetch={false} href="/verify" className="px-5 py-2.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-black text-xs transition">
             سامانهٔ استعلام مدارک
           </Link>
         </div>

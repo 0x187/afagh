@@ -6,16 +6,19 @@ import {
   departments, educational_regulations, enrollments, faculties, financial_clearances,
   majors, migration_runs, roles, staff, student_ledger, students, user_roles, users,
 } from '@/db/schema';
-import { boolFa, checkNationalCode, dateFa, norm, num } from './normalize';
+import { boolFa, checkNationalCode, codeOf, dateFa, norm, num } from './normalize';
 import { clearPermissionCache } from '@/lib/permissions-enforcer';
 import { computeGradeStatus } from '@/lib/grade-utils';
 import { COURSE_ALIASES, parseCourseRow } from './course-row';
+import { parseEquivalentCodes, parseRequisiteText } from '@/lib/prereq-text';
+import { syncRequisiteRulesFromCourses } from '@/lib/requisite-sync';
 import {
   DEPARTMENT_ALIASES, FACULTY_ALIASES, MAJOR_ALIASES, PROFESSOR_ALIASES,
   parseDepartmentRow, parseFacultyRow, parseMajorRow, parseProfessorRow,
 } from './reference-rows';
 import { iterate, pickTable, type Table } from './tabular';
 import { codeRewriterFor, noopRewriter, resolverFor, type CodeRewriter, type MapDomain } from './codemap';
+import { roleFromBankType } from '@/lib/bank-roles';
 
 // ═══ سامانهٔ مهاجرت داده از سیستم قدیمی — آموزشی + مالی ═══
 // معماری: parse → normalize → validate → (dry-run گزارش | commit تراکنشی idempotent)
@@ -35,7 +38,7 @@ export const ENTITIES: { id: Entity; title: string; sample: string }[] = [
   { id: 'enrollment', title: 'ثبت‌نام‌ها و نمرات (آموزشی)', sample: 'شماره دانشجویی, کد درس, کد ترم, نمره, وضعیت نمره' },
   { id: 'ledger', title: 'صورتحساب دانشجویان (مالی)', sample: 'شماره دانشجویی, کد ترم, نوع, مبلغ, شرح, تاریخ' },
   { id: 'clearance', title: 'تسویه‌حساب ترمی (مالی)', sample: 'شماره دانشجویی, کد ترم, تسویه' },
-  { id: 'curriculum', title: 'چارت/برنامهٔ درسی رشته', sample: 'کد رشته, نام رشته, کد مقطع, مقطع, کد درس, نام درس, واحد, ترم پیشنهادی, نقش (اصلی/عمومی/اختیاری/پایه), الزامی' },
+  { id: 'curriculum', title: 'چارت/برنامهٔ درسی رشته', sample: 'کد رشته, نام رشته, کد مقطع, مقطع, از ورودی, تا ورودی, کد درس, نام درس, واحد, ترم پیشنهادی, نقش, الزامی' },
 ];
 
 export type RowIssue = { row: number; msg: string };
@@ -94,7 +97,7 @@ const ENTITY_HINTS: Record<Entity, string[][]> = {
   enrollment: [['شماره دانشجویی', 'student_code'], ['کد درس', 'course_code'], ['نمره', 'grade']],
   ledger: [['شماره دانشجویی', 'student_code'], ['مبلغ', 'amount'], ['نوع', 'type']],
   clearance: [['شماره دانشجویی', 'student_code'], ['تسویه', 'cleared']],
-  curriculum: [['کد رشته', 'major_code'], ['کد درس', 'course_code'], ['نام درس', 'course_title']],
+  curriculum: [['کد رشته', 'major_code'], ['کد درس', 'course_code']],
 };
 
 /**
@@ -127,9 +130,9 @@ export function prepare(entity: Entity, tables: Table[], fileName: string): Prep
       const majorName = get(['نام رشته', 'رشته', 'گرایش', 'major']);
       // ⭐ «کد رشته» سند اصالت است: نام رشته می‌تواند در دو مقطع یا دو دانشکده
       //    تکرار شود، ولی کد یکتاست و مقطع/گروه/دانشکده را هم مشخص می‌کند.
-      const majorCode = get(['کد رشته', 'کدرشته', 'major_code']);
+      const majorCode = codeOf(get(['کد رشته', 'کدرشته', 'major_code']));
       const degreeName = get(['مقطع', 'مقطع تحصیلی', 'سطح', 'degree', 'degree_level']);
-      const degreeCode = get(['کد مقطع', 'کد مقطع تحصیلی', 'degree_code', 'degree_level_code']);
+      const degreeCode = codeOf(get(['کد مقطع', 'کد مقطع تحصیلی', 'degree_code', 'degree_level_code']));
       const statusFa = get(['وضعیت']) || 'فعال';
       // اطلاعات شناسنامه‌ای (اختیاری در فایل قدیمی، ولی برای اسناد رسمی لازم است)
       const birthCertNo = get(['شماره شناسنامه', 'شمارهشناسنامه', 'birth_cert_no', 'shenasname']);
@@ -192,9 +195,9 @@ export function prepare(entity: Entity, tables: Table[], fileName: string): Prep
     }
 
     if (entity === 'enrollment') {
-      const sc = get(['شماره دانشجویی', 'student_code']);
-      const cc = get(['کد درس', 'course_code']);
-      const tc = get(['کد ترم', 'term_code']);
+      const sc = codeOf(get(['شماره دانشجویی', 'student_code']));
+      const cc = codeOf(get(['کد درس', 'course_code']));
+      const tc = codeOf(get(['کد ترم', 'term_code']));
       const grade = num(get(['نمره', 'grade', 'نمره نهایی']));
       const gsRaw = get(['وضعیت نمره', 'grade_status']) || 'قطعی';
       if (!sc || !cc || !tc) return err('شماره دانشجویی، کد درس و کد ترم الزامی است.');
@@ -225,37 +228,54 @@ export function prepare(entity: Entity, tables: Table[], fileName: string): Prep
     }
 
     if (entity === 'curriculum') {
-      const majorCode = get(['کد رشته', 'کدرشته', 'major_code']);
+      // ⚠️ کدها با codeOf خوانده می‌شوند: اکسلِ خروجی پایتون عدد را «84.0» می‌دهد
+      //    و بدون این، رشته/مقطع/درسِ موجود هم «یافت نشد» می‌شد.
+      const majorCode = codeOf(get(['کد رشته', 'کدرشته', 'major_code']));
       const majorName = get(['نام رشته', 'رشته', 'major', 'major_name']);
-      const degreeCode = get(['کد مقطع', 'کد مقطع تحصیلی', 'degree_code', 'degree_level_code']);
+      const degreeCode = codeOf(get(['کد مقطع', 'کد مقطع تحصیلی', 'degree_code', 'degree_level_code']));
       const degreeName = get(['مقطع', 'مقطع تحصیلی', 'degree', 'degree_level']);
-      const courseCode = get(['کد درس', 'کددرس', 'course_code']);
+      const courseCode = codeOf(get(['کد درس', 'کددرس', 'course_code']));
       const courseTitle = get(['نام درس', 'عنوان درس', 'نام', 'course_title', 'title']);
-      const units = num(get(['واحد', 'تعداد واحد', 'واحدها', 'units']));
+      const entryFromRaw = get(['از ورودی', 'ازورودی', 'ورودی از', 'entry_from', 'entryYearFrom', 'entry_year_from']);
+      const entryToRaw = get(['تا ورودی', 'تاورودی', 'ورودی تا', 'entry_to', 'entryYearTo', 'entry_year_to']);
+      const entryFrom = num(entryFromRaw);
+      const entryTo = num(entryToRaw);
+      if (entryFromRaw && (entryFrom == null || entryFrom < 1300 || entryFrom > 1500)) return err(`«از ورودی» نامعتبر: ${entryFromRaw} (۱۳۰۰..۱۵۰۰)`);
+      if (entryToRaw && (entryTo == null || entryTo < 1300 || entryTo > 1500)) return err(`«تا ورودی» نامعتبر: ${entryToRaw} (۱۳۰۰..۱۵۰۰)`);
+      if (entryFrom != null && entryTo != null && entryTo < entryFrom) return err(`«تا ورودی» (${entryTo}) کوچک‌تر از «از ورودی» (${entryFrom}) است.`);
+      // ⛔ ستون «واحد» عمداً خوانده نمی‌شود: واحدِ هر درس فقط از بانک دروس می‌آید.
+      //    (اگر در فایل عددی خلاف بانک نوشته شود، نباید در چارت بنشیند.)
       const semRaw = num(get(['ترم پیشنهادی', 'ترم', 'ترم تحصیلی', 'semester', 'recommended_semester']));
       const roleRaw = String(get(['نقش', 'نوع درس در چارت', 'نقش درس', 'role', 'role_type']) || '').trim();
       const isReqRaw = get(['الزامی', 'درس الزامی', 'is_required', 'required']);
       if (!majorCode && !majorName) return err('کد یا نام رشته الزامی است.');
       if (!courseCode) return err('کد درس الزامی است.');
-      if (units != null && (units < 0 || units > 12)) return err(`واحد نامعتبر: ${units}`);
       const sem = semRaw != null && semRaw >= 1 && semRaw <= 9 ? semRaw : null;
       if (semRaw != null && sem == null) warn(`ترم پیشنهادی «${semRaw}» خارج از بازهٔ ۱..۹ است — خالی گذاشته می‌شود.`);
       // نگاشت فارسی/انگلیسی نقش به کد استاندارد چارت
+      // ⚠️ «اصلی» و «تخصصی» دو نوعِ جدا هستند (در بانک دروس هم جدا تعریف شده‌اند)
       const ROLE_MAP: Record<string, string> = {
-        'پایه': 'CORE', 'core': 'CORE', 'اصلی': 'MAJOR', 'تخصصی': 'MAJOR', 'major': 'MAJOR',
+        'پایه': 'CORE', 'core': 'CORE',
+        'اصلی': 'MAJOR', 'major': 'MAJOR',
+        'تخصصی': 'SPECIALIZED', 'specialized': 'SPECIALIZED',
         'اختیاری': 'ELECTIVE', 'انتخابی': 'ELECTIVE', 'elective': 'ELECTIVE',
         'عمومی': 'GENERAL', 'مشترک': 'GENERAL', 'general': 'GENERAL',
-        'پایان‌نامه': 'THESIS', 'thesis': 'THESIS', 'کارآموزی': 'INTERNSHIP', 'internship': 'INTERNSHIP',
-        'کارگاه': 'WORKSHOP', 'workshop': 'WORKSHOP',
+        'پایان‌نامه': 'THESIS', 'thesis': 'THESIS', 'کارآموزی': 'INTERNSHIP', 'کارورزی': 'INTERNSHIP', 'internship': 'INTERNSHIP',
+        'کارگاه': 'WORKSHOP', 'workshop': 'WORKSHOP', 'جبرانی': 'COMPENSATORY', 'compensatory': 'COMPENSATORY',
       };
-      const role = ROLE_MAP[roleRaw] ?? ROLE_MAP[norm(roleRaw)] ?? (['CORE', 'MAJOR', 'ELECTIVE', 'GENERAL', 'THESIS', 'INTERNSHIP', 'WORKSHOP'].includes(roleRaw.toUpperCase()) ? roleRaw.toUpperCase() : 'CORE');
-      if (roleRaw && !ROLE_MAP[roleRaw] && !ROLE_MAP[norm(roleRaw)] && !['CORE', 'MAJOR', 'ELECTIVE', 'GENERAL', 'THESIS', 'INTERNSHIP', 'WORKSHOP'].includes(roleRaw.toUpperCase()))
-        warn(`نقش درس «${roleRaw}» شناخته نشد — به «پایه (CORE)» تبدیل شد.`);
+      const ROLE_CODES = ['CORE', 'MAJOR', 'SPECIALIZED', 'ELECTIVE', 'GENERAL', 'THESIS', 'INTERNSHIP', 'WORKSHOP', 'COMPENSATORY'];
+      // ستون نقش خالی ⇒ null (نه CORE): نوع درس از بانک دروس خوانده می‌شود
+      const role = roleRaw
+        ? (ROLE_MAP[roleRaw] ?? ROLE_MAP[norm(roleRaw)] ?? (ROLE_CODES.includes(roleRaw.toUpperCase()) ? roleRaw.toUpperCase() : 'CORE'))
+        : null;
+      if (roleRaw && !ROLE_MAP[roleRaw] && !ROLE_MAP[norm(roleRaw)] && !ROLE_CODES.includes(roleRaw.toUpperCase()))
+        warn(`نقش درس «${roleRaw}» شناخته نشد — از نوع درس در بانک خوانده می‌شود.`);
       const isRequired = isReqRaw == null || isReqRaw === '' ? true : boolFa(isReqRaw);
       rows.push({
         majorCode: majorCode || null, majorName: majorName || null,
         degreeCode: degreeCode || null, degreeName: degreeName || null,
-        courseCode, courseTitle: courseTitle || null, units, recommendedSemester: sem, roleType: role, isRequired,
+        entryYearFrom: entryFrom ?? null, entryYearTo: entryTo ?? null,
+        courseCode, courseTitle: courseTitle || null, units: null, recommendedSemester: sem, roleType: role, isRequired,
       });
     }
   });
@@ -266,7 +286,7 @@ export function prepare(entity: Entity, tables: Table[], fileName: string): Prep
 }
 
 // ── مرحلهٔ ۳: dry-run — شبیه‌سازی بدون نوشتن ──
-export async function dryRun(entity: Entity, tables: Table[], fileName: string): Promise<Report> {
+export async function dryRun(entity: Entity, tables: Table[], fileName: string, universityId?: number | null): Promise<Report> {
   const { report, rows } = prepare(entity, tables, fileName);
   const codes = rows.map(r => String(r.studentCode ?? ''));
 
@@ -318,11 +338,13 @@ export async function dryRun(entity: Entity, tables: Table[], fileName: string):
     }
   }
   if (entity === 'curriculum') {
-    const majorRows = await db.select({ id: majors.id, code: majors.majorCode, name: majors.name, degreeLevelId: majors.degreeLevelId }).from(majors);
+    const majorRows = await db.select({ id: majors.id, code: majors.majorCode, name: majors.name, degreeLevelId: majors.degreeLevelId }).from(majors)
+      // 🔒 اگر دانشگاه مقصد انتخاب شده، فقط رشته‌های همان دانشگاه بررسی می‌شوند
+      .where(universityId ? eq(majors.universityId, universityId) : undefined);
     const courseRows = await db.select({ id: courses.id, code: courses.code }).from(courses)
       .where(inArray(courses.code, [...new Set(rows.map(r => String(r.courseCode)))]));
     const courseSet = new Set(courseRows.map(c => c.code));
-    const majorSeen = new Map<string, number>(); // majorCode|degree → versionId (null=will create)
+    const majorSeen = new Map<string, number>(); // major|degree|entryFrom-entryTo → count
     for (const r of rows) {
       const mCode = norm(String(r.majorCode ?? ''));
       const mName = norm(String(r.majorName ?? ''));
@@ -331,11 +353,13 @@ export async function dryRun(entity: Entity, tables: Table[], fileName: string):
       if (!major) { report.invalid++; report.errors.push({ row: 0, msg: `رشته «${r.majorCode || r.majorName}» در سامانه نیست — اول فایل رشته‌ها را مهاجرت کنید.` }); continue; }
       if (!courseSet.has(String(r.courseCode))) { report.invalid++; report.errors.push({ row: 0, msg: `درس ${r.courseCode} در سامانه نیست — اول فایل دروس را مهاجرت کنید.` }); continue; }
       report.willInsert++;
-      const key = `${major.id}|${major.degreeLevelId}`;
+      const ef = (r as Record<string, unknown>).entryYearFrom as number | null;
+      const et = (r as Record<string, unknown>).entryYearTo as number | null;
+      const key = `${major.id}|${major.degreeLevelId}|${ef ?? 'null'}|${et ?? 'null'}`;
       if (!majorSeen.has(key)) majorSeen.set(key, 0);
       majorSeen.set(key, (majorSeen.get(key) ?? 0) + 1);
     }
-    if (majorSeen.size) report.warnings.push({ row: 0, msg: `${majorSeen.size} نسخهٔ چارت (به ازای هر رشته/مقطع) ایجاد یا به‌روزرسانی می‌شود.` });
+    if (majorSeen.size) report.warnings.push({ row: 0, msg: `${majorSeen.size} نسخهٔ چارت (به ازای هر رشته/مقطع/بازهٔ ورودی) ایجاد یا به‌روزرسانی می‌شود.` });
   }
   report.errors = report.errors.slice(0, 50);
   report.warnings = report.warnings.slice(0, 50);
@@ -348,6 +372,12 @@ export async function commit(
   sourceCode = 'LEGACY',
   /** جایگزینی کد قدیمی با «کد جدید»ِ تأییدشده در میز تطبیق کدها (پیش‌فرض: روشن) */
   rewriteCodes = true,
+  /**
+   * دانشگاه مقصد. در سامانهٔ چنددانشگاهی، کاربر پیش از انتقال انتخاب می‌کند؛
+   * رکوردهای ساخته‌شده به همین دانشگاه می‌چسبند و تطبیق رشته هم فقط داخل
+   * همین دانشگاه انجام می‌شود تا کد مشترکِ دو دانشگاه، رشتهٔ اشتباه را نگیرد.
+   */
+  universityId: number | null = null,
 ): Promise<Report> {
   const { report, rows } = prepare(entity, tables, fileName);
   let inserted = 0; let existing = 0;
@@ -467,6 +497,7 @@ export async function commit(
         const [st] = await tx.insert(students).values({
           userId: u.id, studentCode: String(r.studentCode), majorId: major?.id ?? null,
           degreeLevelId: reg.degreeLevelId, regulationId: reg.id, entryYear: entryYr, entryTerm: Number(r.entryTerm) ?? 1, status: String(r.status),
+          ...(universityId ? { universityId } : {}),
         }).onConflictDoNothing().returning({ id: students.id });
         return { studentInserted: !!st, userCreated };
       });
@@ -625,6 +656,7 @@ export async function commit(
       const values = {
         name: String(r.name), degreeLevelId: degree.id, departmentId, facultyId,
         majorCode: finalCode,
+        universityId: universityId ?? null,
         minUnits: (r.minUnits as number | null) ?? null,
         standardCode: (r.standardCode as string | null) ?? null,
         establishedDate: (r.establishedDate as string | null) ?? null,
@@ -646,6 +678,7 @@ export async function commit(
         majorId = cur.id;
         // تکمیل فیلدهای خالیِ رشتهٔ موجود (بدون بازنویسی دادهٔ پرشده)
         const patch: Record<string, unknown> = {};
+        if (cur.universityId == null && universityId != null) patch.universityId = universityId;
         if (cur.departmentId == null && departmentId != null) patch.departmentId = departmentId;
         if (cur.facultyId == null && facultyId != null) patch.facultyId = facultyId;
         if (cur.minUnits == null && values.minUnits != null) patch.minUnits = values.minUnits;
@@ -820,6 +853,7 @@ export async function commit(
   if (entity === 'course') {
     const rw = await rewriter('COURSE');
     let enriched = 0;   // درس‌های موجود که فیلدهای خالی‌شان از این فایل کامل شد
+    let prereqImported = 0, coreqImported = 0, equivImported = 0;   // قواعد خوانده‌شده از جدول دروس
     const warnedOnce = new Set<string>();   // هر مقطع/گروهِ تطبیق‌نخورده فقط یک بار هشدار بگیرد
     // ── حل «مقطع» و «گروه آموزشی» با همان سازوکار میز تطبیق کدها ──
     const degreeMap = await resolverFor(sourceCode, 'DEGREE');
@@ -883,14 +917,36 @@ export async function commit(
       const rawType = r.courseType ? String(r.courseType) : null;
       const courseType = rawType ? (typeMap.get(norm(rawType))?.code ?? rawType) : null;
 
+      // ── قواعد درس از «جدول دروس» ──
+      // متن خام «پیش‌نیاز» نگه داشته می‌شود (ترجمه به course_rules در گام
+      // همگام‌سازی انجام می‌شود، چون قواعد مقیّد به نسخهٔ برنامه‌اند) و
+      // «هم‌نیاز / هم‌ارز» به فهرست کد نرمال‌شده تبدیل می‌شوند.
+      const prereqText = r.prereqText ? String(r.prereqText).trim() : null;
+      const prereqTree = parseRequisiteText(prereqText);
+      const coreqTree = parseRequisiteText(r.coreqText as string | null);
+      const equivCodes = parseEquivalentCodes(r.equivText as string | null, String(r.code));
+      const coRequisites = coreqTree
+        ? coreqTree.conditions.map(c => ('course' in c ? String(c.course) : '')).filter(Boolean).join(',').slice(0, 200)
+        : null;
+      const equivalentCourseCodes = equivCodes.length ? equivCodes.join(',').slice(0, 2000) : null;
+
       const values = {
         code: rw.apply(String(r.code)),   // 🔁 کد جدیدِ تأییدشده (اگر تعریف شده باشد)
         title: String(r.title), units: String(r.units),
         theoreticalUnits: String(r.theory), practicalUnits: String(r.practical),
         courseType, departmentId, degreeLevelId,
+        ...(prereqText ? { prereqText } : {}),
+        ...(coRequisites ? { coRequisites } : {}),
+        ...(equivalentCourseCodes ? { equivalentCourseCodes } : {}),
       };
       const r0 = await db.insert(courses).values(values).onConflictDoNothing().returning({ id: courses.id });
-      if (r0.length) { inserted++; continue; }
+      if (r0.length) {
+        inserted++;
+        if (prereqTree) prereqImported++;
+        if (coreqTree) coreqImported++;
+        if (equivalentCourseCodes) equivImported++;
+        continue;
+      }
 
       // درس از قبل هست: فقط جاهای خالی را پر می‌کنیم (دادهٔ دستیِ کاربر بازنویسی نمی‌شود).
       // بدون این گام، فایلِ کاملِ دوم هیچ اثری نداشت و «مقطع/گروه/واحد عملی» تا ابد خالی می‌ماند.
@@ -899,6 +955,7 @@ export async function commit(
         .select({
           id: courses.id, theoreticalUnits: courses.theoreticalUnits, practicalUnits: courses.practicalUnits,
           courseType: courses.courseType, departmentId: courses.departmentId, degreeLevelId: courses.degreeLevelId,
+          prereqText: courses.prereqText, coRequisites: courses.coRequisites, equivalentCourseCodes: courses.equivalentCourseCodes,
         })
         .from(courses).where(eq(courses.code, values.code)).limit(1);
       if (!cur) continue;
@@ -909,6 +966,10 @@ export async function commit(
       if (!cur.courseType && values.courseType) patch.courseType = values.courseType;
       if (cur.departmentId == null && departmentId != null) patch.departmentId = departmentId;
       if (cur.degreeLevelId == null && degreeLevelId != null) patch.degreeLevelId = degreeLevelId;
+      // سه ستون قواعد — فقط اگر در سامانه خالی باشند (دادهٔ دستی حفظ می‌شود)
+      if (!cur.prereqText && prereqText) { patch.prereqText = prereqText; if (prereqTree) prereqImported++; }
+      if (!cur.coRequisites && coRequisites) { patch.coRequisites = coRequisites; if (coreqTree) coreqImported++; }
+      if (!cur.equivalentCourseCodes && equivalentCourseCodes) { patch.equivalentCourseCodes = equivalentCourseCodes; if (equivalentCourseCodes) equivImported++; }
 
       if (Object.keys(patch).length) {
         await db.update(courses).set(patch).where(eq(courses.id, cur.id));
@@ -917,6 +978,31 @@ export async function commit(
     }
     if (enriched) {
       report.warnings.push({ row: 0, msg: `${enriched} درسِ موجود با اطلاعات این فایل کامل شد (مقطع/گروه/تفکیک واحد) — مقادیر پرشدهٔ قبلی دست نخورد.` });
+    }
+    // ── قواعد پیش‌نیاز/هم‌نیاز: از جدول دروس به course_rules نسخه‌ها ──
+    if (prereqImported || coreqImported || equivImported) {
+      report.warnings.push({
+        row: 0,
+        msg: `از جدول دروس خوانده شد: ${prereqImported} درس با پیش‌نیاز، ${coreqImported} با هم‌نیاز و ${equivImported} با دروس هم‌ارز.`,
+      });
+    }
+    if (prereqImported || coreqImported) {
+      try {
+        const sync = await syncRequisiteRulesFromCourses();
+        if (sync.prereqRules || sync.coreqRules) {
+          report.warnings.push({
+            row: 0,
+            msg: `${sync.prereqRules} قاعدهٔ پیش‌نیاز و ${sync.coreqRules} قاعدهٔ هم‌نیاز از جدول دروس به چارت ${sync.versions} نسخه اضافه شد.`,
+          });
+        } else if (sync.versions === 0) {
+          report.warnings.push({ row: 0, msg: 'پیش‌نیازها خوانده شد ولی هنوز هیچ چارتی درس ندارد؛ پس از تعریف چارت، دکمهٔ «همگام‌سازی پیش‌نیاز از جدول دروس» را بزنید.' });
+        }
+        if (sync.unresolvedCodes.length) {
+          report.warnings.push({ row: 0, msg: `${sync.unresolvedCodes.length} کد پیش‌نیاز/هم‌نیاز در بانک دروس نبود (نمونه: ${sync.unresolvedCodes.slice(0, 6).join('، ')}).` });
+        }
+      } catch (e: any) {
+        report.warnings.push({ row: 0, msg: `همگام‌سازی قواعد انجام نشد: ${e?.message ?? e}` });
+      }
     }
     reportRewrites(rw, 'درس');
   }
@@ -1010,67 +1096,126 @@ export async function commit(
   }
 
   if (entity === 'curriculum') {
-    // ── انتقال چارت/برنامهٔ درسی: برای هر (رشته/مقطع) یک نسخهٔ PUBLISHED می‌سازیم
-    //    و درس‌های آن را در curriculum_courses درج می‌کنیم (idempotent).
+    // ── انتقال چارت: برای هر (رشته/مقطع/بازهٔ ورودی) یک نسخهٔ PUBLISHED می‌سازیم
+    //    و درس‌های آن را در curriculum_courses درج می‌کنیم (idempotent). اگر
+    //    سرفصل بعد از دو سال عوض شد، دو بازهٔ مختلف دو نسخهٔ جدا می‌گیرند.
     const degreeRows = await db.select({ id: degree_level_configs.id, code: degree_level_configs.code, title: degree_level_configs.title }).from(degree_level_configs);
     const degreeMap = await resolverFor(sourceCode, 'DEGREE');
-    const majorRows = await db.select({ id: majors.id, code: majors.majorCode, name: majors.name, degreeLevelId: majors.degreeLevelId }).from(majors);
-    const allCourses = await db.select({ id: courses.id, code: courses.code, title: courses.title, units: courses.units }).from(courses);
+    const majorRows = await db.select({ id: majors.id, code: majors.majorCode, name: majors.name, degreeLevelId: majors.degreeLevelId }).from(majors)
+      // 🔒 دانشگاه مقصد: کد ۸۴ در دانشگاه ۱ و ۲ می‌تواند دو رشتهٔ متفاوت باشد
+      .where(universityId ? eq(majors.universityId, universityId) : undefined);
+    const allCourses = await db.select({ id: courses.id, code: courses.code, title: courses.title, units: courses.units, courseType: courses.courseType }).from(courses);
     const courseByCode = new Map(allCourses.map(c => [c.code, c]));
     const rwCourse = await rewriter('COURSE');
 
-    // گروه‌بندی ردیف‌ها بر اساس (majorId, degreeLevelId) → یک نسخهٔ چارت
-    type ChartRow = { courseCode: string; courseTitle: string | null; units: number | null; recommendedSemester: number | null; roleType: string; isRequired: boolean };
-    const groups = new Map<string, { majorId: number; degreeLevelId: number; label: string; items: ChartRow[] }>();
+    // گروه‌بندی ردیف‌ها بر اساس (majorId, degreeLevelId, entryYearFrom, entryYearTo) → یک نسخهٔ چارت
+    // roleType = null یعنی در فایل خالی بود ⇒ از نوع درس در بانک دروس خوانده می‌شود
+    type ChartRow = { courseCode: string; courseTitle: string | null; units: number | null; recommendedSemester: number | null; roleType: string | null; isRequired: boolean };
+    const groups = new Map<string, { majorId: number; degreeLevelId: number; entryYearFrom: number; entryYearTo: number | null; label: string; items: ChartRow[] }>();
     for (const r of rows) {
       const mCode = norm(String(r.majorCode ?? ''));
       const mName = norm(String(r.majorName ?? ''));
       const major = (mCode ? majorRows.find(m => norm(m.code ?? '') === mCode) : null)
         ?? majorRows.find(m => norm(m.name) === mName);
       if (!major) { report.errors.push({ row: 0, msg: `رشته «${r.majorCode || r.majorName}» یافت نشد — ردیف رد شد.` }); continue; }
-      const key = `${major.id}|${major.degreeLevelId}`;
-      if (!groups.has(key)) groups.set(key, { majorId: major.id, degreeLevelId: major.degreeLevelId, label: `${major.name}`, items: [] });
+      const ef = (r as Record<string, unknown>).entryYearFrom as number | null;
+      const et = (r as Record<string, unknown>).entryYearTo as number | null;
+      const entryFrom = ef ?? 1300;
+      const entryTo = et ?? null;
+      const key = `${major.id}|${major.degreeLevelId}|${entryFrom}|${entryTo ?? 'null'}`;
+      if (!groups.has(key)) groups.set(key, { majorId: major.id, degreeLevelId: major.degreeLevelId, entryYearFrom: entryFrom, entryYearTo: entryTo, label: `${major.name}`, items: [] });
       groups.get(key)!.items.push({
         courseCode: rwCourse.apply(String(r.courseCode)), courseTitle: (r.courseTitle as string | null) ?? null,
         units: (r.units as number | null) ?? null, recommendedSemester: (r.recommendedSemester as number | null) ?? null,
-        roleType: String(r.roleType ?? 'CORE'), isRequired: r.isRequired !== false,
+        roleType: (r.roleType as string | null) ?? null, isRequired: r.isRequired !== false,
       });
     }
 
-    let versionsMade = 0, coursesLinked = 0;
+    let versionsMade = 0, coursesLinked = 0, rolesFromBank = 0;
+    const zeroUnitWarned = new Set<string>();
     for (const g of groups.values()) {
-      // نسخهٔ چارتِ منتشرشدهٔ این رشته/مقطع (ورودی گسترده تا پوشش همهٔ ورودی‌ها)
-      const [existingVer] = await db.select({ id: curriculum_versions.id }).from(curriculum_versions)
+      // نسخهٔ چارتِ این رشته/مقطع/بازهٔ ورودی — با وضعیت «پیش‌نویس»
+      // تا کاربر ابتدا بازبینی کند و بعد خودش منتشر کند.
+      const verLabel = g.entryYearTo ? `${g.entryYearFrom}–${g.entryYearTo}` : `${g.entryYearFrom} به بعد`;
+      const versionCode = `LEGACY-${g.entryYearFrom}${g.entryYearTo ? `-${g.entryYearTo}` : ''}`;
+
+      // محاسبهٔ خودکار جمع واحدها بر حسب نقش و کل واحد لازم برای فارغ‌التحصیلی
+      // نقشِ خالی از بانک دروس خوانده می‌شود (نه «پایه» به‌صورت پیش‌فرض)
+      const roleOf = (it: ChartRow): string => {
+        if (it.roleType) return it.roleType;
+        const c = courseByCode.get(it.courseCode);
+        return roleFromBankType(c?.courseType ?? null);
+      };
+      const byRole: Record<string, number> = {};
+      let totalUnitsCalc = 0;
+      for (const it of g.items) {
+        const c = courseByCode.get(it.courseCode);
+        const u = Number(it.units ?? c?.units ?? 0);
+        if (!Number.isFinite(u) || u <= 0) continue;
+        const role = roleOf(it);
+        byRole[role] = (byRole[role] ?? 0) + u;
+        totalUnitsCalc += u;
+      }
+      for (const k of Object.keys(byRole)) byRole[k] = Math.round(byRole[k] * 10) / 10;
+      totalUnitsCalc = Math.round(totalUnitsCalc * 10) / 10;
+      const minRoleUnitsJson = JSON.stringify(byRole);
+
+      const [existingVer] = await db.select({ id: curriculum_versions.id, totalRequiredUnits: curriculum_versions.totalRequiredUnits, minRoleUnits: curriculum_versions.minRoleUnits }).from(curriculum_versions)
         .where(and(eq(curriculum_versions.majorId, g.majorId), eq(curriculum_versions.degreeLevelId, g.degreeLevelId),
-          eq(curriculum_versions.status, 'PUBLISHED'))).limit(1);
+          isNull(curriculum_versions.trackId),
+          eq(curriculum_versions.entryYearFrom, g.entryYearFrom),
+          g.entryYearTo == null ? isNull(curriculum_versions.entryYearTo) : eq(curriculum_versions.entryYearTo, g.entryYearTo))).limit(1);
       let versionId = existingVer?.id ?? null;
       if (!versionId) {
-        const totalUnits = g.items.reduce((s, it) => s + (it.units ?? 0), 0);
         const [ins] = await db.insert(curriculum_versions).values({
           majorId: g.majorId, degreeLevelId: g.degreeLevelId, trackId: null,
-          versionCode: 'LEGACY', title: `برنامهٔ درسی مهاجرتی ${g.label}`,
-          status: 'PUBLISHED', entryYearFrom: 1300, entryYearTo: null,
-          totalRequiredUnits: String(totalUnits),
+          versionCode, title: `برنامهٔ درسی مهاجرتی ${g.label} (ورودی ${verLabel})`,
+          status: 'DRAFT', entryYearFrom: g.entryYearFrom, entryYearTo: g.entryYearTo,
+          totalRequiredUnits: String(totalUnitsCalc),
+          minRoleUnits: minRoleUnitsJson,
+          universityId: universityId ?? null,
         }).returning({ id: curriculum_versions.id });
         versionId = ins?.id ?? null;
         if (versionId) versionsMade++;
+      } else {
+        // اگه نسخه از قبل هست ولی آمار خالی شده، کاملش می‌کنیم
+        const patch: Record<string, unknown> = {};
+        const curTotal = existingVer.totalRequiredUnits ? Number(existingVer.totalRequiredUnits) : 0;
+        if ((!curTotal || curTotal === 0) && totalUnitsCalc > 0) patch.totalRequiredUnits = String(totalUnitsCalc);
+        if (!existingVer.minRoleUnits && Object.keys(byRole).length) patch.minRoleUnits = minRoleUnitsJson;
+        if (Object.keys(patch).length) {
+          await db.update(curriculum_versions).set(patch).where(eq(curriculum_versions.id, existingVer.id));
+        }
       }
       if (!versionId) continue;
 
       for (const it of g.items) {
         const c = courseByCode.get(it.courseCode);
         if (!c) { report.warnings.push({ row: 0, msg: `درس ${it.courseCode} یافت نشد — وصل نشد.` }); continue; }
+        const roleType = roleOf(it);
+        // واحد فقط از بانک دروس — عددِ داخل فایل نادیده گرفته می‌شود
+        const bankUnits = Number(c.units ?? 0);
+        if (!(bankUnits > 0) && zeroUnitWarned.size < 10) {
+          zeroUnitWarned.add(c.code);
+          report.warnings.push({ row: 0, msg: `درس ${c.code} در بانک دروس «۰ واحد» است — همان ۰ در چارت ثبت شد؛ واحد را در بانک دروس اصلاح کنید.` });
+        }
+        if (!it.roleType) rolesFromBank++;
         const r0 = await db.insert(curriculum_courses).values({
-          curriculumVersionId: versionId, courseId: c.id, roleType: it.roleType,
-          units: it.units != null ? String(it.units) : null,
-          isRequired: it.isRequired ? 1 : 0, isElective: it.roleType === 'ELECTIVE' ? 1 : 0,
+          curriculumVersionId: versionId, courseId: c.id, roleType,
+          units: c.units != null ? String(c.units) : null,
+          isRequired: it.isRequired ? 1 : 0, isElective: roleType === 'ELECTIVE' ? 1 : 0,
+          // «الزامی» در فایل باید «شرط فارغ‌التحصیلی» هم بشود، وگرنه اعتبارسنجی
+          // چارت با خطای GRADUATION_COVERAGE («هیچ درسی علامت‌گذاری نشده») می‌افتد.
+          // پایان‌نامه و کارآموزی هم شرط فارغ‌التحصیلی‌اند، نه فقط پایه/اصلی/تخصصی.
+          isGraduationRequired: it.isRequired ? 1 : 0,
           recommendedSemester: it.recommendedSemester,
         }).onConflictDoNothing().returning({ id: curriculum_courses.id });
         if (r0.length) { coursesLinked++; inserted++; } else existing++;
       }
     }
-    if (versionsMade) report.warnings.push({ row: 0, msg: `${versionsMade} نسخهٔ چارت (وضعیت PUBLISHED) ساخته شد.` });
+    if (versionsMade) report.warnings.push({ row: 0, msg: `${versionsMade} نسخهٔ چارت با وضعیت «پیش‌نویس (DRAFT)» ساخته شد — پس از بازبینی، خودتان منتشر کنید.` });
     if (coursesLinked) report.warnings.push({ row: 0, msg: `${coursesLinked} درس به چارت‌ها وصل شد.` });
+    if (rolesFromBank) report.warnings.push({ row: 0, msg: `نقش ${rolesFromBank} درس در فایل خالی بود — نوع درس از بانک دروس خوانده و اعمال شد.` });
     reportRewrites(rwCourse, 'درس (چارت)');
   }
 

@@ -32,10 +32,13 @@ const fmt = (d: Date | null): string => {
 export default async function AdminEvaluationsPage({
   searchParams,
 }: {
-  searchParams?: { msg?: string; err?: string };
+  // ⚠ Next.js 15/16: `searchParams` یک Promise است. خواندنِ آن به‌صورت آبجکت
+  // خام باعث می‌شد پیام‌های msg/err (که با redirect برگردانده می‌شوند) هرگز
+  // نمایش داده نشوند. گارد: tests/searchparams-await.test.ts
+  searchParams: Promise<{ msg?: string; err?: string }>;
 }) {
   await requireRole(['ADMIN']);
-  const sp = searchParams ?? {};
+  const sp = (await searchParams) ?? {};
   const uni = await getCurrentUniversity();
 
   const terms = sortTermsChronologically(

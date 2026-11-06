@@ -5,6 +5,7 @@ import {
   WARNING_STATUSES, WARNING_TYPES, WARNING_TYPE_LABEL,
   statusBadgeClass, warningTypeLabel,
 } from '@/lib/scheduled-warnings-shared';
+import { askConfirm } from '@/lib/ui-feedback';
 
 type Msg = { text: string; kind: 'ok' | 'error' } | null;
 
@@ -119,8 +120,9 @@ export default function WarningsClient() {
     }
   });
 
-  const remove = (id: number) => {
-    if (!confirm(`هشدار #${id} حذف شود؟`)) return;
+  const remove = async (id: number) => {
+    const ok = await askConfirm({ title: 'حذف هشدار', body: `هشدار #${id} حذف شود؟`, confirmText: 'حذف کن', danger: true });
+    if (!ok) return;
     startTransition(async () => {
       try {
         await api(`/api/admin/warnings?id=${id}`, { method: 'DELETE' });

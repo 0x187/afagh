@@ -869,6 +869,118 @@
       "when": 1794700000000,
       "tag": "0118_classroom_code",
       "breakpoints": true
+    },
+    {
+      "idx": 124,
+      "version": "7",
+      "when": 1794800000000,
+      "tag": "0119_ledger_deposit_type_date",
+      "breakpoints": true
+    },
+    {
+      "idx": 125,
+      "version": "7",
+      "when": 1794900000000,
+      "tag": "0120_term_status_types",
+      "breakpoints": true
+    },
+    {
+      "idx": 126,
+      "version": "7",
+      "when": 1795000000000,
+      "tag": "0121_legacy_payment_provenance",
+      "breakpoints": true
+    },
+    {
+      "idx": 127,
+      "version": "7",
+      "when": 1795100000000,
+      "tag": "0122_curriculum_published_range",
+      "breakpoints": true
+    },
+    {
+      "idx": 128,
+      "version": "7",
+      "when": 1795100000100,
+      "tag": "0123_curriculum_role_specialized",
+      "breakpoints": true
+    },
+    {
+      "idx": 129,
+      "version": "7",
+      "when": 1795100000200,
+      "tag": "0124_graduation_required_from_required",
+      "breakpoints": true
+    },
+    {
+      "idx": 130,
+      "version": "7",
+      "when": 1795100000300,
+      "tag": "0125_attendance_late_minutes",
+      "breakpoints": true
+    },
+    {
+      "idx": 131,
+      "version": "7",
+      "when": 1795100000400,
+      "tag": "0126_virtual_classroom_sync",
+      "breakpoints": true
+    },
+    {
+      "idx": 132,
+      "version": "7",
+      "when": 1795100000500,
+      "tag": "0127_virtual_classroom_shared_meeting",
+      "breakpoints": true
+    },
+    {
+      "idx": 133,
+      "version": "7",
+      "when": 1795100000600,
+      "tag": "0128_sanjesh_files",
+      "breakpoints": true
+    },
+    {
+      "idx": 134,
+      "version": "7",
+      "when": 1795186400600,
+      "tag": "0129_compensatory_role",
+      "breakpoints": true
+    },
+    {
+      "idx": 135,
+      "version": "7",
+      "when": 1795272800600,
+      "tag": "0130_student_admission_source",
+      "breakpoints": true
+    },
+    {
+      "idx": 136,
+      "version": "7",
+      "when": 1795359200600,
+      "tag": "0131_formula_add_year",
+      "breakpoints": true
+    },
+    {
+      "idx": 137,
+      "version": "7",
+      "when": 1795445600600,
+      "tag": "0132_student_id_formula_models",
+      "breakpoints": true
+    },
+    {
+      "idx": 138,
+      "version": "7",
+      "when": 1795500000000,
+      "tag": "0133_classroom_exam_hall",
+      "breakpoints": true
+    },
+    {
+      "idx": 139,
+      "version": "7",
+      "when": 1795600000000,
+      "tag": "0134_saved_reports",
+      "breakpoints": true
     }
   ]
 }

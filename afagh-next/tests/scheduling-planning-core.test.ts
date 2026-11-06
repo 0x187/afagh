@@ -12,10 +12,10 @@
  *   inspectorSummary / nextGroupNumber / coTeachingWeights / buildRealScenario
  */
 import {
-  buildRealScenario, coTeachingWeights, computeProfUnits, DAY_NAMES, faNum, faToEnDigits,
+  buildRealScenario, clampGroupsCount, coTeachingWeights, computeProfUnits, courseTypeRank, DAY_NAMES, faNum, faToEnDigits,
   filterContextDemands, filterScenarioOfferings, inspectorSummary, mapCohorts, mapDemands,
-  mapOfferings, nextGroupNumber, NO_PROFESSOR, parseJalaliDates, PHASE_LABELS,
-  slotAvailStatus, TIME_SLOT_PRESETS, PLANNING_TABS, resolveTab,
+  mapOfferings, MAX_GROUPS_PER_COURSE, nextGroupNumber, NO_PROFESSOR, parseJalaliDates, PHASE_LABELS,
+  slotAvailStatus, TIME_SLOT_PRESETS, PLANNING_TABS, resolveTab, cohortSemesterNo, chartScopeSemester, suggestGroupsCount,
 } from '../src/app/admin/scheduling/planning-core.ts';
 import type { CourseDemand, DepartmentOffering, SchedulingWorkspace } from '../src/app/admin/scheduling/types.ts';
 
@@ -44,23 +44,37 @@ eq('بدون تاریخ → آرایهٔ خالی', parseJalaliDates('جمعه �
 eq('ماه/روز یک‌رقمی هم قبول', parseJalaliDates('1405/7/1'), ['1405/7/1']);
 
 console.log('\n۲) نگاشت ردیف سرور → مدل UI');
-const rawDemand = {
+const rawDemand: any = {
   offeringId: 7, courseId: 11, courseDeptId: 3, code: '101', title: 'ریاضی', units: '3.00',
   courseType: 'اصلی', capacity: 40, groupNumber: 2, professorId: 5, isCoTaught: false,
+  coProfId: null,
   enrolledCount: 30, programId: 2, programTitle: 'کامپیوتر', cohortId: '1403', cohortTitle: 'ورودی ۱۴۰۳',
+  programIds: [],
+  semesterNo: null,
+  cohortMerged: false,
+  examDate: '',
   isSharedService: false,
   offeringScope: 'DEPARTMENTAL',
 };
-const [d] = mapDemands([rawDemand]);
+const [d] = mapDemands([rawDemand] as any);
 eq('واحد رشته‌ای → عدد', d.units, 3);
 eq('واحد نامعتبر → صفر', mapDemands([{ ...rawDemand, units: '—', isSharedService: false, offeringScope: 'DEPARTMENTAL' }])[0].units, 0);
-eq('نوع درس ناشناخته → عمومی', mapDemands([{ ...rawDemand, courseType: 'آزاد', isSharedService: false, offeringScope: 'DEPARTMENTAL' }])[0].courseType, 'عمومی');
+// ⚠️ قرارداد عوض شد: نوع درس دیگر به فهرست بستهٔ ۵ مقدارهای «فارسی» محدود
+// نمی‌شود (دادهٔ واقعی با «ی/ک عربی» ذخیره شده و دامنه‌اش باز است). مقدار
+// واقعی حفظ و فقط یکسان‌سازی می‌شود — پیش‌تر هر چیزی که در فهرست نبود
+// «عمومی» می‌شد و همهٔ درس‌ها عمومی دیده می‌شدند.
+eq('نوع درس ناشناخته حفظ می‌شود (نه عمومی)', mapDemands([{ ...rawDemand, courseType: 'آزاد', isSharedService: false, offeringScope: 'DEPARTMENTAL' }])[0].courseType, 'آزاد');
+eq('ی/ک عربی → فارسی', mapDemands([{ ...rawDemand, courseType: 'تخصصي', isSharedService: false, offeringScope: 'DEPARTMENTAL' }])[0].courseType, 'تخصصی');
+eq('نوع خالی → نامشخص', mapDemands([{ ...rawDemand, courseType: '', isSharedService: false, offeringScope: 'DEPARTMENTAL' }])[0].courseType, 'نامشخص');
+eq('رتبهٔ عمومی قبل از تخصصی', [courseTypeRank('عمومي'), courseTypeRank('تخصصي')].sort((a, b) => a - b), [0, 3]);
 eq('استاد null → صفر (نه undefined)', mapDemands([{ ...rawDemand, professorId: null, isSharedService: false, offeringScope: 'DEPARTMENTAL' }])[0].preferredProfId, 0);
 eq('پیش‌فرض‌های ایمن نشست', [d.requiredRoomType, d.groupsCount, d.weekRecurrence, d.examDate], ['THEORY', 1, 'ALL', '']);
 eq('کارت تهی هیچ‌وقت undefined نمی‌شود', NO_PROFESSOR.id, 0);
-const [co] = mapCohorts([{ entryYear: 1403, expectedStudents: 120 }]);
-eq('عنوان ورودی با رقم فارسی', co.title, 'ورودی ۱۴۰۳');
-eq('کلید ورودی رشتهٔ عددی', co.id, '1403');
+const [co] = mapCohorts([{ majorId: null, entryYear: 1403, entryTerm: 1, expectedStudents: 120 }]);
+// «نیمسال ورود» (مهر/بهمن) به‌جای «سال ورود»
+eq('عنوان نیمسال ورود با رقم فارسی', co.title, 'نیمسال ورود مهر ۱۴۰۳');
+eq('کلید نیمسال ورود = سال-نیمسال', co.id, '1403-1');
+eq('بهمن = نیمسال دوم', mapCohorts([{ majorId: null, entryYear: 1403, entryTerm: 2, expectedStudents: 10 }])[0].title, 'نیمسال ورود بهمن ۱۴۰۳');
 
 const rawApproved = {
   offeringId: 9, code: '202', title: 'فیزیک', units: '2', courseType: 'پایه', groupNumber: 1,
@@ -75,15 +89,18 @@ eq('نام سالن و ساختمان حفظ شد', [off.classSchedules[0].roomN
 eq('فیلتر/حوزهٔ کلی برای ورودی‌ها', [off.cohortId, off.programId], ['ALL', 0]);
 
 console.log('\n۳) بار واحد استاد (درس مشترک = تقسیم سهم)');
-const base: CourseDemand = {
+const base: any = {
   id: 1, courseId: 1, courseDeptId: null, programId: 1, programTitle: 'کامپیوتر', cohortId: 'ALL',
   cohortTitle: 'ورودی ۱۴۰۳', code: 'C1', title: 'درس', units: 3, groupNumber: 1, courseType: 'اصلی',
   preferredProfId: 1, requiredRoomType: 'THEORY', capacity: 40, groupsCount: 1,
-  weekRecurrence: 'ALL', sessionsCountPerWeek: 1, examDate: '',
+  weekRecurrence: 'ALL', sessionsCountPerWeek: 1, examDate: '', enrolledCount: 0,
+  isCoTaught: false, coProfId: null, programIds: [], semesterNo: null, cohortMerged: false,
+  examMode: 'WRITTEN' as const, examTime: null, examRoomId: null, genderRestriction: 'MIXED' as const,
+  isSharedService: false, offeringScope: 'DEPARTMENTAL',
 };
-const profs = [
-  { id: 1, name: 'الف', staffCode: '1', academicRank: 'استادیار', contractType: 'تمام‌وقت' as const, departmentName: 'گروه', maxWeeklyUnits: 16, maxDailyHours: 6, hasSubmittedAvailability: true },
-  { id: 2, name: 'ب', staffCode: '2', academicRank: 'مربی', contractType: 'نیمه‌وقت' as const, departmentName: 'گروه', maxWeeklyUnits: 8, maxDailyHours: 4, hasSubmittedAvailability: false },
+const profs: any = [
+  { id: 1, name: 'الف', staffCode: '1', academicRank: 'استادیار', contractType: 'تمام‌وقت' as const, departmentId: 1, departmentName: 'گروه', maxWeeklyUnits: 16, maxDailyHours: 6, hasSubmittedAvailability: true },
+  { id: 2, name: 'ب', staffCode: '2', academicRank: 'مربی', contractType: 'نیمه‌وقت' as const, departmentId: 1, departmentName: 'گروه', maxWeeklyUnits: 8, maxDailyHours: 4, hasSubmittedAvailability: false },
 ];
 eq('درس تکی × گروه‌های موازی', computeProfUnits([{ ...base, units: 3, groupsCount: 2 }], profs)[1].units, 6);
 eq('درس تکی → تعداد گروه‌ها شمرده می‌شود', computeProfUnits([{ ...base, groupsCount: 3 }], profs)[1].coursesCount, 3);
@@ -119,13 +136,15 @@ const mkOff = (over: Partial<DepartmentOffering> = {}): DepartmentOffering => ({
   code: 'C1', title: 't', units: 3, courseType: 'اصلی', groupNumber: 1, professorId: 1, professorName: 'x',
   capacity: 40, enrolledCount: 0, waitlistCapacity: 0,
   classSchedules: [{ dayOfWeek: 0, dayName: DAY_NAMES[0], slotId: 1, startTime: '08:00', endTime: '10:00', roomId: 1, roomName: 'r', buildingName: 'b', weekType: 'ALL' }],
-  examSchedule: null, ...over,
+  examSchedule: null, courseDeptId: null, offeringId: 1, programIds: [], semesterNo: null, cohortMerged: false,
+  examDate: null, examMode: 'WRITTEN', examTime: null, examRoomId: null, isSharedService: false, offeringScope: 'DEPARTMENTAL',
+  ...over,
 });
 const list = [
-  mkOff({ id: 1, programId: 0, cohortId: 'ALL' }),                       // عمومی → همیشه
-  mkOff({ id: 2, programId: 7, cohortId: 'ALL' }),                        // رشتهٔ ۷
-  mkOff({ id: 3, programId: 7, cohortId: '1403' }),                       // رشتهٔ ۷ ورودی ۱۴۰۳
-  mkOff({ id: 4, programId: 8, cohortId: 'ALL', classSchedules: [{ ...mkOff().classSchedules[0], weekType: 'EVEN' }] }),
+  mkOff({ id: 1, programId: 0, cohortId: 'ALL' }) as any,                       // عمومی → همیشه
+  mkOff({ id: 2, programId: 7, cohortId: 'ALL' }) as any,                        // رشتهٔ ۷
+  mkOff({ id: 3, programId: 7, cohortId: '1403' }) as any,                       // رشتهٔ ۷ ورودی ۱۴۰۳
+  mkOff({ id: 4, programId: 8, cohortId: 'ALL', classSchedules: [{ ...mkOff().classSchedules[0], weekType: 'EVEN' }] }) as any,
 ];
 eq('بدون فیلتر → همه', filterScenarioOfferings(list, { programId: 0, cohortId: 'ALL', weekFilter: 'ALL_VIEW' }).length, 4);
 eq('رشتهٔ ۷ → عمومی + ۷', filterScenarioOfferings(list, { programId: 7, cohortId: 'ALL', weekFilter: 'ALL_VIEW' }).map(o => o.id), [1, 2, 3]);
@@ -133,9 +152,25 @@ eq('ورودی ۱۴۰۳ → عمومی + آن ورودی', filterScenarioOfferin
 eq('ورودی ۱۴۰۳ روی رشتهٔ ۷', filterScenarioOfferings(list, { programId: 7, cohortId: '1403', weekFilter: 'ALL_VIEW' }).map(o => o.id), [1, 2, 3]);
 eq('نمای زوج → ALL و EVEN', filterScenarioOfferings(list, { programId: 0, cohortId: 'ALL', weekFilter: 'EVEN' }).map(o => o.id), [1, 2, 3, 4]);
 eq('نمای فرد → فقط ALL', filterScenarioOfferings(list, { programId: 0, cohortId: 'ALL', weekFilter: 'ODD' }).map(o => o.id), [1, 2, 3]);
-const dl = [{ ...base, id: 1, programId: 0, cohortId: 'ALL' }, { ...base, id: 2, programId: 7, cohortId: '1403' }, { ...base, id: 3, programId: 8, cohortId: '1404' }];
-eq('تقاضا: رشتهٔ ۷ + عمومی', filterContextDemands(dl, { programId: 7, cohortId: 'ALL' }).map(x => x.id), [1, 2]);
-eq('تقاضا: ورودی ۱۴۰۴', filterContextDemands(dl, { programId: 0, cohortId: '1404' }).map(x => x.id), [1, 3]);
+// تفکیک رشته‌به‌رشته با programIds: بدون تعلق = مشترک (همه‌جا)، با تعلق = فقط رشتهٔ خودش
+const dl = [
+  { ...base, id: 1, programId: 0, programIds: [], cohortId: 'ALL' },
+  { ...base, id: 2, programId: 7, programIds: [7], cohortId: '1403-1' },
+  { ...base, id: 3, programId: 8, programIds: [8], cohortId: '1404-1' },
+  { ...base, id: 4, programId: 0, programIds: [7, 8], cohortId: 'ALL' },
+];
+eq('تقاضا: رشتهٔ ۷ (مشترک + خودش)', filterContextDemands(dl, { programId: 7, cohortId: 'ALL' }).map(x => x.id).sort(), [1, 2, 4]);
+eq('تقاضا: رشتهٔ ۸ چیزی از رشتهٔ ۷ نمی‌بیند', filterContextDemands(dl, { programId: 8, cohortId: 'ALL' }).map(x => x.id).sort(), [1, 3, 4]);
+eq('ترم چارت فیلتر می‌شود', filterContextDemands([{ ...base, id: 5, programIds: [7], semesterNo: 5 }, { ...base, id: 6, programIds: [7], semesterNo: 1 }], { programId: 7, cohortId: 'ALL', semester: 5 }).map(x => x.id), [5]);
+// ورودی ۱۴۰۳۱ در نیمسال ۱۴۰۵۱ = ترم ۵
+eq('ورودی ۱۴۰۳۱ در ۱۴۰۵۱ → ترم ۵', cohortSemesterNo(1403, 1, '14051'), 5);
+eq('ورودی ۱۴۰۳۲ در ۱۴۰۵۱ → ترم ۴', cohortSemesterNo(1403, 2, '14051'), 4);
+eq('ورودی آینده → null', cohortSemesterNo(1406, 1, '14051'), null);
+// ترمِ دامنه: ورودیِ انتخاب‌شده بر چیپِ فاز ۰ اولویت دارد (فاز ۱ رشتهٔ ۴۴/ترم ۳)
+eq('دامنه: بدون ورودی ⇒ چیپ فاز ۰', chartScopeSemester({ cohortId: 'ALL', entryYear: null, entryTerm: null, termCode: '14051', selectedSemester: 3 }), 3);
+eq('دامنه: ورودی ۱۴۰۴-۱ ⇒ ترم ۳', chartScopeSemester({ cohortId: '1404-1', entryYear: 1404, entryTerm: 1, termCode: '14051', selectedSemester: 'ALL' }), 3);
+eq('دامنه: کد ترم نامعتبر ⇒ برمی‌گردد به چیپ', chartScopeSemester({ cohortId: '1404-1', entryYear: 1404, entryTerm: 1, termCode: null, selectedSemester: 2 }), 2);
+eq('تقاضا: نیمسال ورود ۱۴۰۴', filterContextDemands(dl, { programId: 0, cohortId: '1404-1' }).map(x => x.id).sort(), [1, 3, 4]);
 
 console.log('\n۶) آمار بازرس، گروه بعدی و سهم‌بندی');
 const io = [
@@ -183,10 +218,34 @@ console.log('\n۸) تب آغازین از query string (resolveTab)');
 eq('مقدار معتبر همان تب است', resolveTab('SCENARIOS'), 'SCENARIOS');
 eq('حروف کوچک هم پذیرفته می‌شود', resolveTab('approved'), 'APPROVED');
 eq('فاصله اضافه پاک می‌شود', resolveTab('  DEPT_ROOMS  '), 'DEPT_ROOMS');
-eq('undefined → تب اول', resolveTab(undefined), 'CURRICULUM_ASSIGN');
-eq('null → تب اول', resolveTab(null), 'CURRICULUM_ASSIGN');
-eq('رشتهٔ بی‌ربط → تب اول', resolveTab('../../etc/passwd'), 'CURRICULUM_ASSIGN');
+// فاز ۰ (انتخاب رشته و ترم) حالا تب اول است
+ eq('undefined → فاز ۰', resolveTab(undefined), 'PROGRAM_SCOPE');
+eq('null → فاز ۰', resolveTab(null), 'PROGRAM_SCOPE');
+eq('رشتهٔ بی‌ربط → فاز ۰', resolveTab('../../etc/passwd'), 'PROGRAM_SCOPE');
 eq('همهٔ تب‌های مشروع برگردانده می‌شوند', PLANNING_TABS.map(resolveTab), [...PLANNING_TABS]);
+
+console.log('\n۹) پیشنهاد خودکار تعداد گروه از روی تعداد دانشجو');
+// ورودی پرجمعیت باید خودکار چند گروه شود
+eq('۹۰ دانشجو → ۳ گروه (۴۰ نفره)', suggestGroupsCount({ enrolled: 90 }), 3);
+eq('۴۰ دانشجو → ۱ گروه', suggestGroupsCount({ enrolled: 40 }), 1);
+eq('۴۱ دانشجو → ۲ گروه', suggestGroupsCount({ enrolled: 41 }), 2);
+eq('ثبت‌نام صفر → از ظرفیت استفاده می‌شود', suggestGroupsCount({ enrolled: 0, capacity: 85 }), 3);
+eq('بزرگ‌ترِ ثبت‌نام و ظرفیت مبنا است', suggestGroupsCount({ enrolled: 30, capacity: 120 }), 3);
+eq('بدون داده → ۱ گروه', suggestGroupsCount({}), 1);
+eq('ظرفیت گروه قابل تنظیم است', suggestGroupsCount({ enrolled: 90, maxPerGroup: 30 }), 3);
+eq('سقف گروه‌ها رعایت می‌شود', suggestGroupsCount({ enrolled: 5000 }), MAX_GROUPS_PER_COURSE);
+
+console.log('\n۹ب) تعداد گروه‌های موازی — آزاد و نرمال‌شده (clampGroupsCount)');
+eq('۴ گروه پذیرفته می‌شود (قبلاً UI فقط ۱..۳ می‌داد)', clampGroupsCount(4), 4);
+eq('۶ گروه پذیرفته می‌شود', clampGroupsCount(6), 6);
+eq('صفر → حداقل ۱', clampGroupsCount(0), 1);
+eq('منفی → ۱', clampGroupsCount(-5), 1);
+eq('اعشار گِرد می‌شود', clampGroupsCount(3.6), 4);
+eq('متن عددی پذیرفته می‌شود', clampGroupsCount('5'), 5);
+eq('خالی/نامعتبر → ۱', clampGroupsCount(''), 1);
+eq('undefined → ۱', clampGroupsCount(undefined), 1);
+eq('سقف رعایت می‌شود', clampGroupsCount(999), MAX_GROUPS_PER_COURSE);
+eq('سقف معقول است (۱..۲۰)', MAX_GROUPS_PER_COURSE >= 10 && MAX_GROUPS_PER_COURSE <= 30, true);
 
 console.log(`\nنتیجه: ${pass} موفق، ${fail} ناموفق`);
 process.exit(fail === 0 ? 0 : 1);

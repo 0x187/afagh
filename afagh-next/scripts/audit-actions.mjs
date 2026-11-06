@@ -36,7 +36,7 @@ const ROOT = path.join(process.cwd(), 'src/app');
 
 // گاردهای شناخته‌شده. `requireRoleOrPermission` همان کار requireRole را
 // می‌کند (نقش یا مجوز ریزدانه) و باید در همین لیست باشد.
-const GUARDS = /requireRole\(|requireRoleOrPermission\(|requireDepHead\(|requireMigrationAdmin\(|getSessionUser\(|requireStudentScope\(|assertServerActionOrigin\(/;
+const GUARDS = /requireRole\(|requireRoleOrPermission\(|requireDepHead\(|requireMigrationAdmin\(|requirePlatformAdmin\(|getSessionUser\(|requireStudentScope\(|assertServerActionOrigin\(/;
 
 // مسیرهای عمومی عمدی (نیاز به گارد ندارند) — با دلیل
 const PUBLIC_FILES = [

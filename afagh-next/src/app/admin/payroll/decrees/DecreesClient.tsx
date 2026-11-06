@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { DECREE_SECTION_FA } from '@/lib/decree-labels';
+import { askConfirm } from '@/lib/ui-feedback';
 
 type Decree = {
   id: number; staffId: number; staffName: string; staffCode: string | null;
@@ -92,8 +93,8 @@ export default function DecreesClient(props: {
     });
   }
 
-  function doFinalize(id: number) {
-    if (!confirm('ابلاغ نهایی و صادر شود؟ پس از صدور قابل حذف نیست.')) return;
+  async function doFinalize(id: number) {
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: 'ابلاغ نهایی و صادر شود؟ پس از صدور قابل حذف نیست.', confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
     start(async () => {
       const res = await actions.finalizeAction(id);
       if (!res.ok) { setMsg(res.error ?? 'خطا.'); return; }
@@ -106,8 +107,8 @@ export default function DecreesClient(props: {
     });
   }
 
-  function doDelete(id: number) {
-    if (!confirm('پیش‌نویس ابلاغ حذف شود؟')) return;
+  async function doDelete(id: number) {
+    if (!(await askConfirm({ title: 'تأیید عملیات', body: 'پیش‌نویس ابلاغ حذف شود؟', confirmText: 'تأیید', cancelText: 'انصراف', danger: true }))) return;
     start(async () => {
       const res = await actions.deleteAction(id);
       if (!res.ok) { setMsg(res.error ?? 'خطا.'); return; }
@@ -187,11 +188,11 @@ export default function DecreesClient(props: {
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-bold text-sm text-slate-900">{r.staffName}</span>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${r.status === 'ISSUED' ? 'bg-emerald-600 text-white' : 'bg-amber-100 text-amber-900'}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-3xs font-black ${r.status === 'ISSUED' ? 'bg-emerald-600 text-white' : 'bg-amber-100 text-amber-900'}`}>
                     {statusFa[r.status] ?? r.status}
                   </span>
                 </div>
-                <div className="text-[11px] text-slate-500 mt-1">
+                <div className="text-2xs text-slate-500 mt-1">
                   شماره دبیرخانه: <b className="font-mono" dir="ltr">#{faNum(r.secretariatNo)}</b> · {r.termTitle ?? '—'}
                 </div>
               </button>
@@ -213,7 +214,7 @@ export default function DecreesClient(props: {
                   <div className="font-black text-slate-900 text-sm">
                     ابلاغ #{faNum(detail.secretariatNo)} — {detail.staffName}
                   </div>
-                  <div className="text-[11px] text-slate-500 mt-0.5">
+                  <div className="text-2xs text-slate-500 mt-0.5">
                     {detail.termTitle ?? '—'}
                     {detail.issuedByName ? ` · صادرکننده: ${detail.issuedByName}` : ''}
                   </div>
@@ -234,7 +235,7 @@ export default function DecreesClient(props: {
                     {items.map(it => (
                       <div key={it.id} className="flex items-center justify-between gap-2 p-2">
                         <span className="text-slate-700">{it.title}</span>
-                        <span className="text-slate-500 whitespace-nowrap text-[11px]">
+                        <span className="text-slate-500 whitespace-nowrap text-2xs">
                           {it.units != null ? `${faNum(it.units)} واحد · ` : ''}{money(it.amount)}
                         </span>
                       </div>
@@ -250,7 +251,7 @@ export default function DecreesClient(props: {
                       <div key={i} className="border border-slate-200 rounded-xl p-2 text-center text-xs">
                         <div className="text-slate-500">{s.title || '—'}</div>
                         <div className="font-bold text-slate-800 mt-3">{s.name || '—'}</div>
-                        <div className="text-slate-300 text-[10px] mt-1">امضا و مهر</div>
+                        <div className="text-slate-300 text-3xs mt-1">امضا و مهر</div>
                       </div>
                     ))}
                   </div>

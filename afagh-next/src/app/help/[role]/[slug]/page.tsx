@@ -40,14 +40,14 @@ export default async function HelpTopicPage(props: { params: Promise<{ role: str
         <HelpBreadcrumbs trail={[{ label: 'مرکز راهنما', href: '/help' }, { label: g.title, href: `/help/${g.role}` }, { label: t.title }]} />
 
         <header className="rounded-3xl bg-slate-900 p-6 text-white shadow-xl sm:p-8">
-          <p className="text-[11px] text-slate-300">{g.icon} {g.title} · {sectionTitle}</p>
+          <p className="text-2xs text-slate-300">{g.icon} {g.title} · {sectionTitle}</p>
           <h1 className="mt-1 text-xl font-black sm:text-2xl">{t.title}</h1>
           <p className="mt-2 text-xs leading-relaxed text-slate-200 sm:text-sm">{t.summary}</p>
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <Link href={t.path} className="rounded-xl bg-emerald-500 px-4 py-2 text-xs font-black text-slate-950 hover:bg-emerald-400">ورود به صفحه ←</Link>
-            <span className="rounded-xl bg-white/10 px-3 py-2 font-mono text-[11px] text-slate-200" dir="ltr">{t.path}</span>
+            <Link prefetch={false} href={t.path} className="rounded-xl bg-emerald-500 px-4 py-2 text-xs font-black text-slate-950 hover:bg-emerald-400">ورود به صفحه ←</Link>
+            <span className="rounded-xl bg-white/10 px-3 py-2 font-mono text-2xs text-slate-200" dir="ltr">{t.path}</span>
           </div>
-          <p className="mt-3 text-[11px] text-slate-400">آخرین به‌روزرسانی: {t.updated}</p>
+          <p className="mt-3 text-2xs text-slate-400">آخرین به‌روزرسانی: {t.updated}</p>
         </header>
 
         <section aria-label="در این صفحه چه می‌بینید" className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
@@ -63,7 +63,7 @@ export default async function HelpTopicPage(props: { params: Promise<{ role: str
             {t.steps.map((s, i) => (
               <li key={i} className="rounded-xl border border-slate-100 bg-slate-50/60 p-3">
                 <h3 className="text-[13px] font-black text-indigo-900">
-                  <span className="ml-1.5 inline-flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-700 text-[11px] font-black text-white">{(i + 1).toLocaleString('fa-IR')}</span>
+                  <span className="ml-1.5 inline-flex h-6 w-6 items-center justify-center rounded-lg bg-indigo-700 text-2xs font-black text-white">{(i + 1).toLocaleString('fa-IR')}</span>
                   {s.title}
                 </h3>
                 {s.body.map((b, j) => (
@@ -131,7 +131,7 @@ export default async function HelpTopicPage(props: { params: Promise<{ role: str
             <h2 className="text-sm font-black text-slate-900">🔗 صفحات مرتبط</h2>
             <div className="mt-2 flex flex-wrap gap-2">
               {(t.related ?? []).map(r => (
-                <Link key={r.href} href={r.href} className="rounded-xl bg-indigo-700 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-600" title={r.note}>{r.title} ←</Link>
+                <Link prefetch={false} key={r.href} href={r.href} className="rounded-xl bg-indigo-700 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-600" title={r.note}>{r.title} ←</Link>
               ))}
             </div>
           </section>

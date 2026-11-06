@@ -76,7 +76,7 @@ export default async function VerifyDocumentPage({ params }: { params: Promise<{
               ))}
               <tr>
                 <td className="py-2 pl-3 font-bold text-slate-500 align-top">امضای دیجیتال</td>
-                <td className="py-2 font-mono text-[10px] text-slate-500 break-all" dir="ltr">{doc.contentHash}</td>
+                <td className="py-2 font-mono text-3xs text-slate-500 break-all" dir="ltr">{doc.contentHash}</td>
               </tr>
             </tbody>
           </table>

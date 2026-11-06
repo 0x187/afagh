@@ -81,6 +81,7 @@ export default async function AdminCurriculumPage({
       tab={tabParam}
       version={versionId}
       detail={detailRes?.ok ? (detailRes.data as unknown as VersionDetail) : null}
+      universityTitle={currentUniversity?.title ?? 'دانشگاه'}
       initial={{
         majors: majorItems,
         versions: ov.versions.map((v) => ({
@@ -97,6 +98,7 @@ export default async function AdminCurriculumPage({
           courseCount: v.courseCount,
         })),
         tracks: ov.tracks.map((t) => ({ id: t.id, code: null, title: t.title })),
+        terms: (ov.terms ?? []).map((t) => ({ id: t.id, termCode: t.termCode, title: t.title })),
       }}
     />
   );

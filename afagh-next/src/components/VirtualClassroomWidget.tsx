@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import type { VirtualClassSession } from '@/lib/moodle-bbb';
 import { joinVirtualClassAction } from '@/lib/moodle-bbb-actions';
+import { notify } from '@/lib/ui-feedback';
 
 interface Props {
   user: {
@@ -32,10 +33,10 @@ export default function VirtualClassroomWidget({ user, initialSessions, recordin
         // Open in new tab or popup
         window.open(res.url, '_blank');
       } else {
-        alert(res.error || 'سرویس کلاس مجازی در دسترس نیست.');
+        notify(res.error || 'سرویس کلاس مجازی در دسترس نیست.', 'error');
       }
     } catch {
-      alert('خطا در برقراری ارتباط با سرور آموزش مجازی (Moodle/BBB).');
+      notify('خطا در برقراری ارتباط با سرور آموزش مجازی (Moodle/BBB).', 'error');
     } finally {
       setIsLaunching(null);
     }
@@ -52,13 +53,13 @@ export default function VirtualClassroomWidget({ user, initialSessions, recordin
             <h3 className="font-black text-slate-900 text-sm sm:text-base">
               کلاس‌های آنلاین و جلسات مجازی امروز (Moodle & BigBlueButton)
             </h3>
-            <p className="text-[11px] text-slate-500">
+            <p className="text-2xs text-slate-500">
               ورود تک‌کلیکه با احراز هویت خودکار (SSO) · ثبت حضور در دفتر نمره
             </p>
           </div>
         </div>
 
-        <span className="px-3 py-1 rounded-full text-[10px] font-black bg-emerald-100 text-emerald-800 border border-emerald-200 self-start sm:self-auto">
+        <span className="px-3 py-1 rounded-full text-3xs font-black bg-emerald-100 text-emerald-800 border border-emerald-200 self-start sm:self-auto">
           ● وب‌سرویس LMS آنلاین است
         </span>
       </div>
@@ -83,16 +84,16 @@ export default function VirtualClassroomWidget({ user, initialSessions, recordin
               >
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-mono font-bold text-slate-500" dir="ltr">
+                    <span className="text-3xs font-mono font-bold text-slate-500" dir="ltr">
                       {sess.courseCode}
                     </span>
                     {sess.isRunning ? (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-rose-600 text-white animate-pulse flex items-center gap-1">
+                      <span className="px-2 py-0.5 rounded-full text-3xs font-black bg-rose-600 text-white animate-pulse flex items-center gap-1">
                         <span>●</span>
                         <span>در حال برگزاری</span>
                       </span>
                     ) : (
-                      <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-200 text-slate-700">
+                      <span className="px-2 py-0.5 rounded-full text-3xs font-bold bg-slate-200 text-slate-700">
                         شروع در {faNum(sess.startTime)}
                       </span>
                     )}
@@ -100,10 +101,10 @@ export default function VirtualClassroomWidget({ user, initialSessions, recordin
 
                   <div>
                     <h4 className="font-black text-xs sm:text-sm text-slate-900">{sess.courseTitle}</h4>
-                    <p className="text-[11px] text-slate-500 mt-0.5">مدرس: {sess.professorName}</p>
+                    <p className="text-2xs text-slate-500 mt-0.5">مدرس: {sess.professorName}</p>
                   </div>
 
-                  <div className="bg-white/80 p-2.5 rounded-xl border border-slate-200/80 space-y-1 text-[11px]">
+                  <div className="bg-white/80 p-2.5 rounded-xl border border-slate-200/80 space-y-1 text-2xs">
                     <div className="flex justify-between text-slate-600">
                       <span>ساعت کلاس:</span>
                       <span className="font-mono font-bold text-indigo-950">
@@ -151,7 +152,7 @@ export default function VirtualClassroomWidget({ user, initialSessions, recordin
                   {sess.recordingsCount > 0 && (
                     <button
                       onClick={() => setActiveModalRoom(sess.meetingId)}
-                      className="w-full py-1 text-[10px] text-indigo-900 hover:text-indigo-950 font-bold text-center block"
+                      className="w-full py-1 text-3xs text-indigo-900 hover:text-indigo-950 font-bold text-center block"
                     >
                       🎥 مشاهده آرشیو ویدیوهای ضبط‌شده ({faNum(sess.recordingsCount)} جلسه)
                     </button>
@@ -178,7 +179,7 @@ export default function VirtualClassroomWidget({ user, initialSessions, recordin
 
             <div className="space-y-2 text-xs">
               {!recordings || recordings.length === 0 ? (
-                <p className="p-4 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-300 text-[11px] text-slate-500 font-bold">
+                <p className="p-4 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-300 text-2xs text-slate-500 font-bold">
                   فهرست ویدیوهای ضبط‌شدهٔ این اتاق در سامانه ثبت نشده است.
                 </p>
               ) : (
@@ -189,11 +190,11 @@ export default function VirtualClassroomWidget({ user, initialSessions, recordin
                   >
                     <div>
                       <span className="font-black block">{r.title}</span>
-                      <span className="text-[10px] text-slate-400">{r.meta}</span>
+                      <span className="text-3xs text-slate-400">{r.meta}</span>
                     </div>
                     <button
-                      onClick={() => alert('در حال بازپخش ویدیوی جلسه...')}
-                      className="px-3 py-1.5 rounded-xl bg-indigo-900 text-white font-bold text-[11px]"
+                      onClick={() => notify('در حال بازپخش ویدیوی جلسه…', 'info')}
+                      className="px-3 py-1.5 rounded-xl bg-indigo-900 text-white font-bold text-2xs"
                     >
                       پخش آنلاین ▶
                     </button>

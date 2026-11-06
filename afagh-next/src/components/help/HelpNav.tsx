@@ -27,16 +27,16 @@ export function HelpTopBar({ role, title }: { role?: string; title?: string }) {
         {title ?? 'مرکز راهنما'}
       </span>
       <span className="flex items-center gap-2">
-        <Link
+        <Link prefetch={false}
           href="/help"
-          className="rounded-xl border border-slate-200 px-3 py-1.5 text-[11px] font-bold text-slate-600 hover:border-indigo-300 hover:text-indigo-700"
+          className="rounded-xl border border-slate-200 px-3 py-1.5 text-2xs font-bold text-slate-600 hover:border-indigo-300 hover:text-indigo-700"
         >
           مرکز راهنما
         </Link>
         {home && (
-          <Link
+          <Link prefetch={false}
             href={home.href}
-            className="rounded-xl bg-emerald-600 px-3 py-1.5 text-[11px] font-black text-white hover:bg-emerald-500"
+            className="rounded-xl bg-emerald-600 px-3 py-1.5 text-2xs font-black text-white hover:bg-emerald-500"
           >
             → بازگشت به {home.label}
           </Link>
@@ -48,12 +48,12 @@ export function HelpTopBar({ role, title }: { role?: string; title?: string }) {
 
 export function HelpBreadcrumbs({ trail }: { trail: Crumb[] }) {
   return (
-    <nav aria-label="مسیر راهنما" className="flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+    <nav aria-label="مسیر راهنما" className="flex flex-wrap items-center gap-1.5 text-2xs text-slate-500">
       {trail.map((c, i) => (
         <span key={i} className="flex items-center gap-1.5">
           {i > 0 && <span className="text-slate-300">‹</span>}
           {c.href ? (
-            <Link href={c.href} className="rounded px-1 py-0.5 font-bold text-indigo-700 hover:bg-indigo-50 hover:underline">
+            <Link prefetch={false} href={c.href} className="rounded px-1 py-0.5 font-bold text-indigo-700 hover:bg-indigo-50 hover:underline">
               {c.label}
             </Link>
           ) : (
@@ -72,16 +72,16 @@ export function HelpPrevNext({ prev, next, listHref, listLabel }: { prev: PrevNe
     <div className="mt-8 grid gap-2 sm:grid-cols-3">
       <div>
         {next && (
-          <Link
+          <Link prefetch={false}
             href={`/help/${next.role}/${next.slug}`}
             className="block rounded-2xl border border-slate-200 bg-white p-3 text-xs hover:border-indigo-300 hover:bg-indigo-50/50"
           >
-            <span className="block text-[10px] text-slate-400">موضوع بعدی</span>
+            <span className="block text-3xs text-slate-400">موضوع بعدی</span>
             <span className="mt-0.5 block font-black text-slate-800">→ {next.title}</span>
           </Link>
         )}
       </div>
-      <Link
+      <Link prefetch={false}
         href={listHref}
         className="block rounded-2xl border border-slate-200 bg-slate-50 p-3 text-center text-xs font-black text-slate-600 hover:border-slate-400"
       >
@@ -90,11 +90,11 @@ export function HelpPrevNext({ prev, next, listHref, listLabel }: { prev: PrevNe
       </Link>
       <div>
         {prev && (
-          <Link
+          <Link prefetch={false}
             href={`/help/${prev.role}/${prev.slug}`}
             className="block rounded-2xl border border-slate-200 bg-white p-3 text-left text-xs hover:border-indigo-300 hover:bg-indigo-50/50"
           >
-            <span className="block text-[10px] text-slate-400">موضوع قبلی</span>
+            <span className="block text-3xs text-slate-400">موضوع قبلی</span>
             <span className="mt-0.5 block font-black text-slate-800">{prev.title} ←</span>
           </Link>
         )}

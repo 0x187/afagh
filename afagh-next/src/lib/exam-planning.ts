@@ -6,9 +6,12 @@
  * این فایل فقط خواندن/نوشتن DB + قفل توافقی + audit را انجام می‌دهد — طبق
  * الگوی D3 (motor در lib، اکشن‌های گارددار در app).
  *
- * قرارداد تاریخ: `exam_sessions.examDate` و ورودی/خروجی‌های UI = «شمسی»
- * 'YYYY/MM/DD' (هم‌قول با seed و class_sessions)؛ `schedules.examDate`
- * (ستون date) میلادی ذخیره می‌شود و در همین‌جا تبدیل می‌شود.
+ * قرارداد تاریخ: **هر دو** ستونِ تاریخ شمسی‌اند — `exam_sessions.examDate`
+ * (varchar) و `schedules.examDate` (نوع date) هر دو برچسبِ «شمسی» 'YYYY/MM/DD'
+ * (یا 'YYYY-MM-DD') را نگه می‌دارند، هم‌قول با seed و `class_sessions`.
+ * تبدیل به میلادی فقط در لایهٔ نمایش انجام می‌شود (`normalizeExamDate`).
+ * ⚠ پیش‌تر `schedules.examDate` میلادی نوشته می‌شد و همان ستون دو قالب داشت؛
+ * خواندنِ یکدست آن باگ «تاریخ‌های نامعتبر» (۱۴۰۵-۱۰-۲۸ → ۷۸۴/۰۸/۰۶) را می‌داد.
  *
  * مرجعیت تقویم (authoritative): تقویم معیار امتحانات = ردیف‌های `schedules`
  * با scheduleType='EXAM' (تاریخ/ساعت هر درس — همان که دانشجو در کارت ورود
@@ -28,16 +31,15 @@ import {
   schedules, seat_allocations,
 } from '@/db/schema';
 import { auditChain, type AuditTx } from '@/lib/audit-chain';
+import { advisoryLock } from '@/lib/advisory-lock';
+import { execFirstRow } from '@/lib/db-result';
 import { jalaliDateOf, parseJalaliDate } from '@/lib/scheduling-core';
+import { examDateColumnValue, normalizeExamDate } from '@/lib/shamsi';
 import {
   allowedExamRange, examKindOf, examLevelOf, normJalali, planSeatAllocation,
   scoreExamSlot, slotAllowedInZone, validateAndSplitExam, validateZoning,
   type ExamZoning, type SplitVerdict,
 } from '@/lib/exam-scheduler';
-
-async function advisoryLock(tx: AuditTx, ns: string, a: number, b = 0) {
-  await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`${ns}:${a}:${b}`}, 0))`);
-}
 
 /** دانشگاه مالک یک ترم (ترم‌ها per-uni هستند: uq_terms_uni_code) */
 export async function termUniversityId(termId: number): Promise<number | null> {
@@ -61,47 +63,19 @@ export const STANDARD_EXAM_SHIFTS: { startTime: string; endTime: string }[] = [
 
 const hm = (t: unknown) => (t == null ? '' : String(t).slice(0, 5));
 
-const pad2 = (n: number) => String(n).padStart(2, '0');
-
-/** Date محلی → 'YYYY-MM-DD' (بدون جابه‌جایی منطقهٔ زمانی) */
-const toIsoDate = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-
-/** 'YYYY-MM-DD' → Date محلی (بدون جابه‌جایی منطقهٔ زمانی) */
-const fromIsoDate = (s: string): Date | null => {
-  const m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s.trim());
-  if (!m) return null;
-  return new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
-};
-
-/** تاریخ شمسیِ یک ستون date میلادی */
-const jalaliOfDateCol = (d: unknown): string | null => {
-  if (!d) return null;
-  const dt = typeof d === 'string' ? fromIsoDate(d) : d instanceof Date ? d : fromIsoDate(String(d));
-  if (!dt || isNaN(dt.getTime())) return null;
-  return jalaliDateOf(dt);
-};
-
 /**
- * تاریخ یک «جلسهٔ امتحان» به شکل شمسی استاندارد.
+ * تاریخ یک ردیفِ تقویمی (`schedules.examDate` / `exam_sessions.examDate`) به
+ * شکل شمسی استاندارد 'YYYY/MM/DD'.
  *
- * قرارداد پروژه این است که `exam_sessions.examDate` شمسی باشد، ولی ردیف‌های
- * موجودِ دیتابیس (ایمپورت/سید قدیمی) میلادی‌اند؛ پیش‌تر مقایسهٔ خام باعث می‌شد
- * هیچ ارائه‌ای به جلسه تطبیق نخورد و «تخصیص صندلی» همیشه صفر بماند. این تابع
- * هر دو قالب را می‌پذیرد تا تطبیق خراب نشود.
+ * منطق تحمل‌پذیر (هر دو قالب شمسی/میلادی) در `normalizeExamDate` است؛ اینجا
+ * فقط یک نام محلی برای خواناییِ این فایل نگه داشته شده. پیش‌تر همه را میلادی
+ * فرض می‌کرد و تاریخ‌های شمسیِ ایمپورت‌شده را دوباره تبدیل می‌کرد
+ * (۱۴۰۵-۱۰-۲۸ → ۷۸۴/۰۸/۰۶) — همان باگ «تاریخ‌های نامعتبر» در رادار ظرفیت.
  */
-const sessionDateJalali = (v: unknown): string | null => {
-  const s = String(v ?? '').trim();
-  if (!s) return null;
-  const jal = /^(\d{4})[/-](\d{1,2})[/-](\d{1,2})$/.exec(s);
-  if (jal) {
-    const year = Number(jal[1]);
-    if (year < 1600) return normJalali(`${jal[1]}/${jal[2]}/${jal[3]}`);
-    const iso = fromIsoDate(`${jal[1]}-${jal[2]}-${jal[3]}`);
-    return iso ? normJalali(jalaliDateOf(iso)) : null;
-  }
-  const iso = fromIsoDate(s);
-  return iso ? normJalali(jalaliDateOf(iso)) : null;
-};
+const jalaliOfDateCol = (d: unknown): string | null => normalizeExamDate(d);
+
+/** تاریخ یک «جلسهٔ امتحان» — همان منطق تحمل‌پذیر (نام قدیمی حفظ شده) */
+const sessionDateJalali = (v: unknown): string | null => normalizeExamDate(v);
 
 // ─────────────────────────── زون‌بندی ───────────────────────────
 
@@ -236,7 +210,7 @@ export async function examCourseProfile(offeringId: number): Promise<ExamCourseP
       left join degree_level_configs d on d.id = ma."degreeLevelId"
      where o.id = ${offeringId}
   `);
-  const degTitle = ((deg as unknown as { rows: { degreeTitle: string | null }[] }).rows?.[0]?.degreeTitle) ?? null;
+  const degTitle = execFirstRow<{ degreeTitle: string | null }>(deg)?.degreeTitle ?? null;
   return {
     offeringId: r.offeringId,
     courseCode: r.courseCode,
@@ -296,9 +270,22 @@ async function upsertExamBlock(tx: AuditTx, termId: number, examDate: string, st
   }
 }
 
-/** نوشتن ردیف تقویمی درس (schedules — type EXAM؛ examDate میلادی) */
-async function writeScheduleRow(tx: AuditTx, offeringId: number, examDate: string, startTime: string, endTime: string, universityId?: number) {
+/**
+ * نوشتن ردیف تقویمی درس (schedules — type EXAM).
+ *
+ * ⚠ قراردادِ تاریخ: `schedules.examDate` **شمسیِ برچسبی** است (`1405-10-22`)،
+ * نه میلادی. ستون از نوع `date` است ولی همهٔ ۱۲۹۵ ردیفِ موجود و همچنین
+ * `class_sessions.sessionDate` به همین شکل نوشته شده‌اند. پیش‌تر این تابع
+ * میلادی می‌نوشت و نتیجه‌اش دو بود:
+ *   • ردیف تازه با بقیهٔ ستون ناسازگار می‌شد و `ORDER BY exam_date` در
+ *     گزارش‌ها بین دو قالب بی‌معنا می‌شد (۱۴۰۵ < ۲۰۲۷)،
+ *   • فرم ویرایش ارائه تاریخ را با فرض میلادی می‌خواند و برای ردیف‌های شمسی
+ *     تاریخِ بی‌معنا نشان می‌داد.
+ * پس همان برچسبِ شمسی نوشته می‌شود؛ تبدیل به میلادی فقط در لایهٔ نمایش است.
+ */
+async function writeScheduleRow(tx: AuditTx, offeringId: number, examDateJalali: string, startTime: string, endTime: string, universityId?: number) {
   const uni = universityId ?? null;
+  const examDate = examDateColumnValue(examDateJalali);
   const [sched] = await tx
     .select({ id: schedules.id })
     .from(schedules)
@@ -340,7 +327,7 @@ export async function scheduleExamForOffering(
     }
 
     await upsertExamBlock(tx, px.termId, normJalali(px.examDate), px.startTime, px.endTime, uni ?? undefined);
-    await writeScheduleRow(tx, px.offeringId, toIsoDate(parseJalaliDate(px.examDate)), px.startTime, px.endTime, uni ?? undefined);
+    await writeScheduleRow(tx, px.offeringId, px.examDate, px.startTime, px.endTime, uni ?? undefined);
     await tx.insert(course_exam_sessions).values({
       courseOfferingId: px.offeringId, totalExpectedSheets: profile.enrolledCount,
       ...(uni != null ? { universityId: uni } : {}),
@@ -425,7 +412,7 @@ export async function scheduleUnifiedCluster(
 
     await upsertExamBlock(tx, px.termId, normJalali(px.examDate), px.startTime, px.endTime, uni ?? undefined);
     for (const o of offerings) {
-      await writeScheduleRow(tx, o.id, toIsoDate(parseJalaliDate(px.examDate)), px.startTime, px.endTime, uni ?? undefined);
+      await writeScheduleRow(tx, o.id, px.examDate, px.startTime, px.endTime, uni ?? undefined);
       await tx.insert(course_exam_sessions).values({ courseOfferingId: o.id, totalExpectedSheets: Number(o.enrolledCount ?? 0), ...(uni != null ? { universityId: uni } : {}) });
     }
 

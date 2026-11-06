@@ -369,7 +369,7 @@ export async function processQueuedSubmit(userId: number, studentId: number, acc
     if (already.has(o.id)) continue;
     const rule = prereq.ruleByCourse.get(o.courseId);
     if (!rule) continue;
-    const ev = evaluateLogicTree(rule, prereq.passed);
+    const ev = evaluateLogicTree(rule, prereq.passed, prereq);
     if (!ev.ok) {
       const missing = ev.missing.map(c => prereq.titles.get(c) ?? c).join('، ');
       out.softErrors.push({ offeringId: o.id, msg: 'عدم پیش‌نیاز: «' + o.title + '» نیازمند گذرانده‌شدن «' + missing + '» است.' });

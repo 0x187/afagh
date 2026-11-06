@@ -41,7 +41,7 @@ export default async function CodeHubPage() {
       </div>
       <div className="grid gap-3 sm:grid-cols-3">
         {HUB.map(m => (
-          <Link
+          <Link prefetch={false}
             key={m.href}
             href={m.href}
             className={`group flex flex-col gap-3 rounded-2xl border bg-gradient-to-br ${m.accent} p-5 text-white shadow transition-transform hover:-translate-y-0.5`}
@@ -50,7 +50,7 @@ export default async function CodeHubPage() {
               <span className="text-2xl">{m.icon}</span>
               <h3 className="font-black text-sm leading-5">{m.title}</h3>
             </div>
-            <p className="text-[11px] text-white/70 leading-4">{m.desc}</p>
+            <p className="text-2xs text-white/70 leading-4">{m.desc}</p>
           </Link>
         ))}
       </div>

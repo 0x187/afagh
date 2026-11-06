@@ -79,7 +79,7 @@ export default async function StudentThesisProposalPage() {
         <div className="space-y-3" dir="rtl">
           <div className="card p-4 bg-gradient-to-l from-emerald-700 to-teal-800 text-white">
             <h1 className="text-base sm:text-lg font-black">پایان‌نامه و پروپوزال من</h1>
-            <p className="text-[11px] text-emerald-100 mt-1 leading-6">
+            <p className="text-2xs text-emerald-100 mt-1 leading-6">
               این بخش برای دانشجویانی است که در مقطع تحصیلی خود پایان‌نامه دارند.
             </p>
           </div>
@@ -103,7 +103,7 @@ export default async function StudentThesisProposalPage() {
       <div className="space-y-3" dir="rtl">
         <div className="card p-4 bg-gradient-to-l from-emerald-700 to-teal-800 text-white">
           <h1 className="text-base sm:text-lg font-black">پایان‌نامه و پروپوزال من</h1>
-          <p className="text-[11px] text-emerald-100 mt-1 leading-6">
+          <p className="text-2xs text-emerald-100 mt-1 leading-6">
             شما در مقطع <b>{level?.title || 'تحصیلات تکمیلی'}</b> تحصیل می‌کنید و پایان‌نامه برای شما الزامی است.
           </p>
         </div>
@@ -131,7 +131,7 @@ export default async function StudentThesisProposalPage() {
               <div className="h-2 mt-1.5 rounded-full bg-slate-200 overflow-hidden">
                 <div className="h-full bg-emerald-600" style={{ width: `${ratio}%` }} />
               </div>
-              <p className="text-[11px] text-slate-500 mt-1.5">
+              <p className="text-2xs text-slate-500 mt-1.5">
                 {remainingUnits > 0
                   ? `${remainingUnits} واحد تا تکمیل سرفصل باقی مانده است؛ تا آن زمان عنوان و پروپوزال ثبت نمی‌شود.`
                   : 'واحدهای سرفصل تکمیل شده و پروندهٔ شما در صف بررسی کارشناس آموزشی است.'}

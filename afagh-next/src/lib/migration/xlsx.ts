@@ -250,7 +250,9 @@ export function readXlsx(buf: Buffer): XlsxSheet[] {
           else if (type === 'b') value = raw === '1' ? 'true' : 'false';
           else if (type === 'e') value = '';
           else if (raw !== '' && dateStyles.has(styleIdx) && Number.isFinite(Number(raw))) value = serialToIso(Number(raw));
-          else value = raw;
+          // اکسل عدد صحیح را گاهی «84.0» ذخیره می‌کند (خروجی pandas/openpyxl).
+          // اگر همین‌طور بماند، کد رشتهٔ «84.0» با «84» سامانه تطبیق نمی‌خورد.
+          else value = raw.replace(/^(-?\d+)\.0+$/, '$1');
         }
         const idx = ref ? colIndex(ref) : cells.length;
         while (cells.length < idx) cells.push('');

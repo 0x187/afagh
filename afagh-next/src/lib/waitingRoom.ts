@@ -208,10 +208,31 @@ export function ensureWorker() {
 }
 
 export async function waitingRoomStats() {
+  /**
+   * ⏱ محافظِ زمانی.
+   *
+   * چرا لازم است: این تابع در **صفحهٔ اولِ** کارتابل مدیریت صدا زده می‌شود و
+   * پیش‌تر با `await` مستقیم اجرا می‌شد. اگر Redis خاموش یا کند بود، کلاینتِ
+   * ioredis تا `connectTimeout`/`maxRetriesPerRequest` تلاش می‌کرد و در این
+   * فاصله **کلِ صفحه** روی اسکلتون می‌ماند — همان «به‌شدت کند»ی که گزارش شد.
+   * حالا حداکثر ۷۰۰ms صبر می‌کنیم و بعد «در دسترس نیست» برمی‌گردانیم؛ تجربهٔ
+   * کاربر به سلامتِ Redis گره نمی‌خورد.
+   */
+  const fallback = { up: false, queueLength: 0, warmedOfferings: 0 };
   try {
-    const [qlen, warmed, ping] = await Promise.all([redis.zcard(K.queue), redis.hlen(K.caps), redis.ping()]);
-    return { up: ping === 'PONG', queueLength: qlen, warmedOfferings: warmed };
+    const work = (async () => {
+      const [qlen, warmed, ping] = await Promise.all([redis.zcard(K.queue), redis.hlen(K.caps), redis.ping()]);
+      return { up: ping === 'PONG', queueLength: qlen, warmedOfferings: warmed };
+    })();
+    return await Promise.race([
+      work,
+      new Promise<typeof fallback>((resolve) => {
+        const t = setTimeout(() => resolve(fallback), 700);
+        // تایمر نباید پروسه را زنده نگه دارد
+        (t as unknown as { unref?: () => void }).unref?.();
+      }),
+    ]);
   } catch {
-    return { up: false, queueLength: 0, warmedOfferings: 0 };
+    return fallback;
   }
 }

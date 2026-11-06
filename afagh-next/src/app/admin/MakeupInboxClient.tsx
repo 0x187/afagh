@@ -93,7 +93,7 @@ export default function MakeupInboxClient({ initialRows, rooms }: Props) {
           </button>
           <button onClick={() => setFilter('PENDING')} className={`px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 ${filter === 'PENDING' ? 'bg-amber-500 text-white shadow-xs' : 'text-amber-800 hover:bg-amber-100/60'}`}>
             <span>⏳ در انتظار تخصیص</span>
-            <span className="px-1.5 py-0.2 rounded-full bg-amber-700/40 text-[10px]">{pendingCount}</span>
+            <span className="px-1.5 py-0.2 rounded-full bg-amber-700/40 text-3xs">{pendingCount}</span>
           </button>
           <button onClick={() => setFilter('APPROVED')} className={`px-3 py-1.5 rounded-lg transition ${filter === 'APPROVED' ? 'bg-emerald-600 text-white shadow-xs' : 'text-emerald-800 hover:bg-emerald-100/60'}`}>
             ✓ تایید و ابلاغ‌شده ({rows.filter(r => r.status === 'SCHEDULED').length})
@@ -138,7 +138,7 @@ export default function MakeupInboxClient({ initialRows, rooms }: Props) {
                       <span className="text-xs font-extrabold text-indigo-900 bg-indigo-50 border border-indigo-200 px-2.5 py-0.5 rounded-full">
                         استاد: {req.professorName} ({req.staffCode})
                       </span>
-                      <span className={`text-[11px] px-2.5 py-0.5 rounded-full font-bold ${
+                      <span className={`text-2xs px-2.5 py-0.5 rounded-full font-bold ${
                         isPending ? 'bg-amber-200 text-amber-900 border border-amber-300 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200'
                         : isApproved ? 'bg-emerald-200 text-emerald-900 border border-emerald-300 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'
                         : 'bg-rose-200 text-rose-900 border border-rose-300 dark:border-rose-800 dark:bg-rose-950 dark:text-rose-200'
@@ -179,7 +179,7 @@ export default function MakeupInboxClient({ initialRows, rooms }: Props) {
 
                   {isPending && (
                     <div className="bg-white p-3 rounded-xl border border-amber-200 shadow-xs flex flex-col gap-2 min-w-[280px]">
-                      <label className="text-[11px] font-bold text-slate-700">🏢 انتخاب کلاس خالی دانشگاه در این سانس:</label>
+                      <label className="text-2xs font-bold text-slate-700">🏢 انتخاب کلاس خالی دانشگاه در این سانس:</label>
                       <select
                         value={selectedRooms[req.id] ?? rooms[0]?.id ?? ''}
                         onChange={e => setSelectedRooms({ ...selectedRooms, [req.id]: Number(e.target.value) })}

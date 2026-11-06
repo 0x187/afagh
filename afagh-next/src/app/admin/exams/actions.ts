@@ -18,21 +18,13 @@ import { requireRole } from '@/lib/auth';
 import { getCurrentUniversity } from '@/lib/university-scope';
 import { pickEffectiveTerm } from '@/lib/term-scope';
 import * as engine from '@/lib/exam-engine';
-import { jalaliDateOf } from '@/lib/scheduling-core';
+import { normalizeExamDate } from '@/lib/shamsi';
 
 const EDITORS = ['ADMIN', 'EDU_EXPERT'];
 
 /** نرمال‌سازی تاریخ سشن به شمسی YYYY/MM/DD (ردیف قدیمی میلادی → تبدیل) */
 function normSessionDate(v: unknown): string {
-  const s = String(v ?? '').trim();
-  if (/^\d{4}\/\d{1,2}\/\d{1,2}$/.test(s)) return s;
-  const m = /^(\d{4})-(\d{1,2})-(\d{1,2})/.exec(s);
-  if (m) {
-    try {
-      return jalaliDateOf(new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
-    } catch { return s; }
-  }
-  return s;
+  return normalizeExamDate(v) ?? String(v ?? '');
 }
 
 // ─────────────────────────── helpers (غیر export — گارد CI) ───────────────────────────
@@ -160,7 +152,10 @@ async function loadExamCourses(termId: number, universityId?: number) {
     groupNumber: r.groupNumber,
     professorId: r.professorId,
     professorName: r.profFirstName ? `${r.profFirstName} ${r.profLastName ?? ''}`.trim() : 'تخصیص‌نیافته',
-    examDate: r.examDate ? jalaliDateOf(new Date(r.examDate + 'T00:00:00')) : null,
+    // ⚠ تاریخ در این ستون می‌تواند شمسیِ ذخیره‌شده (۱۴۰۵-۱۰-۲۸) یا میلادی باشد؛
+    // `normalizeExamDate` هر دو را می‌شناسد. پیش‌تر کورکورانه میلادی فرض می‌شد و
+    // تاریخ‌ها به شکل ۷۸۴/۰۸/۰۶ درمی‌آمدند.
+    examDate: normalizeExamDate(r.examDate),
     startTime: String(r.startTime ?? '').slice(0, 5),
     endTime: String(r.endTime ?? '').slice(0, 5),
     roomName: r.roomName ?? '—',

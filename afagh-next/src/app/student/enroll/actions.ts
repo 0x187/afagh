@@ -175,7 +175,7 @@ export async function autoFillCartFromChartAction(): Promise<{
   const passesPrereqs = (courseId: number): boolean => {
     const rule = prereqCtx.ruleByCourse.get(courseId);
     if (!rule) return true;
-    return evaluateLogicTree(rule, prereqCtx.passed).ok;
+    return evaluateLogicTree(rule, prereqCtx.passed, prereqCtx).ok;
   };
 
   // ── دروس ثبت‌شدهٔ همین ترم (نباید دوباره پیشنهاد شوند) ──
@@ -626,7 +626,7 @@ export async function requestBypassAction(
   if (kind === 'PREREQ') {
     const prereqCtx = await buildPrereqContext(me.id);
     const node = prereqCtx.ruleByCourse.get(target.courseId);
-    if (node && evaluateLogicTree(node, prereqCtx.passed).ok) {
+    if (node && evaluateLogicTree(node, prereqCtx.passed, prereqCtx).ok) {
       return { ok: false, error: 'پیش‌نیاز این درس را پاس کرده‌اید؛ نیازی به درخواست نیست.' };
     }
   }

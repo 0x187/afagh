@@ -170,13 +170,13 @@ export default async function ProfessorAttendancePage({ searchParams }: { search
     list.push(r);
     schedulesByOffering.set(r.offeringId, list);
   }
-  const attBySession = new Map<number, Map<number, string>>();
+  const attBySession = new Map<number, Map<number, { status: string; lateMinutes: number | null }>>();
   for (const a of attendanceRows) {
     const en = enrollmentById.get(a.enrollmentId);
     if (!en) continue;
     let m = attBySession.get(a.sessionId);
     if (!m) { m = new Map(); attBySession.set(a.sessionId, m); }
-    m.set(en.studentId, a.status);
+    m.set(en.studentId, { status: a.status, lateMinutes: a.lateMinutes ?? null });
   }
 
   // حضور استاد در هر جلسه
@@ -246,8 +246,11 @@ export default async function ProfessorAttendancePage({ searchParams }: { search
       const sessionCourse = offeringById.get(s.offeringId)?.course ?? primary.course;
       const statuses: ClassSessionItem['studentStatuses'] = {};
       const attMap = attBySession.get(s.id);
-      if (attMap) for (const [studentId, status] of attMap) {
-        statuses[studentId] = { status: status as 'PRESENT' | 'LATE' | 'ABSENT' | 'EXCUSED' };
+      if (attMap) for (const [studentId, rec] of attMap) {
+        statuses[studentId] = {
+          status: rec.status as 'PRESENT' | 'LATE' | 'ABSENT' | 'EXCUSED',
+          ...(rec.status === 'LATE' && rec.lateMinutes != null ? { lateMinutes: rec.lateMinutes } : {}),
+        };
       }
       const profCheck = profAttBySession.get(s.id);
       const replaced = s.replacedSessionId

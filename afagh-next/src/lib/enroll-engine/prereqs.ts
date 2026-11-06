@@ -7,10 +7,23 @@ import { expandPassedWithEquivalents } from './equivalence-expand';
 
 // ═══ فیلتر ۴: ارزیابی درخت منطقی پیش‌نیاز (وفادار به فاز صفر — engines/enrollment.js) ═══
 // ساختار: {"operator":"AND"|"OR","conditions":[{course:"code",minGrade:10}, ...]}
-type LogicCondition = { course?: string; minGrade?: number; operator?: string; conditions?: LogicCondition[] };
+// برگ‌های غیردرسی هم پشتیبانی می‌شوند (از «جدول دروس» قدیم):
+//   {unitsPassed: 47}  → دانشجو باید دست‌کم ۴۷ واحد پاس‌کرده باشد
+//   {minSemester: 7}   → دانشجو باید دست‌کم در ترم ۷ باشد
+type LogicCondition = {
+  course?: string; minGrade?: number; unitsPassed?: number; minSemester?: number;
+  operator?: string; conditions?: LogicCondition[];
+};
 type LogicNode = { operator?: string; conditions?: LogicCondition[] };
 
-export function evaluateLogicTree(node: LogicNode | null | undefined, passedMap: Map<string, number>): { ok: boolean; missing: string[] } {
+/** زمینهٔ ارزیابی برگ‌های غیردرسی (واحد پاس‌کرده و شمارهٔ ترمِ دانشجو) */
+export type EvalContext = { unitsPassed?: number; semesterNo?: number };
+
+export function evaluateLogicTree(
+  node: LogicNode | null | undefined,
+  passedMap: Map<string, number>,
+  ctx: EvalContext = {},
+): { ok: boolean; missing: string[] } {
   if (!node || typeof node !== 'object') return { ok: true, missing: [] };
   const results = (node.conditions || []).map(c => {
     if (c.course) {
@@ -18,7 +31,17 @@ export function evaluateLogicTree(node: LogicNode | null | undefined, passedMap:
       const ok = grade !== undefined && (c.minGrade != null ? grade >= c.minGrade : true);
       return { ok, missing: ok ? [] : [c.course] };
     }
-    if (c.operator) return evaluateLogicTree(c as LogicNode, passedMap);
+    if (c.operator) return evaluateLogicTree(c as LogicNode, passedMap, ctx);
+    // برگ غیردرسی: واحد پاس‌کرده
+    if (c.unitsPassed != null) {
+      const ok = (ctx.unitsPassed ?? 0) >= Number(c.unitsPassed);
+      return { ok, missing: ok ? [] : [`حداقل ${c.unitsPassed} واحد پاس‌کرده`] };
+    }
+    // برگ غیردرسی: حداقل ترم
+    if (c.minSemester != null) {
+      const ok = (ctx.semesterNo ?? 1) >= Number(c.minSemester);
+      return { ok, missing: ok ? [] : [`حداقل ترم ${c.minSemester}`] };
+    }
     return { ok: true, missing: [] };
   });
   const op = (node.operator || 'AND').toUpperCase();
@@ -31,6 +54,10 @@ export type PrereqContext = {
   ruleByCourse: Map<number, LogicNode>;                          // courseId → درخت PREREQ مؤثر
   titles: Map<string, string>;                                   // code → عنوان درس
   defaultPassing: number;
+  /** جمع واحدهای دروس پاس‌شده (برای شرط «۴۷ واحد پاس‌کرده») */
+  unitsPassed: number;
+  /** شمارهٔ ترم جاری دانشجو (برای شرط «حداقل ترم ۷») */
+  semesterNo: number;
 };
 
 /** نمرهٔ قبولی مؤثر: اورراید درس > پیش‌فرض مقطع (وفادار به regulations.js) */
@@ -78,7 +105,7 @@ export async function buildPrereqContext(studentId: number): Promise<PrereqConte
 
   // دروس پاس‌شده
   const rows = await db
-    .select({ code: courses.code, courseId: courses.id, grade: enrollments.gradeValue, status: enrollments.gradeStatus, gradingType: courses.gradingType })
+    .select({ code: courses.code, courseId: courses.id, grade: enrollments.gradeValue, status: enrollments.gradeStatus, gradingType: courses.gradingType, units: courses.units })
     .from(enrollments)
     .innerJoin(course_offerings, eq(course_offerings.id, enrollments.offeringId))
     .innerJoin(courses, eq(courses.id, course_offerings.courseId))
@@ -91,12 +118,26 @@ export async function buildPrereqContext(studentId: number): Promise<PrereqConte
     if (ok && (!passed.has(r.code) || (passed.get(r.code) as number) < g)) passed.set(r.code, g);
   }
 
+  // جمع واحدهای پاس‌شده — پیش از گسترش هم‌ارزی‌ها محاسبه می‌شود تا واحدِ هم‌ارز
+  // دوباره شمرده نشود (هر درس فقط یک بار در جمع می‌آید).
+  const unitsOf = new Map<string, number>();
+  for (const r of rows) if (!unitsOf.has(r.code)) unitsOf.set(r.code, Number(r.units) || 0);
+  let unitsPassed = 0;
+  for (const code of passed.keys()) unitsPassed += unitsOf.get(code) ?? 0;
+
   const courseRows = await db.select({ code: courses.code, title: courses.title, clusterId: courses.clusterId }).from(courses);
   const titles = new Map(courseRows.map(c => [c.code, c.title]));
   const members = courseRows
     .filter(c => c.clusterId != null)
     .map(c => ({ clusterCode: Number(c.clusterId), code: c.code }));
-  return { passed: expandPassedWithEquivalents(passed, members), ruleByCourse, titles, defaultPassing };
+  return {
+    passed: expandPassedWithEquivalents(passed, members),
+    ruleByCourse,
+    titles,
+    defaultPassing,
+    unitsPassed,
+    semesterNo: Number(stu?.currentTermNo ?? 1) || 1,
+  };
 }
 
 /** برچسب خوانأ پیش‌نیاز برای UI: «برنامه‌نویسی پیشرفته و ریاضی عمومی ۱» */
@@ -106,6 +147,8 @@ export function formatPrereq(node: LogicNode | undefined, titles: Map<string, st
   const parts = node.conditions.map(c => {
     if (c.course) return titles.get(c.course) ?? c.course;
     if (c.operator) return '(' + formatPrereq(c as LogicNode, titles) + ')';
+    if (c.unitsPassed != null) return `گذراندن ${c.unitsPassed} واحد`;
+    if (c.minSemester != null) return `حداقل ترم ${c.minSemester}`;
     return '';
   }).filter(Boolean);
   return parts.length ? parts.join(joiner) : null;

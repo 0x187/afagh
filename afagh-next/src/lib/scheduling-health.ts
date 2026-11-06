@@ -17,7 +17,8 @@ import {
   course_offerings, courses, schedules, scheduling_allocations,
   scheduling_room_grants,
 } from '@/db/schema';
-import { overlaps, shiftUtilization, toMinutes, type Shift } from '@/lib/scheduling-core';
+import { countInternalGaps, overlaps, shiftUtilization, toMinutes, type Shift } from '@/lib/scheduling-core';
+import { detectExamConflicts } from '@/lib/exam-scheduler';
 import { forecastCourseDemand } from '@/lib/scheduling-engine';
 
 const hm = (t: string | null | undefined) => (t ? String(t).slice(0, 5) : '');
@@ -29,6 +30,13 @@ export interface HealthReport {
   unallocatedShared: { offeringId: number; courseId: number; groupNumber: number }[];
   roomShiftUsage: { classroomId: number; classroomName: string; facultyId: number | null; shift: Shift; occupiedMinutes: number; utilization: number }[];
   releasedUnused: { classroomId: number; shift: Shift }[];
+  /** تداخل‌های امتحانی — قطعی (هم‌زمان) و نرم (همان روز) */
+  examConflicts: {
+    hard: { a: number; b: number; courseA: string; courseB: string; examDate: string; message: string }[];
+    soft: { a: number; b: number; courseA: string; courseB: string; examDate: string; message: string }[];
+  };
+  /** استادانی که روزهایشان پراکنده است (ساعت خالی بین کلاس‌ها) — بند ۴ب */
+  fragmentedProfessorDays: { professorId: number; dayOfWeek: number; gaps: number; blocks: number }[];
   lines: string[];
 }
 
@@ -36,6 +44,7 @@ export async function runSchedulingHealthCheck(termId: number): Promise<HealthRe
   const report: HealthReport = {
     termId, hiddenConflicts: [], supplyVsDemand: [], unallocatedShared: [],
     roomShiftUsage: [], releasedUnused: [], lines: [],
+    examConflicts: { hard: [], soft: [] }, fragmentedProfessorDays: [],
   };
 
   // ── ۱) تداخل‌های پنهان (استاد/مکان) ──
@@ -136,6 +145,53 @@ export async function runSchedulingHealthCheck(termId: number): Promise<HealthRe
   report.lines.push(released.length
     ? `🔄 ${released.length} شیفت در استخر شناور آزاد و قابل استفاده است.`
     : '✅ استخر شناور خالی است (یا همهٔ شیفت‌ها مصرف شده‌اند).');
+
+  // ── ۶) تداخل‌های امتحانی (قطعی و نرم) ──
+  // موتور امتحانات از قبل وجود داشت (`exam-scheduler.ts`) ولی تابلوی برنامه‌ریزی
+  // هیچ‌وقت صدایش نمی‌زد؛ حالا هر دو نوع تداخل اینجا دیده می‌شود.
+  const examRows = (await db.execute(sql`
+    select o.id as "offeringId", c.code as "courseCode", s."examDate", s."startTime", s."endTime"
+    from schedules s
+    join course_offerings o on o.id = s."offeringId"
+    join courses c on c.id = o."courseId"
+    where o."termId" = ${termId} and s."scheduleType" = 'EXAM' and s."examDate" is not null
+  `)).rows as { offeringId: number; courseCode: string; examDate: string; startTime: string; endTime: string }[];
+
+  const examSlots = examRows.map(r => ({
+    offeringId: Number(r.offeringId),
+    courseCode: r.courseCode ?? '—',
+    // ستون date در درایور به شکل 'YYYY-MM-DD' یا Date برمی‌گردد؛ یکسان‌سازی
+    examDate: String(r.examDate).slice(0, 10).replace(/-/g, '/'),
+    startTime: hm(r.startTime),
+    endTime: hm(r.endTime),
+  }));
+  report.examConflicts = detectExamConflicts(examSlots);
+  report.lines.push(
+    report.examConflicts.hard.length
+      ? `📝 ${report.examConflicts.hard.length} تداخل قطعی امتحانی (هم‌زمان) پیدا شد.`
+      : `✅ هیچ تداخل قطعی امتحانی وجود ندارد (${examSlots.length} امتحان زمان‌بندی‌شده).`,
+  );
+  if (report.examConflicts.soft.length) {
+    report.lines.push(`⚠️ ${report.examConflicts.soft.length} امتحان در همان روز (تداخل نرم — برای دانشجویان مشترک خسته‌کننده است).`);
+  }
+
+  // ── ۷) پراکندگی روزهای استاد (ساعت خالی بین کلاس‌ها) ──
+  const profBlocks = new Map<string, { professorId: number; dayOfWeek: number; blocks: { start: number; end: number }[] }>();
+  for (const r of rows) {
+    if (r.professorId == null || r.dayOfWeek == null) continue;
+    const key = `${r.professorId}:${r.dayOfWeek}`;
+    const cur = profBlocks.get(key) ?? { professorId: Number(r.professorId), dayOfWeek: Number(r.dayOfWeek), blocks: [] };
+    cur.blocks.push({ start: toMinutes(hm(r.startTime)), end: toMinutes(hm(r.endTime)) });
+    profBlocks.set(key, cur);
+  }
+  for (const v of profBlocks.values()) {
+    const gaps = countInternalGaps(v.blocks);
+    if (gaps > 0) report.fragmentedProfessorDays.push({ ...v, gaps, blocks: v.blocks.length });
+  }
+  report.fragmentedProfessorDays.sort((a, b) => b.gaps - a.gaps);
+  report.lines.push(report.fragmentedProfessorDays.length
+    ? `⏳ ${report.fragmentedProfessorDays.length} روزِ استاد با ساعت خالی بین کلاس‌ها (بیشترین: ${report.fragmentedProfessorDays[0].gaps} ساعت خالی).`
+    : '✅ هیچ روزی با ساعت خالیِ میانی برای استادان پیدا نشد.');
 
   return report;
 }

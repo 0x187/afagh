@@ -82,7 +82,7 @@ export default function HandoverClient({
       </div>
 
       <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-300 bg-white p-3">
-        <label className="text-[11px] font-bold text-slate-700">
+        <label className="text-2xs font-bold text-slate-700">
           نیمسال
           <select
             value={termId}
@@ -92,7 +92,7 @@ export default function HandoverClient({
             {terms.map(t => <option key={t.id} value={t.id}>{t.title} ({t.termCode}){t.isActive ? ' — فعال' : ''}</option>)}
           </select>
         </label>
-        <span className="mr-auto text-[11px] text-slate-500">{faNum(sessions.length)} جلسه · {faNum(deliveries.length)} تحویل — {termTitle}</span>
+        <span className="mr-auto text-2xs text-slate-500">{faNum(sessions.length)} جلسه · {faNum(deliveries.length)} تحویل — {termTitle}</span>
       </div>
 
       {msg && (
@@ -115,7 +115,7 @@ export default function HandoverClient({
         <h2 className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-800">جلسه‌های امتحان</h2>
         <table className="w-full text-xs rt">
           <thead>
-            <tr className="bg-slate-900 text-center text-[11px] text-white">
+            <tr className="bg-slate-900 text-center text-2xs text-white">
               <th className="p-2.5">جلسه</th>
               <th className="p-2.5">تاریخ / ساعت</th>
               <th className="p-2.5">سالن</th>
@@ -132,7 +132,7 @@ export default function HandoverClient({
                 <td className="p-2.5 text-center font-mono font-black text-slate-700">{faNum(s.sessionId)}</td>
                 <td className="p-2.5 text-center text-slate-600">
                   <span className="block font-mono">{faNum(s.examDate)}</span>
-                  <span className="block text-[10px] text-slate-400" dir="ltr">{s.time}</span>
+                  <span className="block text-3xs text-slate-400" dir="ltr">{s.time}</span>
                 </td>
                 <td className="p-2.5 text-center font-bold text-slate-700">{s.hallName}</td>
                 <td className="p-2.5 text-center font-mono">{faNum(s.present)}/{faNum(s.total)}</td>
@@ -144,7 +144,7 @@ export default function HandoverClient({
                     type="button"
                     disabled={pending || !s.hallId}
                     onClick={() => void makeQr(`تحویل اوراق سالن ${s.hallName} به مخزن`, `step=VAULT&sessionId=${s.sessionId}&hallId=${s.hallId ?? 0}`)}
-                    className="rounded-lg bg-indigo-700 px-2 py-1 text-[10px] font-black text-white hover:bg-indigo-800 disabled:opacity-40"
+                    className="rounded-lg bg-indigo-700 px-2 py-1 text-3xs font-black text-white hover:bg-indigo-800 disabled:opacity-40"
                   >
                     QR تحویل به مخزن
                   </button>
@@ -152,7 +152,7 @@ export default function HandoverClient({
                     type="button"
                     disabled={pending}
                     onClick={() => void makeQr(`نهایی‌سازی تحویل جلسه ${s.sessionId}`, `step=FINALIZE&sessionId=${s.sessionId}`)}
-                    className="mr-1 rounded-lg border border-slate-300 px-2 py-1 text-[10px] font-black text-slate-700 hover:bg-slate-100 disabled:opacity-40"
+                    className="mr-1 rounded-lg border border-slate-300 px-2 py-1 text-3xs font-black text-slate-700 hover:bg-slate-100 disabled:opacity-40"
                   >
                     QR نهایی‌سازی
                   </button>
@@ -160,7 +160,7 @@ export default function HandoverClient({
                     type="button"
                     disabled={pending}
                     onClick={() => finalize(s)}
-                    className="mr-1 rounded-lg bg-slate-800 px-2 py-1 text-[10px] font-black text-white hover:bg-slate-900 disabled:opacity-40"
+                    className="mr-1 rounded-lg bg-slate-800 px-2 py-1 text-3xs font-black text-white hover:bg-slate-900 disabled:opacity-40"
                   >
                     نهایی‌سازی
                   </button>
@@ -176,7 +176,7 @@ export default function HandoverClient({
         <h2 className="border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-800">تحویل اوراق به استاد و بازگشت به بایگانی</h2>
         <table className="w-full text-xs rt">
           <thead>
-            <tr className="bg-slate-900 text-center text-[11px] text-white">
+            <tr className="bg-slate-900 text-center text-2xs text-white">
               <th className="p-2.5">درس</th>
               <th className="p-2.5">استاد</th>
               <th className="p-2.5">وضعیت تحویل</th>
@@ -190,24 +190,24 @@ export default function HandoverClient({
               <tr key={d.deliveryId} className="border-b border-slate-100">
                 <td className="p-2.5">
                   <span className="font-black text-indigo-950">{d.courseCode}</span>
-                  <span className="block text-[10px] text-slate-500">{d.courseTitle}</span>
+                  <span className="block text-3xs text-slate-500">{d.courseTitle}</span>
                 </td>
                 <td className="p-2.5 font-bold text-slate-800">{d.professorName}</td>
                 <td className="p-2.5 text-center">
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-700">{d.status}</span>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-3xs font-black text-slate-700">{d.status}</span>
                 </td>
                 <td className="p-2.5 text-center font-mono">{faNum(d.sheetCount)}</td>
                 <td className="p-2.5 text-center">
                   {d.returnedToArchive
-                    ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black text-emerald-800">✓ تحویل بایگانی</span>
-                    : <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-800">در انتظار (شرط پرداخت)</span>}
+                    ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-3xs font-black text-emerald-800">✓ تحویل بایگانی</span>
+                    : <span className="rounded-full bg-amber-100 px-2 py-0.5 text-3xs font-black text-amber-800">در انتظار (شرط پرداخت)</span>}
                 </td>
                 <td className="p-2.5 text-center">
                   {!d.returnedToArchive && (
                     <button
                       type="button"
                       onClick={() => void makeQr(`بازگشت اوراق ${d.courseCode} به بایگانی`, `step=ARCHIVE&offeringId=${d.offeringId}`)}
-                      className="rounded-lg bg-emerald-700 px-2 py-1 text-[10px] font-black text-white hover:bg-emerald-800"
+                      className="rounded-lg bg-emerald-700 px-2 py-1 text-3xs font-black text-white hover:bg-emerald-800"
                     >
                       QR تحویل به بایگانی
                     </button>
@@ -215,7 +215,7 @@ export default function HandoverClient({
                   <button
                     type="button"
                     onClick={() => void makeQr(`تحویل اوراق ${d.courseCode} به استاد`, `step=INSTRUCTOR&offeringId=${d.offeringId}`)}
-                    className="mr-1 rounded-lg border border-indigo-300 bg-indigo-50 px-2 py-1 text-[10px] font-black text-indigo-800 hover:bg-indigo-100"
+                    className="mr-1 rounded-lg border border-indigo-300 bg-indigo-50 px-2 py-1 text-3xs font-black text-indigo-800 hover:bg-indigo-100"
                   >
                     QR تحویل به استاد
                   </button>

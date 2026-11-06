@@ -28,10 +28,8 @@ import {
   analyzeHardConflicts, computeSessionDates, toMinutes,
   type HardConflict, type HardConflictEntry,
 } from '@/lib/scheduling-core';
-
-async function advisoryLock(tx: AuditTx, ns: string, a: number, b = 0) {
-  await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${`${ns}:${a}:${b}`}, 0))`);
-}
+import { advisoryLock } from '@/lib/advisory-lock';
+import { execRows } from '@/lib/db-result';
 
 const hm = (t: unknown) => (t == null ? '' : String(t).slice(0, 5));
 
@@ -91,7 +89,7 @@ async function loadTermSchedules(exec: { execute: (q: ReturnType<typeof sql>) =>
     where o."termId" = ${termId} and s."scheduleType" = 'CLASS' and s."dayOfWeek" is not null
     order by s."offeringId", s."dayOfWeek"
   `);
-  const rows = (raw as { rows: Record<string, unknown>[] }).rows ?? [];
+  const rows = execRows<Record<string, unknown>>(raw);
   return rows.map(r => ({
     offeringId: Number(r.offeringId),
     dayOfWeek: Number(r.dayOfWeek),
@@ -116,7 +114,7 @@ async function loadProfessorsByOffering(exec: { execute: (q: ReturnType<typeof s
     where o."termId" = ${termId}
   `);
   const map = new Map<number, number[]>();
-  for (const r of (raw as { rows: { offeringId: number; staffId: number }[] }).rows) {
+  for (const r of execRows<{ offeringId: number; staffId: number }>(raw)) {
     const arr = map.get(Number(r.offeringId)) ?? [];
     arr.push(Number(r.staffId));
     map.set(Number(r.offeringId), arr);
@@ -128,7 +126,7 @@ async function loadProfessorsByOffering(exec: { execute: (q: ReturnType<typeof s
 async function loadRoomCapacities(exec: { execute: (q: ReturnType<typeof sql>) => Promise<unknown> }) {
   const raw = await exec.execute(sql`select id, "capacity" from classrooms`);
   const map = new Map<number, number>();
-  for (const r of (raw as { rows: { id: number; capacity: number | null }[] }).rows) {
+  for (const r of execRows<{ id: number; capacity: number | null }>(raw)) {
     map.set(Number(r.id), Number(r.capacity ?? 0));
   }
   return map;
@@ -453,9 +451,14 @@ export async function inspectSchedulingHardConflicts(termId: number): Promise<{
   truncated: boolean;
   rowCount: number;
 }> {
-  const schedRows = await loadTermSchedules(db, termId);
-  const profByOffering = await loadProfessorsByOffering(db, termId);
-  const roomCap = await loadRoomCapacities(db);
+  // این سه پرسوجو به هم وابسته نیستند — قبلاً پشتسرهم اجرا میشدند (۳ RTT
+  // جداگانه) و در صفحهٔ برنامهريزي روی ترمهای بزرگ ~۱ ثانیه به TTFB اضافه
+  // میکردند. `Promise.all` همان نتایج را در یک RTT میدهد.
+  const [schedRows, profByOffering, roomCap] = await Promise.all([
+    loadTermSchedules(db, termId),
+    loadProfessorsByOffering(db, termId),
+    loadRoomCapacities(db),
+  ]);
   const entries: HardConflictEntry[] = schedRows.map(s => {
     const profs = profByOffering.get(s.offeringId) ?? [];
     if (s.professorId != null && !profs.includes(s.professorId)) profs.unshift(s.professorId);

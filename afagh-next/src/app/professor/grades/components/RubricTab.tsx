@@ -74,10 +74,10 @@ export default function RubricTab({ offering, dispatch }: RubricTabProps) {
           <div key={f.key} className="flex items-center justify-between gap-4 p-3 bg-slate-50 rounded-2xl border border-slate-200">
             <div>
               <div className="font-black text-slate-900 text-xs">{f.label}</div>
-              <div className="text-[10px] text-slate-500 font-bold">{f.hint}</div>
+              <div className="text-3xs text-slate-500 font-bold">{f.hint}</div>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-slate-400 font-bold">سهم از ۲۰:</span>
+              <span className="text-3xs text-slate-400 font-bold">سهم از ۲۰:</span>
               <input
                 type="number"
                 min={0}
@@ -96,7 +96,7 @@ export default function RubricTab({ offering, dispatch }: RubricTabProps) {
       </div>
 
       {!valid && (
-        <p className="text-[11px] font-black text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-3">
+        <p className="text-2xs font-black text-rose-600 bg-rose-50 border border-rose-200 rounded-xl p-3">
           ⚠ مجموع بارم‌بندی برابر {faNum(total)} است و باید دقیقاً ۲۰ باشد. تا قبل از اصلاح، امکان «ثبت موقت» و «قفل قطعی» وجود ندارد.
         </p>
       )}

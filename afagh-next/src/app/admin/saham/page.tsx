@@ -120,19 +120,19 @@ export default async function SahamPage() {
       <div className="grid gap-2 sm:grid-cols-4">
         <div className="card !p-3 text-center">
           <div className="text-2xl font-black text-slate-700">{totalStudents.toLocaleString('fa-IR')}</div>
-          <div className="text-[11px] text-slate-500">دانشجو (همهٔ وضعیت‌ها)</div>
+          <div className="text-2xs text-slate-500">دانشجو (همهٔ وضعیت‌ها)</div>
         </div>
         <div className="card !p-3 text-center">
           <div className="text-2xl font-black text-slate-700">{totalGraduates.toLocaleString('fa-IR')}</div>
-          <div className="text-[11px] text-slate-500">دانش‌آموخته</div>
+          <div className="text-2xs text-slate-500">دانش‌آموخته</div>
         </div>
         <div className="card !p-3 text-center">
           <div className="text-2xl font-black text-slate-700">{totalInstructors.toLocaleString('fa-IR')}</div>
-          <div className="text-[11px] text-slate-500">استاد (کل)</div>
+          <div className="text-2xs text-slate-500">استاد (کل)</div>
         </div>
         <div className="card !p-3 text-center">
           <div className="text-2xl font-black text-slate-700">{stats.filter(s => s.sahamCodeCount > 0).length.toLocaleString('fa-IR')}</div>
-          <div className="text-[11px] text-slate-500">دانشگاه دارای کد سهام</div>
+          <div className="text-2xs text-slate-500">دانشگاه دارای کد سهام</div>
         </div>
       </div>
 

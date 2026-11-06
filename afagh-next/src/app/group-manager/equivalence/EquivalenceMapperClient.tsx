@@ -101,8 +101,8 @@ export default function EquivalenceMapperClient({ requests, ourCourses }: { requ
                 }`}
               >
                 <p className="font-bold text-slate-800">{r.studentName}</p>
-                <p className="text-[10px] text-slate-500 font-mono" dir="ltr">{r.studentCode}</p>
-                <p className="text-[10px] text-slate-500 mt-0.5">{r.previousUniversity || 'دانشگاه قبلی نامشخص'}</p>
+                <p className="text-3xs text-slate-500 font-mono" dir="ltr">{r.studentCode}</p>
+                <p className="text-3xs text-slate-500 mt-0.5">{r.previousUniversity || 'دانشگاه قبلی نامشخص'}</p>
               </button>
             ))}
           </div>
@@ -115,16 +115,16 @@ export default function EquivalenceMapperClient({ requests, ourCourses }: { requ
                   <div>
                     <p className="font-bold text-slate-800">{selected.studentName} — {selected.trackingCode}</p>
                     {selected.transcriptAttachment ? (
-                      <p className="text-emerald-700 text-[11px] mt-0.5">✓ کارنامه ممهور پیوست شده: {selected.transcriptAttachment.name}</p>
+                      <p className="text-emerald-700 text-2xs mt-0.5">✓ کارنامه ممهور پیوست شده: {selected.transcriptAttachment.name}</p>
                     ) : (
-                      <p className="text-rose-600 text-[11px] mt-0.5">⚠️ کارنامه ممهور پیوست نشده است</p>
+                      <p className="text-rose-600 text-2xs mt-0.5">⚠️ کارنامه ممهور پیوست نشده است</p>
                     )}
                   </div>
                 </div>
 
                 {/* جستجوی دروس آفاق */}
                 <div className="space-y-1">
-                  <label className="text-[11px] font-bold text-slate-600">جستجوی درس مقصد در چارت آفاق:</label>
+                  <label className="text-2xs font-bold text-slate-600">جستجوی درس مقصد در چارت آفاق:</label>
                   <input
                     value={search}
                     onChange={e => setSearch(e.target.value)}
@@ -133,7 +133,7 @@ export default function EquivalenceMapperClient({ requests, ourCourses }: { requ
                   />
                   <div className="max-h-28 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100">
                     {filteredCourses.slice(0, 30).map(c => (
-                      <div key={c.code} className="flex items-center justify-between p-1.5 text-[11px]">
+                      <div key={c.code} className="flex items-center justify-between p-1.5 text-2xs">
                         <span className="text-slate-700">{c.title} <span className="font-mono text-slate-400" dir="ltr">({c.code})</span></span>
                         <span className="text-slate-500">{faNum(c.units)} واحد</span>
                       </div>
@@ -145,7 +145,7 @@ export default function EquivalenceMapperClient({ requests, ourCourses }: { requ
                 {items.map((it, i) => (
                   <div key={i} className="grid grid-cols-1 sm:grid-cols-2 gap-2 p-3 rounded-xl border border-slate-200 bg-slate-50">
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-500">درس قبلی (دانشگاه مبدأ)</label>
+                      <label className="text-3xs font-bold text-slate-500">درس قبلی (دانشگاه مبدأ)</label>
                       <input value={it.sourceTitle} onChange={e => setItem(i, { sourceTitle: e.target.value })} placeholder="عنوان درس قبلی" className="w-full p-2 text-xs rounded-lg border border-slate-300" />
                       <div className="flex gap-2">
                         <input type="number" step="0.25" value={it.sourceGrade ?? ''} onChange={e => setItem(i, { sourceGrade: e.target.value === '' ? null : Number(e.target.value) })} placeholder="نمره (≥۱۲)" className="w-1/2 p-2 text-xs rounded-lg border border-slate-300" />
@@ -153,7 +153,7 @@ export default function EquivalenceMapperClient({ requests, ourCourses }: { requ
                       </div>
                     </div>
                     <div className="space-y-1">
-                      <label className="text-[10px] font-bold text-slate-500">درس معادل در آفاق</label>
+                      <label className="text-3xs font-bold text-slate-500">درس معادل در آفاق</label>
                       <select value={it.targetCourseCode} onChange={e => pickCourse(i, e.target.value)} className="w-full p-2 text-xs rounded-lg border border-slate-300 bg-white">
                         <option value="">-- انتخاب درس مقصد --</option>
                         {filteredCourses.map(c => (

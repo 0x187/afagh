@@ -6,7 +6,7 @@ import type { LockState } from '@/lib/finance-time-control';
 
 const inputCls =
   'w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-emerald-500';
-const labelCls = 'flex flex-col gap-1 text-[11px] font-medium text-slate-600';
+const labelCls = 'flex flex-col gap-1 text-2xs font-medium text-slate-600';
 const btnCls =
   'rounded-lg bg-emerald-700 hover:bg-emerald-800 px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50';
 
@@ -85,7 +85,7 @@ export default function TimeControlClient({ initial }: { initial: LockState }) {
         </div>
         <p className="mt-1 text-xs opacity-90">{initial.reason}</p>
         {initial.period && (
-          <div className="mt-2 grid grid-cols-1 gap-1 text-[11px] sm:grid-cols-3">
+          <div className="mt-2 grid grid-cols-1 gap-1 text-2xs sm:grid-cols-3">
             <div>نام دوره: <b>{initial.period.periodName || `#${initial.period.id}`}</b></div>
             <div>از: <b>{fa(initial.period.opensAt)}</b></div>
             <div>تا: <b>{fa(initial.period.closesAt)}</b></div>
@@ -142,14 +142,14 @@ export default function TimeControlClient({ initial }: { initial: LockState }) {
           <button type="button" className={btnCls} disabled={pending} onClick={save}>
             {pending ? 'در حال ذخیره…' : 'ذخیرهٔ دورهٔ مالی'}
           </button>
-          <span className="text-[11px] text-slate-500">
+          <span className="text-2xs text-slate-500">
             تغییرات بلافاصله اعمال می‌شود؛ اکشن‌های مالی بازهٔ جدید را رعایت می‌کنند.
           </span>
         </div>
       </div>
 
       {/* توضیح */}
-      <div className="card text-[11px] leading-6 text-slate-600">
+      <div className="card text-2xs leading-6 text-slate-600">
         <b>نحوهٔ اِعمال:</b> ثبت پرداخت، شارژ شهریه، تخفیف، برگشتی و سایر اکشن‌های مالی در ابتدای کار
         <code className="mx-1 rounded bg-slate-100 px-1">assertEntryAllowed()</code>
         را صدا می‌زنند؛ اگر دوره قفل باشد یا زمانِ ثبت خارج از پنجره باشد، عملیات با پیام فارسی رد می‌شود.

@@ -7,16 +7,63 @@
 // ═══════════════════════════════════════════════════════════════════════
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
-import { faNum, parseJalaliDates, PHASE_LABELS, TIME_SLOT_PRESETS, DEMAND_PAGE, NO_PROFESSOR, mapDemands, mapClassrooms, mapProfessors, mapCohorts, mapOfferings, buildRealScenario, computeProfUnits, slotAvailStatus, filterScenarioOfferings, filterContextDemands, inspectorSummary, nextGroupNumber, coTeachingWeights, resolveTab } from './planning-core';
+import { faNum, parseJalaliDates, PHASE_LABELS, TIME_SLOT_PRESETS, DEMAND_PAGE, NO_PROFESSOR, MAX_GROUPS_PER_COURSE, clampGroupsCount, mapDemands, mapClassrooms, mapProfessors, mapCohorts, mapOfferings, buildRealScenario, computeProfUnits, slotAvailStatus, filterScenarioOfferings, filterContextDemands, inspectorSummary, nextGroupNumber, coTeachingWeights, resolveTab, programSemesterMatrix, cohortSemesterNo, chartScopeSemester } from './planning-core';
 import type { PlanningTab, WeekRecurrence, ProgramShiftType, TimeSlot, CohortOption, ClassroomOption, ProfessorOption, CourseDemand, DepartmentOffering, AutoScheduleScenario, SchedulingWorkspace } from './types';
-import { getSchedulingWorkspaceAction, generateClassSessionsAction, supplyGroupDraftsAction, getSmartSuggestionsAction, getSchedulingHealthAction, transitionSchedulingPhaseAction, getCurriculumDemandsAction } from './actions';
+import { getSchedulingWorkspaceAction, getRoomGrantsAction, generateClassSessionsAction, supplyGroupDraftsAction, getSmartSuggestionsAction, getSchedulingHealthAction, transitionSchedulingPhaseAction, getCurriculumDemandsAction, setOfferingCohortMergeAction } from './actions';
 import type { SmartSlot, SchedulingHealthReport, SchedulingWorkspaceResult, CurriculumDemandsResult } from './actions';
 
-function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string | null) {
+/**
+ * scope = 'admin'  → کارتابل دانشگاهی (مدیر آموزش / کارشناس): گذار فاز، تولید جلسات ترم،
+ *                     پیوند به ماژول امتحانات و چارت کلی دانشگاه.
+ * scope = 'dept'   → همان کارتابل برای مدیر گروه: دادهٔ محدود به دپارتمان‌های تحت مدیریت،
+ *                     و عملیات دانشگاهی (گذار فاز / تولید جلسات) قفل و پنهان است.
+ */
+export type PlanningScope = 'admin' | 'dept';
+
+/**
+ * ⚡ کش کوتاهعمرِ «کارتابل کامل» (ماژول-level، نه state فقط همین mount).
+ *
+ * HAR واقعی (۱۵۷ درخواست): با جابهجایی بین تبهای برنامهریزی، صفحه دوباره
+ * mount میشد و همان Server Action دقیقاً دوباره اجرا میشد — دو POST یکسان
+ * `next-action=60ad…` / بدنه `[111]` / هرکدام ۱٫۷MB و wait≈۱۰۰۰ms،
+ * تنها ۲٫۹ ثانیه فاصله. یعنی نیمی از هزینهٔ پیمایش، تکرار محض بود.
+ *
+ * اعتبار فقط ۲۰ ثانیه است؛ هر عملیات ذخیرهشده (reloadWorkspace / تغییر
+ * سهمیهٔ سالن / تغییر ترم) کش را باطل میکند تا دادهٔ کهنه نمایش نگیریم.
+ * درخواستهای همزمان با یک کلید هم dedupe میشوند (StrictMode / دابل effect).
+ */
+type FullWorkspace = Extract<SchedulingWorkspaceResult, { ok: true }>;
+const WORKSPACE_TTL_MS = 20_000;
+const workspaceCache = new Map<number, { at: number; value: FullWorkspace }>();
+const workspacePending = new Map<number, Promise<SchedulingWorkspaceResult>>();
+
+function invalidateWorkspaceCache(): void {
+  workspaceCache.clear();
+}
+
+function loadWorkspace(termId: number, force = false): Promise<SchedulingWorkspaceResult> {
+  if (force) invalidateWorkspaceCache();
+  const hit = workspaceCache.get(termId);
+  if (hit && Date.now() - hit.at < WORKSPACE_TTL_MS) return Promise.resolve(hit.value);
+  const pending = workspacePending.get(termId);
+  if (pending) return pending;
+  const p = getSchedulingWorkspaceAction(termId)
+    .then(res => {
+      if (res.ok) workspaceCache.set(termId, { at: Date.now(), value: res });
+      return res;
+    })
+    .finally(() => { workspacePending.delete(termId); });
+  workspacePending.set(termId, p);
+  return p;
+}
+
+function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string | null, timeSlotsInit?: TimeSlot[], scope: PlanningScope = 'admin') {
   // Global Planning Context — همه از دادهٔ واقعی سرور (getSchedulingWorkspaceAction)
   const [selectedTermId, setSelectedTermId] = useState<number>(initial.selectedTermId ?? 0);
   const [selectedProgramId, setSelectedProgramId] = useState<number>(initial.programs[0]?.id ?? 0);
   const [selectedCohortId, setSelectedCohortId] = useState<string>('ALL');
+  // فاز ۰: ترمِ چارتِ رشته. 'ALL' = همهٔ ترم‌ها، 'NONE' = دروس بدون ترمِ تعیین‌شده
+  const [selectedSemester, setSelectedSemester] = useState<number | 'ALL' | 'NONE'>('ALL');
   const [targetShiftPreference, setTargetShiftPreference] = useState<ProgramShiftType>('AFTERNOON_WORKING');
 
   // فعال‌های واقعی
@@ -28,7 +75,8 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
 
   // Time Slots / Bell Schedule State
   const [activeSlotPresetKey, setActiveSlotPresetKey] = useState<'STANDARD_120' | 'STANDARD_90' | 'STANDARD_60'>('STANDARD_120');
-  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>(TIME_SLOT_PRESETS.STANDARD_120.slots);
+  // زنگ‌ها از تنظیمات دانشگاه می‌آیند (اگر نرسد، الگوی ۲ ساعتهٔ پیش‌فرض)
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>(() => (timeSlotsInit && timeSlotsInit.length ? timeSlotsInit : TIME_SLOT_PRESETS.STANDARD_120.slots));
 
   // Timetable View Mode: ALL (تمام جلسات), EVEN (هفته زوج), ODD (هفته فرد)
   const [selectedWeekFilter, setSelectedWeekFilter] = useState<WeekRecurrence | 'ALL_VIEW'>('ALL_VIEW');
@@ -36,14 +84,15 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
   // Main Tabs — تب آغازین از ?tab= می‌آید (پیوندپذیری + تست مستقل هر تب)
   const [activeMainTab, setActiveMainTab] = useState<PlanningTab>(resolveTab(initialTab));
 
-  // Academic Term Calendar Configuration — از ردیف واقعی academic_terms
+  // Academic Term Calendar Configuration — کاملاً از ردیف واقعی academic_terms
+  // (weeksCount + تاریخ‌های کلاس و امتحان). قبلاً هفته‌ها همیشه ۱۶ و تاریخ‌ها خالی بود.
   const [calendarConfig, setCalendarConfig] = useState({
-    classStartDate: initial.termCalendar?.startJalali ?? '',
-    classEndDate: initial.termCalendar?.endJalali ?? '',
-    examStartDate: '',
-    examEndDate: '',
+    classStartDate: initial.termCalendar?.classStartJalali ?? '',
+    classEndDate: initial.termCalendar?.classEndJalali ?? '',
+    examStartDate: initial.termCalendar?.examStartJalali ?? '',
+    examEndDate: initial.termCalendar?.examEndJalali ?? '',
     holidays: '',
-    sessionsCount: 16,
+    sessionsCount: initial.termCalendar?.weeksCount ?? 16,
   });
 
   const [generatedTermSessionsCount, setGeneratedTermSessionsCount] = useState<number>(initial.sessionsTotal);
@@ -54,12 +103,27 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
 
   // Core Data — آرایه‌های واقعی (بدون Mock)
   const [classrooms, setClassrooms] = useState<ClassroomOption[]>(() => mapClassrooms(initial.classrooms, initial.allocatedRoomIds));
+  const [roomGrants, setRoomGrants] = useState(initial.roomGrants ?? []);
   const [professors, setProfessors] = useState<ProfessorOption[]>(() => mapProfessors(initial.professors, initial.availabilities));
   const [realAvailRows, setRealAvailRows] = useState<SchedulingWorkspace['availabilities']>(initial.availabilities);
-  const [courseDemands, setCourseDemands] = useState<CourseDemand[]>(() => mapDemands(initial.demands));
+  const [courseDemands, setCourseDemands] = useState<CourseDemand[]>(() => mapDemands((initial as any).demands));
 
-  // Inspector
-  const [inspectorProfId, setInspectorProfId] = useState<number>(initial.professors[0]?.id ?? 1);
+  // Inspector — استادِ پیش‌فرضِ «گام ۵» باید کسی باشد که واقعاً درس دارد؛ وگرنه
+  // جدولِ پیش‌فرض تقریباً خالی دیده می‌شود و کاربر فکر می‌کند برنامه ثبت نشده است.
+  const [inspectorProfId, setInspectorProfId] = useState<number>(() => {
+    const counts = new Map<number, number>();
+    for (const o of initial.approvedOfferings) {
+      const pid = o.professorId ?? 0;
+      if (pid) counts.set(pid, (counts.get(pid) ?? 0) + 1);
+    }
+    let best = initial.professors[0]?.id ?? 1;
+    let bestN = -1;
+    for (const p of initial.professors) {
+      const n = counts.get(p.id) ?? 0;
+      if (n > bestN) { bestN = n; best = p.id; }
+    }
+    return best;
+  });
   // برنامهٔ مصوب واقعی از جدول schedules — تنها منبع جدول‌های نمایشی
   const [approvedOfferings, setApprovedOfferings] = useState<DepartmentOffering[]>(() => mapOfferings(initial.approvedOfferings));
   const [currentRealScenario, setCurrentRealScenario] = useState<AutoScheduleScenario>(() =>
@@ -79,6 +143,8 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
   // Curriculum-based demands (filtered by selected program)
   const [curriculumDemands, setCurriculumDemands] = useState<CourseDemand[]>([]);
   const [isLoadingCurriculumDemands, setIsLoadingCurriculumDemands] = useState(false);
+  // بازهٔ ورودیِ چارتِ واقعاً استفاده‌شده («چارت معتبر برای ورودی ۱۴۰۱ تا ۱۴۰۴»)
+  const [chartRange, setChartRange] = useState<{ from: number; to: number | null } | null>(null);
 
   // Modal: مشاهدهٔ فرم واقعی درٔ دسترس بودن استاد (ثبت‌شده توسط خودِ استاد)
   const [isProfAvailabilityModalOpen, setIsProfAvailabilityModalOpen] = useState<boolean>(false);
@@ -95,26 +161,31 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
 
   /** اعمال کامل یک کارتابل واقعی (استفاده در بارگذاری اولیه، تغییر ترم و بعد از هر تغییر) */
   const applyWorkspace = (w: Extract<SchedulingWorkspaceResult, { ok: true }>) => {
-    setTerms(w.terms);
-    setPrograms(w.programs);
-    setCohorts(mapCohorts(w.cohorts));
-    setCurrentPhase(w.phases[selectedTermId] ?? 'SUPPLY');
-    setClassrooms(mapClassrooms(w.classrooms, w.allocatedRoomIds));
-    setProfessors(mapProfessors(w.professors, w.availabilities));
-    setRealAvailRows(w.availabilities);
-    setCourseDemands(mapDemands(w.demands));
-    setApprovedOfferings(mapOfferings(w.approvedOfferings));
-    setCurrentRealScenario(buildRealScenario(mapOfferings(w.approvedOfferings), w.hardConflictCount, w.sessionsTotal, w.allocatedRoomIds.length));
-    setGeneratedTermSessionsCount(w.sessionsTotal);
-    setSessionsByOffering(w.sessionsByOffering);
-    setMakeupSessions(w.makeupSessions);
-    setHardConflictCount(w.hardConflictCount);
+    const ww: any = w;
+    setTerms(ww.terms);
+    setPrograms(ww.programs);
+    setCohorts(mapCohorts((ww.cohorts || []).map((c: any) => ({ ...c, entryTerm: c.entryTerm ?? 1 }))));
+    setCurrentPhase(ww.phases[selectedTermId] ?? 'SUPPLY');
+    setClassrooms(mapClassrooms(ww.classrooms, ww.allocatedRoomIds));
+    setRoomGrants(ww.roomGrants ?? []);
+    setProfessors(mapProfessors(ww.professors as any, ww.availabilities));
+    setRealAvailRows(ww.availabilities);
+    setCourseDemands(mapDemands(ww.demands as any));
+    setApprovedOfferings(mapOfferings(ww.approvedOfferings as any));
+    setCurrentRealScenario(buildRealScenario(mapOfferings(ww.approvedOfferings as any), ww.hardConflictCount, ww.sessionsTotal, ww.allocatedRoomIds.length));
+    setGeneratedTermSessionsCount(ww.sessionsTotal);
+    setSessionsByOffering(ww.sessionsByOffering);
+    setMakeupSessions(ww.makeupSessions);
+    setHardConflictCount(ww.hardConflictCount);
     setSuggestions([]);
     setHealth(null);
     setCalendarConfig(cfg => ({
       ...cfg,
-      classStartDate: w.termCalendar?.startJalali ?? '',
-      classEndDate: w.termCalendar?.endJalali ?? '',
+      classStartDate: ww.termCalendar?.classStartJalali ?? ww.termCalendar?.startJalali ?? '',
+      classEndDate: ww.termCalendar?.classEndJalali ?? ww.termCalendar?.endJalali ?? '',
+      examStartDate: ww.termCalendar?.examStartJalali ?? '',
+      examEndDate: ww.termCalendar?.examEndJalali ?? '',
+      sessionsCount: ww.termCalendar?.weeksCount ?? cfg.sessionsCount,
     }));
   };
 
@@ -124,7 +195,7 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
     if (selectedTermId === baseId) return;
     let cancelled = false;
     setIsLoadingWorkspace(true);
-    getSchedulingWorkspaceAction(selectedTermId)
+    loadWorkspace(selectedTermId)
       .then(w => {
         if (cancelled || !w.ok) return;
         applyWorkspace(w);
@@ -135,11 +206,46 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTermId]);
 
+  /** نسخهٔ سبکِ سروری (initial.partial): صفحه با اسکلت فوراً رندر شده؛
+   *  حالا workspace کامل را در پس‌زمینه واکشی و اعمال می‌کنیم — همان مسیرِ
+   *  «تغییر نیمسال». فقط یک بار، در mount. */
+  useEffect(() => {
+    if ((initial as any).partial !== true || !selectedTermId) return;
+    let cancelled = false;
+    setIsLoadingWorkspace(true);
+    loadWorkspace(selectedTermId)
+      .then(w => {
+        if (cancelled || !w.ok) return;
+        applyWorkspace(w);
+        // این دو در applyWorkspace تنظیم نمیشوند (فقط initial-literalهای useState)
+        const ww: any = w;
+        setEditingProfId(ww.professors[0]?.id ?? 1);
+        // همان هیوریستیکِ پیشفرضِ بازرس: استادی که بیشترین ارائهٔ مصوب را دارد
+        const counts = new Map<number, number>();
+        for (const o of ww.approvedOfferings ?? []) {
+          const pid = o.professorId ?? 0;
+          if (pid) counts.set(pid, (counts.get(pid) ?? 0) + 1);
+        }
+        let best = ww.professors[0]?.id ?? 1;
+        let bestN = -1;
+        for (const p of ww.professors ?? []) {
+          const n = counts.get(p.id) ?? 0;
+          if (n > bestN) { bestN = n; best = p.id; }
+        }
+        setInspectorProfId(best);
+      })
+      .catch(() => showToast('⚠️ بارگذاری دادهٔ کارتابل از سرور ناموفق بود.', 'warning'))
+      .finally(() => { if (!cancelled) setIsLoadingWorkspace(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   /** بازخوانی کارتابل از سرور (بعد از تأمین/تخصیص/گذار فاز) */
   const reloadWorkspace = () => {
     if (!selectedTermId) return;
     setIsLoadingWorkspace(true);
-    getSchedulingWorkspaceAction(selectedTermId)
+    // بعد از هر ذخیره حتماً دادهٔ تازه خواسته شود — کش باطل میشود.
+    loadWorkspace(selectedTermId, true)
       .then(w => {
         if (!w.ok) { showToast(w.error, 'warning'); return; }
         applyWorkspace(w);
@@ -148,14 +254,42 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
       .finally(() => setIsLoadingWorkspace(false));
   };
 
+  /** بازخوانی سبک فقط سهمیه‌های سالن (بعد از تخصیص/لغو/واگذاری) — بدون بارگذاری سنگین کل کارتابل */
+  const reloadRoomGrants = () => {
+    if (!selectedTermId) return;
+    // سهمیهها عوض شد ⇒ کش کارتابل کامل دیگر معتبر نیست.
+    invalidateWorkspaceCache();
+    getRoomGrantsAction(selectedTermId)
+      .then(res => {
+        if (!res.ok) { showToast(res.error, 'warning'); return; }
+        setRoomGrants(res.roomGrants ?? []);
+        setClassrooms(prev => prev.map(c => ({ ...c, isAllocatedToDept: (res.allocatedRoomIds ?? []).includes(c.id) })));
+      })
+      .catch(() => showToast('⚠️ بازخوانی سهمیه‌های سالن ناموفق بود.', 'warning'));
+  };
+
   /** بارگذاری دروس چارت درسی برای رشته انتخاب‌شده */
   const loadCurriculumDemands = async () => {
     if (!selectedTermId || !selectedProgramId) return;
     setIsLoadingCurriculumDemands(true);
     try {
-      const res = await getCurriculumDemandsAction(selectedTermId, selectedProgramId);
+      // سال ورودیِ دانشجو تعیین می‌کند کدام نسخهٔ چارت معتبر است
+      const [rawYear, rawTerm] = selectedCohortId === 'ALL' ? [null, null] : selectedCohortId.split('-');
+      const entryYear = rawYear ? Number(rawYear) || null : null;
+      const entryTerm = rawTerm ? Number(rawTerm) || null : null;
+      // ⚠️ ترمِ چارتی که باید بیاید: ترمِ ورودیِ انتخابی، وگرنه چیپِ فاز ۰ («ترم ۳»).
+      //    بدون این پارامتر سرور دروسِ «ترم ۱» را می‌فرستاد و فیلترِ کلاینت همه را حذف می‌کرد.
+      const chartSemester = chartScopeSemester({
+        cohortId: selectedCohortId,
+        entryYear,
+        entryTerm,
+        termCode: terms.find(x => x.id === selectedTermId)?.code ?? null,
+        selectedSemester,
+      });
+      const res = await getCurriculumDemandsAction(selectedTermId, selectedProgramId, entryYear, chartSemester);
       if (!res.ok) { showToast(res.error, 'warning'); setCurriculumDemands([]); return; }
-      setCurriculumDemands(mapDemands(res.demands));
+      setChartRange(res.chartRange ?? null);
+      setCurriculumDemands(mapDemands((res as any).demands || []) as any);
     } catch {
       showToast('⚠️ بارگذاری دروس چارت ناموفق بود.', 'warning');
       setCurriculumDemands([]);
@@ -164,11 +298,11 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
     }
   };
 
-  // بارگذاری دروس چارت عند تغییر رشته یا ترم
+  // بارگذاری دروس چارت عند تغییر رشته، ترم، ورودی یا ترمِ چارت (فاز ۰)
   useEffect(() => {
     loadCurriculumDemands();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTermId, selectedProgramId]);
+  }, [selectedTermId, selectedProgramId, selectedCohortId, selectedSemester]);
 
   /** پیشنهاد هوشمند موتور برای یک درس (درٔ دسترس بودن واقعی استاد + اشغال سالن‌ها + زونینگ) */
   const handleSuggestForDemand = async (demandId: number) => {
@@ -237,6 +371,30 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
       reloadWorkspace();
     } finally {
       setPhaseBusy(false);
+    }
+  };
+
+  /**
+   * ادغام/جداکردن نیمسال ورود یک ارائه (مهر + بهمن با هم).
+   * ورودی بهمنِ کم‌جمعیت نباید کلاس جدا داشته باشد.
+   */
+  const handleToggleCohortMerge = async (offeringId: number, merge: boolean) => {
+    try {
+      const res = await setOfferingCohortMergeAction({ offeringId, merge });
+      if (!res.ok) { showToast(res.error, 'warning'); return; }
+      setCourseDemands(prev => prev.map(d => d.id === offeringId
+        ? {
+            ...d,
+            cohortMerged: merge,
+            cohortTitle: merge
+              ? `نیمسال‌های ورود ${res.entryYearStart ?? ''}–${res.entryYearEnd ?? ''} (ادغام‌شده)`
+              : d.cohortTitle,
+          }
+        : d));
+      showToast(merge ? '✅ این ارائه برای هر دو نیمسال ورود (مهر و بهمن) اعلام شد.' : 'ارائه به حالت تک‌نیمسال برگشت.', 'success');
+      reloadWorkspace();
+    } catch {
+      showToast('خطا در ارتباط با سرور.', 'warning');
     }
   };
 
@@ -341,8 +499,9 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
 
   // Change groups count for a course
   const handleUpdateCourseGroupsCount = (demandId: number, groups: number) => {
-    setCourseDemands(prev => prev.map(d => d.id === demandId ? { ...d, groupsCount: groups } : d));
-    showToast(`تعداد گروه‌های ارائه‌شونده به ${faNum(groups)} گروه تغییر یافت.`, 'info');
+    const g = clampGroupsCount(groups);
+    setCourseDemands(prev => prev.map(d => d.id === demandId ? { ...d, groupsCount: g } : d));
+    showToast(`تعداد گروه‌های ارائه‌شونده به ${faNum(g)} گروه تغییر یافت.`, 'info');
   };
 
   // Toggle Exam Scheduling Mode (Auto vs Manual) for a course
@@ -385,7 +544,11 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
   const realAvailStatus = (profId: number, dayIdx: number, slot: TimeSlot) =>
     slotAvailStatus(realAvailRows, profId, dayIdx, slot);
 
-  // بار واحد هر استاد (با تقسیم سهم تئوری/عملی در درس مشترک) — هستهٔ خالص
+  // بار واحد هر استاد (با تقسیم سهم تئوری/عملی در درس مشترک) — هستهٔ خالص.
+  // بار واحدِ *فعلی* هر استاد از «همهٔ ارائه‌های همین ترم» — نه فقط برشِ چارتِ
+  // یک ترم. قبلاً از `curriculumDemands` (چارتِ ترمِ انتخابی، مثلاً ترم ۳) حساب
+  // می‌شد؛ استادی که درسش در ترمِ دیگری از چارت بود «۰ واحد» نشان داده می‌شد،
+  // در حالی که همین حالا چند درس داشت (گزارش: «واحد اساتید تخصصی صفر است»).
   const profAssignedUnitsMap = useMemo(
     () => computeProfUnits(courseDemands, professors),
     [courseDemands, professors],
@@ -411,13 +574,39 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
     [currentScenario, selectedProgramId, selectedCohortId, selectedWeekFilter],
   );
 
-  // استفاده از دروس چارت درسی در صورت وجود، وگرنه تمام تقاضاها
-  const demandsSource = useMemo(() => curriculumDemands.length > 0 ? curriculumDemands : courseDemands, [curriculumDemands, courseDemands]);
+  // «نیمسال ورود» → شمارهٔ ترمِ همان ورودی در نیمسال جاری. با انتخاب ورودی،
+  // چارت به همان یک ترم محدود می‌شود (نه ترم ۱ و ۲ یک‌جا).
+  const cohortOrdinal = useMemo(() => {
+    if (selectedCohortId === 'ALL') return null;
+    const [y, t] = selectedCohortId.split('-');
+    const selectedTerm = terms.find(x => x.id === selectedTermId) ?? terms[0];
+    return cohortSemesterNo(Number(y), Number(t), selectedTerm?.code ?? null);
+  }, [selectedCohortId, terms, selectedTermId]);
 
-  const filteredDemands = useMemo(
-    () => filterContextDemands(demandsSource, { programId: selectedProgramId, cohortId: selectedCohortId }),
-    [demandsSource, selectedProgramId, selectedCohortId],
+  const effectiveSemester = cohortOrdinal ?? selectedSemester;
+
+  const filteredDemands = useMemo(() => {
+    const ctx = { programId: selectedProgramId, cohortId: selectedCohortId, semester: effectiveSemester };
+    const fromChart = filterContextDemands(curriculumDemands, ctx);
+    if (fromChart.length > 0) return fromChart;
+    // شبکهٔ ایمنی: اگر مسیرِ «چارت» چیزی نداد (چارتِ ناموجود، ترمِ بی‌عرضه،
+    // یا ناهماهنگیِ ترم)، مسیرِ «ارائه‌های واقعیِ ترم» هم امتحان می‌شود تا
+    // جدولِ گام ۱ بی‌دلیل خالی نماند (گزارش: رشتهٔ ۴۴ / ترم ۳ → «۰ درس»).
+    return filterContextDemands(courseDemands, ctx);
+  }, [curriculumDemands, courseDemands, selectedProgramId, selectedCohortId, effectiveSemester]);
+
+  // فاز ۰: ماتریس رشته × ترم با وضعیت کامل/ناقص — «برنامه این رشته کامله»
+  const programMatrix = useMemo(
+    () => programSemesterMatrix(courseDemands, approvedOfferings, programs),
+    [courseDemands, approvedOfferings, programs],
   );
+
+  /** انتخاب دامنه در فاز ۰ و رفتن به گام ۱ */
+  const applyScope = (programId: number, semester: number | 'ALL' | 'NONE') => {
+    setSelectedProgramId(programId);
+    setSelectedSemester(semester);
+    setActiveMainTab('CURRICULUM_ASSIGN');
+  };
 
   // یک ترم واقعی چند هزار ارائهٔ درس دارد و هر ردیف این جدول سنگین است؛
   // همه را یک‌جا رندر نمی‌کنیم تا مرورگر (و رندر سمت سرور) از پا نیفتد.
@@ -451,6 +640,8 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
 
   return {
     initial,
+    scope,
+    isDeptScope: scope === 'dept',
     activeMainTab,
     activeSlotPresetKey,
     applyWorkspace,
@@ -477,6 +668,7 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
     handleGenerateSessions,
     handleOpenEditProfAvailability,
     handlePhaseTransition,
+    handleToggleCohortMerge,
     handleRunHealth,
     handleSuggestForDemand,
     handleSupplyFromSuggestion,
@@ -502,13 +694,21 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
     ownedDeptId,
     phaseBusy,
     profAssignedUnitsMap,
+    programMatrix,
+    applyScope,
+    chartRange,
+    cohortOrdinal,
+    effectiveSemester,
     professors,
     programs,
     realAvailRows,
     realAvailStatus,
     reloadWorkspace,
+    reloadRoomGrants,
+    roomGrants,
     selectedCohortId,
     selectedProgramId,
+    selectedSemester,
     selectedTermId,
     selectedWeekFilter,
     sessionsByOffering,
@@ -539,6 +739,7 @@ function useDepartmentPlanning(initial: SchedulingWorkspace, initialTab?: string
     setRealAvailRows,
     setSelectedCohortId,
     setSelectedProgramId,
+    setSelectedSemester,
     setSelectedTermId,
     setSelectedWeekFilter,
     setSessionsByOffering,
@@ -567,8 +768,8 @@ type PlanningValue = ReturnType<typeof useDepartmentPlanning>;
 
 const PlanningCtx = createContext<PlanningValue | null>(null);
 
-export function PlanningProvider({ initial, tab, children }: { initial: SchedulingWorkspace; tab?: string | null; children: ReactNode }) {
-  const value = useDepartmentPlanning(initial, tab);
+export function PlanningProvider({ initial, tab, timeSlots, scope, children }: { initial: SchedulingWorkspace; tab?: string | null; timeSlots?: TimeSlot[]; scope?: PlanningScope; children: ReactNode }) {
+  const value = useDepartmentPlanning(initial, tab, timeSlots, scope ?? 'admin');
   return <PlanningCtx.Provider value={value}>{children}</PlanningCtx.Provider>;
 }
 

@@ -43,6 +43,8 @@ export const SETTING_GROUPS = [
   'گردش کار و حق‌التدریس',
   'ارزشیابی و هوش تجاری',
   'حضور و غیاب کلاس‌ها',
+  'ساعت کلاس و برنامه‌ریزی',
+  'امضاکنندگان فرمها و اسناد',
   'زیرساخت (فقط ENV)',
 ] as const;
 
@@ -60,12 +62,58 @@ export const SETTING_DEFS: SettingDef[] = [
   { key: 'SUPPORT_EMAIL', env: 'AFAGH_SUPPORT_EMAIL', group: 'عمومی و نشانی‌ها', label: 'ایمیل پشتیبانی', type: 'text', default: 'support@example.ac.ir' },
   { key: 'SUPPORT_PHONE', env: 'AFAGH_SUPPORT_PHONE', group: 'عمومی و نشانی‌ها', label: 'تلفن پشتیبانی', type: 'text', default: '' },
 
+  // ── امضاکنندگان فرمها و اسناد ──
+  // هر «فرم» جایگاه امضای خودش را دارد تا مدیر بتواند عناوین سازمانی
+  // (مثلاً «معاون مالی» بهجای «مدیر مالی») را بدون تغییر کد عوض کند.
+  // جداکننده: | یا ویرگول یا سطر جدید؛ خالی = بدون ردیف امضا.
+  {
+    key: 'SIGNERS_FINANCE_REPORTS', env: 'AFAGH_SIGNERS_FINANCE_REPORTS',
+    group: 'امضاکنندگان فرمها و اسناد', label: 'امضاکنندگان گزارشهای مالی', type: 'text',
+    default: 'تهیهکنندهٔ گزارش | تأیید حسابدار | مدیر مالی',
+    help: 'عنوان جایگاههای امضای زیرِ برگههای گزارشهای مالی — با | یا ویرگول جدا کنید (حداکثر ۶ جایگاه)؛ خالی = بدون امضا',
+  },
+  {
+    key: 'SIGNERS_EDU_REPORTS', env: 'AFAGH_SIGNERS_EDU_REPORTS',
+    group: 'امضاکنندگان فرمها و اسناد', label: 'امضاکنندگان گزارشهای آموزشی', type: 'text',
+    default: 'تهیهکنندهٔ گزارش | کارشناس آموزش | معاون آموزشی',
+    help: 'عنوان جایگاههای امضای زیرِ برگههای گزارشهای آموزشی — با | یا ویرگول جدا کنید',
+  },
+  {
+    key: 'SIGNERS_TRANSCRIPT', env: 'AFAGH_SIGNERS_TRANSCRIPT',
+    group: 'امضاکنندگان فرمها و اسناد', label: 'امضاکنندگان کارنامه / ریزنمرات', type: 'text',
+    default: 'مسئول ثبت نمرات | کارشناس آموزش | معاون آموزشی',
+    help: 'برای کارنامهها و ریزنمرات چاپی — با | یا ویرگول جدا کنید',
+  },
+  {
+    key: 'SIGNERS_CERTIFICATES', env: 'AFAGH_SIGNERS_CERTIFICATES',
+    group: 'امضاکنندگان فرمها و اسناد', label: 'امضاکنندگان گواهیها و تاییدیهها', type: 'text',
+    default: 'کارشناس صدور مدرک | مدیر امور دانشجویی',
+    help: 'برای گواهی اشتغال به تحصیل، تاییدیه تحصیلی و پایان تحصیلات — با | یا ویرگول جدا کنید',
+  },
+  {
+    key: 'SIGNERS_CUSTOM_REPORTS', env: 'AFAGH_SIGNERS_CUSTOM_REPORTS',
+    group: 'امضاکنندگان فرمها و اسناد', label: 'امضاکنندگان گزارشهای ساختهای گزارشساز', type: 'text',
+    default: 'تهیهکنندهٔ گزارش | تأیید کارشناس | مدیر واحد',
+    help: 'برای گزارشهای دلخواه ساختهشده در «گزارشساز» و «گزارشهای ذخیرهشده» — با | یا ویرگول جدا کنید',
+  },
+  {
+    key: 'SIGNERS_CARDS', env: 'AFAGH_SIGNERS_CARDS',
+    group: 'امضاکنندگان فرمها و اسناد', label: 'امضاکنندگان کارتها و صورتجلسهها', type: 'text',
+    default: 'مسئول صدور کارت | مدیر امور دانشجویی',
+    help: 'برای کارت دانشجویی، کارت ورود به جلسه و صورتجلسهها — با | یا ویرگول جدا کنید',
+  },
+
   // ── کلاس مجازی ──
   { key: 'BBB_URL', env: 'BIGBLUEBUTTON_URL', group: 'کلاس مجازی (BBB / Moodle)', label: 'نشانی API بیگ‌بلوباتن', type: 'url', default: '', help: 'مثال: https://vc.example.ac.ir/bigbluebutton/api — خالی یعنی سرویس غیرفعال' },
   { key: 'BBB_SECRET', env: 'BIGBLUEBUTTON_SECRET', group: 'کلاس مجازی (BBB / Moodle)', label: 'کلید مخفی بیگ‌بلوباتن', type: 'secret', default: '', help: 'خروجی دستور bbb-conf --secret روی سرور BBB' },
   { key: 'BBB_MODERATOR_PW', env: 'BIGBLUEBUTTON_MODERATOR_PW', group: 'کلاس مجازی (BBB / Moodle)', label: 'رمز ورود مدرس (Moderator)', type: 'secret', default: '' },
   { key: 'BBB_ATTENDEE_PW', env: 'BIGBLUEBUTTON_ATTENDEE_PW', group: 'کلاس مجازی (BBB / Moodle)', label: 'رمز ورود دانشجو (Attendee)', type: 'secret', default: '' },
   { key: 'BBB_AUTO_RECORD', env: 'BIGBLUEBUTTON_AUTO_RECORD', group: 'کلاس مجازی (BBB / Moodle)', label: 'ضبط خودکار جلسات', type: 'boolean', default: 'false' },
+  {
+    key: 'BBB_CHECKSUM_ALGO', env: 'BIGBLUEBUTTON_CHECKSUM_ALGO', group: 'کلاس مجازی (BBB / Moodle)',
+    label: 'الگوریتم چک‌سام (checksum)', type: 'text', default: 'SHA256',
+    help: 'در Moodle «BigBlueButton server checksum algorithm» را ببینید: SHA1 / SHA256 / SHA512. BBB نسخهٔ ۲.۷ به بعد SHA256 است.',
+  },
   { key: 'MOODLE_URL', env: 'MOODLE_URL', group: 'کلاس مجازی (BBB / Moodle)', label: 'نشانی سامانه Moodle', type: 'url', default: '' },
   { key: 'MOODLE_TOKEN', env: 'MOODLE_TOKEN', group: 'کلاس مجازی (BBB / Moodle)', label: 'توکن وب‌سرویس Moodle', type: 'secret', default: '' },
   { key: 'MOODLE_PULL_TOKEN', env: 'MOODLE_PULL_TOKEN', group: 'کلاس مجازی (BBB / Moodle)', label: 'توکن کشش مودل (LMS pull API)', type: 'secret', default: '', help: 'کلید هدر x-lms-token برای GET /api/lms/* — خالی یعنی API بسته است. این توکن را در پلاگین مودل بگذارید تا درس‌ها، کاربران، ثبت‌نامی‌ها و برنامهٔ کلاسی را بکشد' },
@@ -210,6 +258,7 @@ export const SETTING_DEFS: SettingDef[] = [
   { key: 'FINANCE_STMT_TTL_MINUTES', env: 'FINANCE_STMT_TTL_MINUTES', group: 'ارزشیابی و هوش تجاری', label: 'اعتبار توکن کارنامهٔ مالی (دقیقه)', type: 'number', default: '10080', help: 'مدت اعتبار QR کارنامهٔ مالی دانشجو؛ پیش‌فرض ۱۰۰۸۰ دقیقه (۷ روز)' },
   { key: 'TRANSCRIPT_TTL_MINUTES', env: 'TRANSCRIPT_TTL_MINUTES', group: 'ارزشیابی و هوش تجاری', label: 'اعتبار توکن کارنامهٔ تحصیلی (دقیقه)', type: 'number', default: '10080', help: 'مدت اعتبار QR کارنامهٔ تحصیلی دانشجو؛ پیش‌فرض ۱۰۰۸۰ دقیقه (۷ روز)' },
   { key: 'EXAM_GRADE_DEADLINE_DAYS', env: 'EXAM_GRADE_DEADLINE_DAYS', group: 'ارزشیابی و هوش تجاری', label: 'مهلت ثبت نمرهٔ امتحان (روز)', type: 'number', default: '5' },
+  { key: 'GRADE_OBJECTION_DEADLINE', env: 'GRADE_OBJECTION_DEADLINE', group: 'ارزشیابی و هوش تجاری', label: 'مهلت اعتراض به نمره (YYYY-MM-DD) — خالی = پنجره بسته', type: 'text', default: '', help: 'تا پایان این روز (به وقت محلی) دانشجو می‌تواند به نمرات قطعی اعتراض کند؛ خالی بودن یعنی پنجره بسته و دکمه‌های اعتراض قفل می‌مانند.' },
   // ── قاعدهٔ اختیاری بارم امتحان ──
   // این تنظیم «راز» نیست؛ فقط پیکربندی سیاست آموزشی است و در پنل مدیر
   // (گروه ارزشیابی و هوش تجاری) قابل تغییر است. موتور امتحان در حال حاضر
@@ -238,6 +287,23 @@ export const SETTING_DEFS: SettingDef[] = [
     { value: 'CONTROLLER', label: 'فقط کنترل‌کنندهٔ حضور و غیاب' },
   ], help: 'تعیین می‌کند چه کسی می‌تواند «تشکیل کلاس» را ثبت کند. حالت «فقط کنترل‌کننده» برای دانشگاه‌هایی است که می‌خواهند ثبت حضور کاملاً مستقل از استاد باشد.' },
   { key: 'ATTENDANCE_CONTROLLER_ROOM_SCOPED', env: 'AFAGH_ATTENDANCE_CONTROLLER_ROOM_SCOPED', group: 'حضور و غیاب کلاس‌ها', label: 'محدود بودن کنترل‌کننده به اتاق‌های تخصیص‌یافته', type: 'boolean', default: 'true', help: 'روشن = کنترل‌کننده فقط در اتاق‌هایی که در «تخصیص کارشناس به اتاق‌ها» به او سپرده شده می‌تواند ثبت کند. خاموش = همهٔ اتاق‌های دانشگاه خودش (مناسب دانشگاه‌های کوچک)' },
+
+  // ── ساعت کلاس و برنامه‌ریزی (زنگ‌های آموزشی) ──
+  // این پنج کلید، هم ماتریس «اعلام حضور استاد» و هم ماتریس برنامه‌ریزی مدیر گروه را
+  // از یک منبع تغذیه می‌کنند؛ تغییرشان هر دو صفحه را هم‌تراز می‌کند.
+  { key: 'SCHEDULE_DAY_START', env: 'AFAGH_SCHEDULE_DAY_START', group: 'ساعت کلاس و برنامه‌ریزی', label: 'شروع روز آموزشی', type: 'text', default: '08:00', help: 'قالب ۲۴ ساعته مثل 07:00 یا 08:00 — اولین زنگ از این ساعت شروع می‌شود' },
+  { key: 'SCHEDULE_DAY_END', env: 'AFAGH_SCHEDULE_DAY_END', group: 'ساعت کلاس و برنامه‌ریزی', label: 'پایان روز آموزشی', type: 'text', default: '19:30', help: 'آخرین زنگ حداکثر تا این ساعت تمام می‌شود (مثل 19:00 یا 20:00)' },
+  { key: 'SCHEDULE_SLOT_MINUTES', env: 'AFAGH_SCHEDULE_SLOT_MINUTES', group: 'ساعت کلاس و برنامه‌ریزی', label: 'طول هر زنگ (دقیقه)', type: 'select', default: '120', options: [
+    { value: '60', label: '۶۰ دقیقه (۱ ساعته)' },
+    { value: '90', label: '۹۰ دقیقه (۱٫۵ ساعته)' },
+    { value: '100', label: '۱۰۰ دقیقه' },
+    { value: '120', label: '۱۲۰ دقیقه (۲ ساعته — پیش‌فرض)' },
+    { value: '135', label: '۱۳۵ دقیقه' },
+    { value: '150', label: '۱۵۰ دقیقه (۲٫۵ ساعته)' },
+  ], help: 'دانشگاه‌های مختلف زنگ ۱٫۵ یا ۲ ساعته دارند؛ با این کلید کل زنگ‌ها بازتولید می‌شوند' },
+  { key: 'SCHEDULE_BREAK_START', env: 'AFAGH_SCHEDULE_BREAK_START', group: 'ساعت کلاس و برنامه‌ریزی', label: 'شروع استراحت (نماز و ناهار)', type: 'text', default: '12:00', help: 'خالی بگذارید اگر دانشگاه استراحت میان‌روز ندارد' },
+  { key: 'SCHEDULE_BREAK_END', env: 'AFAGH_SCHEDULE_BREAK_END', group: 'ساعت کلاس و برنامه‌ریزی', label: 'پایان استراحت (نماز و ناهار)', type: 'text', default: '13:30', help: 'در این بازه هیچ زنگی گذاشته نمی‌شود' },
+  { key: 'SCHEDULE_BREAK_LABEL', env: 'AFAGH_SCHEDULE_BREAK_LABEL', group: 'ساعت کلاس و برنامه‌ریزی', label: 'عنوان ستون استراحت', type: 'text', default: 'نماز و ناهار', help: 'متن نمایشی روی ستون استراحت در ماتریس‌ها' },
 
   // ── زیرساخت (فقط ENV) ──
   // ⚠ هیچ پیش‌فرضی در کد نگه داشته نمی‌شود تا پنل مدیر مقدار واقعی‌نما (اعتبارنامهٔ
@@ -290,6 +356,28 @@ export async function getSetting(key: string): Promise<string> {
   const fromDb = rows[key];
   if (fromDb !== undefined && fromDb !== '') return fromDb;
   return envOf(def) ?? def.default;
+}
+
+/** نگاشت «کد فرم» → کلید تنظیمات مربوط به جایگاههای امضای همان فرم */
+const SIGNER_KEYS: Record<string, string> = {
+  'finance-report': 'SIGNERS_FINANCE_REPORTS',
+  'edu-report': 'SIGNERS_EDU_REPORTS',
+  'custom-report': 'SIGNERS_CUSTOM_REPORTS',
+  transcript: 'SIGNERS_TRANSCRIPT',
+  certificate: 'SIGNERS_CERTIFICATES',
+  card: 'SIGNERS_CARDS',
+};
+
+/**
+ * برچسبهای امضای یک فرم، از «تنظیمات سامانه».
+ * فرمهای تازه فقط کافی است یک کلید به `SIGNER_KEYS` و یک `SettingDef`
+ * اضافه کنند؛ نیازی به دستکاری کامپوننت چاپ نیست.
+ */
+export async function getFormSigners(form: string): Promise<string[]> {
+  const key = SIGNER_KEYS[form];
+  if (!key) return [];
+  const raw = await getSetting(key).catch(() => '');
+  return raw.split(/[|\n\r,،]+/).map(s => s.trim()).filter(Boolean).slice(0, 6);
 }
 
 export async function getSettings<T extends readonly string[]>(keys: T): Promise<Record<T[number], string>> {
@@ -364,17 +452,21 @@ export async function getPublicBaseUrl(): Promise<string> {
 }
 
 export async function getBbbConfig() {
-  const [url, secret, moderatorPw, attendeePw] = await Promise.all([
+  const [url, secret, moderatorPw, attendeePw, algo] = await Promise.all([
     getSetting('BBB_URL'),
     getSetting('BBB_SECRET'),
     getSetting('BBB_MODERATOR_PW'),
     getSetting('BBB_ATTENDEE_PW'),
+    getSetting('BBB_CHECKSUM_ALGO').catch(() => 'SHA256'),
   ]);
+  const norm = String(algo || 'SHA256').trim().toUpperCase();
   return {
     url: url.replace(/\/+$/, ''),
     secret,
     moderatorPw,
     attendeePw,
+    // الگوریتم امضا: BBB نسخهٔ ۲.۷+ پیش‌فرض SHA256 است (SHA1 برای نصب‌های قدیمی)
+    checksumAlgo: (norm === 'SHA1' || norm === 'SHA512' ? norm : 'SHA256') as 'SHA1' | 'SHA256' | 'SHA512',
     autoRecord: await getBool('BBB_AUTO_RECORD'),
     configured: Boolean(url && secret),
   };

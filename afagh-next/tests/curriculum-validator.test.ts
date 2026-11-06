@@ -108,10 +108,15 @@ const coreqMissing = validateCurriculumCore(baseInput({
 }));
 eq('هم‌نیاز خارج از نسخه → WARN', hasCheck(coreqMissing, 'COREQ_PRESENT', 'WARN'), true);
 
-const coreqWrongSem = validateCurriculumCore(baseInput({
-  rules: [{ courseId: 3, ruleType: 'COREQ', logicTree: { operator: 'AND', conditions: [{ course: 'CS201' }] } }], // CS201 ترم ۳، الگوریتم ترم ۴
+const coreqLater = validateCurriculumCore(baseInput({
+  rules: [{ courseId: 3, ruleType: 'COREQ', logicTree: { operator: 'AND', conditions: [{ course: 'CS401' }] } }], // CS401 ترم ۸ > الگوریتم ترم ۴
 }));
-eq('هم‌نیاز با ترم متفاوت → WARN', hasCheck(coreqWrongSem, 'COREQ_PRESENT', 'WARN'), true);
+eq('هم‌نیاز در ترم بعدتر → WARN', hasCheck(coreqLater, 'COREQ_PRESENT', 'WARN'), true);
+
+const coreqEarlierOk = validateCurriculumCore(baseInput({
+  rules: [{ courseId: 3, ruleType: 'COREQ', logicTree: { operator: 'AND', conditions: [{ course: 'CS201' }] } }], // CS201 ترم ۳ < الگوریتم ترم ۴
+}));
+eq('هم‌نیاز در ترم زودتر → بدون یافته', hasCheck(coreqEarlierOk, 'COREQ_PRESENT'), false);
 
 const coreqAutoOk = validateCurriculumCore(baseInput({
   courses: baseInput().courses.map(c => c.courseId === 3 ? { ...c, autoCorequisiteAllowed: 1 } : c),
@@ -228,6 +233,45 @@ eq('کسری عمومی (۳ از ۹) → WARN', hasCheck(shortGeneral, 'ROLE_UNI
 const allMet = validateCurriculumCore(baseInput({ minRoleUnits: { GENERAL: 3, CORE: 4, MAJOR: 3, THESIS: 6, ELECTIVE: 2 } }));
 eq('همه سهم‌ها تأمین → بدون یافته', hasCheck(allMet, 'ROLE_UNITS_COVERAGE'), false);
 eq('کسری واحد، مانع تأیید نیست (WARN)', hasBlockingErrors(shortGeneral.filter(r => r.check === 'ROLE_UNITS_COVERAGE')), false);
+
+// ── «جبرانی» (کلید COMPENSATORY) — از مهاجرت ۰۱۲۹ نقشِ رسمیِ چارت است و
+//     همچنان هدفِ سهم واحد (minRoleUnits) معتبری است ──
+const compShort = validateCurriculumCore(baseInput({ minRoleUnits: { COMPENSATORY: 5 } }));
+const compRow = compShort.find(r => r.check === 'ROLE_UNITS_COVERAGE');
+eq('جبرانی با کسری → WARN', !!compRow, true);
+eq('پیام جبرانی با نام فارسی می‌آید', (compRow?.message ?? '').includes('جبرانی'), true);
+eq('پیام، کلید خام COMPENSATORY را لو نمی‌دهد', (compRow?.message ?? '').includes('COMPENSATORY'), false);
+
+const compZero = validateCurriculumCore(baseInput({ minRoleUnits: { COMPENSATORY: 0 } }));
+eq('جبرانی صفر (تعیین‌شده ولی لازم نیست) → بدون هشدار', hasCheck(compZero, 'ROLE_UNITS_COVERAGE'), false);
+
+// ── رشتهٔ بدون درس عمومی: چون سهم GENERAL تعریف نشده، هیچ هشدار عمومی نمی‌آید ──
+const noGeneral = validateCurriculumCore(baseInput({ minRoleUnits: { MAJOR: 3 } }));
+eq('رشتهٔ بدون عمومی: سهم اصلی تأمین است → بدون هشدار', hasCheck(noGeneral, 'ROLE_UNITS_COVERAGE'), false);
+eq('رشتهٔ بدون عمومی: هیچ پیام «عمومی» ساخته نمی‌شود',
+  noGeneral.some(r => r.check === 'ROLE_UNITS_COVERAGE' && r.message.includes('عمومی')), false);
+
+// ۱۳) درس دارای پیش‌نیاز در ترم ۱ → ERROR (ترم ۰ وجود ندارد)
+const prereqTerm1 = validateCurriculumCore(baseInput({
+  courses: baseInput().courses.map(c => c.courseId === 2 ? { ...c, recommendedSemester: 1 } : c),
+  rules: [{ courseId: 2, ruleType: 'PREREQ', logicTree: { operator: 'AND', conditions: [{ course: 'MA101' }] } }],
+}));
+eq('درس دارای پیش‌نیاز در ترم ۱ → ERROR', hasCheck(prereqTerm1, 'PREREQ_FIRST_TERM', 'ERROR'), true);
+eq('… و مانع تأیید است', hasBlockingErrors(prereqTerm1), true);
+
+// پیش‌نیاز هم‌ترم (هر دو ترم ۳) → WARN ترتیب (نه ترم ۱)
+const sameTermPrereq = validateCurriculumCore(baseInput({
+  courses: baseInput().courses.map(c => c.courseId === 1 ? { ...c, recommendedSemester: 3 } : c),
+  rules: [{ courseId: 2, ruleType: 'PREREQ', logicTree: { operator: 'AND', conditions: [{ course: 'MA101' }] } }],
+}));
+eq('پیش‌نیاز هم‌ترم (ترم ۳) → WARN', hasCheck(sameTermPrereq, 'PREREQ_SEMESTER_ORDER', 'WARN'), true);
+eq('پیش‌نیاز هم‌ترم → PREREQ_FIRST_TERM نمی‌دهد', hasCheck(sameTermPrereq, 'PREREQ_FIRST_TERM'), false);
+
+// پیش‌نیاز در ترم زودتر → هیچ‌کدام
+const correctOrder = validateCurriculumCore(baseInput({
+  rules: [{ courseId: 2, ruleType: 'PREREQ', logicTree: { operator: 'AND', conditions: [{ course: 'MA101' }] } }], // MA101 ترم ۱ ← CS201 ترم ۳
+}));
+eq('ترتیب درست (۱ ← ۳) → بدون یافته ترتیبی', hasCheck(correctOrder, 'PREREQ_SEMESTER_ORDER') || hasCheck(correctOrder, 'PREREQ_FIRST_TERM'), false);
 
 console.log(`\nنتیجه: ${pass} موفق، ${fail} ناموفق`);
 process.exit(fail === 0 ? 0 : 1);

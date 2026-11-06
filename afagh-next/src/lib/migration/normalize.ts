@@ -52,6 +52,16 @@ export function boolFa(v: unknown): boolean {
   return ['1', 'بله', 'true', 'yes', 'y', '✓'].includes(s);
 }
 
+/**
+ * کد (رشته/مقطع/درس/ترم): اکسل و CSV خروجیِ پایتون، عدد صحیح را «84.0» می‌دهند.
+ * بدون این، کد رشتهٔ «84.0» هیچ‌وقت با «84» سامانه تطبیق نمی‌خورد و پیام
+ * «رشته یافت نشد» می‌دهد، در حالی که رشته با همین کد در سامانه هست.
+ */
+export function codeOf(v: unknown): string {
+  const s = norm(v);
+  return /^-?\d+\.0+$/.test(s) ? s.replace(/\.0+$/, '') : s;
+}
+
 /** تاریخ شمسی (1399/08/15 یا 1399-08-15) → Date ؛ میلادی ISO هم قبول */
 export function dateFa(v: unknown): Date | null {
   const s = norm(v).replace(/[-.]/g, '/');

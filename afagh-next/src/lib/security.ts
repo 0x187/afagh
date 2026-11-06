@@ -30,11 +30,20 @@ const EXTRA_ORIGINS = (process.env.ALLOWED_EXTRA_ORIGINS || '')
   .map((s) => s.trim())
   .filter(Boolean);
 
+/**
+ * host یک URL یا خودِ host را برمی‌گرداند — **همیشه با حروف کوچک**.
+ *
+ * چرا lowercase اجباری است: `new URL('https://B.afagh.ac.ir').host` نتیجه را
+ * کوچک می‌کند (`b.afagh.ac.ir`) ولی هدر خامِ `Host` همان‌طور که فرستنده نوشته
+ * می‌آید. مقایسهٔ حساس به حروف یعنی اگر پروکسی/CDN هدر را با حرف بزرگ فوروارد
+ * کند، همهٔ POSTهای same-origin با «CSRF blocked» رد می‌شوند — از جمله دکمهٔ
+ * خروج. نام میزبان طبق RFC 3986 حساس به حروف نیست، پس هر دو طرف کوچک می‌شوند.
+ */
 function hostOf(urlOrHost: string): string {
   try {
-    return new URL(urlOrHost).host;
+    return new URL(urlOrHost).host.toLowerCase();
   } catch {
-    return urlOrHost;
+    return urlOrHost.toLowerCase();
   }
 }
 
@@ -61,7 +70,7 @@ export function assertCsrf(req: NextRequest): NextResponse | null {
 
 /** اگر پاسخ برگرداند → باید فوراً همان پاسخ برگردانده شود؛ وگرنه null یعنی مجاز. */
 export function assertSameOrigin(req: NextRequest): NextResponse | null {
-  const host = req.headers.get('host') ?? hostOf(req.url);
+  const host = (req.headers.get('host') ?? hostOf(req.url)).toLowerCase();
 
   const origin = req.headers.get('origin');
   if (origin) {
@@ -113,7 +122,7 @@ export function assertSameOrigin(req: NextRequest): NextResponse | null {
 export async function assertServerActionOrigin(): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
     const h = await headers();
-    const host = h.get('host') ?? '';
+    const host = (h.get('host') ?? '').toLowerCase();
     const origin = h.get('origin') ?? '';
     if (!origin) {
       // Observability-only: non-browser callers (curl/cron/test) stay allowed.

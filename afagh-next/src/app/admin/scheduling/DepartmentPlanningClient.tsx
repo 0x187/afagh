@@ -16,16 +16,20 @@
  * پیوندپذیری: `?tab=SCENARIOS` تب آغازین را انتخاب می‌کند (مقادیر نامعتبر با
  * resolveTab به تب ۱ برمی‌گردند) — هم برای کاربر مفید است، هم هر تب را مستقل
  * قابل رندر/تست می‌کند.
+ *
+ * scope: 'admin' | 'dept' — همان کارتابل، دو مخاطب. در حالت 'dept' داده به
+ * دپارتمان‌های تحت مدیریت محدود شده و عملیات دانشگاهی (گذار فاز، تولید جلسات،
+ * پیوند به ماژول‌های ادمین) نمایش داده نمی‌شود.
  */
-import type { SchedulingWorkspace } from './types';
-import { PlanningProvider } from './PlanningProvider';
+import type { SchedulingWorkspace, TimeSlot } from './types';
+import { PlanningProvider, type PlanningScope } from './PlanningProvider';
 import PlanningShell from './components/PlanningShell';
 
 export default function DepartmentPlanningClient({
-  initial, tab,
-}: { initial: SchedulingWorkspace; tab?: string | null }) {
+  initial, tab, timeSlots, scope = 'admin',
+}: { initial: SchedulingWorkspace; tab?: string | null; timeSlots?: TimeSlot[]; scope?: PlanningScope }) {
   return (
-    <PlanningProvider initial={initial} tab={tab}>
+    <PlanningProvider initial={initial} tab={tab} timeSlots={timeSlots} scope={scope}>
       <PlanningShell />
     </PlanningProvider>
   );

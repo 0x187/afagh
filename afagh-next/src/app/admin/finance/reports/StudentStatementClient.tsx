@@ -15,6 +15,8 @@ interface StatementRow {
   termId: number;
   termCode: string;
   termTitle: string;
+  /** وضعیت نیمسال دانشجو (در حال تحصیل / مرخصی / مهمان / انصراف / …) — می‌تواند تهی باشد */
+  statusTitle?: string | null;
   tuitionFixed: number;
   tuitionVariable: number;
   discountFixed: number;
@@ -30,18 +32,31 @@ interface StatementRow {
   charges: number;
   discounts: number;
   sponsorships: number;
+  /** بخشی از پوشش که از واریزِ واقعیِ بنیاد/سازمان دولتی آمده است */
+  sponsorshipsFromDeposits?: number;
+  /** پوشش صندوق خیریه (زیرمجموعهٔ پوشش، با برچسب مستقل) */
+  charityCoverage?: number;
   canonicalPayments: number;
   chequesCleared: number;
   chequesPending: number;
   chequesBounced: number;
   canonicalLoans: number;
   netPayable: number;
+  coursesBasis?: 'TARIFF' | 'LEDGER';
+  tariffGroupCode?: string | null;
   courses?: {
     courseCode: string | null;
     courseTitle: string | null;
     units: number;
     perUnit: number;
     amount: number;
+    /** نوع درس مالی سما — جای ستون «نرخ واحد» در ریز کارنامه */
+    maliType?: number | null;
+    offeringType?: string | null;
+    grade?: number | null;
+    courseNature?: string | null;
+    theoreticalUnits?: number;
+    practicalUnits?: number;
   }[];
 }
 
@@ -83,8 +98,8 @@ function SumBox({ icon, label, value, tone, sub }: { icon: string; label: string
   return (
     <div className={`relative rounded-xl border bg-gradient-to-b p-3 pt-4 text-center shadow-sm ${tone}`}>
       <p className="text-lg font-black leading-tight">{value}</p>
-      <p className="mt-0.5 text-[11px] font-medium opacity-75">{label}</p>
-      {sub && <p className="mt-0.5 text-[10px] font-bold opacity-90">{sub}</p>}
+      <p className="mt-0.5 text-2xs font-medium opacity-75">{label}</p>
+      {sub && <p className="mt-0.5 text-3xs font-bold opacity-90">{sub}</p>}
       <span className="absolute -top-2.5 right-2 text-sm">{icon}</span>
     </div>
   );
@@ -201,7 +216,7 @@ export default function StudentStatementClient({ studentId, studentName, student
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-base font-black sm:text-lg">📄 صورت‌حساب مالی — {studentName}</h1>
-            <p className="mt-1 text-[11px] text-indigo-100/90">
+            <p className="mt-1 text-2xs text-indigo-100/90">
               شمارهٔ دانشجویی: <span dir="ltr" className="font-mono">{studentCode}</span> — ۹ مشخصهٔ سما (ثابت/متغیر/پرداختی/تخفیف ثابت/متغیر/موضوعی + و − /بنیاد/وام)
             </p>
           </div>
@@ -260,10 +275,16 @@ export default function StudentStatementClient({ studentId, studentName, student
           terms={data.map((d) => ({
             termId: d.termId,
             termTitle: d.termTitle,
+            statusTitle: d.statusTitle ?? null,
             termCode: d.termCode ?? null,
             charges: d.charges ?? 0,
+            // تفکیک شهریه (سما هم ثابت و متغیر را جدا می‌نویسد)
+            tuitionFixed: d.tuitionFixed ?? 0,
+            tuitionVariable: d.tuitionVariable ?? 0,
             discounts: d.discounts ?? 0,
             sponsorships: d.sponsorships ?? 0,
+            sponsorshipsFromDeposits: d.sponsorshipsFromDeposits ?? 0,
+            charityCoverage: d.charityCoverage ?? 0,
             netPayable: d.netPayable ?? 0,
             payments: d.canonicalPayments ?? 0,
             chequesCleared: d.chequesCleared ?? 0,
@@ -273,9 +294,12 @@ export default function StudentStatementClient({ studentId, studentName, student
             balance: d.balance ?? 0,
             events: [],
             courses: d.courses ?? [],
+            coursesBasis: d.coursesBasis ?? 'LEDGER',
+            tariffGroupCode: d.tariffGroupCode ?? null,
           }))}
           totals={totals}
           showEvents={false}
+          viewerRole="FINANCE"
           universityTitle={universityTitle}
           logoUrl={logoUrl}
           verifyBlock={verify ? <FinanceVerifyBlock url={verify.url} qr={verify.qr} expiresAt={verify.expiresAt} /> : undefined}

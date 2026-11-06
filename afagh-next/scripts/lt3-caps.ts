@@ -40,7 +40,7 @@ const rls = async (userId: number, fn: any) => db.transaction(async (tx: any) =>
 });
 const deps = {
   db, withUserRls: rls, atomicSeat, releaseSeat, nextWaitlistPosition,
-  buildPrereq: async () => ({ ruleByCourse: new Map(), passed: new Set(), titles: new Map() }),
+  buildPrereq: async () => ({ ruleByCourse: new Map(), passed: new Map(), titles: new Map(), defaultPassing: 10, unitsPassed: 0, semesterNo: 1 }),
   getDebtThreshold: async () => 0, notifyEnrollmentDone: async () => {},
   // evaluateRegulations intentionally omitted -> REAL engine applies the per-level cap
 };

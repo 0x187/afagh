@@ -136,7 +136,7 @@ export default function LoginCard() {
           />
           {err && <p role="alert" className="rounded-xl bg-red-50 p-2 text-center text-sm text-red-700 dark:border dark:border-red-800 dark:bg-red-950 dark:text-red-200">{err}</p>}
           <button className="btn-primary w-full" disabled={!ready || busy}>{busy ? 'در حال ورود…' : 'ورود'}</button>
-          <p className="text-center text-[11px] text-slate-400">
+          <p className="text-center text-2xs text-slate-400">
             ورود اول؟ گذرواژهٔ اولیهٔ شما برابر همان کد است. <a href="/help?tab=shared" className="text-indigo-700 font-bold hover:underline">راهنمای ورود</a>
           </p>
         </>

@@ -44,7 +44,9 @@ export async function run(kind: string, f: ReportFilters): Promise<ReportResult 
       const like = f.q ? `%${escapeLikeChars(String(f.q))}%` : null;
       const conds = [
         ...(uni ? [sql`(r."universityId" = ${uni} OR r."universityId" IS NULL)`] : []),
-        ...(like ? [sql`(r.name ILIKE ${like} ESCAPE '\\' OR r."buildingName" ILIKE ${like} ESCAPE '\\')`] : []),
+        // جست‌وجو روی نام اتاق، کد اتاق و نام دانشکده (منبع: faculties) —
+        // ستون قدیمیِ buildingName هم‌نویسیِ همان نام است، پس نتیجه یکی است.
+        ...(like ? [sql`(r.name ILIKE ${like} ESCAPE '\\' OR r.code ILIKE ${like} ESCAPE '\\' OR f.name ILIKE ${like} ESCAPE '\\')`] : []),
         sql`NOT EXISTS (SELECT 1 FROM schedules sch
           JOIN course_offerings o ON o.id = sch."offeringId"
           JOIN academic_terms t ON t.id = o."termId"
@@ -53,13 +55,15 @@ export async function run(kind: string, f: ReportFilters): Promise<ReportResult 
       const r = await paged(
         [
           { key: 'id', title: 'شناسه' }, { key: 'room', title: 'کلاس' },
-          { key: 'building', title: 'ساختمان' }, { key: 'capacity', title: 'ظرفیت' },
+          { key: 'faculty', title: 'دانشکده' }, { key: 'capacity', title: 'ظرفیت' },
           { key: 'type', title: 'نوع' },
         ],
-        sql`FROM classrooms r`,
+        sql`FROM classrooms r LEFT JOIN faculties f ON f.id = r."facultyId"`,
         conds,
-        sql`r.id AS id, r.name AS room, r."buildingName" AS building, r.capacity AS capacity, r."roomType" AS type`,
-        sql`ORDER BY r."buildingName" NULLS LAST, r.name`,
+        // COALESCE: اگر دانشکده تعیین نشده باشد، همان هم‌نویسیِ قدیمی نمایش داده می‌شود.
+        sql`r.id AS id, r.name AS room, COALESCE(f.name, r."buildingName") AS faculty,
+          r.capacity AS capacity, r."roomType" AS type`,
+        sql`ORDER BY faculty NULLS LAST, r.name`,
         f,
       );
       r.summary = `${r.total.toLocaleString('fa-IR')} کلاس بدون برنامه در ترم ${term} (مبنا: schedules؛ class_sessions اتصال به کلاس ندارد)`;

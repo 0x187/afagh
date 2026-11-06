@@ -187,7 +187,7 @@ export default function DefenseSchedulingClient({ initial }: { initial: Board })
       {activeTab === 'POOLS' && (
         <div className="space-y-3">
           <div className="card p-4 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-[11px] text-slate-600 leading-5">
+            <p className="text-2xs text-slate-600 leading-5">
               هنگام تعیین وقت دفاع، اتاق و اعضای هیأت داوران خودکار از استخرِ همین رشته (و در صورت نبود، استخر عمومی) انتخاب می‌شود.
             </p>
             <button onClick={() => openPool(null)}
@@ -211,14 +211,14 @@ export default function DefenseSchedulingClient({ initial }: { initial: Board })
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => openPool(p)}
-                    className="px-2 py-1 rounded-lg bg-slate-100 text-[11px] font-black">ویرایش</button>
+                    className="px-2 py-1 rounded-lg bg-slate-100 text-2xs font-black">ویرایش</button>
                   <button onClick={() => run(() => toggleJuryPoolAction(p.id, !p.isActive), 'وضعیت استخر تغییر کرد.')}
-                    className="px-2 py-1 rounded-lg bg-slate-200 text-[11px] font-black">
+                    className="px-2 py-1 rounded-lg bg-slate-200 text-2xs font-black">
                     {p.isActive ? 'غیرفعال کردن' : 'فعال کردن'}
                   </button>
                 </div>
               </div>
-              <div className="text-[11px] text-slate-600">
+              <div className="text-2xs text-slate-600">
                 اتاق: {p.roomName ?? '—'} · رئیس هیأت: {board.staffOptions.find(s => s.id === p.chairId)?.name ?? '—'} ·
                 داخلی: {faNum(p.internalIds.length)} نفر · خارجی: {faNum(p.externalIds.length)} نفر
               </div>
@@ -230,7 +230,7 @@ export default function DefenseSchedulingClient({ initial }: { initial: Board })
               <h3 className="text-sm font-black text-indigo-900">{editingId === 0 ? 'استخر جدید' : 'ویرایش استخر'}</h3>
               <div className="grid sm:grid-cols-2 gap-2">
                 <label className="block">
-                  <span className="text-[11px] font-bold text-slate-700">دپارتمان / گروه آموزشی</span>
+                  <span className="text-2xs font-bold text-slate-700">دپارتمان / گروه آموزشی</span>
                   <select value={poolForm.departmentCode} onChange={e => setPoolForm(f => ({ ...f, departmentCode: e.target.value }))}
                     className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs bg-white">
                     <option value="">انتخاب کنید</option>
@@ -238,7 +238,7 @@ export default function DefenseSchedulingClient({ initial }: { initial: Board })
                   </select>
                 </label>
                 <label className="block">
-                  <span className="text-[11px] font-bold text-slate-700">رشته (خالی = همهٔ رشته‌ها)</span>
+                  <span className="text-2xs font-bold text-slate-700">رشته (خالی = همهٔ رشته‌ها)</span>
                   <select value={poolForm.majorId} onChange={e => setPoolForm(f => ({ ...f, majorId: e.target.value }))}
                     className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs bg-white">
                     <option value="">عمومی</option>
@@ -246,7 +246,7 @@ export default function DefenseSchedulingClient({ initial }: { initial: Board })
                   </select>
                 </label>
                 <label className="block">
-                  <span className="text-[11px] font-bold text-slate-700">رئیس هیأت داوران</span>
+                  <span className="text-2xs font-bold text-slate-700">رئیس هیأت داوران</span>
                   <select value={poolForm.chairId} onChange={e => setPoolForm(f => ({ ...f, chairId: e.target.value }))}
                     className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs bg-white">
                     <option value="">—</option>
@@ -254,7 +254,7 @@ export default function DefenseSchedulingClient({ initial }: { initial: Board })
                   </select>
                 </label>
                 <label className="block">
-                  <span className="text-[11px] font-bold text-slate-700">اتاق دفاع</span>
+                  <span className="text-2xs font-bold text-slate-700">اتاق دفاع</span>
                   <select value={poolForm.roomId} onChange={e => setPoolForm(f => ({ ...f, roomId: e.target.value }))}
                     className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs bg-white">
                     <option value="">—</option>
@@ -307,9 +307,9 @@ function Row({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <div className="text-xs font-black text-slate-800">
-            {r.fullName} <span className="font-mono text-[10px] text-slate-500">({r.studentCode})</span>
+            {r.fullName} <span className="font-mono text-3xs text-slate-500">({r.studentCode})</span>
           </div>
-          <div className="text-[10px] text-slate-500">{r.majorName ?? '—'} · راهنما: {r.supervisorName ?? '—'}</div>
+          <div className="text-3xs text-slate-500">{r.majorName ?? '—'} · راهنما: {r.supervisorName ?? '—'}</div>
         </div>
         <div className="flex flex-wrap items-center gap-1">
           <span className="badge bg-slate-100 text-slate-700">{DEFENSE_FA[defense] ?? defense}</span>
@@ -322,7 +322,7 @@ function Row({
         </div>
       </div>
 
-      <div className="text-[11px] text-slate-600 grid sm:grid-cols-2 lg:grid-cols-3 gap-x-3 gap-y-1">
+      <div className="text-2xs text-slate-600 grid sm:grid-cols-2 lg:grid-cols-3 gap-x-3 gap-y-1">
         <span>عنوان: {r.titleFa ?? '—'}</span>
         <span>همانندجویی پروپوزال: {faNum(r.proposalSimilarity)}٪</span>
         <span>کد ایرانداک: <span className="font-mono">{r.irandocUploadTracking ?? '—'}</span></span>
@@ -338,7 +338,7 @@ function Row({
 
       {canManage && proposalOpen && (
         <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50/60 p-2.5 space-y-2">
-          <div className="text-[11px] font-black text-emerald-900">تأیید پروپوزال + ثبت کد رهگیری بارگذاری در ایرانداک</div>
+          <div className="text-2xs font-black text-emerald-900">تأیید پروپوزال + ثبت کد رهگیری بارگذاری در ایرانداک</div>
           <div className="flex flex-wrap gap-2 items-center">
             <input value={d.tracking} onChange={e => onPatch({ tracking: e.target.value })} dir="ltr"
               placeholder="کد رهگیری ایرانداک"
@@ -353,7 +353,7 @@ function Row({
 
       {defense === 'SUPERVISOR_REVIEW' && (
         <div className="rounded-xl border-2 border-amber-200 bg-amber-50/60 p-2.5 space-y-2">
-          <div className="text-[11px] font-black text-amber-900">
+          <div className="text-2xs font-black text-amber-900">
             {isSupervisor
               ? 'شما استاد راهنمای این پرونده هستید؛ تصمیم شما ثبت می‌شود.'
               : `در انتظار تأیید استاد راهنما (${r.supervisorName ?? '—'}) — این دکمه فقط برای همان استاد فعال است.`}
@@ -369,9 +369,9 @@ function Row({
 
       {canManage && defense === 'EXPERT_REVIEW' && (
         <div className="rounded-xl border-2 border-indigo-200 bg-indigo-50/60 p-2.5 space-y-2">
-          <div className="text-[11px] font-black text-indigo-900">تعیین وقت دفاع</div>
+          <div className="text-2xs font-black text-indigo-900">تعیین وقت دفاع</div>
           {r.pool && (
-            <div className="text-[10px] text-indigo-900 leading-5">
+            <div className="text-3xs text-indigo-900 leading-5">
               استخر داوری انتخابی: <b>{r.pool.departmentCode}</b> — اتاق: <b>{r.pool.roomName ?? 'اتاق خودکار دانشکده'}</b> ·
               رئیس: <b>{r.pool.chair ?? '—'}</b> · داخلی: <b>{r.pool.internal ?? '—'}</b> · خارجی: <b>{r.pool.external ?? '—'}</b>
             </div>
@@ -387,7 +387,7 @@ function Row({
 
       {canManage && defense === 'SCHEDULED' && (
         <div className="rounded-xl border-2 border-sky-200 bg-sky-50/60 p-2.5 space-y-2">
-          <div className="text-[11px] font-black text-sky-900">ثبت نتیجهٔ دفاع و صورت‌جلسه</div>
+          <div className="text-2xs font-black text-sky-900">ثبت نتیجهٔ دفاع و صورت‌جلسه</div>
           <div className="flex flex-wrap gap-2 items-center">
             <input type="datetime-local" value={d.conductedAt} onChange={e => onPatch({ conductedAt: e.target.value })}
               className="border border-sky-200 rounded-lg px-3 py-1.5 text-xs" />
@@ -417,7 +417,7 @@ function MultiSelect({
 }) {
   return (
     <label className="block">
-      <span className="text-[11px] font-bold text-slate-700">{label}</span>
+      <span className="text-2xs font-bold text-slate-700">{label}</span>
       <select multiple value={value} size={4}
         onChange={e => onChange(Array.from(e.target.selectedOptions).map(o => o.value))}
         className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs bg-white">

@@ -90,7 +90,7 @@ export default async function CodesPage() {
             <span className="rounded-lg bg-emerald-100 px-2.5 py-1 font-bold text-emerald-700">✓ همهٔ کدها سالم‌اند</span>
           )}
         </div>
-        <p className="mt-2 text-[11px] leading-6 text-slate-400">
+        <p className="mt-2 text-2xs leading-6 text-slate-400">
           پیش از هر انتقال داده، این صفحه را بررسی کنید. رکوردهای بی‌کد فقط با نام تطبیق می‌خورند و اگر نام تکراری
           باشد، سامانه به‌جای حدس‌زدن خطا می‌دهد و آن ردیف وصل نمی‌شود.
         </p>
@@ -115,9 +115,9 @@ export default async function CodesPage() {
 
       <p className="text-center text-xs text-slate-400">
         نگاشت کد قدیمی به کد جدید در{' '}
-        <Link href="/admin/migration" className="text-indigo-600 hover:underline">انتقال داده ← تطبیق کدها</Link>{' '}
+        <Link prefetch={false} href="/admin/migration" className="text-indigo-600 hover:underline">انتقال داده ← تطبیق کدها</Link>{' '}
         انجام می‌شود · ساخت گروه آموزشی در{' '}
-        <Link href="/admin/departments" className="text-indigo-600 hover:underline">گروه‌های آموزشی</Link>{' '}
+        <Link prefetch={false} href="/admin/departments" className="text-indigo-600 hover:underline">گروه‌های آموزشی</Link>{' '}
         · مقطع، دانشکده و رشته را از دکمهٔ «افزودن» همین صفحه بسازید
       </p>
     </div>

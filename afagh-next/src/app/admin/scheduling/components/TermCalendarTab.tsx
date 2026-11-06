@@ -10,6 +10,7 @@ export default function TermCalendarTab() {
     generatedTermSessionsCount,
     handleGenerateSessions,
     hardConflictCount,
+    isDeptScope,
     isGeneratingSessions,
     makeupSessions,
     sessionsByOffering,
@@ -29,13 +30,19 @@ export default function TermCalendarTab() {
                   </p>
                 </div>
 
-                <button
-                  onClick={handleGenerateSessions}
-                  disabled={isGeneratingSessions}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 text-white font-extrabold text-xs shadow-md flex items-center gap-2 transition disabled:opacity-50 disabled:cursor-wait"
-                >
-                  <span>{isGeneratingSessions ? '⏳ در حال تولید جلسات از برنامهٔ مصوب…' : `⚡ تولید و زمان‌بندی خودکار ${faNum(calendarConfig.sessionsCount)} جلسه ترم برای کلیه دروس`}</span>
-                </button>
+                {isDeptScope ? (
+                  <span className="px-4 py-2.5 rounded-xl bg-slate-100 border border-slate-300 text-slate-600 font-bold text-xs">
+                    🔒 تولید جلسات ترم برای کل دانشگاه در اختیار مدیر آموزش است
+                  </span>
+                ) : (
+                  <button
+                    onClick={handleGenerateSessions}
+                    disabled={isGeneratingSessions}
+                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 text-white font-extrabold text-xs shadow-md flex items-center gap-2 transition disabled:opacity-50 disabled:cursor-wait"
+                  >
+                    <span>{isGeneratingSessions ? '⏳ در حال تولید جلسات از برنامهٔ مصوب…' : `⚡ تولید و زمان‌بندی خودکار ${faNum(calendarConfig.sessionsCount)} جلسه ترم برای کلیه دروس`}</span>
+                  </button>
+                )}
               </div>
 
               {/* Calendar Settings Grid */}
@@ -138,13 +145,13 @@ export default function TermCalendarTab() {
                             <span className="text-indigo-900 font-bold">({item.profName})</span>
                             <span className="text-slate-500">· جبران جلسهٔ {faNum(item.sessionNo)}</span>
                           </div>
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black self-start sm:self-auto bg-indigo-100 text-indigo-900">
+                          <span className="px-2.5 py-0.5 rounded-full text-3xs font-black self-start sm:self-auto bg-indigo-100 text-indigo-900">
                             {item.replacedSessionId ? 'جایگزین جلسهٔ معلق' : 'ثبت‌شده'}
                           </span>
                         </div>
                         <div className="text-slate-600 flex flex-wrap items-center justify-between gap-2">
                           <span>تاریخ: <strong>{faNum(item.sessionDate)}</strong> ساعت <strong>{faNum(item.sessionTime)}</strong></span>
-                          <span className="font-mono text-[10px] text-slate-400">کد درس: {item.courseCode}</span>
+                          <span className="font-mono text-3xs text-slate-400">کد درس: {item.courseCode}</span>
                         </div>
                       </div>
                     ))}

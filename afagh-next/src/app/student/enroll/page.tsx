@@ -222,7 +222,7 @@ export default async function EnrollPage() {
     const node = prereqCtx.ruleByCourse.get(o.courseId ?? -1);
     const lbl = formatPrereq(node, prereqCtx.titles);
     if (lbl) prereqLabel.set(o.id, lbl);
-    prereqMet.set(o.id, !node || evaluateLogicTree(node, prereqCtx.passed).ok);
+    prereqMet.set(o.id, !node || evaluateLogicTree(node, prereqCtx.passed, prereqCtx).ok);
   }
 
   // درخواست‌های باز «بدون رعایت پیش‌نیاز / تداخل امتحانی» همین دانشجو

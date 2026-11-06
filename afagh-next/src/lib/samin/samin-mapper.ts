@@ -2,6 +2,7 @@ import { eq, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import { degree_level_configs, students, universities, users } from '@/db/schema';
 import { jalaliDateOf } from '@/lib/scheduling-core';
+import { execFirstRow } from '@/lib/db-result';
 import { mapMilitarySamaToMinistry, resolveCityMinistry, resolveCityMinistryByCode } from '@/lib/shared-coding';
 
 /** تاریخ میلادی دیتابیس → شمسی 'YYYY/MM/DD' برای ثمین (نمونهٔ سند: 1381/02/06) */
@@ -36,15 +37,87 @@ function mapNationality(v: unknown): string {
  */
 export type SaminStudentPayload = Record<string, unknown>;
 
-/** db.execute در node-postgres آبجکت Result می‌دهد نه آرایه — هر دو شکل */
+/** db.execute در node-postgres آبجکت Result می‌دهد نه آرایه — نرمال‌سازی مشترک */
 async function firstRow<T>(q: Promise<unknown>): Promise<T | undefined> {
-  const res = (await q) as unknown;
-  const rows = Array.isArray(res) ? res : (res as { rows?: unknown })?.rows;
-  return (Array.isArray(rows) ? rows[0] : undefined) as T | undefined;
+  return execFirstRow<T>(await q);
+}
+
+/**
+ * ردیفِ منبعِ ثمین — خروجی `SELECT u.*, s.*` از JOIN «students + users».
+ *
+ * چرا این اینترفیس: پیش‌تر ردیف با `firstRow<SaminSourceRow>` خوانده می‌شد و هر دسترسی
+ * `row.field` نوشته می‌شد (۷۶ مورد). یعنی هر غلط تایپی در نام ستون
+ * فقط در زمان اجرا و به‌صورت مقدار `undefined` در payload ثمین ظاهر می‌شد —
+ * بدترین حالت، چون سرویس بیرونی ممکن است آن را بپذیرد و داده ناقص ثبت شود.
+ *
+ * ستون‌ها عمداً nullable هستند (کوئری خام است و DB می‌تواند NULL بدهد)؛
+ * تبدیل به رشته/عدد در محل استفاده انجام می‌شود، نه با `as any`.
+ */
+interface SaminSourceRow {
+  // ── شناسه‌ها (alias های کوئری) ──
+  uid: number;
+  sid: number;
+  // ── users ──
+  nationalCode: string | null;
+  /** بعضی ردیف‌های قدیمی کد ملی را با حرف بزرگ ذخیره کرده‌اند */
+  NationalCode?: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  firstNameEn: string | null;
+  lastNameEn: string | null;
+  fatherName: string | null;
+  gender: string | null;
+  nationality: string | null;
+  religion: string | null;
+  birthDate: Date | string | null;
+  birthCertNo: string | null;
+  birthCertSeries: string | null;
+  placeOfBirth: string | null;
+  placeOfIssue: string | null;
+  birthPlaceCode: string | null;
+  issuePlaceCode: string | null;
+  passportNumber: string | null;
+  address: string | null;
+  postalCode: string | null;
+  email: string | null;
+  mobile: string | null;
+  isAlive: number | null;
+  // ── students ──
+  studentCode: string | null;
+  status: string | null;
+  degreeLevelId: number | null;
+  universityId: number | null;
+  senderUniversityCode: string | null;
+  nativeType: string | null;
+  ethnicity: string | null;
+  militaryStatus: string | null;
+  totalAverage: string | number | null;
+  entryYear: string | number | null;
+  entryTerm: string | number | null;
+  graduateDate: string | null;
+  eduEndYear: string | number | null;
+  eduEndSemester: string | number | null;
+  sanjeshFileNumber: string | null;
+  sanjeshApplicantNumber: string | null;
+  saminPersonPk: string | null;
+  saminStudentPk: string | null;
+  saminFieldCode: string | null;
+  saminLocalFieldCode: string | null;
+  saminIsVerified: number | null;
+  saminVerifyCheckDate: Date | string | null;
+  saminDescription: string | null;
+  acceptanceAllocation: string | null;
+  acceptanceType: string | null;
+  studyingMode: string | null;
+  trainingMethod: string | null;
+  isaarCode: string | null;
+  totalTakenUnits: number | null;
+  totalPassedUnits: number | null;
+  totalFailedUnits: number | null;
 }
 
 export async function buildSaminPayloadForStudent(studentId: number): Promise<SaminStudentPayload | null> {
-  const row = await firstRow<any>(db.execute(sql`
+  const row = await firstRow<SaminSourceRow>(db.execute(sql`
     SELECT u.*, s.*,
       s.id as sid, u.id as uid
     FROM students s
@@ -56,86 +129,86 @@ export async function buildSaminPayloadForStudent(studentId: number): Promise<Sa
 
   // محل‌ها از geo حل می‌شوند: اول کد ثبت‌شده، بعد عنوان؛ آدرس هم بهترین‌تلاش
   const birthGeo =
-    (await resolveCityMinistryByCode((row as any).birthPlaceCode).catch(() => null)) ??
-    (await resolveCityMinistry((row as any).placeOfBirth).catch(() => null));
+    (await resolveCityMinistryByCode(row.birthPlaceCode).catch(() => null)) ??
+    (await resolveCityMinistry(row.placeOfBirth).catch(() => null));
   const issueGeo =
-    (await resolveCityMinistryByCode((row as any).issuePlaceCode).catch(() => null)) ??
-    (await resolveCityMinistry((row as any).placeOfIssue).catch(() => null));
-  const addrGeo = await resolveCityMinistry((row as any).address).catch(() => null);
+    (await resolveCityMinistryByCode(row.issuePlaceCode).catch(() => null)) ??
+    (await resolveCityMinistry(row.placeOfIssue).catch(() => null));
+  const addrGeo = await resolveCityMinistry(row.address).catch(() => null);
 
   // نگاشت ۱:۱ — فیلدهای الزامی ثمین باید پر باشند
-  const nationalCode = (row as any).nationalCode || (row as any).NationalCode;
-  const studentCode = (row as any).studentCode;
+  const nationalCode = row.nationalCode || row.NationalCode;
+  const studentCode = row.studentCode;
 
   // کد استاندارد مقطع (level نمونهٔ سند: 210004) + کد ثمین دانشگاه
   let levelCode = '';
-  const degId = Number((row as any).degreeLevelId || 0);
+  const degId = Number(row.degreeLevelId || 0);
   if (degId) {
-    const [deg] = await db
+    const deg = await db
       .select({ sc: degree_level_configs.standardCode })
       .from(degree_level_configs)
       .where(eq(degree_level_configs.id, degId))
       .limit(1)
-      .catch(() => []);
-    levelCode = (deg as { sc?: string | null } | undefined)?.sc || '';
+      .catch(() => [] as { sc: string | null }[]);
+    levelCode = deg[0]?.sc || '';
   }
   let uniSaminCode = '';
-  const uniId = Number((row as any).universityId || 0);
+  const uniId = Number(row.universityId || 0);
   if (uniId) {
-    const [u] = await db
+    const uni = await db
       .select({ sc: universities.saminCode })
       .from(universities)
       .where(eq(universities.id, uniId))
       .limit(1)
-      .catch(() => []);
-    uniSaminCode = (u as { sc?: string | null } | undefined)?.sc || '';
+      .catch(() => [] as { sc: string | null }[]);
+    uniSaminCode = uni[0]?.sc || '';
   }
-  const senderUni = (row as any).senderUniversityCode || uniSaminCode || 'AFAGH';
+  const senderUni = row.senderUniversityCode || uniSaminCode || 'AFAGH';
 
   return {
     national_code: nationalCode,
-    person_pk_in_source: (row as any).saminPersonPk || String((row as any).uid),
-    passport_number: (row as any).passportNumber || '',
-    student_pk_in_source: (row as any).saminStudentPk || String((row as any).sid),
+    person_pk_in_source: row.saminPersonPk || String(row.uid),
+    passport_number: row.passportNumber || '',
+    student_pk_in_source: row.saminStudentPk || String(row.sid),
     student_code: studentCode,
     sender_university: senderUni,
     university: senderUni,
-    first_name: (row as any).firstName,
-    last_name: (row as any).lastName,
-    first_name_en: (row as any).firstNameEn || '',
-    last_name_en: (row as any).lastNameEn || '',
-    iden_number: (row as any).birthCertNo || '',
-    iden_classified_number: (row as any).birthCertSeries || '',
+    first_name: row.firstName,
+    last_name: row.lastName,
+    first_name_en: row.firstNameEn || '',
+    last_name_en: row.lastNameEn || '',
+    iden_number: row.birthCertNo || '',
+    iden_classified_number: row.birthCertSeries || '',
     iden_serial_number: '',
     birth_place: birthGeo?.cityCode || '',
     iden_issue_place: issueGeo?.cityCode || '',
-    birth_date: toJalaliDay((row as any).birthDate),
-    nationality: mapNationality((row as any).nationality),
+    birth_date: toJalaliDay(row.birthDate),
+    nationality: mapNationality(row.nationality),
     temp_certificate_code: '',
     final_certificate_code: '',
     military_edu_exemption_code: '',
-    address: (row as any).address || '',
-    graduate_state: mapGraduateState((row as any).status),
-    native_type: (row as any).nativeType || '',
-    ethnicity: (row as any).ethnicity || '',
-    military: mapMilitarySamaToMinistry((row as any).militaryStatus) || '',
-    father_name: (row as any).fatherName || '',
-    gender: mapGender((row as any).gender),
-    religion: (row as any).religion || '',
+    address: row.address || '',
+    graduate_state: mapGraduateState(row.status),
+    native_type: row.nativeType || '',
+    ethnicity: row.ethnicity || '',
+    military: mapMilitarySamaToMinistry(row.militaryStatus) || '',
+    father_name: row.fatherName || '',
+    gender: mapGender(row.gender),
+    religion: row.religion || '',
     marriage_status: '',
     address_country: '120001',
     address_province: addrGeo?.provinceCode || '',
     address_city: addrGeo?.cityCode || '',
-    postalcode: (row as any).postalCode || '',
-    email: (row as any).email || '',
-    mobile: (row as any).mobile || '',
-    total_average: (row as any).totalAverage || '',
-    edu_start_year: toEduYear((row as any).entryYear),
-    edu_start_semester: String((row as any).entryTerm || '1'),
-    graduate_date: (row as any).graduateDate || '',
+    postalcode: row.postalCode || '',
+    email: row.email || '',
+    mobile: row.mobile || '',
+    total_average: row.totalAverage || '',
+    edu_start_year: toEduYear(row.entryYear),
+    edu_start_semester: String(row.entryTerm || '1'),
+    graduate_date: row.graduateDate || '',
     graduate_certificate_level: '',
-    edu_end_year: toEduYear((row as any).eduEndYear),
-    edu_end_semester: (row as any).eduEndSemester ? String((row as any).eduEndSemester) : '',
+    edu_end_year: toEduYear(row.eduEndYear),
+    edu_end_semester: row.eduEndSemester ? String(row.eduEndSemester) : '',
     faculty_pardis: '',
     faculty_daneshkadeh: '',
     faculty_group: '',
@@ -143,33 +216,33 @@ export async function buildSaminPayloadForStudent(studentId: number): Promise<Sa
     faculty_daneshkadeh_title: '',
     faculty_group_title: '',
     scholarship: '',
-    sanjesh_file_number: (row as any).sanjeshFileNumber || '',
-    sanjesh_applicant_number: (row as any).sanjeshApplicantNumber || '',
-    field: (row as any).saminFieldCode || '',
-    local_field: (row as any).saminLocalFieldCode || '',
+    sanjesh_file_number: row.sanjeshFileNumber || '',
+    sanjesh_applicant_number: row.sanjeshApplicantNumber || '',
+    field: row.saminFieldCode || '',
+    local_field: row.saminLocalFieldCode || '',
     level: levelCode,
-    acceptance_allocation: (row as any).acceptanceAllocation || '',
-    acceptance_type: (row as any).acceptanceType || '',
-    studying_mode: (row as any).studyingMode || '',
-    training_method: (row as any).trainingMethod || '',
-    isaar_code: (row as any).isaarCode || '',
-    totaltakenunits_count: (row as any).totalTakenUnits ? String((row as any).totalTakenUnits) : '',
-    totalpassedunits_count: (row as any).totalPassedUnits ? String((row as any).totalPassedUnits) : '',
-    totalfailedunits_count: (row as any).totalFailedUnits ? String((row as any).totalFailedUnits) : '',
-    is_alive: String((row as any).isAlive ?? 1),
-    birth_place_title: (row as any).placeOfBirth || '',
-    iden_issue_place_title: (row as any).placeOfIssue || '',
-    is_verified: (row as any).saminIsVerified ? '1' : '',
-    verify_check_date: toJalaliDay((row as any).saminVerifyCheckDate),
-    description: (row as any).saminDescription || '',
+    acceptance_allocation: row.acceptanceAllocation || '',
+    acceptance_type: row.acceptanceType || '',
+    studying_mode: row.studyingMode || '',
+    training_method: row.trainingMethod || '',
+    isaar_code: row.isaarCode || '',
+    totaltakenunits_count: row.totalTakenUnits ? String(row.totalTakenUnits) : '',
+    totalpassedunits_count: row.totalPassedUnits ? String(row.totalPassedUnits) : '',
+    totalfailedunits_count: row.totalFailedUnits ? String(row.totalFailedUnits) : '',
+    is_alive: String(row.isAlive ?? 1),
+    birth_place_title: row.placeOfBirth || '',
+    iden_issue_place_title: row.placeOfIssue || '',
+    is_verified: row.saminIsVerified ? '1' : '',
+    verify_check_date: toJalaliDay(row.saminVerifyCheckDate),
+    description: row.saminDescription || '',
   };
 }
 
-function mapGraduateState(s: string): string {
+function mapGraduateState(s: string | null | undefined): string {
   const m: Record<string, string> = { ACTIVE: '0', GRADUATED: '1', EXPELLED: '2', SUSPENDED: '3' };
-  return m[s] || '0';
+  return m[s ?? ''] || '0';
 }
-function mapGender(g: string): string {
+function mapGender(g: string | null | undefined): string {
   if (!g) return '1';
   const m: Record<string, string> = { MALE: '1', FEMALE: '2' };
   return m[g.toUpperCase()] || '1';
@@ -182,7 +255,7 @@ function mapGender(g: string): string {
 export async function buildSaminPersonPayloadForStudent(
   studentId: number,
 ): Promise<Record<string, unknown> | null> {
-  const row = await firstRow<any>(db.execute(sql`
+  const row = await firstRow<SaminSourceRow>(db.execute(sql`
     SELECT u.*,
       s.id as sid, u.id as uid
     FROM students s
@@ -192,35 +265,35 @@ export async function buildSaminPersonPayloadForStudent(
   if (!row) return null;
 
   const birthGeo =
-    (await resolveCityMinistryByCode((row as any).birthPlaceCode).catch(() => null)) ??
-    (await resolveCityMinistry((row as any).placeOfBirth).catch(() => null));
+    (await resolveCityMinistryByCode(row.birthPlaceCode).catch(() => null)) ??
+    (await resolveCityMinistry(row.placeOfBirth).catch(() => null));
   const issueGeo =
-    (await resolveCityMinistryByCode((row as any).issuePlaceCode).catch(() => null)) ??
-    (await resolveCityMinistry((row as any).placeOfIssue).catch(() => null));
+    (await resolveCityMinistryByCode(row.issuePlaceCode).catch(() => null)) ??
+    (await resolveCityMinistry(row.placeOfIssue).catch(() => null));
 
   return {
-    identity_code: (row as any).nationalCode || '',
-    source_id: (row as any).saminPersonPk || String((row as any).uid),
+    identity_code: row.nationalCode || '',
+    source_id: row.saminPersonPk || String(row.uid),
     identity_type: 'student',
-    first_name: (row as any).firstName,
-    last_name: (row as any).lastName,
-    first_name_en: (row as any).firstNameEn || '',
-    last_name_en: (row as any).lastNameEn || '',
+    first_name: row.firstName,
+    last_name: row.lastName,
+    first_name_en: row.firstNameEn || '',
+    last_name_en: row.lastNameEn || '',
     faragir_naja_code: '',
-    birth_date: toJalaliDay((row as any).birthDate),
-    father_name: (row as any).fatherName || '',
-    passport_number: (row as any).passportNumber || '',
-    iden_number: (row as any).birthCertNo || '',
-    iden_classified_number: (row as any).birthCertSeries || '',
+    birth_date: toJalaliDay(row.birthDate),
+    father_name: row.fatherName || '',
+    passport_number: row.passportNumber || '',
+    iden_number: row.birthCertNo || '',
+    iden_classified_number: row.birthCertSeries || '',
     iden_serial_number: '',
-    iden_issue_place_title: (row as any).placeOfIssue || '',
+    iden_issue_place_title: row.placeOfIssue || '',
     iden_issue_place_code: issueGeo?.cityCode || '',
     birth_place_code: birthGeo?.cityCode || '',
-    gender: mapGender((row as any).gender),
-    nationality: mapNationality((row as any).nationality),
+    gender: mapGender(row.gender),
+    nationality: mapNationality(row.nationality),
     citizenship: '',
-    is_alive: String((row as any).isAlive ?? 1),
-    is_verified: (row as any).saminIsVerified ? '1' : '',
+    is_alive: String(row.isAlive ?? 1),
+    is_verified: row.saminIsVerified ? '1' : '',
     is_active: '',
   };
 }

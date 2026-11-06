@@ -39,6 +39,8 @@ export interface CurriculumWorkspace {
   majors: MajorItem[];
   versions: VersionRow[];
   tracks: { id: number; code: string | null; title: string }[];
+  /** نیم‌سال‌های مالی (برای انتخاب «نیم‌سال ورودی» نسخه در انتقال/ایجاد) */
+  terms?: { id: number; termCode: string; title: string }[];
 }
 
 export interface CourseRow {
@@ -55,6 +57,14 @@ export interface CourseRow {
   /** کد وضع نمرهٔ سما برای قبولی/مردودی، مختص همین درس در همین نسخه — null = پیش‌فرض سیستم */
   passGradeStatusCode: string | null;
   failGradeStatusCode: string | null;
+  /** نوع درس در بانک («تخصصی»، «عمومی»، …) — گزینه‌های «سهم واحد» از همین می‌آید */
+  courseType?: string | null;
+  /** کدهای دروس هم‌ارز (کاما) — برای تشخیص «پیش‌نیاز از طریق هم‌ارزی» */
+  equivalentCourseCodes?: string | null;
+  /** تعداد واحد گذراندهٔ لازم (جدول دروس قدیم) — null = بدون شرط */
+  prereqMinUnits?: number | null;
+  /** حداقل ترم لازم (جدول دروس قدیم) — null = بدون شرط */
+  prereqMinTerm?: number | null;
 }
 
 export interface RuleRow { courseId: number; ruleType: string; logicTree: LogicNode; }
@@ -70,6 +80,11 @@ export interface VersionDetail {
   rules: RuleRow[];
   approvals: ApprovalRow[];
   checks: CheckRow[];
+  /**
+   * عنوان دروسِ ارجاع‌شده در قواعد که **در این چارت نیستند** (کد → عنوان از بانک).
+   * بدون این، ستون «پیش‌نیاز / هم‌نیاز» برای پیش‌نیاز بیرون از چارت فقط کد نشان می‌داد.
+   */
+  extraTitles?: Record<string, string>;
 }
 
 export interface BankCourse { id: number; code: string; title: string; units: string; courseType: string; }

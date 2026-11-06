@@ -87,7 +87,21 @@ async function saminFetch(url: string, init?: RequestInit): Promise<Response> {
   return ssrfFetch(url, init, { allowedHosts: [...SAMIN_HOSTS] });
 }
 
-export async function saminBulkImport(universityId: number, payload: SaminBulkPayload): Promise<{ response_code: number; import_data_status: string; trace_id: number }> {
+/**
+ * شکل پاسخ `bulk_import_data`.
+ * فیلدهای `traceId`/`status` در بعضی نسخه‌های سرویس ثمین با نام دیگری
+ * برمی‌گردند؛ اینجا اختیاری اعلام شده‌اند تا رابط کاربری بتواند هر دو را بخواند
+ * بدون `as any`.
+ */
+export type SaminBulkResult = {
+  response_code: number;
+  import_data_status: string;
+  trace_id: number;
+  traceId?: number;
+  status?: string;
+};
+
+export async function saminBulkImport(universityId: number, payload: SaminBulkPayload): Promise<SaminBulkResult> {
   const [conn] = await db.select().from(samin_connections).where(eq(samin_connections.universityId, universityId)).limit(1);
   if (!conn) throw new Error('اتصال ثمین یافت نشد');
   const token = await getSaminToken(universityId);

@@ -58,7 +58,7 @@ export default function BankDisketteTab({ state, api }: Props) {
                     <td className="p-2.5 font-mono">{idx + 1}</td>
                     <td className="p-2.5 font-black text-slate-900">{rec.name}</td>
                     <td className="p-2.5 font-mono" dir="ltr">{rec.nationalCode}</td>
-                    <td className="p-2.5 font-mono text-[11px] text-slate-700" dir="ltr">{rec.iban}</td>
+                    <td className="p-2.5 font-mono text-2xs text-slate-700" dir="ltr">{rec.iban}</td>
                     <td className="p-2.5 font-bold text-slate-800">{rec.bankName}</td>
                     <td className="p-2.5 text-center font-mono font-black text-emerald-800 text-sm bg-emerald-50/40">
                       {rec.netAmount.toLocaleString('fa-IR')}

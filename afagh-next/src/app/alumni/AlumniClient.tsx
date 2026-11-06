@@ -77,7 +77,7 @@ export default function AlumniClient({ me, services, initialRequests, degrees, i
     <div className="space-y-4">
       <div className="card p-4 bg-gradient-to-l from-indigo-800 to-violet-900 text-white">
         <h1 className="text-base sm:text-lg font-black">{me.fullName} عزیز، به جمع دانش‌آموختگان خوش آمدید 🎓</h1>
-        <p className="text-[11px] text-indigo-100 mt-1 leading-6">
+        <p className="text-2xs text-indigo-100 mt-1 leading-6">
           شمارهٔ دانشجویی {faNum(me.studentCode)} — {me.majorName ?? '—'} / {me.degreeTitle ?? '—'}
           {me.entryYear ? ` — ورودی ${faNum(me.entryYear)}` : ''}
         </p>
@@ -97,11 +97,11 @@ export default function AlumniClient({ me, services, initialRequests, degrees, i
           {degrees.map(g => (
             <div key={g.id} className="border border-slate-200 rounded-xl p-3 bg-white space-y-1">
               <div className="text-xs font-black text-slate-800">{DEGREE_LABEL[g.degreeType] ?? g.degreeType}</div>
-              <div className="text-[10px] font-mono text-slate-500">سریال: {g.serialNo}</div>
-              {g.ministryVerificationCode && <div className="text-[10px] font-mono text-slate-500">کد صحت وزارت: {g.ministryVerificationCode}</div>}
-              <div className="text-[10px] text-slate-500">تاریخ صدور: {dt(g.issuedAt)} — {g.isDelivered ? 'تحویل شده ✅' : 'در انتظار تحویل'}</div>
+              <div className="text-3xs font-mono text-slate-500">سریال: {g.serialNo}</div>
+              {g.ministryVerificationCode && <div className="text-3xs font-mono text-slate-500">کد صحت وزارت: {g.ministryVerificationCode}</div>}
+              <div className="text-3xs text-slate-500">تاریخ صدور: {dt(g.issuedAt)} — {g.isDelivered ? 'تحویل شده ✅' : 'در انتظار تحویل'}</div>
               <a href={`/verify-degree/${g.verifyCode}`} target="_blank" rel="noreferrer"
-                className="inline-block px-2 py-1 rounded-lg bg-indigo-100 text-indigo-800 text-[10px] font-black">صفحهٔ استعلام و QR</a>
+                className="inline-block px-2 py-1 rounded-lg bg-indigo-100 text-indigo-800 text-3xs font-black">صفحهٔ استعلام و QR</a>
             </div>
           ))}
         </div>
@@ -115,8 +115,8 @@ export default function AlumniClient({ me, services, initialRequests, degrees, i
             <button key={s.code} onClick={() => setSelected(s)}
               className={`text-right border rounded-xl p-3 bg-white hover:border-indigo-400 transition ${selected?.code === s.code ? 'border-indigo-600 ring-2 ring-indigo-200' : 'border-slate-200'}`}>
               <div className="text-xs font-black text-slate-800">{s.title}</div>
-              <div className="text-[10px] text-slate-500 leading-4 mt-1">{s.hint}</div>
-              <div className="text-[11px] font-black text-indigo-700 mt-1">{s.fee > 0 ? money(s.fee) : 'رایگان'}</div>
+              <div className="text-3xs text-slate-500 leading-4 mt-1">{s.hint}</div>
+              <div className="text-2xs font-black text-indigo-700 mt-1">{s.fee > 0 ? money(s.fee) : 'رایگان'}</div>
             </button>
           ))}
         </div>
@@ -146,7 +146,7 @@ export default function AlumniClient({ me, services, initialRequests, degrees, i
       {/* درخواست‌های من */}
       <div className="card p-4 overflow-x-auto">
         <h2 className="text-sm font-black text-slate-800 mb-2">پیگیری درخواست‌های من</h2>
-        <table className="w-full text-[11px] rt">
+        <table className="w-full text-2xs rt">
           <thead className="bg-slate-50 text-slate-500"><tr>
             {['کد رهگیری', 'خدمت', 'مقصد', 'هزینه', 'وضعیت', 'تاریخ', 'اقدام'].map(h => <th key={h} className="p-2 text-right font-black">{h}</th>)}
           </tr></thead>
@@ -158,23 +158,23 @@ export default function AlumniClient({ me, services, initialRequests, degrees, i
                 <td className="p-2">{r.destination ?? '—'}</td>
                 <td className="p-2 font-mono">{r.fee ? money(r.fee) : 'رایگان'}</td>
                 <td className="p-2">
-                  <span className={`px-2 py-0.5 rounded font-black text-[10px] ${STATUS_STYLE[r.status] ?? 'bg-slate-100'}`}>
+                  <span className={`px-2 py-0.5 rounded font-black text-3xs ${STATUS_STYLE[r.status] ?? 'bg-slate-100'}`}>
                     {STATUS_LABEL[r.status] ?? r.status}
                   </span>
-                  {r.adminNote && <div className="text-[10px] text-slate-500 mt-0.5">{r.adminNote}</div>}
+                  {r.adminNote && <div className="text-3xs text-slate-500 mt-0.5">{r.adminNote}</div>}
                 </td>
-                <td className="p-2 text-[10px]">{dt(r.createdAt)}</td>
+                <td className="p-2 text-3xs">{dt(r.createdAt)}</td>
                 <td className="p-2">
                   {r.status === 'AWAITING_PAYMENT' && (
                     <>
                       {/* ⛔ ثبت پرداخت از سمت دانش‌آموخته حذف شد — تسویه با تأیید واحد مالی */}
                       <button onClick={() => pay(r.id)} disabled={pending}
                         title="مبلغ را به واحد مالی پرداخت کنید؛ پس از تأیید کارشناس، درخواست به کارتابل اداره آموزش می‌رود."
-                        className="px-2 py-1 rounded-lg bg-slate-600 text-white text-[10px] font-black disabled:opacity-50">راهنمای پرداخت</button>
+                        className="px-2 py-1 rounded-lg bg-slate-600 text-white text-3xs font-black disabled:opacity-50">راهنمای پرداخت</button>
                     </>
                   )}
                   {r.resultFileUrl && isSafeLinkUrl(r.resultFileUrl) && (
-                    <a href={r.resultFileUrl} className="px-2 py-1 rounded-lg bg-slate-100 text-[10px] font-black">دریافت فایل</a>
+                    <a href={r.resultFileUrl} className="px-2 py-1 rounded-lg bg-slate-100 text-3xs font-black">دریافت فایل</a>
                   )}
                 </td>
               </tr>
@@ -187,10 +187,10 @@ export default function AlumniClient({ me, services, initialRequests, degrees, i
       {/* پروندهٔ دانش‌آموخته */}
       <div className="card p-4 space-y-2">
         <h2 className="text-sm font-black text-slate-800">اطلاعات شغلی و ارتباطی من</h2>
-        <p className="text-[11px] text-slate-500">این اطلاعات برای شبکهٔ دانش‌آموختگان و دعوت به رویدادهای دانشگاه استفاده می‌شود.</p>
+        <p className="text-2xs text-slate-500">این اطلاعات برای شبکهٔ دانش‌آموختگان و دعوت به رویدادهای دانشگاه استفاده می‌شود.</p>
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
           <label className="block">
-            <span className="text-[10px] font-bold text-slate-500">وضعیت اشتغال</span>
+            <span className="text-3xs font-bold text-slate-500">وضعیت اشتغال</span>
             <select value={profile.employmentStatus} onChange={e => setProfile({ ...profile, employmentStatus: e.target.value })}
               className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs">
               <option value="">—</option>
@@ -199,7 +199,7 @@ export default function AlumniClient({ me, services, initialRequests, degrees, i
           </label>
           {([['organization', 'سازمان/شرکت'], ['jobTitle', 'عنوان شغلی'], ['contactEmail', 'رایانامه'], ['contactMobile', 'تلفن همراه'], ['linkedinUrl', 'نشانی لینکدین']] as const).map(([k, l]) => (
             <label key={k} className="block">
-              <span className="text-[10px] font-bold text-slate-500">{l}</span>
+              <span className="text-3xs font-bold text-slate-500">{l}</span>
               <input value={profile[k]} onChange={e => setProfile({ ...profile, [k]: e.target.value })}
                 className="w-full border border-slate-200 rounded-lg px-2 py-1.5 text-xs" />
             </label>

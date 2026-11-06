@@ -1,75 +1,385 @@
 'use client';
 
-// گام ۳: کلاس‌های اختصاص‌یافته به گروه
+import { useState } from 'react';
 import { usePlanning } from '../PlanningProvider';
 import { faNum } from '../planning-core';
+import {
+  allocateRoomQuotasAction,
+  copyRoomQuotasFromPreviousTermAction,
+  releaseRoomShiftAction,
+  borrowReleasedShiftAction,
+  upsertRoomGrantAction,
+} from '../actions';
+import { askConfirm } from '@/lib/ui-feedback';
+
+const SHIFT_LABEL: Record<string, string> = { MORNING: 'صبح', EVENING: 'عصر' };
 
 export default function DeptRoomsTab() {
-  const { classrooms, currentProgram } = usePlanning();
+  const { classrooms, currentProgram, isDeptScope, selectedTermId, reloadRoomGrants, roomGrants, initial } = usePlanning();
+  const departments = (initial?.departments ?? []) as { id: number; name: string; departmentCode: string | null }[];
+  // اگر گروه کد رسمی ندارد، «شناسهٔ ردیف» را جای کد نشان نمی‌دهیم — چون کاربر
+  // فکر می‌کند کد رسمی است. ۴ گروه «دروس عمومی و مشترک» دانشگاه‌های ۲..۵
+  // departmentCode ندارند (در منبع SAMA هم نبود)، پس فقط نامشان نمایش داده می‌شود.
+  const deptLabel = (d: { id: number; name: string; departmentCode: string | null }) =>
+    d.departmentCode ? `${d.name} (${d.departmentCode})` : d.name;
+  const deptName = (id: number) => {
+    const d = departments.find(x => x.id === id);
+    return d ? deptLabel(d) : `گروه #${id}`;
+  };
+
+  const [allocating, setAllocating] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [facultyFilter, setFacultyFilter] = useState<number | 'ALL'>('ALL');
+
+  // فرم تخصیص جدید
+  const [newDept, setNewDept] = useState<number>(departments[0]?.id ?? 0);
+  const [newShift, setNewShift] = useState<'MORNING' | 'EVENING' | 'BOTH'>('MORNING');
+  const [newRoom, setNewRoom] = useState<number>(classrooms.find(c => c.isActive)?.id ?? 0);
+
+  const facultyOptions = Array.from(new Set(classrooms.map(c => c.facultyId).filter((x): x is number => x != null)));
+  // مدیرگروه: سالن‌ها از سرور به دانشکدهٔ خودش محدود شده‌اند؛ همهٔ آن‌ها را
+  // نشان می‌دهیم (نه فقط سهمیه‌دارها) تا سالن‌های خودش را ببیند و سهمیه ثبت کند.
+  // قبلاً `filter(c => c.isAllocatedToDept)` بود و چون سهمیه‌های ترم از نوع
+  // RELEASED بودند، تنها سالن‌های سهمیه‌گرفتهٔ گروه‌های *دیگر* (باشگاه‌های
+  // تربیت‌بدنی) نمایش داده می‌شد — «سالن‌هایی که مال ما نیست».
+  const visibleRooms = classrooms
+    .filter(c => c.isActive)
+    .filter(c => facultyFilter === 'ALL' || c.facultyId === facultyFilter);
+  const grantsOf = (roomId: number) => roomGrants.filter(g => g.classroomId === roomId);
+
+  // تخصیص دستی از داخل کارتِ «بدون سهمیه» — تا کاربر مجبور نباشد سالن را در
+  // فرم بالای صفحه پیدا کند.
+  const [manual, setManual] = useState<Record<number, { shift: 'MORNING' | 'EVENING'; deptId: number }>>({});
+  const manualOf = (roomId: number) => manual[roomId] ?? { shift: 'MORNING' as const, deptId: departments[0]?.id ?? 0 };
+  const patchManual = (roomId: number, patch: Partial<{ shift: 'MORNING' | 'EVENING'; deptId: number }>) =>
+    setManual(prev => ({ ...prev, [roomId]: { ...manualOf(roomId), ...patch } }));
+
+  /**
+   * چرا این سالن سهمیه ندارد؟
+   *
+   * موتور `allocateRoomQuotas` دانشکده‌به‌دانشکده کار می‌کند:
+   *   • سالنِ بدون `facultyId` هیچ‌وقت در حلقه نمی‌آید (شرط `facultyId = f.id`).
+   *   • دانشکده‌ای که هیچ گروهی با دانشجوی فعال ندارد، کامل رد می‌شود.
+   *   • و اگر ظرفیت سالن‌های دانشکده از تقاضا بیشتر باشد، بعضی سالن‌ها
+   *     شیفتی نمی‌گیرند.
+   * بدون این توضیح، «بدون سهمیه» شبیه خرابی به‌نظر می‌رسد.
+   */
+  const noQuotaReason = (room: (typeof classrooms)[number]) => {
+    if (room.facultyId == null) {
+      return 'این سالن دانشکده ندارد، پس در تخصیص خودکار شرکت نمی‌کند.';
+    }
+    if (!room.facultyStudents) {
+      return `دانشکدهٔ «${room.facultyName}» دانشجوی فعال ندارد، پس تخصیص خودکار برایش سهمیه نساخت.`;
+    }
+    return 'تخصیص خودکار برای این سالن شیفتی در نظر نگرفت (ظرفیت دانشکده کافی بود).';
+  };
+
+  const run = async (key: string, fn: () => Promise<any>, okMsg: string) => {
+    setBusyKey(key);
+    setMsg(null);
+    try {
+      const res = await fn();
+      if (res?.ok) {
+        setMsg(okMsg);
+        reloadRoomGrants();
+      } else {
+        setMsg(`⚠️ ${res?.error ?? 'خطا'}`);
+      }
+    } catch (e: any) {
+      setMsg(`⚠️ ${e?.message ?? 'خطا'}`);
+    } finally {
+      setBusyKey(null);
+    }
+  };
 
   return (
-          <div className="space-y-4">
-            <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xl">🏛️</span>
-                  <h3 className="font-extrabold text-slate-900 text-base">
-                    کلاس‌ها، سایت‌ها و آزمایشگاه‌های اختصاص‌یافته به دپارتمان «{currentProgram?.title ?? '—'}»
-                  </h3>
-                </div>
-                <p className="text-xs text-slate-500 mt-0.5">
-                  سهمیهٔ فضاهای فیزیکی این نیمسال از جدول scheduling_room_grants (موتور تخصیص) خوانده می‌شود؛ تغییر سهمیه از موتور تخصیص سالن انجام می‌شود.
-                </p>
-              </div>
-
-              <span className="px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-900 font-extrabold text-xs">
-                {faNum(classrooms.filter(c => c.isAllocatedToDept).length)} سالن سهمیه‌دار از {faNum(classrooms.length)} سالن دانشگاه
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {classrooms.map(room => (
-                <div
-                  key={room.id}
-                  className={`p-4 rounded-2xl border-2 transition flex flex-col justify-between shadow-sm ${
-                    room.isAllocatedToDept
-                      ? 'border-emerald-600 bg-emerald-50/60 ring-2 ring-emerald-400/20'
-                      : 'border-slate-200 bg-white opacity-70 hover:opacity-100'
-                  }`}
-                >
-                  <div>
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[11px] font-extrabold px-2.5 py-0.5 rounded-full bg-indigo-100 text-indigo-900">
-                        {room.roomType === 'LAB' ? '🧪 سایت / آزمایشگاه' : room.roomType === 'GYM' ? '⚽ سالن ورزشی' : '📖 کلاس نظری'}
-                      </span>
-                      <span className={`text-[11px] font-extrabold px-2 py-0.5 rounded-full ${
-                        room.isAllocatedToDept ? 'bg-emerald-600 text-white' : 'bg-slate-200 text-slate-700'
-                      }`}>
-                        {room.isAllocatedToDept ? '✓ اختصاص به گروه' : 'آزاد / سایر گروه‌ها'}
-                      </span>
-                    </div>
-
-                    <h4 className="text-base font-extrabold text-slate-900">{room.name}</h4>
-                    <p className="text-xs text-slate-500 mb-2">{room.buildingName}</p>
-
-                    <div className="bg-white/80 p-2.5 rounded-xl border border-slate-200 text-xs space-y-1">
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">ظرفیت صندلی:</span>
-                        <span className="font-extrabold text-slate-900">{faNum(room.capacity)} نفر</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-500">امکانات:</span>
-                        <span className="font-bold text-indigo-900">{room.equipment.join('، ')}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 border-t border-slate-200 mt-3 text-center text-[11px] font-bold text-slate-500">
-                    {room.isAllocatedToDept ? 'سهمیهٔ ثبت‌شدهٔ موتور تخصیص' : 'استخر مشترک دانشکده'}
-                  </div>
-                </div>
-              ))}
-            </div>
+    <div className="space-y-4">
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <span className="text-xl">🏛️</span>
+            <h3 className="font-extrabold text-slate-900 text-base">
+              سالن‌ها و سهمیهٔ دپارتمان‌ها — «{currentProgram?.title ?? '—'}»
+            </h3>
           </div>
+          <p className="text-xs text-slate-500 mt-0.5">
+            تخصیص/لغو/واگذاری سهمیهٔ سالن‌ها به دپارتمان‌ها. لغو یک سهمیه آن را برای پر کردن جای خالی توسط گروه‌های دیگر آزاد می‌کند.
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <select
+            value={facultyFilter}
+            onChange={e => setFacultyFilter(e.target.value === 'ALL' ? 'ALL' : Number(e.target.value))}
+            className="border border-slate-300 rounded-lg px-2 py-1.5 text-xs font-bold bg-white"
+          >
+            <option value="ALL">همهٔ دانشکده‌ها</option>
+            {facultyOptions.map(fid => {
+              const name = classrooms.find(c => c.facultyId === fid)?.facultyName ?? `دانشکده #${fid}`;
+              return <option key={fid} value={fid}>{name}</option>;
+            })}
+          </select>
+          <span className="px-3 py-1.5 rounded-xl bg-emerald-100 text-emerald-900 font-extrabold text-xs">
+            {isDeptScope
+              ? `${faNum(classrooms.filter(c => c.isAllocatedToDept).length)} سالن سهمیه‌دار این گروه از ${faNum(visibleRooms.length)} سالن`
+              : `${faNum(classrooms.filter(c => c.isAllocatedToDept).length)} سالن سهمیه‌دار از ${faNum(classrooms.length)} سالن`}
+          </span>
+          {!isDeptScope && (
+            <>
+              <button
+                type="button"
+                disabled={allocating || !selectedTermId}
+                onClick={async () => {
+                  setAllocating(true);
+                  setMsg(null);
+                  try {
+                    const res = await allocateRoomQuotasAction(selectedTermId);
+                    if (res?.ok) {
+                      setMsg(`✅ ${faNum(res.grants ?? 0)} سهمیهٔ سالن تخصیص یافت.`);
+                      reloadRoomGrants();
+                    } else setMsg(`⚠️ ${res?.error ?? 'خطا'}`);
+                  } catch (e: any) {
+                    setMsg(`⚠️ ${e?.message ?? 'خطا'}`);
+                  } finally {
+                    setAllocating(false);
+                  }
+                }}
+                className="px-4 py-2 rounded-xl bg-indigo-900 hover:bg-indigo-950 text-white font-extrabold text-xs shadow disabled:opacity-50"
+              >
+                {allocating ? '⏳ در حال تخصیص…' : '🏛️ تخصیص خودکار سهمیه‌ها'}
+              </button>
+              <button
+                type="button"
+                disabled={allocating || !selectedTermId || !roomGrants.some(g => g.status === 'ALLOCATED')}
+                onClick={async () => {
+                  const confirmed = await askConfirm({ title: 'لغو سهمیه‌ها', body: 'همهٔ سهمیه‌های تخصیص‌یافته لغو شوند؟', confirmText: 'لغو کن', danger: true });
+                  if (!confirmed) return;
+                  setAllocating(true);
+                  setMsg(null);
+                  try {
+                    const allocated = roomGrants.filter(g => g.status === 'ALLOCATED');
+                    let okCount = 0;
+                    let firstErr: string | null = null;
+                    for (const g of allocated) {
+                      const res = await releaseRoomShiftAction({ termId: selectedTermId, departmentId: g.ownerDepartmentId, classroomId: g.classroomId, shift: g.shift as 'MORNING' | 'EVENING' });
+                      if (res?.ok) okCount++;
+                      else { firstErr = res?.error ?? 'خطا'; break; }
+                    }
+                    // پیام خطا نباید با پیام موفقیت بازنویسی شود؛ هر دو را با هم نشان می‌دهیم.
+                    setMsg(firstErr
+                      ? `⚠️ ${faNum(okCount)} سهمیه لغو شد، اما یکی ناموفق بود: ${firstErr}`
+                      : `✅ ${faNum(okCount)} سهمیه لغو شد.`);
+                    reloadRoomGrants();
+                  } catch (e: any) {
+                    setMsg(`⚠️ ${e?.message ?? 'خطا'}`);
+                  } finally {
+                    setAllocating(false);
+                  }
+                }}
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs shadow disabled:opacity-50"
+              >
+                {allocating ? '⏳…' : '🗑️ لغو همهٔ سهمیه‌ها'}
+              </button>
+              <button
+                type="button"
+                disabled={allocating || !selectedTermId}
+                onClick={async () => {
+                  setAllocating(true);
+                  setMsg(null);
+                  try {
+                    const res = await copyRoomQuotasFromPreviousTermAction(selectedTermId);
+                    if (res?.ok) {
+                      setMsg(`✅ ${faNum(res.copied ?? 0)} سهمیه از ترم قبل منتقل شد.`);
+                      reloadRoomGrants();
+                    } else setMsg(`⚠️ ${res?.error ?? 'خطا'}`);
+                  } catch (e: any) {
+                    setMsg(`⚠️ ${e?.message ?? 'خطا'}`);
+                  } finally {
+                    setAllocating(false);
+                  }
+                }}
+                className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-xs shadow disabled:opacity-50"
+              >
+                {allocating ? '⏳…' : '📋 انتقال سهمیه از ترم قبل'}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {msg && <div className="text-xs font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">{msg}</div>}
+
+      {!isDeptScope && classrooms.length > 0 && (
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-slate-200 space-y-3">
+          <h4 className="font-extrabold text-slate-900 text-sm">➕ تخصیص دستی سالن به دپارتمان</h4>
+          <div className="flex flex-wrap items-center gap-2">
+            <select
+              value={newRoom}
+              onChange={e => setNewRoom(Number(e.target.value))}
+              className="border border-slate-300 rounded-lg px-2 py-1.5 text-xs font-bold bg-white"
+            >
+              {classrooms.filter(c => c.isActive).map(r => (
+                <option key={r.id} value={r.id}>{r.name} ({faNum(r.capacity)} نفر)</option>
+              ))}
+            </select>
+            <select
+              value={newDept}
+              onChange={e => setNewDept(Number(e.target.value))}
+              className="border border-slate-300 rounded-lg px-2 py-1.5 text-xs font-bold bg-white"
+            >
+              {departments.map(d => (
+                <option key={d.id} value={d.id}>{deptLabel(d)}</option>
+              ))}
+            </select>
+            <select
+              value={newShift}
+              onChange={e => setNewShift(e.target.value as 'MORNING' | 'EVENING' | 'BOTH')}
+              className="border border-slate-300 rounded-lg px-2 py-1.5 text-xs font-bold bg-white"
+            >
+              <option value="MORNING">شیفت صبح</option>
+              <option value="EVENING">شیفت عصر</option>
+              <option value="BOTH">هردو شیفت (صبح و عصر)</option>
+            </select>
+            <button
+              type="button"
+              disabled={busyKey === 'new' || !selectedTermId || !newRoom || !newDept}
+              onClick={() => {
+                if (newShift === 'BOTH') {
+                  run('new', async () => {
+                    const a = await upsertRoomGrantAction({ termId: selectedTermId, classroomId: newRoom, shift: 'MORNING', departmentId: newDept });
+                    if (!a?.ok) return a;
+                    const b = await upsertRoomGrantAction({ termId: selectedTermId, classroomId: newRoom, shift: 'EVENING', departmentId: newDept });
+                    return b;
+                  }, '✅ سالن به دپارتمان برای هردو شیفت تخصیص یافت.');
+                } else {
+                  run('new', () => upsertRoomGrantAction({ termId: selectedTermId, classroomId: newRoom, shift: newShift, departmentId: newDept }), '✅ سالن به دپارتمان تخصیص یافت.');
+                }
+              }}
+              className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow disabled:opacity-50"
+            >
+              {busyKey === 'new' ? '⏳…' : '➕ تخصیص'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isDeptScope && visibleRooms.length === 0 && (
+        <div className="rounded-2xl border-2 border-dashed border-amber-300 bg-amber-50 p-6 text-center">
+          <p className="font-extrabold text-amber-900">سالنی به این گروه سهمیه داده نشده است</p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {visibleRooms.map(room => {
+          const grants = grantsOf(room.id);
+          return (
+            <div key={room.id} className="p-4 rounded-2xl border-2 border-slate-200 bg-white shadow-sm space-y-3">
+              <div className="flex items-center justify-between">
+                <h4 className="text-base font-extrabold text-slate-900">{room.name}</h4>
+                <span className="text-3xs font-extrabold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-900">
+                  {room.roomType === 'LAB' ? 'آزمایشگاه' : room.roomType === 'GYM' ? 'سالن ورزش' : 'کلاس'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">{room.buildingName} — ظرفیت {faNum(room.capacity)} نفر</p>
+
+              {grants.length === 0 ? (
+                <div className="space-y-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-2.5">
+                  <p className="text-2xs font-bold leading-5 text-slate-500">
+                    {noQuotaReason(room)}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <select
+                      value={manualOf(room.id).shift}
+                      onChange={e => patchManual(room.id, { shift: e.target.value as 'MORNING' | 'EVENING' })}
+                      className="border border-slate-300 rounded-lg px-2 py-1 text-xs font-bold bg-white"
+                    >
+                      <option value="MORNING">شیفت صبح</option>
+                      <option value="EVENING">شیفت عصر</option>
+                    </select>
+                    <select
+                      value={manualOf(room.id).deptId}
+                      onChange={e => patchManual(room.id, { deptId: Number(e.target.value) })}
+                      className="border border-slate-300 rounded-lg px-2 py-1 text-xs font-bold bg-white"
+                    >
+                      {departments.map(d => (
+                        <option key={d.id} value={d.id}>{deptLabel(d)}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      disabled={busyKey === `add-${room.id}` || !selectedTermId || !manualOf(room.id).deptId}
+                      onClick={() => {
+                        const m = manualOf(room.id);
+                        run(
+                          `add-${room.id}`,
+                          () => upsertRoomGrantAction({ termId: selectedTermId, classroomId: room.id, shift: m.shift, departmentId: m.deptId }),
+                          '✅ سهمیهٔ سالن ثبت شد.',
+                        );
+                      }}
+                      className="px-3 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-2xs disabled:opacity-50"
+                    >
+                      {busyKey === `add-${room.id}` ? '⏳…' : '➕ ثبت سهمیه'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {grants.map(g => {
+                    const key = `${g.id}`;
+                    const isReleased = g.status === 'RELEASED';
+                    return (
+                      <div key={g.id} className={`p-2.5 rounded-xl border text-xs space-y-2 ${isReleased ? 'bg-amber-50 border-amber-300' : 'bg-emerald-50 border-emerald-300'}`}>
+                        <div className="flex items-center justify-between">
+                          <span className="font-extrabold text-slate-900">
+                            شیفت {SHIFT_LABEL[g.shift] ?? g.shift} — {deptName(g.ownerDepartmentId)}
+                          </span>
+                          <span className={`text-3xs font-bold px-2 py-0.5 rounded-full ${isReleased ? 'bg-amber-200 text-amber-900' : 'bg-emerald-200 text-emerald-900'}`}>
+                            {isReleased ? 'آزاد/لغو شده' : 'تخصیص یافته'}
+                          </span>
+                        </div>
+                        {isReleased ? (
+                          <div className="flex items-center gap-2">
+                            <select
+                              defaultValue={g.ownerDepartmentId}
+                              onChange={e => (g as any)._target = Number(e.target.value)}
+                              className="border border-slate-300 rounded-lg px-2 py-1 text-xs font-bold bg-white"
+                            >
+                              {departments.map(d => (
+                                <option key={d.id} value={d.id}>{deptLabel(d)}</option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              disabled={busyKey === key}
+                              onClick={() => {
+                                const sel = (g as any)._target ?? g.ownerDepartmentId;
+                                run(key, () => borrowReleasedShiftAction({ termId: selectedTermId, classroomId: room.id, shift: g.shift as 'MORNING' | 'EVENING', departmentId: sel }), '✅ سهمیه واگذار شد.');
+                              }}
+                              className="px-3 py-1 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-2xs disabled:opacity-50"
+                            >
+                              {busyKey === key ? '⏳…' : '🔄 واگذاری'}
+                            </button>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            disabled={busyKey === key}
+                            onClick={() => run(key, () => releaseRoomShiftAction({ termId: selectedTermId, departmentId: g.ownerDepartmentId, classroomId: room.id, shift: g.shift as 'MORNING' | 'EVENING' }), '✅ سهمیه لغو شد (برای پر کردن جای خالی آزاد شد).')}
+                            className="px-3 py-1 rounded-lg bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-2xs disabled:opacity-50"
+                          >
+                            {busyKey === key ? '⏳…' : '🗑️ لغو سهمیه'}
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
   );
 }

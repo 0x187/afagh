@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '@/db';
 import { users } from '@/db/schema';
 import { requireRole, endCurrentSession } from '@/lib/auth';
-import ThemeToggle from '@/components/ThemeToggle';
+import HeaderActions from '@/components/HeaderActions';
 import { logoutAction } from '../login/actions';
 import AdminNav from './AdminNav';
 import SessionLock from '@/components/SessionLock';
@@ -16,6 +16,8 @@ import { getCurrentUniversity, listUniversities } from '@/lib/university-scope';
 import { uniThemeResolved } from '@/lib/university-theme-db';
 import { getTermScope } from '@/lib/term-scope';
 import UserAvatar from '@/components/UserAvatar';
+import AdminBackBar from '@/components/AdminBackBar';
+import { ADMIN_MODULES, canSeeModule } from '@/lib/admin-modules';
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   // نقش‌های اصلی شاخهٔ /admin — همان گارد پیشین بدون تغییر.
@@ -49,14 +51,42 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     const { requireRoleOrPermission } = await import('@/lib/permissions-enforcer');
     await requireRoleOrPermission([], ['*']).catch(() => {});
   }
-  // بارگذاری مجوزهای کاربر (بدون نقش سیستمی هم کار می‌کند) برای منوی مبتنی بر RBAC
-  const { getUserPermissionCodes } = await import('@/lib/permissions-enforcer');
-  const permissionCodes = await getUserPermissionCodes(user.id).catch(() => []);
+  // ── ⚡ واکشیِ موازیِ سربرگ ─────────────────────────────────────────────────
+  // پیش‌تر این‌ها **پشتِ سرِ هم** اجرا می‌شدند: مجوزها، مجوزهای سفارشی، فهرست
+  // دانشگاه‌ها، دانشگاه فعال، عکس، مدتِ قفل و حساب‌های هم‌شخص — یعنی ۷ رفت‌و‌برگشتِ
+  // دیتابیس که تأخیرشان جمع می‌شد. هیچ‌کدام به هم وابسته نیستند، پس با هم اجرا
+  // می‌شوند؛ فقط مرحلهٔ دوم (تم/نیمسال/قفل) به `curUni` و `lockMin` نیاز دارد.
+  const { getUserPermissionCodes, getUserCustomPermissionCodes } = await import('@/lib/permissions-enforcer');
+  const { evaluateIdleLock, resolveIdleTimeoutMinutes, idleMinutes, resolveReauthMinutes } = await import('@/lib/session-lock');
+
+  const [
+    permissionCodes,
+    customPermissionCodes,
+    unis,
+    curUni,
+    photoRows,
+    lockMin,
+    siblings,
+  ] = await Promise.all([
+    // بارگذاری مجوزهای کاربر (بدون نقش سیستمی هم کار می‌کند) برای منوی مبتنی بر RBAC
+    getUserPermissionCodes(user.id).catch(() => [] as string[]),
+    // سوییچر کارتابل‌ها فقط باید مجوزهای «نقش سفارشی» را ملاک بگیرد (نه مجوزهای
+    // ذاتیِ نقش‌های سیستمی)؛ وگرنه مدیرگروه/استادِ صرف هم لینک «داشبورد مدیریت»
+    // می‌بیند. `permissionCodes` بالا برای منوی مبتنی بر RBAC دست‌نخورده می‌ماند.
+    getUserCustomPermissionCodes(user.id).catch(() => [] as string[]),
+    listUniversities(),
+    getCurrentUniversity(),
+    // عکس پرسنلی کاربر (برای آواتار هدر) — کلید شیء، نمایش از مسیر امن
+    db.select({ photoKey: users.photoKey }).from(users).where(eq(users.id, user.id)).limit(1),
+    resolveIdleTimeoutMinutes(user.roles).catch(() => 15),
+    // حساب‌های هم‌شخصِ همین کدملی — برای سوییچر واحد بالای صفحه
+    getSiblingAccounts().catch(() => []),
+  ]);
+  const customPermissionCount = customPermissionCodes.length;
+  const [photoRow] = photoRows;
   // انتخاب دانشگاه فعال، ابزار مدیریتی است؛ به دو نقش محدود بالا نشان داده نمی‌شود
   // (کنشِ `setUniversityCookie` خودش گارد ندارد — گزارش شود).
   const canSwitchUniversity = user.roles.some(r => AREA_ROLES.includes(r));
-  const unis = await listUniversities();
-  const curUni = await getCurrentUniversity();
   // 🔒 مرز دانشگاهی (fail-closed) — قفل کلِ شاخهٔ مدیریت:
   // وقتی کاربر به هیچ دانشگاهی مجاز نیست، `getCurrentUniversity` شناسهٔ ۰
   // (DENY_UNI) برمی‌گرداند. پیش از این، صفحه‌ها و کوئری‌های زیرشاخه با
@@ -81,14 +111,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       </div>
     );
   }
-  const th = await uniThemeResolved(curUni.code);
-  // عکس پرسنلی کاربر (برای آواتار هدر) — کلید شیء، نمایش از مسیر امن
-  const [photoRow] = await db.select({ photoKey: users.photoKey }).from(users).where(eq(users.id, user.id)).limit(1);
-  const termScope = await getTermScope(curUni.id);
-  // قفل خودکار بیکاری — سرور-محور (مدت به تفکیک نقش؛ ۰ = غیرفعال).
-  // منبع حقیقت «زمان آخرین فعالیت» است؛ پس رفرش قفل را دور نمی‌زند و کاربرِ در حال کار بیرون نمی‌افتد.
-  const { evaluateIdleLock, resolveIdleTimeoutMinutes, idleMinutes, resolveReauthMinutes } = await import('@/lib/session-lock');
-  const lockMin = await resolveIdleTimeoutMinutes(user.roles).catch(() => 15);
+  // مرحلهٔ دوم — وابسته به `curUni` و `lockMin`؛ این سه هم با هم می‌روند.
+  const [th, termScope, lockOn] = await Promise.all([
+    uniThemeResolved(curUni.code),
+    getTermScope(curUni.id),
+    evaluateIdleLock(user.id, lockMin).catch(() => false),
+  ]);
   // غیبت طولانی → نشست همین دستگاه بسته و صفحهٔ ورود (نه قفل روی دادهٔ کهنه)
   if (lockMin > 0) {
     const reauthMin = await resolveReauthMinutes(lockMin).catch(() => 0);
@@ -98,9 +126,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       redirect('/login?expired=1');
     }
   }
-  const lockOn = await evaluateIdleLock(user.id, lockMin).catch(() => false);
-  // حساب‌های هم‌شخصِ همین کدملی — برای سوییچر واحد بالای صفحه
-  const siblings = await getSiblingAccounts().catch(() => []);
   // سوییچرهای سراسری (نقش/نیمسال/دانشگاه) — ردیف دوم هدر، دقیقاً مثل کارتابل استاد.
   // روی همهٔ اندازه‌ها نمایش داده می‌شوند تا در موبایل هم دیده شوند (پیش‌تر فقط
   // دسکتاپ و وگرنه داخل کشوی ☰ می‌رفتند و کاربر موبایل آن‌ها را گم می‌کرد).
@@ -109,7 +134,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
       <PanelSwitcher
         roles={user.roles}
         current="admin"
-        permissionCount={permissionCodes.length}
+        permissionCount={customPermissionCount}
         siblings={siblings}
       />
       <TermSwitcher terms={termScope.terms} selectedId={termScope.selectedId} />
@@ -123,8 +148,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
     </>
   );
   return (
-    <div className="min-h-screen bg-sky-50/70" data-uni={curUni.code}>
-      <header className={`${th.header} text-white shadow-md transition-colors`}>
+    <div className="app-page min-h-screen bg-sky-50/70 print:!bg-white" data-uni={curUni.code}>
+      {/* `.app-header` (globals.css) یک درخششِ ملایم از بالا و یک خطِ موییِ
+          روشن در پایین اضافه می‌کند تا سربرگ روی هر رنگِ دانشگاه از بدنهٔ
+          صفحه جدا دیده شود؛ رنگِ پایه همان توکنِ دانشگاه است و دست‌نخورده
+          می‌ماند. */}
+      <header className={`app-header ${th.header} text-white transition-colors sticky top-0 z-40 print:hidden`}>
         {/*
           هدرِ دو‌ردیفیِ صریح (همان الگوی کارتابل استاد):
             ردیف ۱ — [جای دکمهٔ شناور «منو»] + هویت + ابزارها
@@ -137,11 +166,12 @@ export default async function AdminLayout({ children }: { children: React.ReactN
           FINANCE_EXPERT، ARCHIVE_EXPERT، DEP_HEAD، VICE_EDU و…)، پس اصلاح
           همین‌جا برای همهٔ کارتابل‌ها اعمال می‌شود.
         */}
-        <div className="mx-auto flex max-w-[1600px] flex-col gap-2 p-3 sm:p-3.5">
+        <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-2 p-3 sm:p-3.5 lg:flex-nowrap lg:gap-3">
           {/* ردیف ۱: هویت + ابزارهای کاربر */}
-          <div className="flex min-w-0 items-center gap-2">
-            {/* رزروِ جای دکمهٔ شناور «منو» (AdminNav: fixed top-3 right-3) */}
-            <div aria-hidden className="w-14 shrink-0" />
+          <div className="order-1 flex min-w-0 flex-1 items-center gap-2">
+            {/* رزروِ جای دکمهٔ شناور «منو» (AdminNav: fixed top-3 right-3) — فقط موبایل؛
+                در دسکتاپ ناوبری به سایدبار منتقل شده و این فضا لازم نیست. */}
+            <div aria-hidden className="w-14 shrink-0 lg:hidden" />
             {/* هویت: ارم + آواتار + عنوان */}
             <div className="flex min-w-0 flex-1 items-center gap-2.5">
               <div className={`w-8 h-8 shrink-0 rounded-lg ${th.badge} flex items-center justify-center font-bold text-sm shadow-inner`}>
@@ -149,50 +179,54 @@ export default async function AdminLayout({ children }: { children: React.ReactN
               </div>
               <UserAvatar userId={user.id} hasPhoto={!!photoRow?.photoKey} name={user.name} className="w-9 h-9 shrink-0" fallbackClass="bg-indigo-600" />
               <div className="min-w-0">
-                <Link href="/admin" title="بازگشت به صفحه اول (داشبورد)" className="block hover:opacity-90 transition-opacity">
+                <Link href="/admin" prefetch={false} title="بازگشت به صفحه اول (داشبورد)" className="block hover:opacity-90 transition-opacity">
                   <p className="truncate font-extrabold text-sm tracking-wide">
                     <span className="sm:hidden">داشبورد مدیریت</span>
                     <span className="hidden sm:inline">داشبورد مدیریت جامع {curUni.title}</span>
                   </p>
                 </Link>
-                <p className="truncate text-[11px] sm:text-xs opacity-80">{user.name} · {user.roles.join('، ')}</p>
+                <p className="truncate text-2xs sm:text-xs opacity-80">{user.name} · {user.roles.join('، ')}</p>
               </div>
-            </div>
-            {/* ابزارهای کاربر — یک ارتفاع و یک تراز (`.hdr-controls` در globals.css) */}
-            <div className="hdr-controls flex shrink-0 items-center gap-1.5">
-              <Link
-                href="/help/admin"
-                className={`hidden sm:inline-flex text-xs ${th.soft} border ${th.ring} px-3 py-1.5 rounded-lg transition-colors font-medium`}
-              >
-                📖 راهنما
-              </Link>
-              <a
-                href="/help/pdfs/admin.pdf"
-                download
-                className={`hidden sm:inline-flex text-xs ${th.soft} border ${th.ring} px-3 py-1.5 rounded-lg transition-colors font-medium`}
-              >
-                📕 PDF
-              </a>
-            <ThemeToggle />
-            <form action={logoutAction}>
-              <button className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold transition">
-                <span className="sm:hidden">خروج</span>
-                <span className="hidden sm:inline">خروج از سامانه</span>
-              </button>
-            </form>
             </div>
           </div>
 
-          {/* ردیف ۲: سوییچرهای کارتابل / نیمسال / دانشگاه — مشترک بین همهٔ نقش‌ها.
+          {/* ردیف ۲ (موبایل) / ستونِ میانیِ همان خط (دسکتاپ): سوییچرهای
+              کارتابل / نیمسال / دانشگاه — مشترک بین همهٔ نقش‌ها.
               `relative` لازم است: در موبایل پنل هر سوییچر تمام‌عرض و چسبیده به
-              همین ردیف باز می‌شود تا از لبهٔ صفحه بیرون نزند. */}
-          <div className="hdr-controls relative flex flex-wrap items-center gap-1.5 sm:gap-2">
+              همین ردیف باز می‌شود تا از لبهٔ صفحه بیرون نزند.
+              در دسکتاپ `lg:order-2` این بلوک را بین هویت و ابزارها می‌آورد تا
+              همهٔ عناصر هدر در یک خط و هم‌تراز بنشینند (درخواست کاربر: پیش‌تر
+              سوییچرها یک سطح پایین‌تر از ابزارها بودند و پراکنده دیده می‌شدند). */}
+          <div className="hdr-controls relative order-3 flex w-full flex-wrap items-center gap-1.5 sm:gap-2 lg:order-2 lg:w-auto lg:flex-nowrap lg:justify-center">
             {headerSwitchers}
           </div>
+
+          {/* ابزارهای کاربر — یک ارتفاع و یک تراز، از کامپوننت مشترک
+              `HeaderActions` (راهنما/PDF/تم/خروج) که در هر سه کارتابل یکی است. */}
+          <div className="hdr-controls order-2 flex shrink-0 items-center gap-1.5 lg:order-3">
+            <HeaderActions helpHref="/help/admin" pdfHref="/help/pdfs/admin.pdf" theme={th} />
+          </div>
         </div>
-        <AdminNav roles={user.roles} permissions={permissionCodes} theme={th} />
       </header>
-      <main className="mx-auto max-w-[1600px] p-3 sm:p-5 pb-16">{children}</main>
+      {/* بدنهٔ دوستونه در دسکتاپ: سایدبارِ دائمی (AdminNav در `lg+` به سایدبار
+          تبدیل می‌شود) + محتوا. در موبایل سایدبار وجود ندارد و فقط دکمهٔ
+          شناور «منو» با کشو کار می‌کند. */}
+      <div className="mx-auto flex w-full max-w-[2100px] items-start gap-4 p-3 pb-16 sm:p-5 lg:gap-6">
+        <AdminNav roles={user.roles} permissions={permissionCodes} theme={th} />
+        <main id="main" className="min-w-0 flex-1 overflow-y-auto pb-4">
+        {/* نوارِ بازگشت — **دو سطحی**: اگر زیرصفحهٔ یک کارتابل باشیم (مثل
+            `/admin/finance/pos`) به همان کارتابل (`/admin/finance`) برمی‌گردد،
+            نه به داشبورد کل؛ و میان‌بر داشبورد هم کنارش می‌ماند.
+            فهرست مقصدها از رجیستری ماژول‌ها می‌آید و به مجوزهای همین کاربر
+            محدود است تا لینکِ بازگشت هرگز به صفحهٔ «دسترسی ندارید» نرسد. */}
+        <AdminBackBar
+          modules={ADMIN_MODULES
+            .filter(m => canSeeModule(user.roles, m, permissionCodes))
+            .map(m => ({ href: m.href, title: m.title }))}
+        />
+        {children}
+        </main>
+      </div>
       <SessionLock name={user.name} timeoutMin={lockMin} initialLocked={lockOn} />
     </div>
   );

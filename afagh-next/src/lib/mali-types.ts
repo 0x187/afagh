@@ -47,3 +47,27 @@ export function maliTypeLabel(maliType: number | null | undefined): string {
  * می‌کنند و انتخابشان برای درسِ عادی اشتباه است.
  */
 export const MALI_TYPE_NON_CHARGING = new Set([0, 5, 9, 12, 13, 15]);
+
+/**
+ * برچسبِ «نوع درس» برای ریز کارنامهٔ مالی.
+ *
+ * در کارنامه ستون «نرخ واحد» (عددی مشتق = مبلغ ÷ واحد) حذف شده و جایش همین
+ * برچسب می‌نشیند، چون در سما نرخ از **نوع درس مالی** می‌آید و همین است که
+ * مبلغ را توضیح می‌دهد. زنجیرهٔ پشتیبان:
+ *
+ *   maliType (دقیق، از تعرفه) → ماهیت درس (courses.courseNature) → سطلِ موتور
+ *
+ * هیچ‌کدام نبود «—»؛ در آن حالت درس در سما هم نوع ندارد و مبلغش صفر است.
+ */
+export function courseTypeLabelOf(src: {
+  maliType?: number | null;
+  courseNature?: string | null;
+  offeringType?: string | null;
+}): string {
+  if (src.maliType != null) return maliTypeLabel(src.maliType);
+  const nature = String(src.courseNature ?? '').trim();
+  if (nature) return nature;
+  const bucket = String(src.offeringType ?? '').trim();
+  if (bucket) return bucket;
+  return '—';
+}

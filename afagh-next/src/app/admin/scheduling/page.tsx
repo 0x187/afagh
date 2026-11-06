@@ -1,7 +1,7 @@
 import { requireRole } from '@/lib/auth';
-import { getSchedulingWorkspaceAction } from './actions';
-import { getCurrentUniversity } from '@/lib/university-scope';
+import { getSchedulingWorkspaceLightAction } from './actions';
 import DepartmentPlanningClient from './DepartmentPlanningClient';
+import { getTimeSlots } from '@/lib/schedule-config';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,10 +13,10 @@ export default async function DepartmentPlanningPage({
 }) {
   await requireRole(['ADMIN', 'EDU_EXPERT']);
 
-  const currentUniversity = await getCurrentUniversity();
-  const currentUniversityId = currentUniversity?.id ?? null;
-  // دامنهٔ دانشگاه فقط سمت سرور از getCurrentUniversity تعیین می‌شود؛ پارامتر دوم صرفاً تزئینی است.
-  const workspace = await getSchedulingWorkspaceAction(undefined, currentUniversityId ?? undefined);
+  // دامنهٔ دانشگاه فقط سمت سرور تعیین می‌شود (نیازی به پاس‌دادن نیست).
+  // نسخهٔ سبک: فقط اسکلت (ترم/رشته/فاز/تقویم) — لیستهای سنگین را کلاینت
+  // بعد از اولین paint واکشی میکند تا RSC این صفحه ~۱٫۷MB نباشد.
+  const workspace: any = await getSchedulingWorkspaceLightAction();
   if (!workspace.ok) {
     return (
       <div dir="rtl" className="min-h-screen bg-sky-50/70 flex items-center justify-center p-6">
@@ -30,5 +30,7 @@ export default async function DepartmentPlanningPage({
   }
   const sp = await searchParams;
   const tab = Array.isArray(sp.tab) ? sp.tab[0] : sp.tab;
-  return <DepartmentPlanningClient initial={workspace} tab={tab} />;
+  // همان زنگ‌هایی که استاد در «اعلام حضور» می‌بیند — منبع واحد: تنظیمات دانشگاه
+  const timeSlots = await getTimeSlots();
+  return <DepartmentPlanningClient initial={workspace} tab={tab} timeSlots={timeSlots} />;
 }

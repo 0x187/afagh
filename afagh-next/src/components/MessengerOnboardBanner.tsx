@@ -90,7 +90,7 @@ export default async function MessengerOnboardBanner() {
           ))}
           {' '}عضو شوید، در صفحهٔ اتصال کد بگیرید و بفرستید:
         </p>
-        <Link
+        <Link prefetch={false}
           href="/messenger"
           className="mt-1.5 inline-block rounded-xl bg-indigo-700 px-4 py-1.5 text-xs font-black text-white hover:bg-indigo-800"
         >
@@ -110,7 +110,7 @@ export default async function MessengerOnboardBanner() {
           <p className="mt-1 text-indigo-800">
             در صفحهٔ اتصال، کد یک‌بارمصرف بگیرید و در بات بفرستید، بعد همان‌جا تأیید کنید.
           </p>
-          <Link
+          <Link prefetch={false}
             href="/messenger"
             className="mt-2 inline-block rounded-xl bg-indigo-700 px-4 py-2 text-xs font-black text-white hover:bg-indigo-800"
           >
@@ -129,7 +129,7 @@ export default async function MessengerOnboardBanner() {
             <li>در همین سامانه، صفحهٔ «اتصال پیام‌رسان»، کد صحت‌سنجی بگیرید و در بات بفرستید.</li>
             <li>به صفحه برگردید و «تأیید نهایی» را بزنید — تمام.</li>
           </ol>
-          <Link
+          <Link prefetch={false}
             href="/messenger"
             className="mt-2 inline-block rounded-xl bg-indigo-700 px-4 py-2 text-xs font-black text-white hover:bg-indigo-800"
           >

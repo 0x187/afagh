@@ -8,6 +8,7 @@ import {
 import { getCurrentUniversity } from '@/lib/university-scope';
 import { requireRoleOrPermission } from '@/lib/permissions-enforcer';
 import { currentExpertFilters } from '@/lib/expert-scope';
+import { examDateColumnValue } from '@/lib/shamsi';
 
 const EDU = ['ADMIN', 'EDU_EXPERT'];
 const EDU_PERM = ['scheduling:manage_chart'];
@@ -238,9 +239,9 @@ export async function saveOfferingEditorAction(input: OfferingEditInput): Promis
     // امتحان: به‌روزرسانی ردیف موجود یا درج یک EXAM اگر نبود
     if (input.exam) {
       if (input.exam.id) {
-        await tx.update(schedules).set({ examDate: input.exam.date || null, startTime: input.exam.start || '00:00', endTime: input.exam.end || '00:00' }).where(and(eq(schedules.id, input.exam.id), eq(schedules.offeringId, input.offeringId)));
+        await tx.update(schedules).set({ examDate: examDateColumnValue(input.exam.date), startTime: input.exam.start || '00:00', endTime: input.exam.end || '00:00' }).where(and(eq(schedules.id, input.exam.id), eq(schedules.offeringId, input.offeringId)));
       } else if (input.exam.date && input.exam.start) {
-        await tx.insert(schedules).values({ offeringId: input.offeringId, scheduleType: 'EXAM', examDate: input.exam.date, startTime: input.exam.start, endTime: input.exam.end || input.exam.start, universityId: off.universityId ?? null });
+        await tx.insert(schedules).values({ offeringId: input.offeringId, scheduleType: 'EXAM', examDate: examDateColumnValue(input.exam.date), startTime: input.exam.start, endTime: input.exam.end || input.exam.start, universityId: off.universityId ?? null });
       }
     }
   });

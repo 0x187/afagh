@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState, useTransition } from 'react';
+import { notify, askConfirm } from '@/lib/ui-feedback';
 
 function toJalali(gy: number, gm: number, gd: number): string {
   const g_d_m = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
@@ -104,18 +105,24 @@ export default function StudentFormulaClient() {
         });
         await load();
       } catch (e) {
-        alert(e instanceof Error ? e.message : 'خطا');
+        notify(e instanceof Error ? e.message : 'خطا', 'error');
       }
     });
 
-  const remove = (row: OverrideRow) => {
-    if (!confirm(`فرمول ویژهٔ ${row.studentName} حذف شود؟`)) return;
+  const remove = async (row: OverrideRow) => {
+    const ok = await askConfirm({
+      title: 'حذف فرمول ویژه',
+      body: `فرمول ویژهٔ ${row.studentName} حذف شود؟`,
+      confirmText: 'حذف کن',
+      danger: true,
+    });
+    if (!ok) return;
     startTransition(async () => {
       try {
         await api(`${BASE}?id=${row.id}`, { method: 'DELETE' });
         await load();
       } catch (e) {
-        alert(e instanceof Error ? e.message : 'خطا');
+        notify(e instanceof Error ? e.message : 'خطا', 'error');
       }
     });
   };
@@ -144,7 +151,7 @@ export default function StudentFormulaClient() {
 
       <div className="card flex flex-wrap items-end gap-3">
         <label className="flex flex-col gap-1">
-          <span className="text-[11px] font-medium text-slate-600">جستجو (نام / شماره دانشجویی)</span>
+          <span className="text-2xs font-medium text-slate-600">جستجو (نام / شماره دانشجویی)</span>
           <input
             value={q}
             onChange={(e) => {
@@ -187,7 +194,7 @@ export default function StudentFormulaClient() {
               <tr key={r.id} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="py-2 px-2">
                   <div className="font-medium text-slate-800">{r.studentName}</div>
-                  <div className="text-[11px] text-slate-500">{r.studentCode}</div>
+                  <div className="text-2xs text-slate-500">{r.studentCode}</div>
                 </td>
                 <td className="py-2 px-2">{r.termTitle}</td>
                 <td className="py-2 px-2">{faNum(r.fixedAmount)}</td>
@@ -197,7 +204,7 @@ export default function StudentFormulaClient() {
                 </td>
                 <td className="py-2 px-2">
                   <span
-                    className={`rounded-full px-2 py-0.5 text-[11px] ${
+                    className={`rounded-full px-2 py-0.5 text-2xs ${
                       r.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-200 text-slate-600'
                     }`}
                   >
@@ -209,20 +216,20 @@ export default function StudentFormulaClient() {
                     <button
                       onClick={() => toggle(r)}
                       disabled={busy}
-                      className="rounded bg-slate-100 hover:bg-slate-200 px-2 py-1 text-[11px]"
+                      className="rounded bg-slate-100 hover:bg-slate-200 px-2 py-1 text-2xs"
                     >
                       {r.isActive ? 'غیرفعال' : 'فعال'}
                     </button>
                     <button
                       onClick={() => setModal({ edit: r })}
-                      className="rounded bg-slate-100 hover:bg-slate-200 px-2 py-1 text-[11px]"
+                      className="rounded bg-slate-100 hover:bg-slate-200 px-2 py-1 text-2xs"
                     >
                       ویرایش
                     </button>
                     <button
                       onClick={() => remove(r)}
                       disabled={busy}
-                      className="rounded bg-rose-100 hover:bg-rose-200 px-2 py-1 text-[11px] text-rose-700"
+                      className="rounded bg-rose-100 hover:bg-rose-200 px-2 py-1 text-2xs text-rose-700"
                     >
                       حذف
                     </button>
@@ -322,17 +329,17 @@ function FormulaForm({
 
   const save = async () => {
     if (!studentId) {
-      alert('دانشجو را از فهرست انتخاب کنید');
+      notify('دانشجو را از فهرست انتخاب کنید', 'error');
       return;
     }
     const fixedAmount = Math.trunc(Number(fixed) || 0);
     const perUnitAmount = Math.trunc(Number(perUnit) || 0);
     if (fixedAmount < 0 || perUnitAmount < 0) {
-      alert('مبالغ نمی‌توانند منفی باشند');
+      notify('مبالغ نمی‌توانند منفی باشند', 'error');
       return;
     }
     if (fixedAmount === 0 && perUnitAmount === 0) {
-      alert('حداقل یکی از مبالغ باید بزرگ‌تر از صفر باشد');
+      notify('حداقل یکی از مبالغ باید بزرگ‌تر از صفر باشد', 'error');
       return;
     }
     setSaving(true);
@@ -363,7 +370,7 @@ function FormulaForm({
       }
       onSaved();
     } catch (e) {
-      alert(e instanceof Error ? e.message : 'خطا');
+      notify(e instanceof Error ? e.message : 'خطا', 'error');
     } finally {
       setSaving(false);
     }
@@ -379,7 +386,7 @@ function FormulaForm({
         <div className="space-y-3">
           {!edit && (
             <label className="flex flex-col gap-1 relative">
-              <span className="text-[11px] font-medium text-slate-600">دانشجو</span>
+              <span className="text-2xs font-medium text-slate-600">دانشجو</span>
               <input
                 value={studentQ}
                 onChange={(e) => {
@@ -410,7 +417,7 @@ function FormulaForm({
             </label>
           )}
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-medium text-slate-600">دامنه (خالی = همهٔ ترم‌ها)</span>
+            <span className="text-2xs font-medium text-slate-600">دامنه (خالی = همهٔ ترم‌ها)</span>
             <select value={termId} onChange={(e) => setTermId(e.target.value)} className={inputCls}>
               <option value="">همهٔ ترم‌ها</option>
               {terms.map((t) => (
@@ -422,7 +429,7 @@ function FormulaForm({
           </label>
           <div className="grid grid-cols-2 gap-3">
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] font-medium text-slate-600">مبلغ ثابت (ریال)</span>
+              <span className="text-2xs font-medium text-slate-600">مبلغ ثابت (ریال)</span>
               <input
                 value={fixed}
                 onChange={(e) => setFixed(e.target.value)}
@@ -432,7 +439,7 @@ function FormulaForm({
               />
             </label>
             <label className="flex flex-col gap-1">
-              <span className="text-[11px] font-medium text-slate-600">نرخ هر واحد (ریال)</span>
+              <span className="text-2xs font-medium text-slate-600">نرخ هر واحد (ریال)</span>
               <input
                 value={perUnit}
                 onChange={(e) => setPerUnit(e.target.value)}
@@ -443,7 +450,7 @@ function FormulaForm({
             </label>
           </div>
           <label className="flex flex-col gap-1">
-            <span className="text-[11px] font-medium text-slate-600">دلیل / مصوبه</span>
+            <span className="text-2xs font-medium text-slate-600">دلیل / مصوبه</span>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
@@ -453,7 +460,7 @@ function FormulaForm({
             />
           </label>
           {!edit && (
-            <p className="text-[11px] text-amber-700 bg-amber-50 rounded-lg px-2.5 py-1.5">
+            <p className="text-2xs text-amber-700 bg-amber-50 rounded-lg px-2.5 py-1.5">
               با ثبت فرمول جدید، فرمول فعال قبلی همین دانشجو در همین دامنه غیرفعال می‌شود.
             </p>
           )}

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { deleteInstituteCode, saveInstituteCode, type InstituteCodeInput } from './actions';
 import type { InstituteCodeRow } from './page';
+import { askConfirm } from '@/lib/ui-feedback';
 
 interface Props {
   universities: { id: number; code: string; title: string }[];
@@ -79,7 +80,8 @@ export default function SettingsClient({ universities, faculties, initialCodes, 
   };
 
   const remove = async (id: number) => {
-    if (!confirm('این سطر حذف شود؟')) return;
+    const ok = await askConfirm({ title: 'حذف کد سهام', body: 'این سطر حذف شود؟', confirmText: 'حذف کن', danger: true });
+    if (!ok) return;
     const res = await deleteInstituteCode(id);
     if (!res.ok) {
       setMsg({ kind: 'err', text: res.error });
@@ -111,7 +113,7 @@ export default function SettingsClient({ universities, faculties, initialCodes, 
               {u.title}
             </button>
           ))}
-          <Link href="/admin/saham" className="mr-auto text-[11px] font-bold text-indigo-700 underline">
+          <Link prefetch={false} href="/admin/saham" className="mr-auto text-2xs font-bold text-indigo-700 underline">
             بازگشت به گزارش‌ها ←
           </Link>
         </div>
@@ -142,8 +144,8 @@ export default function SettingsClient({ universities, faculties, initialCodes, 
                 <td className="p-2.5">{r.isActive === 1 ? '✅' : '⛔'}</td>
                 <td className="p-2.5">
                   <div className="flex gap-1.5">
-                    <button onClick={() => startEdit(r)} className="rounded border border-slate-300 px-2 py-1 text-[11px] font-bold text-slate-600 hover:bg-slate-100">ویرایش</button>
-                    <button onClick={() => remove(r.id)} className="rounded border border-red-300 px-2 py-1 text-[11px] font-bold text-red-600 hover:bg-red-50">حذف</button>
+                    <button onClick={() => startEdit(r)} className="rounded border border-slate-300 px-2 py-1 text-2xs font-bold text-slate-600 hover:bg-slate-100">ویرایش</button>
+                    <button onClick={() => remove(r.id)} className="rounded border border-red-300 px-2 py-1 text-2xs font-bold text-red-600 hover:bg-red-50">حذف</button>
                   </div>
                 </td>
               </tr>
@@ -155,35 +157,35 @@ export default function SettingsClient({ universities, faculties, initialCodes, 
       <div className="card space-y-2">
         <h3 className="font-bold text-sm">{editingId ? 'ویرایش سطر' : 'سطر جدید'}</h3>
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-          <label className="text-[11px] text-slate-600">عنوان واحد/دانشکده
+          <label className="text-2xs text-slate-600">عنوان واحد/دانشکده
             <input value={form.title} onChange={e => set('title', e.target.value)} placeholder="مثلاً دانشکده فنی و مهندسی" className="mt-1 w-full rounded border px-2 py-1.5 text-xs" />
           </label>
-          <label className="text-[11px] text-slate-600">کد ۱۲ رقمی
+          <label className="text-2xs text-slate-600">کد ۱۲ رقمی
             <input value={form.code} onChange={e => set('code', e.target.value)} placeholder="060500510020" dir="ltr" inputMode="numeric" maxLength={12} className="mt-1 w-full rounded border px-2 py-1.5 text-xs font-mono" />
           </label>
-          <label className="text-[11px] text-slate-600">اتصال به دانشکدهٔ سیستم (اختیاری)
+          <label className="text-2xs text-slate-600">اتصال به دانشکدهٔ سیستم (اختیاری)
             <select value={form.facultyId ?? ''} onChange={e => set('facultyId', e.target.value ? Number(e.target.value) : null)} className="mt-1 w-full rounded border px-2 py-1.5 text-xs">
               <option value="">— بدون اتصال (مثل حوزه ستادی) —</option>
               {uniFacs.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
             </select>
           </label>
-          <label className="text-[11px] text-slate-600">استان محل استقرار
+          <label className="text-2xs text-slate-600">استان محل استقرار
             <select value={form.provinceCode} onChange={e => set('provinceCode', e.target.value)} className="mt-1 w-full rounded border px-2 py-1.5 text-xs">
               <option value="">—</option>
               {provinces.map(p => <option key={p.code} value={p.code}>{p.title}</option>)}
             </select>
           </label>
-          <label className="text-[11px] text-slate-600">شهر محل استقرار
+          <label className="text-2xs text-slate-600">شهر محل استقرار
             <select value={form.cityCode} onChange={e => set('cityCode', e.target.value)} className="mt-1 w-full rounded border px-2 py-1.5 text-xs">
               <option value="">—</option>
               {provCities.map(c => <option key={c.code} value={c.code}>{c.title}</option>)}
             </select>
           </label>
           <div className="flex items-end gap-4 pb-1">
-            <label className="flex items-center gap-1.5 text-[11px] text-slate-600">
+            <label className="flex items-center gap-1.5 text-2xs text-slate-600">
               <input type="checkbox" checked={form.isDefault} onChange={e => set('isDefault', e.target.checked)} className="h-4 w-4" /> پیش‌فرض
             </label>
-            <label className="flex items-center gap-1.5 text-[11px] text-slate-600">
+            <label className="flex items-center gap-1.5 text-2xs text-slate-600">
               <input type="checkbox" checked={form.isActive} onChange={e => set('isActive', e.target.checked)} className="h-4 w-4" /> فعال
             </label>
           </div>

@@ -148,7 +148,7 @@ export async function manualEnrollAction(input: ManualEnrollInput): Promise<{ ok
     const pctx = await buildPrereqContext(sid);
     const rule = pctx.ruleByCourse.get(off.courseId);
     if (rule) {
-      const ev = evaluateLogicTree(rule, pctx.passed);
+      const ev = evaluateLogicTree(rule, pctx.passed, pctx);
       if (!ev.ok) prereqViolated = ev.missing.map(c => pctx.titles.get(c) ?? c).join('، ');
     }
   } catch { /* موتور در دسترس نیست */ }
@@ -281,29 +281,63 @@ export async function bulkEnrollAction(
   if (!sids.length) return { ok: false, error: 'هیچ دانشجویی با این فیلتر پیدا نشد.' };
   const ub = await uniId();
 
-  let inserted = 0, skipped = 0;
+  // ── آماده‌سازی دسته‌ای ──────────────────────────────────────────────────
+  // پیش‌تر برای هر جفت (کلاس × دانشجو) سه کوئری جدا می‌رفت: چک تکراری، درج،
+  // و +۱ کردن ظرفیت. با ۱۰ کلاس × ۳۰۰ دانشجو یعنی ~۹٬۰۰۰ رفت‌وبرگشت.
+  // حالا: ارائه‌ها یک‌بار، جفت‌های موجود یک‌بار، درج دسته‌ای، و یک آپدیت
+  // ظرفیت به‌ازای هر کلاس. **قواعد و شمارش‌ها عیناً حفظ شده‌اند.**
+  const CAP = 3000;
+  const offRows = await db.select().from(course_offerings).where(inArray(course_offerings.id, ids));
+  const offMap = new Map(offRows.map(o => [o.id, o]));
+
+  const existingPairs = new Set<string>();
+  const dupRows = await db
+    .select({ sid: enrollments.studentId, oid: enrollments.offeringId })
+    .from(enrollments)
+    .where(and(inArray(enrollments.offeringId, ids), inArray(enrollments.studentId, sids)));
+  for (const d of dupRows) existingPairs.add(`${d.oid}:${d.sid}`);
+
+  let skipped = 0;
+  let planned = 0;
+  const toInsert: { studentId: number; offeringId: number; universityId: number | null }[] = [];
+
   for (const oid of ids) {
-    // گیت ظرفیت مگر با override
-    const [off] = await db.select().from(course_offerings).where(eq(course_offerings.id, oid)).limit(1);
+    if (planned + skipped >= CAP) break;
+    const off = offMap.get(oid);
+    // کلاس ناموجود یا متعلق به دانشگاه دیگر: یک «رد» (نه به‌ازای هر دانشجو)
     if (!off) { skipped++; continue; }
     if (ub && off.universityId && off.universityId !== ub) { skipped++; continue; }
+    // گیت ظرفیت مگر با override — همان snapshot قبلی، ثابت برای همهٔ دانشجویان این کلاس
+    const full = !override && off.enrolledCount != null && off.capacity > 0 && off.enrolledCount >= off.capacity;
     for (const sid of sids) {
-      if (inserted + skipped >= 3000) break;
-      const dup = await db.select({ id: enrollments.id }).from(enrollments)
-        .where(and(eq(enrollments.studentId, sid), eq(enrollments.offeringId, oid))).limit(1);
-      if (dup.length) { skipped++; continue; }
-      const free = !override && off.enrolledCount != null && off.capacity > 0 && off.enrolledCount >= off.capacity;
-      if (free) { skipped++; continue; }
-      const ins = await withUserRls(me.id, tx => tx.insert(enrollments).values({
-        studentId: sid, offeringId: oid, status: 'REGISTERED', universityId: off.universityId ?? null,
-        enrolledByUserId: me.id, enrollOverride: override ? 1 : 0, enrollOverrideReason: override ? String(reason || '').trim() : null,
+      if (planned + skipped >= CAP) break;
+      if (existingPairs.has(`${oid}:${sid}`)) { skipped++; continue; }
+      if (full) { skipped++; continue; }
+      existingPairs.add(`${oid}:${sid}`); // جلوگیری از تکرار داخل همین دسته
+      toInsert.push({ studentId: sid, offeringId: oid, universityId: off.universityId ?? null });
+      planned++;
+    }
+  }
+
+  let inserted = 0;
+  if (toInsert.length) {
+    const perOffering = new Map<number, number>();
+    for (let i = 0; i < toInsert.length; i += 500) {
+      const chunk = toInsert.slice(i, i + 500);
+      const done = await withUserRls(me.id, tx => tx.insert(enrollments).values(chunk.map(v => ({
+        ...v, status: 'REGISTERED',
+        enrolledByUserId: me.id,
+        enrollOverride: override ? 1 : 0,
+        enrollOverrideReason: override ? String(reason || '').trim() : null,
         councilRuling: override ? 1 : 0,
-      }).onConflictDoNothing().returning({ id: enrollments.id }));
-      if (ins.length) {
-        inserted++;
-        await db.update(course_offerings).set({ enrolledCount: sql`${course_offerings.enrolledCount} + 1` })
-          .where(and(eq(course_offerings.id, oid), ub ? eq(course_offerings.universityId, ub) : sql`1 = 1`));
-      }
+      }))).onConflictDoNothing().returning({ id: enrollments.id, offeringId: enrollments.offeringId }));
+      inserted += done.length;
+      for (const r of done) perOffering.set(r.offeringId, (perOffering.get(r.offeringId) ?? 0) + 1);
+    }
+    // یک آپدیت ظرفیت به‌ازای هر کلاس (به‌جای یکی به‌ازای هر دانشجو)
+    for (const [oid, n] of perOffering) {
+      await db.update(course_offerings).set({ enrolledCount: sql`${course_offerings.enrolledCount} + ${n}` })
+        .where(and(eq(course_offerings.id, oid), ub ? eq(course_offerings.universityId, ub) : sql`1 = 1`));
     }
   }
   return { ok: true, inserted, skipped, total: sids.length };
@@ -749,7 +783,7 @@ export async function getStudentCatalog(
     if (prereqCtx) {
       const rule = prereqCtx.ruleByCourse.get(r.courseId);
       if (rule) {
-        const ev = evaluateLogicTree(rule, prereqCtx.passed);
+        const ev = evaluateLogicTree(rule, prereqCtx.passed, prereqCtx);
         if (!ev.ok) prereqMissing = ev.missing.map(c => prereqCtx.titles.get(c) ?? c).join('، ');
       }
     }
@@ -788,7 +822,7 @@ export async function getStudentCatalog(
       if (prereqCtx) {
         const rule = prereqCtx.ruleByCourse.get(m.id);
         if (rule) {
-          const ev = evaluateLogicTree(rule, prereqCtx.passed);
+          const ev = evaluateLogicTree(rule, prereqCtx.passed, prereqCtx);
           if (!ev.ok) prereqMissing = ev.missing.map(c => prereqCtx.titles.get(c) ?? c).join('، ');
         }
       }

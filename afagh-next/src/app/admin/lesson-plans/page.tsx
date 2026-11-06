@@ -9,14 +9,20 @@ export default async function LessonPlansPage() {
   await requireRole(['ADMIN', 'EDU_EXPERT', 'VICE_EDU']);
   const uni = await getCurrentUniversity().catch(() => null);
   const universityId = uni?.id ?? null;
-  const rows = universityId ? await listLessonPlanStatus(universityId) : [];
+
+  // فقط صفحهٔ اول (سقف ۲۰۰ ردیف) در رندر اولیه می‌آید — بقیه با جست‌وجوی
+  // سروری/«بیشتر» لود می‌شود. قبلاً «همهٔ» ارائه‌ها (~۲MB payload) در همان
+  // بار اول رندر می‌رفت و صفحهٔ آموزش را چندده ثانیه‌ای می‌کرد.
+  const data = universityId
+    ? await listLessonPlanStatus(universityId)
+    : { rows: [], total: 0, submitted: 0, filtered: 0 };
 
   return (
     <div className="space-y-4" dir="rtl">
       <LessonPlansClient
         universityId={universityId}
         universityTitle={uni?.title ?? 'دانشگاه'}
-        initialRows={rows.map((r: { offeringId: number; courseTitle: string; professorName: string; status: string; sessionsCount: number; weightsSum: number; updatedAt: unknown }) => ({
+        initialRows={data.rows.map(r => ({
           offeringId: r.offeringId,
           courseTitle: r.courseTitle,
           professorName: r.professorName,
@@ -25,6 +31,7 @@ export default async function LessonPlansPage() {
           weightsSum: r.weightsSum,
           updatedAt: r.updatedAt ? String(r.updatedAt) : null,
         }))}
+        initialStats={{ total: data.total, submitted: data.submitted, filtered: data.filtered }}
       />
     </div>
   );

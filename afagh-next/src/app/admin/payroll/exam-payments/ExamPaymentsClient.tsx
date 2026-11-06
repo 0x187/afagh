@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useTransition } from 'react';
+import { askConfirm } from '@/lib/ui-feedback';
 
 type Payment = {
   id: number; staffId: number; staffName: string; staffCode: string | null;
@@ -31,13 +32,13 @@ const money = (n: number) => faNum(Math.round(Number(n || 0)).toLocaleString('en
  */
 function ReadinessBadge({ deliveries, pending }: { deliveries: number; pending: number }) {
   if (deliveries === 0) {
-    return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-500" title="اوراق امتحانی برای این استاد در این ترم ثبت نشده است">بدون اوراق</span>;
+    return <span className="rounded-full bg-slate-100 px-2 py-0.5 text-2xs font-bold text-slate-500" title="اوراق امتحانی برای این استاد در این ترم ثبت نشده است">بدون اوراق</span>;
   }
   if (pending === 0) {
-    return <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-black text-emerald-800" title={`همهٔ ${faNum(deliveries)} تحویل به بایگانی برگشته است`}>✓ آماده پرداخت</span>;
+    return <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-2xs font-black text-emerald-800" title={`همهٔ ${faNum(deliveries)} تحویل به بایگانی برگشته است`}>✓ آماده پرداخت</span>;
   }
   return (
-    <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-black text-rose-800" title="تا بازگشت اوراق به بایگانی، پرداخت حقالزحمهٔ تصحیح مجاز نیست">
+    <span className="rounded-full bg-rose-100 px-2 py-0.5 text-2xs font-black text-rose-800" title="تا بازگشت اوراق به بایگانی، پرداخت حقالزحمهٔ تصحیح مجاز نیست">
       ⛔ {faNum(pending)} درس در انتظار بایگانی
     </span>
   );
@@ -110,8 +111,14 @@ export default function ExamPaymentsClient(props: {
     });
   }
 
-  function doDelete(id: number) {
-    if (!confirm('این پرداخت حذف شود؟')) return;
+  async function doDelete(id: number) {
+    const ok = await askConfirm({
+      title: 'حذف پرداخت',
+      body: 'این پرداخت حذف شود؟',
+      confirmText: 'حذف کن',
+      danger: true,
+    });
+    if (!ok) return;
     start(async () => {
       const res = await actions.deleteAction(id);
       if (!res.ok) { setMsg(res.error ?? 'خطا در حذف.'); return; }
@@ -145,7 +152,7 @@ export default function ExamPaymentsClient(props: {
           <div className="overflow-x-auto">
             <table className="w-full text-xs rt">
               <thead>
-                <tr className="border-b border-amber-200 text-[11px] text-amber-800">
+                <tr className="border-b border-amber-200 text-2xs text-amber-800">
                   <th className="p-1.5 text-right">استاد</th>
                   <th className="p-1.5">درس در انتظار بایگانی</th>
                   <th className="p-1.5">پرداخت ثبت‌شده</th>
@@ -156,12 +163,12 @@ export default function ExamPaymentsClient(props: {
                 {notReady.map(n => (
                   <tr key={n.staffId} className="border-b border-amber-100">
                     <td className="p-1.5 font-bold text-amber-950">
-                      {n.name} <span className="font-mono text-[10px] text-amber-700" dir="ltr">{n.staffCode}</span>
+                      {n.name} <span className="font-mono text-3xs text-amber-700" dir="ltr">{n.staffCode}</span>
                     </td>
                     <td className="p-1.5 text-center font-mono font-black text-rose-700">{faNum(n.pending)}</td>
                     <td className="p-1.5 text-center font-mono">{faNum(n.payments)}</td>
                     <td className="p-1.5 text-center">
-                      <a href="/admin/exams/handover" className="rounded-lg bg-amber-700 px-2 py-1 text-[10px] font-black text-white hover:bg-amber-800">
+                      <a href="/admin/exams/handover" className="rounded-lg bg-amber-700 px-2 py-1 text-3xs font-black text-white hover:bg-amber-800">
                         QR تحویل به بایگانی
                       </a>
                     </td>

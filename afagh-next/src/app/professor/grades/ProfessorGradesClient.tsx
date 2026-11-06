@@ -95,8 +95,8 @@ export default function ProfessorGradesClient({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative">
           <div>
             <div className="flex items-center gap-2">
-              <span className="px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 text-[10px] font-black">نیمسال جاری</span>
-              <span className="text-[11px] font-bold text-indigo-200">{termTitle || 'نیمسال تعیین نشده'}</span>
+              <span className="px-2 py-0.5 rounded-full bg-amber-400 text-slate-950 text-3xs font-black">نیمسال جاری</span>
+              <span className="text-2xs font-bold text-indigo-200">{termTitle || 'نیمسال تعیین نشده'}</span>
             </div>
             <h1 className="text-xl sm:text-2xl font-black mt-2">مدیریت نمرات استاد {professor.name}</h1>
             <p className="text-xs text-indigo-200 font-bold mt-1">
@@ -105,7 +105,7 @@ export default function ProfessorGradesClient({
           </div>
 
           <div className="bg-white/10 border border-white/20 rounded-2xl p-3 backdrop-blur-sm">
-            <div className="text-[10px] font-black text-indigo-200 mb-1.5">درس فعال:</div>
+            <div className="text-3xs font-black text-indigo-200 mb-1.5">درس فعال:</div>
             <select
               value={currentOffering.id}
               onChange={e => dispatch({ type: 'SET_OFFERING', payload: Number(e.target.value) })}
@@ -135,13 +135,13 @@ export default function ProfessorGradesClient({
           <div className="flex gap-2">
             <button
               onClick={() => dispatch({ type: 'SWITCH_CO_ROLE', payload: 'THEORY' })}
-              className={`px-3 py-1.5 rounded-xl text-[11px] font-black transition ${currentOffering.coTaughtDetails.currentProfRole === 'THEORY' ? 'bg-indigo-900 text-white' : 'bg-slate-100 text-slate-600'}`}
+              className={`px-3 py-1.5 rounded-xl text-2xs font-black transition ${currentOffering.coTaughtDetails.currentProfRole === 'THEORY' ? 'bg-indigo-900 text-white' : 'bg-slate-100 text-slate-600'}`}
             >
               دیدگاه تئوری
             </button>
             <button
               onClick={() => dispatch({ type: 'SWITCH_CO_ROLE', payload: 'LAB' })}
-              className={`px-3 py-1.5 rounded-xl text-[11px] font-black transition ${currentOffering.coTaughtDetails.currentProfRole === 'LAB' ? 'bg-purple-800 text-white' : 'bg-slate-100 text-slate-600'}`}
+              className={`px-3 py-1.5 rounded-xl text-2xs font-black transition ${currentOffering.coTaughtDetails.currentProfRole === 'LAB' ? 'bg-purple-800 text-white' : 'bg-slate-100 text-slate-600'}`}
             >
               دیدگاه عملی
             </button>

@@ -38,9 +38,9 @@ export default function ContractsTab({ state, api }: Props) {
                 <div className="flex items-center justify-between">
                   <div>
                     <h3 className="font-black text-slate-900 text-sm">{rec.name}</h3>
-                    <p className="text-[11px] text-slate-500">کد پرسنلی: {rec.staffCode} · مرتبه: {rec.academicRank}</p>
+                    <p className="text-2xs text-slate-500">کد پرسنلی: {rec.staffCode} · مرتبه: {rec.academicRank}</p>
                   </div>
-                  <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black ${
+                  <span className={`px-2.5 py-0.5 rounded-full text-3xs font-black ${
                     rec.contractType === 'FULL_TIME_FACULTY' ? 'bg-indigo-100 text-indigo-900' : 'bg-amber-100 text-amber-900'
                   }`}>
                     {rec.contractType === 'FULL_TIME_FACULTY' ? 'هیئت علمی تمام‌وقت' : 'استاد مدعو / حق‌التدریس'}
@@ -49,16 +49,16 @@ export default function ContractsTab({ state, api }: Props) {
 
                 <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 grid grid-cols-2 gap-2 text-xs">
                   <div>
-                    <span className="text-slate-500 text-[11px] block">سقف موظفی آموزشی:</span>
+                    <span className="text-slate-500 text-2xs block">سقف موظفی آموزشی:</span>
                     <span className="font-mono font-black text-slate-900">{rec.baseDutyUnits} واحد ترمیک</span>
                   </div>
                   <div>
-                    <span className="text-slate-500 text-[11px] block">نرخ مالیات تکلیفی:</span>
+                    <span className="text-slate-500 text-2xs block">نرخ مالیات تکلیفی:</span>
                     <span className="font-mono font-black text-slate-900">{(rec.taxRate * 100)}٪ (ماده ۸۶ ق.م.م)</span>
                   </div>
                   <div className="col-span-2 pt-1 border-t border-slate-200">
-                    <span className="text-slate-500 text-[11px] block">شماره شبا بانکی جهت واریز:</span>
-                    <span className="font-mono text-slate-800 text-[11px]" dir="ltr">{rec.iban}</span>
+                    <span className="text-slate-500 text-2xs block">شماره شبا بانکی جهت واریز:</span>
+                    <span className="font-mono text-slate-800 text-2xs" dir="ltr">{rec.iban}</span>
                   </div>
                 </div>
               </div>

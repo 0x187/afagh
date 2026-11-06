@@ -31,7 +31,7 @@ async function assertWorkflowRequestInUni(requestId: number): Promise<{ ok: true
 }
 
 export async function adminApproveWorkflowStepAction(requestId: number, note?: string) {
-  const user = await requireRole(['ADMIN', 'EDU_EXPERT']);
+  const user = await requireRole(['ADMIN', 'EDU_EXPERT', 'FINANCE_EXPERT', 'FINANCE']);
   const scope = await assertWorkflowRequestInUni(requestId);
   if (!scope.ok) return { ok: false, error: scope.error };
 
@@ -50,7 +50,7 @@ export async function adminApproveWorkflowStepAction(requestId: number, note?: s
 }
 
 export async function adminRejectWorkflowStepAction(requestId: number, reason: string) {
-  const user = await requireRole(['ADMIN', 'EDU_EXPERT']);
+  const user = await requireRole(['ADMIN', 'EDU_EXPERT', 'FINANCE_EXPERT', 'FINANCE']);
   const scope = await assertWorkflowRequestInUni(requestId);
   if (!scope.ok) return { ok: false, error: scope.error };
 
@@ -69,7 +69,7 @@ export async function adminRejectWorkflowStepAction(requestId: number, reason: s
 }
 
 export async function adminReturnWorkflowStepAction(requestId: number, note: string) {
-  const user = await requireRole(['ADMIN', 'EDU_EXPERT']);
+  const user = await requireRole(['ADMIN', 'EDU_EXPERT', 'FINANCE_EXPERT', 'FINANCE']);
   const scope = await assertWorkflowRequestInUni(requestId);
   if (!scope.ok) return { ok: false, error: scope.error };
 
@@ -88,7 +88,7 @@ export async function adminReturnWorkflowStepAction(requestId: number, note: str
 }
 
 export async function adminEscalateWorkflowStepAction(requestId: number, note?: string) {
-  const user = await requireRole(['ADMIN', 'EDU_EXPERT']);
+  const user = await requireRole(['ADMIN', 'EDU_EXPERT', 'FINANCE_EXPERT', 'FINANCE']);
   const scope = await assertWorkflowRequestInUni(requestId);
   if (!scope.ok) return { ok: false, error: scope.error };
 

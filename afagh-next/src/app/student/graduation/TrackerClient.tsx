@@ -59,7 +59,7 @@ export default function TrackerClient({ initial, userId }: { initial: Tracker; u
                 </div>
               )}
               {!!a.reasons.length && (
-                <ul className="text-[11px] text-slate-500 list-disc pr-5 space-y-0.5">
+                <ul className="text-2xs text-slate-500 list-disc pr-5 space-y-0.5">
                   {a.reasons.map((r, i) => <li key={i}>{r}</li>)}
                 </ul>
               )}
@@ -142,7 +142,7 @@ export default function TrackerClient({ initial, userId }: { initial: Tracker; u
               <span className="text-base">{s.state === 'DONE' ? '✅' : s.state === 'CURRENT' ? '⏳' : '⚪'}</span>
               <div>
                 <div className="text-xs font-black text-slate-800">{s.title}</div>
-                <div className="text-[10px] text-slate-500">مسئول این مرحله: {s.actor}</div>
+                <div className="text-3xs text-slate-500">مسئول این مرحله: {s.actor}</div>
               </div>
             </li>
           ))}
@@ -167,9 +167,9 @@ export default function TrackerClient({ initial, userId }: { initial: Tracker; u
                   <span className="text-xs font-black text-slate-800">{c.title}</span>
                   <span className="text-sm">{CLEAR_ICON[c.status] ?? '⏳'}</span>
                 </div>
-                <div className="text-[10px] font-bold text-slate-500">{CLEAR_LABEL[c.status] ?? c.status}{c.autoChecked ? ' — بررسی خودکار سیستم' : ''}</div>
-                {!!c.amountDue && <div className="text-[10px] font-black text-rose-700">بدهی: {money(c.amountDue)}</div>}
-                {c.detail && <div className="text-[10px] text-slate-500 mt-0.5 leading-4">{c.detail}</div>}
+                <div className="text-3xs font-bold text-slate-500">{CLEAR_LABEL[c.status] ?? c.status}{c.autoChecked ? ' — بررسی خودکار سیستم' : ''}</div>
+                {!!c.amountDue && <div className="text-3xs font-black text-rose-700">بدهی: {money(c.amountDue)}</div>}
+                {c.detail && <div className="text-3xs text-slate-500 mt-0.5 leading-4">{c.detail}</div>}
               </div>
             ))}
           </div>
@@ -202,7 +202,7 @@ export default function TrackerClient({ initial, userId }: { initial: Tracker; u
       )}
 
       {a.sajjadRequestCode && (
-        <div className="card p-3 text-[11px] font-bold text-slate-600">
+        <div className="card p-3 text-2xs font-bold text-slate-600">
           کد رهگیری سجاد ثبت‌شدهٔ شما: <span className="font-mono text-slate-900">{a.sajjadRequestCode}</span>
           {a.sajjadStatus === 'CONFIRMED' ? ' — کد صحت از وزارت علوم دریافت شد ✅' : ' — در انتظار دریافت کد صحت'}
         </div>
@@ -216,7 +216,7 @@ export default function TrackerClient({ initial, userId }: { initial: Tracker; u
             <div className="space-y-2">
               <p className="text-xs text-amber-900 font-bold">بارگذاری عکس ۴×۳ جدید (پشت‌زمینهٔ روشن، فرمت JPG یا PNG)</p>
               <div className="flex gap-2 flex-wrap items-center">
-                <input ref={fileRef} type="file" accept="image/*" className="text-[11px]" />
+                <input ref={fileRef} type="file" accept="image/*" className="text-2xs" />
                 <button onClick={uploadPhoto} disabled={pending}
                   className="px-3 py-1.5 rounded-lg bg-emerald-700 text-white text-xs font-black disabled:opacity-50">بارگذاری عکس</button>
               </div>
@@ -227,7 +227,7 @@ export default function TrackerClient({ initial, userId }: { initial: Tracker; u
               <p className="text-xs text-amber-900 font-bold">پرداخت هزینهٔ تمبر ابطال: {money(Number(a.stampFeeAmount))}</p>
               {/* ⛔ ثبت پرداخت از سمت دانشجو حذف شد (جعل اعتبار در دفتر مالی).
                   تسویه فقط با تأیید واحد مالی انجام می‌شود. */}
-              <p className="text-[11px] text-slate-600 leading-5">
+              <p className="text-2xs text-slate-600 leading-5">
                 مبلغ را به واحد مالی پرداخت کنید؛ پس از تأیید کارشناس مالی، وضعیت این بند خودکار به «تسویه‌شده» تغییر می‌کند.
               </p>
               <button onClick={pay} disabled={pending}
@@ -248,14 +248,14 @@ export default function TrackerClient({ initial, userId }: { initial: Tracker; u
               <div key={g.id} className="border border-slate-200 rounded-xl p-2 flex flex-wrap items-center gap-2 justify-between">
                 <div>
                   <div className="text-xs font-black text-slate-800">{DEGREE_LABEL[g.degreeType] ?? g.degreeType}</div>
-                  <div className="text-[10px] font-mono text-slate-500">سریال: {g.serialNo}</div>
+                  <div className="text-3xs font-mono text-slate-500">سریال: {g.serialNo}</div>
                 </div>
                 <a href={`/verify-degree/${g.verifyCode}`} target="_blank" rel="noreferrer"
-                  className="px-3 py-1.5 rounded-lg bg-slate-100 text-[11px] font-black">استعلام/مشاهده</a>
+                  className="px-3 py-1.5 rounded-lg bg-slate-100 text-2xs font-black">استعلام/مشاهده</a>
               </div>
             ))}
           </div>
-          <p className="text-[11px] text-slate-500 mt-2 leading-5">
+          <p className="text-2xs text-slate-500 mt-2 leading-5">
             پس از صدور مدرک، حساب شما به «پورتال دانش‌آموختگان» منتقل می‌شود و خدمات پس از فراغت از آنجا قابل درخواست است.
           </p>
         </div>
@@ -291,30 +291,30 @@ function ChannelsCard() {
   return (
     <div className="card p-4 space-y-2">
       <h2 className="text-sm font-black text-slate-800">اطلاع‌رسانی مراحل فارغ‌التحصیلی</h2>
-      <p className="text-[11px] text-slate-500 leading-5">
+      <p className="text-2xs text-slate-500 leading-5">
         همهٔ رویدادهای پرونده (تبریک شروع فرآیند، تسویه‌حساب، درخواست سجاد و صدور مدرک) علاوه بر
         پیام درون‌سامانه‌ای، از این کانال‌ها هم برای شما ارسال می‌شود.
       </p>
       {externals.map(ch => (
         <div key={ch} className="flex flex-wrap items-center gap-2">
-          <span className="text-[11px] font-black text-slate-700 w-20">{CHANNEL_LABEL[ch] ?? ch}</span>
+          <span className="text-2xs font-black text-slate-700 w-20">{CHANNEL_LABEL[ch] ?? ch}</span>
           <input
             value={draft[ch] ?? ''} onChange={e => setDraft({ ...draft, [ch]: e.target.value })}
             placeholder={ch === 'SMS' ? 'شمارهٔ موبایل (۰۹…)' : 'شناسهٔ چت شما در ربات دانشگاه'}
-            className="border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] flex-1 min-w-48"
+            className="border border-slate-200 rounded-lg px-2 py-1.5 text-2xs flex-1 min-w-48"
           />
           <button disabled={pending} onClick={() => start(async () => {
             const r = await saveChannelAction(ch, draft[ch] ?? '');
             setNote(r.ok ? 'ذخیره شد.' : r.error);
             if (r.ok) setState(s => (s ? { ...s, mine: r.mine } : s));
-          })} className="px-2 py-1 rounded-lg bg-slate-200 text-[11px] font-black disabled:opacity-50">ذخیره</button>
+          })} className="px-2 py-1 rounded-lg bg-slate-200 text-2xs font-black disabled:opacity-50">ذخیره</button>
           <button disabled={pending} onClick={() => start(async () => {
             const r = await testChannelAction(ch);
             setNote(!r.ok ? r.error : r.status === 'SENT' ? 'پیام آزمایشی ارسال شد.' : `ارسال نشد: ${r.error ?? r.status}`);
-          })} className="px-2 py-1 rounded-lg bg-emerald-700 text-white text-[11px] font-black disabled:opacity-50">ارسال آزمایشی</button>
+          })} className="px-2 py-1 rounded-lg bg-emerald-700 text-white text-2xs font-black disabled:opacity-50">ارسال آزمایشی</button>
         </div>
       ))}
-      {note && <div className="text-[11px] font-bold text-slate-600">{note}</div>}
+      {note && <div className="text-2xs font-bold text-slate-600">{note}</div>}
     </div>
   );
 }
@@ -323,7 +323,7 @@ function Header() {
   return (
     <header className="card p-4 bg-gradient-to-l from-emerald-700 to-teal-800 text-white">
       <h1 className="text-base sm:text-lg font-black">فارغ‌التحصیلی من</h1>
-      <p className="text-[11px] text-emerald-100 mt-1 leading-6">
+      <p className="text-2xs text-emerald-100 mt-1 leading-6">
         این فرآیند کاملاً خودکار است؛ لازم نیست درخواستی ثبت کنید یا بین دفاتر مراجعه کنید.
         هر تغییری در پرونده، همین‌جا و با اعلان به شما نمایش داده می‌شود.
       </p>
@@ -334,7 +334,7 @@ function Header() {
 function Cell({ label, value }: { label: string; value: string }) {
   return (
     <div className="bg-slate-50 border border-slate-200 rounded-xl p-2">
-      <div className="text-[10px] text-slate-500 font-bold">{label}</div>
+      <div className="text-3xs text-slate-500 font-bold">{label}</div>
       <div className="text-sm font-black text-slate-800">{value}</div>
     </div>
   );

@@ -8,6 +8,13 @@ interface FacultyOption {
   name: string;
 }
 
+/** گزینهٔ «گروه مسئول» — برای سالن‌هایی که مالِ یک گروه مشخص‌اند (مثل باشگاه‌ها). */
+interface DeptOption {
+  id: number;
+  name: string;
+  code: string | null;
+}
+
 interface RoomData {
   id: number;
   name: string;
@@ -15,11 +22,17 @@ interface RoomData {
   capacity: number;
   roomType: string | null;
   facultyId: number | null;
+  departmentId: number | null;
   floor: string | null;
   rowsCount: number | null;
   colsCount: number | null;
   isActive: number | null;
+  isExamHall: number | null;
+  examCapacity: number | null;
 }
+
+/** برچسب گروه: «نام (کد)» و اگر کد نبود فقط «نام» — شناسهٔ ردیف جای کد نمی‌نشیند. */
+const deptLabel = (d: DeptOption) => (d.code ? `${d.name} (${d.code})` : d.name);
 
 const ROOM_TYPES = ['کلاس درس', 'آزمایشگاه', 'سالن', 'ورزشی', 'کارگاه', 'اداری'];
 
@@ -37,7 +50,10 @@ const INITIAL: SaveClassroomResult = { ok: false };
  */
 const COLS =
   'grid-cols-2 sm:grid-cols-3 ' +
-  'md:grid-cols-[2rem_4.5rem_minmax(7rem,1.2fr)_4.5rem_6.5rem_minmax(6.5rem,1fr)_3.25rem_5.75rem_5.5rem_5.75rem]';
+  // ۱۳ ستون = تعداد واقعیِ خانه‌های RowForm. اگر خانه‌ای اضافه/حذف شد،
+  // این الگو و HEADERS باید هم‌زمان به‌روز شوند، وگرنه ردیف می‌شکند و
+  // ستون «عملیات» به سطر دوم می‌افتد (باگ سالن امتحان).
+  'md:grid-cols-[2rem_4.5rem_minmax(7rem,1.2fr)_4.5rem_6.5rem_minmax(6.5rem,1fr)_minmax(7rem,1fr)_3.25rem_5.75rem_5.5rem_4.5rem_5rem_5.75rem]';
 
 const INP =
   'w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-[13px] text-slate-800 ' +
@@ -47,14 +63,14 @@ const INP =
 function Cell({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="min-w-0">
-      <span className="mb-0.5 block text-[10px] font-bold text-slate-400 md:hidden">{label}</span>
+      <span className="mb-0.5 block text-3xs font-bold text-slate-400 md:hidden">{label}</span>
       {children}
     </div>
   );
 }
 
 /** کلیدهای مرتب‌سازی — همان ستون‌هایی که سرسطرِ کلیک‌پذیر دارند. */
-type SortKey = 'code' | 'name' | 'capacity' | 'roomType' | 'faculty' | 'floor' | 'seats' | 'status';
+type SortKey = 'code' | 'name' | 'capacity' | 'roomType' | 'faculty' | 'floor' | 'seats' | 'status' | 'examHall';
 
 const HEADERS: Array<{ label: string; hint: string; key: SortKey | null }> = [
   { label: '✓', hint: 'انتخاب ردیف برای عملیات گروهی', key: null },
@@ -63,9 +79,12 @@ const HEADERS: Array<{ label: string; hint: string; key: SortKey | null }> = [
   { label: 'ظرفیت', hint: 'ظرفیت اسمی اتاق (نفر)', key: 'capacity' },
   { label: 'نوع', hint: 'کلاس درس / آزمایشگاه / سالن / ورزشی / کارگاه', key: 'roomType' },
   { label: 'دانشکده', hint: 'دانشکدهٔ مالکِ اتاق — در سوییچ دانشگاه هم‌تراز می‌ماند', key: 'faculty' },
+  { label: 'گروه مسئول', hint: 'اگر اتاق مالِ یک گروه مشخص است (مثل باشگاه‌ها که مال «گروه مشترک تربیت بدنی» هستند) همین‌جا انتخابش کن. تخصیص خودکار سهمیه، هر دو شیفت را مستقیم به همین گروه می‌دهد و در توزیع ظرفیت‌محور دانشکده شرکت نمی‌کند. خالی = مثل قبل', key: null },
   { label: 'طبقه', hint: 'شمارهٔ طبقه', key: 'floor' },
   { label: 'نیمکت (ردیف × ستون)', hint: 'چیدمان نیمکت‌ها برای نقشهٔ حضور و غیاب — ابتدا تعداد ردیف، بعد تعداد ستون', key: 'seats' },
   { label: 'وضعیت', hint: 'کلاس غیرفعال در انتخاب‌گر سردر کلاس نمایش داده نمی‌شود', key: 'status' },
+  { label: 'سالن امتحان', hint: 'اگر «بله» باشد، این کلاس در سهمیه‌بندی و برنامه‌ریزی آزمون‌ها به‌عنوان حوزهٔ امتحان هم قابل استفاده است', key: 'examHall' },
+  { label: 'ظرفیت امتحان', hint: 'ظرفیت مخصوص آزمون — اگر خالی بماند از ظرفیت عادی کلاس استفاده می‌شود (مثلاً نیمکت‌ها برداشته می‌شوند)', key: null },
   { label: 'عملیات', hint: 'ذخیره یا حذف همین ردیف', key: null },
 ];
 
@@ -77,9 +96,9 @@ function normalizeDigits(s: string): string {
 }
 
 /** فرم افزودن کلاس جدید — «کد» اولین فیلد است تا با ستون اول جدول هم‌نام باشد. */
-function AddForm({ faculties }: { faculties: FacultyOption[] }) {
+function AddForm({ faculties, departments }: { faculties: FacultyOption[]; departments: DeptOption[] }) {
   const [state, action, pending] = useActionState(adminSaveClassroomAction, INITIAL);
-  const LBL = 'flex min-w-0 flex-col gap-1 text-[11px] font-bold text-slate-500';
+  const LBL = 'flex min-w-0 flex-col gap-1 text-2xs font-bold text-slate-500';
   return (
     <form
       action={action}
@@ -106,6 +125,12 @@ function AddForm({ faculties }: { faculties: FacultyOption[] }) {
           {faculties.map(f => <option key={f.id} value={f.id}>{f.name}</option>)}
         </select>
       </label>
+      <label className={`${LBL} col-span-2`}>گروه مسئول (اختیاری)
+        <select name="departmentId" className={INP}>
+          <option value="">— کل دانشکده —</option>
+          {departments.map(d => <option key={d.id} value={d.id}>{deptLabel(d)}</option>)}
+        </select>
+      </label>
       <label className={LBL}>طبقه
         <input name="floor" className={INP} dir="ltr" placeholder="۲" />
       </label>
@@ -118,21 +143,28 @@ function AddForm({ faculties }: { faculties: FacultyOption[] }) {
       <label className="flex items-center gap-1.5 pb-2 text-xs font-bold text-slate-600">
         <input type="checkbox" name="isActive" value="1" defaultChecked className="h-4 w-4" /> فعال
       </label>
+      <label className="flex items-center gap-1.5 pb-2 text-xs font-bold text-slate-600">
+        <input type="checkbox" name="isExamHall" value="1" className="h-4 w-4" /> قابل استفاده به عنوان سالن امتحان
+      </label>
+      <label className={LBL}>ظرفیت امتحان
+        <input name="examCapacity" type="number" min={1} className={INP} dir="ltr" placeholder="—" />
+      </label>
       <button className="rounded-xl bg-indigo-700 px-5 py-2 text-sm font-black text-white disabled:opacity-60" disabled={pending}>
         {pending ? 'در حال افزودن…' : 'افزودن کلاس'}
       </button>
-      {state.err && <p className="col-span-full text-[11px] font-bold text-rose-600">⛔ {state.err}</p>}
-      {state.msg && <p className="col-span-full text-[11px] font-bold text-emerald-700">✓ {state.msg}</p>}
+      {state.err && <p className="col-span-full text-2xs font-bold text-rose-600">⛔ {state.err}</p>}
+      {state.msg && <p className="col-span-full text-2xs font-bold text-emerald-700">✓ {state.msg}</p>}
     </form>
   );
 }
 
 /** یک ردیف کامل = یک فرم؛ حذف هم با `intent=delete` از همین فرم می‌رود. */
 function RowForm({
-  room, faculties, selected, onToggle,
+  room, faculties, departments, selected, onToggle,
 }: {
   room: RoomData;
   faculties: FacultyOption[];
+  departments: DeptOption[];
   selected: boolean;
   onToggle: (id: number, next: boolean) => void;
 }) {
@@ -184,7 +216,7 @@ function RowForm({
           placeholder="بدون کد"
           title={noCode ? 'این اتاق در سما کد ندارد' : `کد سما: ${room.code}`}
           dir="ltr"
-          className={`${INP} text-center font-mono ${noCode ? 'border-amber-300 bg-amber-50 placeholder:text-[10px] placeholder:font-sans placeholder:text-amber-600' : ''}`}
+          className={`${INP} text-center font-mono ${noCode ? 'border-amber-300 bg-amber-50 placeholder:text-3xs placeholder:font-sans placeholder:text-amber-600' : ''}`}
         />
       </Cell>
 
@@ -207,6 +239,13 @@ function RowForm({
         </select>
       </Cell>
 
+      <Cell label="گروه مسئول">
+        <select name="departmentId" defaultValue={String(room.departmentId ?? '')} className={INP}>
+          <option value="">— کل دانشکده —</option>
+          {departments.map(d => <option key={d.id} value={d.id}>{deptLabel(d)}</option>)}
+        </select>
+      </Cell>
+
       <Cell label="طبقه">
         <input name="floor" defaultValue={room.floor ?? ''} dir="ltr" placeholder="—" className={`${INP} text-center`} />
       </Cell>
@@ -226,10 +265,21 @@ function RowForm({
         </select>
       </Cell>
 
+      <Cell label="سالن امتحان">
+        <select name="isExamHall" defaultValue={String(room.isExamHall ?? 0)} className={INP}>
+          <option value="0">خیر</option>
+          <option value="1">بله</option>
+        </select>
+      </Cell>
+
+      <Cell label="ظرفیت امتحان">
+        <input name="examCapacity" type="number" min={1} defaultValue={room.examCapacity ?? ''} dir="ltr" placeholder="—" className={INP} />
+      </Cell>
+
       <Cell label="عملیات">
         <div className="flex flex-wrap items-center gap-1">
           <button
-            className="rounded-lg bg-slate-800 px-2.5 py-1.5 text-[11px] font-bold text-white disabled:opacity-60"
+            className="rounded-lg bg-slate-800 px-2.5 py-1.5 text-2xs font-bold text-white disabled:opacity-60"
             disabled={pending}
           >
             {pending ? '…' : 'ذخیره'}
@@ -239,12 +289,12 @@ function RowForm({
               <button
                 name="intent"
                 value="delete"
-                className="rounded-lg bg-rose-600 px-2 py-1.5 text-[11px] font-bold text-white"
+                className="rounded-lg bg-rose-600 px-2 py-1.5 text-2xs font-bold text-white"
                 disabled={pending}
               >
                 حذف؟
               </button>
-              <button type="button" onClick={() => setConfirmDel(false)} className="rounded-lg border border-slate-300 px-1.5 py-1.5 text-[11px] text-slate-600">
+              <button type="button" onClick={() => setConfirmDel(false)} className="rounded-lg border border-slate-300 px-1.5 py-1.5 text-2xs text-slate-600">
                 ✕
               </button>
             </>
@@ -252,7 +302,7 @@ function RowForm({
             <button
               type="button"
               onClick={() => setConfirmDel(true)}
-              className="rounded-lg border border-slate-200 px-2 py-1.5 text-[11px] font-bold text-rose-600 hover:bg-rose-50"
+              className="rounded-lg border border-slate-200 px-2 py-1.5 text-2xs font-bold text-rose-600 hover:bg-rose-50"
             >
               حذف
             </button>
@@ -261,16 +311,16 @@ function RowForm({
       </Cell>
 
       {state.err && (
-        <p className="col-span-full text-[11px] font-bold text-rose-600">⛔ {state.err}</p>
+        <p className="col-span-full text-2xs font-bold text-rose-600">⛔ {state.err}</p>
       )}
       {state.msg && (
-        <p className="col-span-full text-[11px] font-bold text-emerald-700">✓ {state.msg}</p>
+        <p className="col-span-full text-2xs font-bold text-emerald-700">✓ {state.msg}</p>
       )}
     </form>
   );
 }
 
-const LBL_TB = 'flex min-w-0 flex-col gap-1 text-[11px] font-bold text-slate-500';
+const LBL_TB = 'flex min-w-0 flex-col gap-1 text-2xs font-bold text-slate-500';
 
 /** گزینه‌های «مرتب‌سازی» — برای موبایل که سرسطر کلیک‌پذیر ندارد. */
 const SORT_OPTIONS: Array<[string, string]> = [
@@ -288,11 +338,13 @@ const SORT_OPTIONS: Array<[string, string]> = [
   ['floor:desc', 'طبقه ↓'],
   ['seats:desc', 'تعداد نیمکت (بیشترین)'],
   ['seats:asc', 'تعداد نیمکت (کمترین)'],
+  ['examHall:desc', 'سالن امتحان (اول)'],
+  ['examHall:asc', 'سالن امتحان (آخر)'],
   ['status:asc', 'وضعیت (فعال اول)'],
   ['status:desc', 'وضعیت (غیرفعال اول)'],
 ];
 
-export default function ClassroomManager({ rooms, faculties }: { rooms: RoomData[]; faculties: FacultyOption[] }) {
+export default function ClassroomManager({ rooms, faculties, departments }: { rooms: RoomData[]; faculties: FacultyOption[]; departments: DeptOption[] }) {
   const [query, setQuery] = useState('');
   const [facFilter, setFacFilter] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
@@ -381,6 +433,7 @@ export default function ClassroomManager({ rooms, faculties }: { rooms: RoomData
         case 'floor': return (r.floor ?? '').padStart(4, '0');
         case 'seats': return (r.rowsCount ?? 0) * (r.colsCount ?? 0);
         case 'status': return r.isActive ?? 1;
+        case 'examHall': return r.isExamHall ?? 0;
       }
     };
     return [...list].sort((a, b) => {
@@ -412,7 +465,8 @@ export default function ClassroomManager({ rooms, faculties }: { rooms: RoomData
 
   const toggleSort = (k: SortKey) => {
     if (k === sortKey) setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
-    else { setSortKey(k); setSortDir(k === 'capacity' || k === 'seats' ? 'desc' : 'asc'); }
+    // برای این سه ستون، «بیشترین/بله» اولویت اول کاربر است.
+    else { setSortKey(k); setSortDir(k === 'capacity' || k === 'seats' || k === 'examHall' ? 'desc' : 'asc'); }
   };
 
   const resetFilters = () => {
@@ -423,7 +477,7 @@ export default function ClassroomManager({ rooms, faculties }: { rooms: RoomData
     <div className="space-y-3">
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="font-bold text-slate-800">کلاس‌ها (اتاق‌های درس قابل برنامه‌ریزی)</h3>
-        <p className="text-[11px] text-slate-500">
+        <p className="text-2xs text-slate-500">
           <span className="font-bold text-slate-700">{rooms.length.toLocaleString('fa-IR')}</span> اتاق ·{' '}
           <span className="font-bold text-emerald-700">{withCode.toLocaleString('fa-IR')}</span> دارای کد
           {missing > 0 && (
@@ -438,9 +492,9 @@ export default function ClassroomManager({ rooms, faculties }: { rooms: RoomData
         {ROOM_TYPES.map(t => <option key={t} value={t} />)}
       </datalist>
 
-      <AddForm faculties={faculties} />
+      <AddForm faculties={faculties} departments={departments} />
 
-      <p className="text-[11px] text-slate-400">
+      <p className="text-2xs text-slate-400">
         «کد کلاس» همان <span className="font-mono">LT4.Code</span> در سامانهٔ سماست؛ برنامهٔ هفتگی و سالن امتحان
         اتاق‌ها را با همین کد می‌شناسند. ردیف/ستون فقط برای چیدمانِ نقشهٔ حضور و غیاب است.
       </p>
@@ -496,7 +550,7 @@ export default function ClassroomManager({ rooms, faculties }: { rooms: RoomData
         </label>
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 text-[11px]">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-2xs">
         <span className="text-slate-500">
           نمایش <b className="text-slate-800">{filtered.length.toLocaleString('fa-IR')}</b> از{' '}
           <b className="text-slate-800">{rooms.length.toLocaleString('fa-IR')}</b> اتاق
@@ -520,7 +574,7 @@ export default function ClassroomManager({ rooms, faculties }: { rooms: RoomData
 
       {/* نتیجهٔ عملیات گروهی — جدا از نوار انتخاب تا پس از پاک‌شدن انتخاب هم دیده شود. */}
       {(bulkState.msg || bulkState.err) && !hideBulkMsg && (
-        <div className={`flex items-start justify-between gap-2 rounded-lg border px-3 py-2 text-[11px] font-bold ${
+        <div className={`flex items-start justify-between gap-2 rounded-lg border px-3 py-2 text-2xs font-bold ${
           bulkState.err ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
         }`}>
           <span>{bulkState.err ? `⛔ ${bulkState.err}` : `✓ ${bulkState.msg}`}</span>
@@ -542,13 +596,13 @@ export default function ClassroomManager({ rooms, faculties }: { rooms: RoomData
           </span>
           <button
             name="op" value="activate" disabled={bulkPending}
-            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-bold text-white disabled:opacity-50"
+            className="rounded-lg bg-emerald-600 px-3 py-1.5 text-2xs font-bold text-white disabled:opacity-50"
           >
             فعال کردن
           </button>
           <button
             name="op" value="deactivate" disabled={bulkPending}
-            className="rounded-lg bg-slate-700 px-3 py-1.5 text-[11px] font-bold text-white disabled:opacity-50"
+            className="rounded-lg bg-slate-700 px-3 py-1.5 text-2xs font-bold text-white disabled:opacity-50"
           >
             غیرفعال کردن
           </button>
@@ -556,13 +610,13 @@ export default function ClassroomManager({ rooms, faculties }: { rooms: RoomData
             <>
               <button
                 name="op" value="delete" disabled={bulkPending}
-                className="rounded-lg bg-rose-600 px-3 py-1.5 text-[11px] font-bold text-white disabled:opacity-50"
+                className="rounded-lg bg-rose-600 px-3 py-1.5 text-2xs font-bold text-white disabled:opacity-50"
               >
                 حذف قطعی {selected.size.toLocaleString('fa-IR')} کلاس
               </button>
               <button
                 type="button" onClick={() => setConfirmBulkDel(false)}
-                className="rounded-lg border border-slate-300 px-2 py-1.5 text-[11px] text-slate-600"
+                className="rounded-lg border border-slate-300 px-2 py-1.5 text-2xs text-slate-600"
               >
                 ✕
               </button>
@@ -570,23 +624,23 @@ export default function ClassroomManager({ rooms, faculties }: { rooms: RoomData
           ) : (
             <button
               type="button" onClick={() => setConfirmBulkDel(true)}
-              className="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-[11px] font-bold text-rose-600 hover:bg-rose-50"
+              className="rounded-lg border border-rose-200 bg-white px-3 py-1.5 text-2xs font-bold text-rose-600 hover:bg-rose-50"
             >
               حذف
             </button>
           )}
           <button
             type="button" onClick={() => { setSelected(new Set()); setConfirmBulkDel(false); }}
-            className="ms-auto text-[11px] font-bold text-slate-600 hover:underline"
+            className="ms-auto text-2xs font-bold text-slate-600 hover:underline"
           >
             پاک کردن انتخاب
           </button>
-          {bulkPending && <span className="text-[11px] text-indigo-700">در حال اعمال…</span>}
+          {bulkPending && <span className="text-2xs text-indigo-700">در حال اعمال…</span>}
         </form>
       )}
 
       <div className="overflow-x-auto">
-        <div className="md:min-w-[56rem]">
+        <div className="md:min-w-[73rem]">
           {/* سرسطر — فقط از دسکتاپ؛ کلیک روی هر عنوان = مرتب‌سازی همان ستون. */}
           <div className={`hidden md:grid ${COLS} items-center gap-1.5 px-1.5 pb-1.5`}>
             {HEADERS.map((h, i) => (
@@ -606,7 +660,7 @@ export default function ClassroomManager({ rooms, faculties }: { rooms: RoomData
                     type="button"
                     onClick={() => toggleSort(h.key as SortKey)}
                     title={`${h.hint}\n(کلیک = مرتب‌سازی)`}
-                    className={`flex w-full min-w-0 items-center gap-1 text-[11px] font-black transition hover:text-indigo-700 ${
+                    className={`flex w-full min-w-0 items-center gap-1 text-2xs font-black transition hover:text-indigo-700 ${
                       sortKey === h.key ? 'text-indigo-700' : 'text-slate-600'
                     }`}
                   >
@@ -616,7 +670,7 @@ export default function ClassroomManager({ rooms, faculties }: { rooms: RoomData
                     </span>
                   </button>
                 ) : (
-                  <span title={h.hint} className="block truncate text-[11px] font-black text-slate-600">{h.label}</span>
+                  <span title={h.hint} className="block truncate text-2xs font-black text-slate-600">{h.label}</span>
                 )}
               </div>
             ))}
@@ -628,6 +682,7 @@ export default function ClassroomManager({ rooms, faculties }: { rooms: RoomData
                 key={r.id}
                 room={r}
                 faculties={faculties}
+                departments={departments}
                 selected={selected.has(r.id)}
                 onToggle={toggleOne}
               />

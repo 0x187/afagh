@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * درج شهریهٔ «بیتس» قدیمی در دفتر مالی — نوع TUITION_BATES
+ * درج تخفیفِ «بیتس» قدیمی در دفتر مالی — نوع TUITION_BATES
  *
  * راستی‌آزمایی (verify-legacy-rial.mjs) نشان داد تفاوت ریالیِ باقی‌مانده دقیقاً
  * برابر ستون‌های Fix_Bates + Units_Bates + Mab_Bates در TermAms است:
@@ -120,7 +120,7 @@ const toOurTerm = (legacy) => { const s = String(legacy ?? '').trim(); if (/^\d{
       await tx.query(
         `INSERT INTO student_ledger ("studentId","termId","transactionType",amount,description,"referenceId","universityId")
          VALUES ($1,$2,'TUITION_BATES',$3,$4,$5,$6)`,
-        [p.sid, p.tid, p.bates, `بیتس شهریهٔ قدیمی (TermAms id=${p.amsId})`, p.refSafe, UNI],
+        [p.sid, p.tid, p.bates, `تخفیف بیتس (سما) (TermAms id=${p.amsId})`, p.refSafe, UNI],
       );
       stat.insert++;
       stat.sum += p.bates;

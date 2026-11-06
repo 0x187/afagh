@@ -47,9 +47,9 @@ export interface VirtualClassSession {
  * تولید Checksum امن برای درخواست‌های بیگ‌بلوباتن طبق استاندارد API.
  * کلید مخفی از پیکربندی سامانه (پنل مدیر ← ENV) خوانده می‌شود و هرگز در کد ثابت نیست.
  */
-export function generateBbbChecksum(callName: string, queryString: string, secret: string): string {
-  const raw = `${callName}${queryString}${secret}`;
-  return crypto.createHash('sha1').update(raw).digest('hex');
+export function generateBbbChecksum(callName: string, queryString: string, secret: string, algo: 'SHA1' | 'SHA256' | 'SHA512' = 'SHA256'): string {
+  const a = algo === 'SHA1' ? 'sha1' : algo === 'SHA512' ? 'sha512' : 'sha256';
+  return crypto.createHash(a).update(`${callName}${queryString}${secret}`).digest('hex');
 }
 
 /**
@@ -59,10 +59,15 @@ export async function getBigBlueButtonJoinUrl({
   meetingId,
   fullName,
   role,
+  moderatorPw,
+  attendeePw,
 }: {
   meetingId: string;
   fullName: string;
   role: 'MODERATOR' | 'ATTENDEE';
+  /** رمز ذخیره‌شدهٔ همین جلسه (اگر نبود از تنظیمات کلی) */
+  moderatorPw?: string | null;
+  attendeePw?: string | null;
 }): Promise<{ ok: boolean; url: string; error?: string }> {
   const cfg = await getBbbConfig();
   if (!cfg.configured) {
@@ -73,17 +78,20 @@ export async function getBigBlueButtonJoinUrl({
     };
   }
 
+  const pw = role === 'MODERATOR'
+    ? (moderatorPw || cfg.moderatorPw || 'mod')
+    : (attendeePw || cfg.attendeePw || 'att');
   const queryParams = new URLSearchParams({
     fullName,
     meetingID: meetingId,
-    password: role === 'MODERATOR' ? cfg.moderatorPw : cfg.attendeePw,
+    password: pw,
     redirect: 'true',
     joinViaHtml5: 'true',
   });
   if (cfg.autoRecord) queryParams.set('record', 'true');
 
   const queryString = queryParams.toString();
-  const checksum = generateBbbChecksum('join', queryString, cfg.secret);
+  const checksum = generateBbbChecksum('join', queryString, cfg.secret, cfg.checksumAlgo);
 
   return { ok: true, url: `${cfg.url}/join?${queryString}&checksum=${checksum}` };
 }

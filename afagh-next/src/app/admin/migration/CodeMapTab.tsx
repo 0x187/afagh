@@ -113,7 +113,7 @@ export default function CodeMapTab({ domains, sourceCode }: { domains: DomainDef
             <button key={s.domain} onClick={() => setDomain(s.domain)}
               className={'rounded-xl border p-2 text-right transition-colors ' + (s.domain === domain ? 'border-indigo-400 bg-indigo-50' : 'border-slate-200 hover:bg-slate-50')}>
               <p className="text-xs font-bold text-slate-700">{s.title}</p>
-              <p className="mt-1 text-[11px] text-slate-500">
+              <p className="mt-1 text-2xs text-slate-500">
                 {fmt(s.total)} کد · <span className="text-emerald-600">{fmt(s.confirmed)} تأیید</span>
                 {s.suggested > 0 && <> · <span className="text-amber-600">{fmt(s.suggested)} پیشنهاد</span></>}
                 {s.unmapped > 0 && <> · <span className="text-red-600">{fmt(s.unmapped)} باز</span></>}
@@ -138,8 +138,8 @@ export default function CodeMapTab({ domains, sourceCode }: { domains: DomainDef
           <button className="btn-primary md:col-span-2" disabled={!!busy} onClick={confirmAll}>{busy === 'confirm' ? '…' : '✓ تأیید همهٔ پیشنهادها'}</button>
         </div>
 
-        {cur && <p className="text-[11px] text-slate-400">{cur.hint}{curStat ? ` — ${fmt(curStat.total)} کد در این دامنه` : ''}</p>}
-        <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-2 text-[11px] leading-6 text-slate-600">
+        {cur && <p className="text-2xs text-slate-400">{cur.hint}{curStat ? ` — ${fmt(curStat.total)} کد در این دامنه` : ''}</p>}
+        <div className="rounded-xl border border-indigo-100 bg-indigo-50/50 p-2 text-2xs leading-6 text-slate-600">
           این جدول دو کار جدا انجام می‌دهد:
           <b> «معادل در سامانهٔ جدید»</b> یعنی این کد قدیمی به کدام رکوردِ <i>موجود</i> اشاره دارد (برای پیدا کردن)؛
           <b> «کد جدید»</b> یعنی خودِ کد هنگام انتقال بازنویسی شود — مثلاً درس «۱۲۳۴» از این پس «CE-101» ثبت شود،
@@ -206,7 +206,7 @@ export default function CodeMapTab({ domains, sourceCode }: { domains: DomainDef
                 <td className="p-2 text-slate-500">{Number(m.confidence ?? 0) > 0 ? `${fmt(Math.round(Number(m.confidence)))}٪` : '—'}</td>
                 <td className="p-2"><span className={'badge ' + (STATUS_CLS[m.status] ?? '')}>{STATUS_FA[m.status] ?? m.status}</span></td>
                 <td className="p-2">
-                  {m.status !== 'IGNORED' && <button className="text-[11px] text-slate-400 hover:text-red-600" onClick={() => onIgnore(m)}>نادیده بگیر</button>}
+                  {m.status !== 'IGNORED' && <button className="text-2xs text-slate-400 hover:text-red-600" onClick={() => onIgnore(m)}>نادیده بگیر</button>}
                 </td>
               </tr>
             ))}

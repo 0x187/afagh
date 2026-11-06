@@ -63,7 +63,7 @@ export default function PhotosTab() {
             <b> ۲)</b> کد ملی، <b>۳)</b> شمارهٔ دانشجویی یا کد استادی.
             یعنی نام فایل می‌تواند <span dir="ltr">1024.jpg</span> یا <span dir="ltr">0011111111.jpg</span> باشد.
           </p>
-          <p className="mt-1 rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] leading-6 text-amber-800">
+          <p className="mt-1 rounded-lg bg-amber-50 px-2 py-1.5 text-2xs leading-6 text-amber-800">
             اول <b>اشخاص</b> را وارد کنید بعد عکس‌ها را؛ عکسی که صاحبش هنوز در سامانه نیست ذخیره نمی‌شود.
             اگر یک نام فایل به دو نفر بخورد، آن عکس عمداً به هیچ‌کس وصل نمی‌شود.
             فرمت‌های مجاز: JPG، PNG، WEBP، GIF، BMP — حداکثر ۵ مگابایت برای هر عکس.
@@ -86,7 +86,7 @@ export default function PhotosTab() {
               {busy === 'commit' ? '…' : 'ثبت نهایی عکس‌ها'}
             </button>
           </div>
-          {name && <p className="md:col-span-12 text-[11px] text-slate-400" dir="ltr">{name}</p>}
+          {name && <p className="md:col-span-12 text-2xs text-slate-400" dir="ltr">{name}</p>}
         </div>
       </div>
 
@@ -123,7 +123,7 @@ export default function PhotosTab() {
           {report.sample.length > 0 && (
             <div className="overflow-x-auto">
               <p className="mb-1 text-xs font-bold text-slate-600">نمونهٔ تطبیق‌ها</p>
-              <table className="w-full text-right text-[11px] rt">
+              <table className="w-full text-right text-2xs rt">
                 <thead><tr className="text-slate-500"><th className="p-1">فایل</th><th className="p-1">شخص</th><th className="p-1">تطبیق بر پایهٔ</th><th className="p-1">وضعیت</th></tr></thead>
                 <tbody>
                   {report.sample.map((s, i) => (
@@ -171,7 +171,7 @@ function Box({ n, t, cls = 'text-slate-700' }: { n: number; t: string; cls?: str
   return (
     <div className="rounded-xl bg-slate-50 p-2 text-center">
       <p className={'text-xl font-bold ' + cls}>{fmt(n)}</p>
-      <p className="text-[11px] text-slate-500">{t}</p>
+      <p className="text-2xs text-slate-500">{t}</p>
     </div>
   );
 }
