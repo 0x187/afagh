@@ -14,8 +14,7 @@
 | [`architecture/01-foundation.md`](./architecture/01-foundation.md) · [`02-student.md`](./architecture/02-student.md) · [`03-professor.md`](./architecture/03-professor.md) · [`04-admin-engines.md`](./architecture/04-admin-engines.md) | دیدگاه نرمافزاری به تفکیک | 2026-10-13 |
 | [`REWRITE-STATUS.md`](./REWRITE-STATUS.md) | وضعیت بازنویسی Go+React، ممیزی پاریتی، سوییچ | 2026-11-01 |
 | [`CODE-REVIEW.md`](./CODE-REVIEW.md) | استاندارد و فرآیند بازبینی کد | 2026-11-01 |
-| [`CODE-REVIEW-2026-11-01.md`](./CODE-REVIEW-2026-11-01.md) | گزارش بازبینی امنیتی/کیفی این بازه | 2026-11-01 |
-| [`COMMIT-HISTORY.md`](./COMMIT-HISTORY.md) | تاریخچهٔ کامل ۱٬۰۰۷ کامیت (+ترجمهٔ انگلیسی ۶ کامیت پایانی) | 2026-11-01 |
+| [`COMMIT-HISTORY.md`](./COMMIT-HISTORY.md) | تاریخچهٔ کامل کامیت‌های مخزن | 2026-11-06 |
 | [`design/`](./design/) | طراحی زمانبندی/کاتالوگ + ممیزیها + ERD | 2026-10-24 |
 | [`design-system/`](./design-system/) | توکنهای CSS و نمونهٔ دیزاینسیستم | 2026-10-18 |
 | [`rewrite/phase1-contracts.md`](./rewrite/phase1-contracts.md) | قراردادهای فاز ۱ بازنویسی | 2026-10-25 |
@@ -42,11 +41,4 @@
 
 ## ۴) راهنمای قابلیتها (میراث دورهٔ Next.js — مبنای پورت)
 
-[`MIGRATION.md`](./MIGRATION.md) (2026-09-01) · [`GRADUATION.md`](./GRADUATION.md) (2026-09-01) · [`REGULATIONS.md`](./REGULATIONS.md) (2026-09-01) · [`PAYROLL.md`](./PAYROLL.md) (2026-09-02) · [`WORKFLOW.md`](./WORKFLOW.md) (2026-09-02) · [`VERIFICATION.md`](./VERIFICATION.md) (2026-09-02) · [`BI.md`](./BI.md) (2026-09-02) · [`DESIGN-SYSTEM.md`](./DESIGN-SYSTEM.md) (2026-10-18) · [`USER_MANUAL.md`](./USER_MANUAL.md) + [`Afagh_ERP_Comprehensive_User_Manual.pdf`](./Afagh_ERP_Comprehensive_User_Manual.pdf) (2026-08-31) · تصاویر در [`images/`](./images/).
-
-## ۵) آرشیو (تاریخی — مرجع، نه راهنما)
-
-- [`archive/reports/`](./archive/reports/) — ۲۱ گزارش دورهای ساخت و بازبینی Next.js (دورهای ۷ تا ۱۴، بازبینیها، ممیزیها).
-- [`archive/comparison-teachersalary-guide.md`](./archive/comparison-teachersalary-guide.md) — مقایسهٔ فرمول حقوق اساتید.
-- [`archive/samin-pamtek-stage4.md`](./archive/samin-pamtek-stage4.md) — یادداشتهای یکپارچهسازی ثمین/پمتک.
-- [`archive/security-phase4-dependency-audit.md`](./archive/security-phase4-dependency-audit.md) — ممیزی وابستگیهای فاز ۴ امنیتی.
+[`MIGRATION.md`](./MIGRATION.md) (2026-09-01) · [`GRADUATION.md`](./GRADUATION.md) (2026-09-01) · [`REGULATIONS.md`](./REGULATIONS.md) (2026-09-01) · [`PAYROLL.md`](./PAYROLL.md) (2026-09-02) · [`WORKFLOW.md`](./WORKFLOW.md) (2026-09-02) · [`VERIFICATION.md`](./VERIFICATION.md) (2026-09-02) · [`BI.md`](./BI.md) (2026-09-02) · [`DESIGN-SYSTEM.md`](./DESIGN-SYSTEM.md) (2026-10-18) · [`USER_MANUAL.md`](./USER_MANUAL.md) (2026-08-31) · تصاویر در [`images/`](./images/).
