@@ -65,8 +65,11 @@ function getRegulationFailExcludeCode(
   if (studentRegTitle?.includes('۹۵') || studentRegTitle?.includes('95')) {
     return '951'; // آیین‌نامه ۱۳۹۵ دکتری
   }
+  // EXCLUDE_ALWAYS: مردودی با کد عادی «۲» در ریزنمرات میماند؛ حذف فقط در
+  // معدل کل توسط هستهٔ تجمیع انجام میشود (دادنامهٔ دیوان)، نه با کد حذف سما.
+  if (regPolicy === 'EXCLUDE_ALWAYS') return null;
   if (regPolicy === 'EXCLUDE_IF_PASSED') {
-    return '931'; // آیین‌نامه ۱۳۹۳
+    return '931'; // آییننامه ۱۳۹۳
   }
   return null;
 }

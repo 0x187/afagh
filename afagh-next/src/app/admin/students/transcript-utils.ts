@@ -59,7 +59,7 @@ export function regThresholds(cfg: RegulationConfig | null | undefined): RegThre
   return {
     pass: Number.isFinite(pass) ? pass : 10,
     prob: Number.isFinite(prob) ? prob : 12,
-    exclFailed: policy === 'EXCLUDE_IF_PASSED' || policy === 'EXCLUDE_IF_PASSED_1391',
+    exclFailed: policy === 'EXCLUDE_ALWAYS' || policy === 'EXCLUDE_IF_PASSED' || policy === 'EXCLUDE_IF_PASSED_1391',
     exclFromTerm: policy === 'EXCLUDE_IF_PASSED_1391',
     retakeMinGrade: Number.isFinite(retakeMin) ? retakeMin : 10,
     is1391: policy === 'EXCLUDE_IF_PASSED_1391',

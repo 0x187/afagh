@@ -633,10 +633,13 @@ async function executeReport(kind: string, f: ReportFilters): Promise<ReportResu
         FROM students s JOIN users u ON u.id = s."userId"
           LEFT JOIN majors m ON m.id = s."majorId"
           LEFT JOIN degree_level_configs d ON d.id = s."degreeLevelId"
-          LEFT JOIN enrollments e ON e."studentId" = s.id AND e."gradeStatus" = 'FINALIZED' AND e."gradeValue"::text ~ '^[0-9]+(\\.[0-9]+)?$' AND e."gradeValue"::numeric >= 12
-        WHERE s.status = 'ACTIVE' AND ${sql.join(studentWhere(f), sql` AND `)}
+          LEFT JOIN enrollments e ON e."studentId" = s.id AND e."gradeStatus" = 'FINALIZED' AND e."gradeValue"::text ~ '^[0-9]+(\\.[0-9]+)?$' AND e."gradeValue"::numeric >= 14
+        WHERE s.status = 'ACTIVE'
+          AND (d.code ~* '(PHD|دکتری تخصصی)' OR d.id IN (SELECT id FROM degree_level_configs WHERE code ILIKE 'SAMA-%' AND title ILIKE '%دکتري تخصص%'))
+          AND ${sql.join(studentWhere(f), sql` AND `)}
         GROUP BY s."studentCode", u."firstName", u."lastName", m.name, d.title, s."entryYear"
         HAVING COUNT(DISTINCT e."offeringId") >= 10
+          AND ROUND(AVG(CASE WHEN e."gradeStatus" = 'FINALIZED' AND e."gradeValue"::text ~ '^[0-9]+(\\.[0-9]+)?$' THEN e."gradeValue"::numeric END), 2) >= 16
         ORDER BY avg DESC`);
       const total = data.rows.length;
       return {

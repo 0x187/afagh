@@ -1,4 +1,5 @@
 import { eq } from 'drizzle-orm';
+import { effectivePassingGrade } from '@/lib/compliance-integrations';
 import { db } from '@/db';
 import { course_offerings, course_rules, courses, degree_level_configs, enrollments, students } from '@/db/schema';
 import { resolveStudentCurriculum } from '../curriculum-apply';
@@ -75,7 +76,8 @@ export async function buildPrereqContext(studentId: number): Promise<PrereqConte
   const [deg] = stu
     ? await db.select().from(degree_level_configs).where(eq(degree_level_configs.id, stu.degreeLevelId)).limit(1)
     : [];
-  const defaultPassing = Number(deg?.defaultPassingGrade ?? 10);
+  // گام ۲: یک منبع حقیقت برای کف قبولی (لایهٔ سیاست انطباق)، با سقوط امن
+  const defaultPassing = await effectivePassingGrade(studentId, Number(deg?.defaultPassingGrade ?? 10));
 
   const allRules = await db.select().from(course_rules);
 

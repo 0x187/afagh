@@ -9,6 +9,7 @@ import { getStaffByUser, requireRole } from '@/lib/auth';
 import { requireDepHead } from '@/lib/group-manager';
 import { advanceWorkflowStep } from '@/lib/workflow-engine';
 import { EQUIV_MIN_GRADE } from '@/lib/enroll-engine';
+import { effectiveEquivMinGrade } from '@/lib/compliance-integrations';
 
 export type MappingItem = {
   sourceTitle: string;
@@ -49,14 +50,17 @@ export async function submitEquivalenceMappingAction(
   const ownDepts = user.roles.includes('ADMIN') ? null : (await requireDepHead()).depts.map(d => d.id);
 
   const valid = args.items.filter(i => i.targetCourseCode && i.sourceTitle);
-  if (valid.length === 0) return { ok: false, error: 'حداقل یک درس نگاشت‌شده با کد مقصد الزامی است.' };
-  const badGrade = valid.find(i => i.sourceGrade === null || i.sourceGrade < EQUIV_MIN_GRADE);
-  if (badGrade) {
-    return { ok: false, error: `بر اساس آیین‌نامه، نمرهٔ «${badGrade.sourceTitle}» باید ${EQUIV_MIN_GRADE} یا بالاتر باشد.` };
-  }
+  if (valid.length === 0) return { ok: false, error: 'حداقل یک درس نگاشتشده با کد مقصد الزامی است.' };
 
   const [req] = await db.select().from(student_requests).where(eq(student_requests.id, args.requestId)).limit(1);
   if (!req) return { ok: false, error: 'درخواست یافت نشد.' };
+
+  // مادهٔ ۱۲ (الف): کف نمره ۱۲ / ۱۴ / ۱۶ بر حسب مقطع، از لایهٔ سیاست (قابل اورراید)
+  const equivMin = await effectiveEquivMinGrade(Number(req.studentId ?? 0)).catch(() => EQUIV_MIN_GRADE);
+  const badGrade = valid.find(i => i.sourceGrade === null || i.sourceGrade < equivMin);
+  if (badGrade) {
+    return { ok: false, error: `بر اساس آییننامه، نمرهٔ «${badGrade.sourceTitle}» باید ${equivMin} یا بالاتر باشد.` };
+  }
   if (ownDepts) {
     const [owner] = await db.select({ departmentId: majors.departmentId })
       .from(students)

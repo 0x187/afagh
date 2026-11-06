@@ -110,6 +110,13 @@ export async function saveSessionAttendanceAction(sessionId: number, entries: At
       }
     });
 
+    // مادهٔ ۷ (بند ۳/۱۶): پس از هر ذخیرهٔ حضور، پرچم «مشمول نمرهٔ صفر»
+    // روی ثبتنامها بهروزشود. خودِ نمره هنگام نهاییسازی اعمال میگردد.
+    try {
+      const { refreshAbsencePenalties } = await import('@/lib/compliance-integrations');
+      await refreshAbsencePenalties([...new Set(owned.values())], (session as any).universityId ?? null);
+    } catch { /* fail-safe: ثبت حضور هرگز بهخاطر سیاست شکست نخورد */ }
+
     revalidatePath('/professor/attendance');
     return { ok: true, savedCount: inserted, sessionCount: owned.size };
   } catch (err) {

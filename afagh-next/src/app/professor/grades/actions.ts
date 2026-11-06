@@ -26,6 +26,7 @@ import {
   users,
 } from '@/db/schema';
 import { getStaffByUser, isDemoMode, requireRole } from '@/lib/auth';
+import { globalCompliance } from '@/lib/compliance-integrations';
 import { legacyOtpDigest, newOtpCode, otpDigest, otpEqual } from '@/lib/otp';
 import { rateLimit } from '@/lib/rateLimit';
 import { notifyUserMultichannel, sendSms } from '@/lib/messaging';
@@ -408,6 +409,20 @@ export async function finalizeSignedAction(
       .where(inArray(enrollments.offeringId, targets))
       .orderBy(enrollments.offeringId, enrollments.studentId);
     const now = new Date();
+
+    // مادهٔ ۷: اعمال نمرهٔ صفر پیش از ساخت هش زنجیرهای، تا زنجیره با نمرهٔ
+    // ذخیرهشده یکسان بماند (تغییر نمره بعد از هش، راستیآزمایی را میشکست).
+    const absencePolicy = await globalCompliance().catch(() => null);
+    if (absencePolicy?.absence_auto_zero && grades.length > 0) {
+      const penaltyRows = await db
+        .select({ id: enrollments.id, absencePenalty: enrollments.absencePenalty })
+        .from(enrollments)
+        .where(inArray(enrollments.id, grades.map(g => g.id)));
+      const penalized = new Set(penaltyRows.filter(r => Number(r.absencePenalty) === 1).map(r => r.id));
+      for (const g of grades) {
+        if (penalized.has(g.id)) (g as { gradeValue: string | null }).gradeValue = '0';
+      }
+    }
     // 🔗 زنجیره‌سازی: هشِ قبلیِ هر ارائه در ورودی هش جدید گنجانده می‌شود تا
     // نهایی‌سازیِ مجدد روی مقادیر دستکاری‌شده، زنجیره را آشکارا ادامه دهد
     // (ستون gradesHash از قبل وجود دارد — نیازی به مهاجرت نیست).

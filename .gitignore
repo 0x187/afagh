@@ -38,3 +38,6 @@ afagh-next/CLAUDE.md
 
 # ── یادداشت/فشردهٔ جلسهٔ محلی (هرگز commit نشود) ──
 SESSION-COMPRESSED.md
+
+# پوشهٔ کارِ موقتِ ممیزی/مهاجرت (حاوی دامپهای دیتابیس — نباید کامیت شود)
+_backup_compliance/

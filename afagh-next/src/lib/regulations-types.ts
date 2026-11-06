@@ -31,11 +31,12 @@ export interface RegulationConfig {
   probation_and_tenure: {
     probation_gpa_threshold: number; // مرز مشروطی (۱۲ برای لیسانس، ۱۴ برای ارشد)
     max_consecutive_probations: number; // حداکثر مشروطی متوالی (۳)
-    max_total_probations: number; // حداکثر مشروطی متناوب (۴)
+    max_total_probations: number; // حداکثر مشروطی متناوب (مادهٔ ۱۶: ۲ ناپیوسته / ۳ پیوسته)
     max_study_semesters: number; // سقف سنوات عادی (۸ لیسانس، ۴ ارشد)
   };
   grading_and_gpa: {
-    failed_course_gpa_policy: 'EXCLUDE_IF_PASSED' | 'EXCLUDE_IF_PASSED_1391' | 'KEEP_ALWAYS';
+    /** EXCLUDE_ALWAYS = دادنامهٔ هیئت عمومی دیوان عدالت اداری + بخشنامهٔ ۲/۲۱/۲۸۳۴۲۸ */
+    failed_course_gpa_policy: 'EXCLUDE_ALWAYS' | 'EXCLUDE_IF_PASSED' | 'EXCLUDE_IF_PASSED_1391' | 'KEEP_ALWAYS';
     default_passing_grade: number; // کف قبولی عادی (۱۰ لیسانس، ۱۲ ارشد، ۱۴ دکتری)
     retakeMinGrade?: number;       // حد نصاب قبولی مجدد (پیش‌فرض = default_passing_grade)
     regulationLabel?: string;      // برچسب نمایشی: "آیین‌نامه ۱۳۹۳"
@@ -81,7 +82,7 @@ export const DEFAULT_BACHELOR_REGULATION_1403: RegulationConfig = {
   probation_and_tenure: {
     probation_gpa_threshold: 12.0,
     max_consecutive_probations: 3,
-    max_total_probations: 4,
+    max_total_probations: 3,
     max_study_semesters: 8,
   },
     grading_and_gpa: {
@@ -125,7 +126,7 @@ export const DEFAULT_BACHELOR_REGULATION_1390: RegulationConfig = {
   probation_and_tenure: {
     probation_gpa_threshold: 12.0,
     max_consecutive_probations: 3,
-    max_total_probations: 4,
+    max_total_probations: 3,
     max_study_semesters: 10,
   },
     grading_and_gpa: {
@@ -217,7 +218,7 @@ function reg1402(): RegulationConfig {
       max_total_probations: 3,
       max_study_semesters: 8,
     },
-    grading_and_gpa: { failed_course_gpa_policy: 'EXCLUDE_IF_PASSED', default_passing_grade: 10.0, retakeMinGrade: 10, regulationLabel: 'آیین‌نامه ۱۴۰۲' },
+    grading_and_gpa: { failed_course_gpa_policy: 'EXCLUDE_ALWAYS', default_passing_grade: 10.0, retakeMinGrade: 10, regulationLabel: 'آیین‌نامه ۱۴۰۲' },
   };
 }
 
@@ -315,7 +316,38 @@ function reg1394PhdFor(): RegulationConfig {
   };
 }
 
-export const REGULATION_PRESETS = { reg1402, reg1393, reg1391, regPre1391, reg1394MasterFor, reg1394PhdFor, isNonContinuous, maghtaGroup, applyLevelConfig };
+/** پریست قانونی آییننامهٔ ۱۴۰۲ برای کارشناسی ارشد (مادهٔ ۳۷: معدل ۱۴، کف قبولی ۱۲) */
+function reg1402MasterFor(): RegulationConfig {
+  return {
+    ...reg1394MasterFor(),
+    grading_and_gpa: {
+      failed_course_gpa_policy: 'EXCLUDE_ALWAYS',
+      default_passing_grade: 12.0,
+      retakeMinGrade: 12,
+      regulationLabel: 'آییننامه ۱۴۰۲ — کارشناسی ارشد',
+    },
+  };
+}
+
+/** پریست قانونی آییننامهٔ ۱۴۰۲ برای دکتری تخصصی (مادهٔ ۴۹: معدل ۱۶، کف قبولی ۱۴) */
+function reg1402PhdFor(): RegulationConfig {
+  return {
+    ...reg1394PhdFor(),
+    grading_and_gpa: {
+      failed_course_gpa_policy: 'EXCLUDE_ALWAYS',
+      default_passing_grade: 14.0,
+      retakeMinGrade: 14,
+      regulationLabel: 'آییننامه ۱۴۰۲ — دکتری تخصصی',
+    },
+  };
+}
+
+export const REGULATION_PRESETS = {
+  reg1402, reg1393, reg1391, regPre1391,
+  reg1394MasterFor, reg1394PhdFor,
+  reg1402MasterFor, reg1402PhdFor,
+  isNonContinuous, maghtaGroup, applyLevelConfig,
+};
 
 export const DEFAULT_MASTER_REGULATION_1403: RegulationConfig = {
   regular_term_rules: {

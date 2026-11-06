@@ -24,6 +24,8 @@ import {
   applyLevelConfig,
   maghtaGroup,
 } from './regulations-types';
+import { getStudentCompliance } from './compliance-policy-server';
+import { countableSemesters, type ComplianceValues } from './compliance-policy';
 import {
   GpaAccumulator,
   aggregateOfficialGpaRows,
@@ -93,6 +95,14 @@ export function normalizeLegacyRegulationConfig(parsed: unknown): Record<string,
     out.regular_term_rules = merged;
   }
   return out as never;
+}
+
+/**
+ * نقطهٔ واحد حل سیاستهای انطباق. اگر جدول اورراید/مهاجرت هنوز وجود نداشته
+ * باشد null برمیگرداند و موتور دقیقاً همان رفتار قبلی را ادامه میدهد (fail-safe).
+ */
+async function complianceFor(studentId: number): Promise<ComplianceValues | null> {
+  try { return (await getStudentCompliance(studentId)).values; } catch { return null; }
 }
 
 export async function getRegulationConfig(regulationId?: number | null, degreeLevelId?: number | null): Promise<RegulationConfig> {
@@ -370,7 +380,11 @@ export async function evaluateStudentRegulationStatus(
   const baseMaxUnits = effectiveMaxUnits;
   if (!isSummer && compensatoryUnits > 0) effectiveMaxUnits += compensatoryUnits;
 
-  const completedSemesters = termMap.size;
+  // تبصرهٔ ۵ مادهٔ ۱۷: نیمسال تابستان جزء سنوات محسوب نمیشود (مگر اورراید صریح مدیر)
+  const tenurePolicy = await complianceFor(studentId);
+  const completedSemesters = tenurePolicy
+    ? countableSemesters(tenurePolicy, Array.from(termMeta.values()))
+    : termMap.size;
 
   /**
    * قانون سنوات: به ازای هر ۲۰ واحد معادل‌سازی، یک ترم از سنوات مجاز دانشجو
@@ -418,8 +432,10 @@ export async function checkAndTriggerCommissionEvents(studentId: number): Promis
   const summary = await evaluateStudentRegulationStatus(studentId);
   const config = summary.rulesConfig;
 
+  // مادهٔ ۱۶: ۲ (کاردانی/ناپیوسته) یا ۳ (کارشناسی پیوسته/ارشد/دکتری)، بهجای ۴ سراسری
+  const probationPolicy = await complianceFor(studentId);
   const maxAllowedProbations =
-    config.probation_and_tenure.max_total_probations + stu.extraAllowedProbations;
+    (probationPolicy?.max_total_probations ?? config.probation_and_tenure.max_total_probations) + stu.extraAllowedProbations;
   // قانون سنوات: هر ۲۰ واحد معادل‌سازی یک ترم از سقف سنوات مجاز کم می‌کند
   const maxAllowedSemesters =
     config.probation_and_tenure.max_study_semesters +
@@ -564,7 +580,8 @@ export async function calculateOfficialGPA(studentId: number): Promise<{
   if (!stu) return { gpa: 0, totalUnits: 0, passedUnits: 0, excludedCount: 0, policy: 'UNKNOWN' };
 
   const config = (await getRegulationConfig(stu.regulationId, stu.degreeLevelId)) || DEFAULT_BACHELOR_REGULATION_1403;
-  const policy = config?.grading_and_gpa?.failed_course_gpa_policy ?? 'EXCLUDE_IF_PASSED';
+  const policy = (await complianceFor(studentId))?.failed_course_gpa_policy
+    ?? config?.grading_and_gpa?.failed_course_gpa_policy ?? 'EXCLUDE_IF_PASSED';
   const passingGrade = config?.grading_and_gpa?.default_passing_grade || 10;
   const retakeMinGrade = config?.grading_and_gpa?.retakeMinGrade ?? passingGrade;
   const dedupeRepeated = config?.grading_and_gpa?.dedupeRepeatedCourses === true;
@@ -755,7 +772,8 @@ export async function calculateOfficialGpaUpToTerm(
 }> {
   const [stu] = await db.select().from(students).where(eq(students.id, studentId)).limit(1);
   const config = (await getRegulationConfig(stu?.regulationId, stu?.degreeLevelId)) || DEFAULT_BACHELOR_REGULATION_1403;
-  const policy = config?.grading_and_gpa?.failed_course_gpa_policy ?? 'EXCLUDE_IF_PASSED';
+  const policy = (await complianceFor(studentId))?.failed_course_gpa_policy
+    ?? config?.grading_and_gpa?.failed_course_gpa_policy ?? 'EXCLUDE_IF_PASSED';
   const passingGrade = config?.grading_and_gpa?.default_passing_grade || 10;
   const retakeMinGrade = config?.grading_and_gpa?.retakeMinGrade ?? passingGrade;
   const dedupeRepeated = config?.grading_and_gpa?.dedupeRepeatedCourses === true;
@@ -819,7 +837,8 @@ export type OfficialGpaBreakdown = {
 export async function calculateOfficialGpaBreakdown(studentId: number): Promise<OfficialGpaBreakdown> {
   const [stu] = await db.select().from(students).where(eq(students.id, studentId)).limit(1);
   const config = (await getRegulationConfig(stu?.regulationId, stu?.degreeLevelId)) || DEFAULT_BACHELOR_REGULATION_1403;
-  const policy = config?.grading_and_gpa?.failed_course_gpa_policy ?? 'EXCLUDE_IF_PASSED';
+  const policy = (await complianceFor(studentId))?.failed_course_gpa_policy
+    ?? config?.grading_and_gpa?.failed_course_gpa_policy ?? 'EXCLUDE_IF_PASSED';
   const passingGrade = config?.grading_and_gpa?.default_passing_grade || 10;
   const retakeMinGrade = config?.grading_and_gpa?.retakeMinGrade ?? passingGrade;
   const dedupeRepeated = config?.grading_and_gpa?.dedupeRepeatedCourses === true;

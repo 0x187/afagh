@@ -681,7 +681,9 @@ export default async function StudentTranscriptPage({
           </table>
           {!isTermView && officialGpaData.excludedCount > 0 && (
             <div className="bg-emerald-50 px-3 py-1.5 border-t border-emerald-200 text-3xs text-emerald-900 font-medium flex items-center justify-between">
-              <span>✨ تعداد <b>{officialGpaData.excludedCount} نمره مردودی</b> پس از قبولی مجدد در درس، طبق مصوبه آیین‌نامه (EXCLUDE_IF_PASSED) از مخرج و صورت معدل کل کسر گردید.</span>
+              <span>✨ {officialGpaData.policy === 'EXCLUDE_ALWAYS'
+                ? <>تعداد <b>{officialGpaData.excludedCount} نمره مردودی</b> طبق دادنامهٔ هیئت عمومی دیوان عدالت اداری و بخشنامهٔ ۲/۲۱/۲۸۳۴۲۸ از معدل کل حذف شد؛ در ریزنمرات و میانگین نیمسال باقی است.</>
+                : <>تعداد <b>{officialGpaData.excludedCount} نمره مردودی</b> پس از قبولی مجدد در درس، طبق آییننامهٔ ملاک از مخرج و صورت معدل کل کسر گردید.</>}</span>
               <span className="font-bold text-emerald-950">آیین‌نامه ملاک عمل</span>
             </div>
           )}
