@@ -51,7 +51,7 @@ import { useSession } from '@/lib/session';
 
 // ─────────────────── Shared utilities ───────────────────
 
-/** لینک امن برای href — پورت isSafeLinkUrl (مسیر نسبی یا https:// only). */
+/** Safe href link — port of isSafeLinkUrl (relative path or https:// only). */
 function isSafeLinkUrl(s: string): boolean {
   if (typeof s !== 'string') return false;
   if (/[\u0000-\u001f\u007f\\]/.test(s)) return false;

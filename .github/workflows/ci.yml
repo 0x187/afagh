@@ -17,8 +17,8 @@ jobs:
       - run: npm test        # M-6: تست‌های واحد با tsx روی Node 20 هم اجرا می‌شوند
       - run: node scripts/audit-actions.mjs   # P0: هیچ Server Action بدون گارد نماند
       - run: npm run build   # بدون نیاز به سرویس‌ها (اتصال DB تنبل است)
-      # بازبینی مهندسی (P1): security scan در CI — بالا بودن قیدهای امنیتی = شکست
-      # (audit-level=high؛ در صورت قطعی رجیستری، خطای صریح می‌گیرد نه سکوت)
+      # Engineering review (P1): security scan in CI — high-severity findings fail the build
+      # (audit-level=high; on registry outages it fails loudly instead of silently passing)
       - run: node scripts/ci-audit.mjs   # npm audit مقاوم: فقط یافتهٔ واقعی high/critical؛ خرابی endpoint رجیستری → هشدار
 
   rls-integration:
@@ -36,7 +36,7 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U afagh -d afagh_db"
           --health-interval 5s --health-timeout 5s --health-retries 20
-      # گام ۲ سند: اتاق انتظار ZSET — تست یکپارچه با Redis واقعی
+      # Doc step 2: ZSET waiting room — integration test against a real Redis
       redis:
         image: redis:7-alpine
         ports: ['6379:6379']
@@ -52,23 +52,23 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: 22, cache: npm, cache-dependency-path: afagh-next/package-lock.json }
       - run: npm ci
-      # نقش afagh_app باید پیش از مهاجرت‌ها موجود باشد: مهاجرت‌های RLS
-      # (0058/0061/0063/0099) سیاست FOR … TO afagh_app می‌سازند و روی
-      # دیتابیس خالی (CI/نخستین استقرار) نقش هنوز ساخته نشده → شکست 42704.
-      # hardening.mjs بعداً رمز/گرنت‌ها را تنظیم می‌کند (idempotent).
+      # The afagh_app role must exist before migrations run: the RLS migrations
+      # (0058/0061/0063/0099) create FOR ... TO afagh_app policies, which fail
+      # with 42704 on a fresh database (CI / first deploy) where the role does
+      # not exist yet. hardening.mjs sets the password/grants afterwards (idempotent).
       - run: |
           PGPASSWORD=test-password psql "postgres://afagh:test-password@127.0.0.1:5432/afagh_db" \
             -v ON_ERROR_STOP=1 -c "CREATE ROLE afagh_app LOGIN PASSWORD 'test-app-password' NOSUPERUSER NOBYPASSRLS"
-      # طبق پایپ‌لاین تولیدی migrator: اسکیما → پچ‌ها → دادهٔ پایه → سخت‌سازی
+      # Mirrors the production migrator pipeline: schema -> patches -> seed data -> hardening
       - run: AFAGH_BACKUP_DIR="$RUNNER_TEMP/backups" node scripts/migrate-db.mjs   # مهاجرت‌های نسخه‌دار (بکاپ→migrate→verify) به‌جای push --force
       - run: node scripts/apply-patches.mjs
       - run: node scripts/seed-base.mjs
       - run: AFAGH_APP_DB_PASSWORD=test-app-password node scripts/hardening.mjs
-      # اثبات P0: کاربر A هرگز دادهٔ B را نمی‌بیند/تغییر نمی‌دهد
+      # P0 proof: user A never sees or mutates user B's data
       - run: node scripts/rls-test.mjs
-      # اثبات P1 (بازبینی): مسابقهٔ همزمانی — تأیید/وصول فقط یک برنده دارد
+      # P1 proof (review): concurrency race — approval/settlement has exactly one winner
       - run: node scripts/concurrency-test.mjs
-      # گام ۲ سند: اتاق انتظار ZSET — جایگاه O(log N) با Redis واقعی
+      # Doc step 2: ZSET waiting room — O(log N) position against a real Redis
       - run: npx tsx scripts/waiting-room-zset.test.mts
 
   afagh-erp:

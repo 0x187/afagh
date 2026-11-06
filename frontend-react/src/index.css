@@ -1,11 +1,12 @@
-/* ═══ سیستم دیزاین آفاق (نسخهٔ React) — تک‌منبع حقیقت توکن‌ها ═══
+/* ═══ Afagh design system (React edition) — single source of truth for tokens ═══
  *
- * پالت عمداً از سامانهٔ فعلی (afagh-next/src/app/globals.css) آمده تا هویت
- * بصری حفظ شود؛ اما برخلاف globals.css که دارک‌مود را با !important روی
- * یوتیلیتی‌های تیلویند می‌ریزد، این‌جا توکن‌های معنایی shadcn/ui پیکربندی
- * شده‌اند — همهٔ کامپوننت‌ها فقط از همین توکن‌ها مصرف می‌کنند.
+ * The palette is deliberately taken from the current app
+ * (afagh-next/src/app/globals.css) to preserve the visual identity; but unlike
+ * globals.css, which forces dark mode with !important on Tailwind utilities,
+ * semantic shadcn/ui tokens are configured here — every component consumes
+ * only these tokens.
  *
- * پالت پایه: slate + اکسنت indigo (#4f46e5) + هدر slate-900
+ * Base palette: slate + indigo accent (#4f46e5) + slate-900 header
  */
 
 @import "tailwindcss";
@@ -50,7 +51,7 @@
 :root {
   --radius: 0.625rem;
 
-  /* روشن — دقیقاً همان مقادیر :root در globals.css */
+  /* Light — exactly the :root values of globals.css */
   --background: #f1f5f9;        /* slate-100 */
   --foreground: #1e293b;        /* slate-800 */
   --card: #ffffff;
@@ -79,7 +80,7 @@
 }
 
 .dark {
-  /* تیره — پله‌های خوانای همان ماتریس globals.css */
+  /* Dark — readable steps of the same globals.css matrix */
   --background: #0f172a;        /* slate-900 */
   --foreground: #f1f5f9;        /* slate-100 */
   --card: #1e293b;              /* slate-800 */
@@ -107,7 +108,7 @@
   --header-foreground: #f8fafc;
 }
 
-/* ── فونت وزیرمتن (سلف‌هاست، آفلاین) — همان @font-face های globals.css ── */
+/* ── Vazirmatn font (self-hosted, offline) — same @font-face as globals.css ── */
 @font-face {
   font-family: "Vazirmatn";
   font-style: normal;
@@ -162,7 +163,7 @@
     border-color: var(--border);
   }
   html {
-    /* موبایل: همان محافظ سرریز افقی RTL در globals.css */
+    /* Mobile: same RTL horizontal-overflow guard as globals.css */
     overflow-x: hidden;
   }
   body {
@@ -176,7 +177,7 @@
   }
 }
 
-/* ═══ چاپ اسناد رسمی (کارنامه/کارت آزمون) — فقط ناحیهٔ سند روی کاغذ ═══ */
+/* ═══ Official document print (transcript/exam card) — document area only on paper ═══ */
 @media print {
   body {
     background: #fff !important;
@@ -200,7 +201,7 @@
   }
 }
 
-/* ═══ چاپ کارنامهٔ مالی/سند رسمی — کپی ایزوله در ریشهٔ body ═══ */
+/* ═══ Finance transcript / official document print — isolated copy at the body root ═══ */
 @media print {
   #transcript-print-root { display: none; }
   body.printing-transcript > *:not(#transcript-print-root) { display: none !important; }

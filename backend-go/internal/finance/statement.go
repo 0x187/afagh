@@ -216,7 +216,7 @@ func BuildTranscript(input TranscriptInput) []TermStatement {
 			creditType := strings.ToUpper(strings.TrimSpace(typ))
 			// Ledger-recorded discount/coverage — not a student payment.
 			// The official statement showed them as "student deposits",
-			// which misled users (e.g. the legacy "بیتس شهریه" rows).
+			// which misled users (e.g. the legacy tuition-bits rows).
 			if ledgerDiscountSet[creditType] {
 				ledgerDiscounts += amount
 				events = append(events, StatementEvent{Kind: "DISCOUNT",
@@ -363,7 +363,7 @@ func BuildTranscript(input TranscriptInput) []TermStatement {
 		}
 
 		// 🔒 cap: total discount+sponsorship never exceeds the term tuition.
-		// Ledger-recorded discounts (e.g. SAMA بیتس) and table discounts both
+		// Ledger-recorded discounts (e.g. SAMA tuition bits) and table discounts both
 		// reduce debt; a shared cap keeps the net from going negative.
 		cappedDiscounts := discounts + ledgerDiscounts
 		if cappedDiscounts > charges {
@@ -504,7 +504,7 @@ func itoa(n int64) string {
 // ─── Deposit metadata (migrations 0119/0121) — port of statement.ts helpers ───
 
 // normFaText unifies Arabic yeh/kaf and whitespace so migration data matches
-// Persian-authored match patterns (سما rows use ي/ك).
+// Persian-authored match patterns (SAMA rows use the Arabic yeh/kaf code points).
 func normFaText(s string) string {
 	s = strings.ReplaceAll(s, "ي", "ی")
 	s = strings.ReplaceAll(s, "ك", "ک")
@@ -519,7 +519,7 @@ var normSpaceRe = regexp.MustCompile(`\s+`)
 // statement shows it under its own coverage row.
 var thirdPartyDepositRe = regexp.MustCompile(`سهم\s*بنیاد|سازمان\s*دولتی`)
 
-// Charity-fund coverage — a separate row from "پوشش بنیاد" (user request).
+// Charity-fund coverage — a separate row from the foundation coverage (user request).
 var charityDepositRe = regexp.MustCompile(`صندوق\s*خیریه`)
 
 // Student-loan deposit — from the welfare fund/bank, not the student's pocket.
@@ -543,7 +543,7 @@ func IsLoanDeposit(depositType string) bool {
 	return len(d) > 0 && loanDepositRe.MatchString(d)
 }
 
-// StripDepositSuffix removes a trailing "（نوع واریز）" that the migration
+// StripDepositSuffix removes a trailing "（deposit type）" suffix that the migration
 // appended to the description — it is now a dedicated column. Only stripped
 // when the parenthesized text is exactly the same deposit type.
 func StripDepositSuffix(label, depositType string) string {
@@ -562,7 +562,7 @@ func StripDepositSuffix(label, depositType string) string {
 }
 
 // ledger discount types — the official statement showed them as student
-// deposits ("بیتس شهریهٔ قدیمی" confused users).
+// deposits (the legacy tuition-bits rows confused users).
 var ledgerDiscountSet = toSet([]string{
 	"TUITION_BATES", "DISCOUNT_FIXED", "DISCOUNT_VARIABLE",
 	"SUBJECT_DEDUCTIVE", "TUITION_ADJUST_INC",
