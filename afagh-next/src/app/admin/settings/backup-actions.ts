@@ -363,29 +363,113 @@ async function cleanupOldBackups(keep = 10): Promise<void> {
   } catch { /* بکاپ‌پاکسازی نباید جلوی بکاپ جدید را بگیرد */ }
 }
 
-/** بکاپ دیتابیس → جریانی به فایل موقت (gzip) → MinIO → بازگرداندن کلید دانلود. */
-export async function startDatabaseBackupAction(): Promise<{ ok: boolean; key?: string; size?: number; tables?: number; error?: string }> {
+/** اجرای واقعی دامپ → فایل موقت gzip → MinIO (مشترکِ مسیر همزمان و پسزمینه). */
+async function performDatabaseBackup(): Promise<{ key: string; size: number; tables: number }> {
   let tmpDir: string | undefined;
   try {
-    await assertPlatformAdmin();
     const { stream, tables } = await openSignedDumpStream();
     const key = backupKey('db');
     tmpDir = await mkdtemp(join(tmpdir(), 'afagh-db-bk-'));
     const tmpFile = join(tmpDir, 'db-backup.sql.gz');
     // level 1: روی SQL تکرارپذیر همچنان فشردهسازی خوبی میدهد ولی چند برابر
-    // سریعتر است — مهم است چون اکشن تا پایان دامپ پاسخ نمیدهد و لبهٔ CDN
-    // درخواستهای خیلی طولانی را قطع میکند.
+    // سریعتر است — مهم است چون دامپ پروداکشن دقیقهای طول میکشد.
     await pipeline(stream, createGzip({ level: 1 }), createWriteStream(tmpFile));
     const size = statSync(tmpFile).size;
     // minio-js رشته را محتوای شیء میداند ⇒ استریم فایل + اندازة معلوم (multipart).
     await S3.putObject(ARCHIVE_BUCKET, key, createReadStream(tmpFile), size, { 'Content-Type': 'application/gzip' });
     await cleanupOldBackups();
-    return { ok: true, key, size, tables };
+    return { key, size, tables };
+  } finally {
+    if (tmpDir) await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+/** بکاپ دیتابیس (همزمان) → جریانی به فایل موقت (gzip) → MinIO → کلید دانلود. */
+export async function startDatabaseBackupAction(): Promise<{ ok: boolean; key?: string; size?: number; tables?: number; error?: string }> {
+  try {
+    await assertPlatformAdmin();
+    const r = await performDatabaseBackup();
+    return { ok: true, ...r };
   } catch (err: any) {
     log.error('database_backup_start_failed', { error: err instanceof Error ? err.message : String(err), auth: !!err?.auth });
     return actionError(err, 'ساخت پشتیبان دیتابیس ناموفق بود.');
-  } finally {
-    if (tmpDir) await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+// ═══ اجرای پسزمینه (جلوگیری از تایماوت لبهٔ CDN) ═══
+// دامپ پروداکشن حدود ۱۴۰ ثانیه طول میکشد. نگهداشتنِ درخواست اکشن تا پایان،
+// لبهٔ CDN را به ۵۰۴ و دیالوگ مرموز «An unexpected response» میکشاند. اکشن
+// فقط یک jobId برمیگرداند و کار سنگین بهصورت Promise شناور در همان پروسس
+// ادامه مییابد؛ کلاینت هر ۲ ثانیه وضعیت را پول میکند و بعد دانلود را آغاز مینماید.
+// (تککانتینر است؛ با چند replica باید وضعیت به Redis/DB منتقل شود.)
+
+type DbBackupJob = {
+  id: string;
+  startedAt: number;
+  status: 'running' | 'done' | 'failed';
+  key?: string;
+  size?: number;
+  tables?: number;
+  error?: string;
+};
+
+const globalForJobs = globalThis as unknown as { dbBackupJobs?: Map<string, DbBackupJob> };
+const dbBackupJobs: Map<string, DbBackupJob> = globalForJobs.dbBackupJobs ?? (globalForJobs.dbBackupJobs = new Map());
+const JOB_TTL_MS = 15 * 60 * 1000;
+
+function pruneJobs(): void {
+  const now = Date.now();
+  for (const [id, j] of dbBackupJobs) {
+    if (now - j.startedAt > JOB_TTL_MS) dbBackupJobs.delete(id);
+  }
+}
+
+async function runDatabaseBackupJob(job: DbBackupJob): Promise<void> {
+  const t0 = Date.now();
+  try {
+    const r = await performDatabaseBackup();
+    job.key = r.key;
+    job.size = r.size;
+    job.tables = r.tables;
+    job.status = 'done';
+    log.info('database_backup_job_done', { tables: r.tables, size: r.size, ms: Date.now() - t0 });
+  } catch (err: any) {
+    job.status = 'failed';
+    job.error = err instanceof Error ? err.message : String(err);
+    log.error('database_backup_job_failed', { error: job.error, ms: Date.now() - t0 });
+  }
+}
+
+/** آغاز پشتیبانگیری در پسزمینه — پاسخ فوری، بدون انتظار ۲ دقیهای. */
+export async function startDatabaseBackupJobAction(): Promise<{ ok: boolean; jobId?: string; error?: string }> {
+  try {
+    await assertPlatformAdmin();
+    pruneJobs();
+    const id = createHash('sha256').update(String(Math.random()) + Date.now() + process.pid).digest('hex').slice(0, 32);
+    const job: DbBackupJob = { id, startedAt: Date.now(), status: 'running' };
+    dbBackupJobs.set(id, job);
+    void runDatabaseBackupJob(job).catch((e) => {
+      job.status = 'failed';
+      job.error = e instanceof Error ? e.message : String(e);
+    });
+    return { ok: true, jobId: id };
+  } catch (err: any) {
+    return actionError(err, 'آغاز پشتیبانگیری ناموفق بود.');
+  }
+}
+
+/** پولینگ وضعیت کار — فقط همان ادمین پلتفرم که کار را ساخته اجازهٔ دیدن دارد. */
+export async function getDatabaseBackupJobAction(jobId: string): Promise<{ ok: boolean; status?: 'running' | 'done' | 'failed'; key?: string; size?: number; tables?: number; error?: string }> {
+  try {
+    await assertPlatformAdmin();
+    if (typeof jobId !== 'string' || !/^[a-f0-9]{32}$/.test(jobId)) {
+      return { ok: false, error: 'شناسهٔ کار نامعتبر است.' };
+    }
+    const job = dbBackupJobs.get(jobId);
+    if (!job) return { ok: false, error: 'کار پشتیبانگیری یافت نشد یا منقضی شده است؛ دوباره تلاش کنید.' };
+    return { ok: true, status: job.status, key: job.key, size: job.size, tables: job.tables, error: job.error };
+  } catch (err: any) {
+    return actionError(err, 'دریافت وضعیت پشتیبانگیری ناموفق بود.');
   }
 }
 

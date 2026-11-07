@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useTransition } from 'react';
 import { resetSettingAction, saveSettingsAction, uploadLogoAction } from '@/lib/settings-actions';
-import { backupDatabaseAction, listMinioObjectsAction, downloadMinioObjectAction, restoreDatabaseAction, restoreMinioObjectAction, getBackupStatsAction, startDatabaseBackupAction, startMinioBackupAction } from './backup-actions';
+import { backupDatabaseAction, listMinioObjectsAction, downloadMinioObjectAction, restoreDatabaseAction, restoreMinioObjectAction, getBackupStatsAction, startDatabaseBackupAction, startDatabaseBackupJobAction, getDatabaseBackupJobAction, startMinioBackupAction } from './backup-actions';
 import { SECRET_MASK, type SettingView } from '@/lib/settings-shared';
 import { askConfirm } from '@/lib/ui-feedback';
 
@@ -34,12 +34,22 @@ function BackupRestorePanel({ flash }: { flash: (ok: boolean, text: string) => v
   };
 
   const handleBackupDb = () => {
+    // دامپ پروداکشن دقیقهای طول میکشد؛ اکشن فقط jobId میدهد و کار در پسزمینه
+    // ادامه مییابد تا لبهٔ CDN درخواست بلندمدت را قطع نکند. تا آمادهشدن پول میکنیم.
     startTransition(async () => {
-      const r = await startDatabaseBackupAction();
-      if (!r.ok) return flash(false, r.error || 'خطا');
-      // دانلود از مسیر جریانی (با کلید) — بار/حجم بزرگ از پاسخ سروراکشن خارج شد.
-      window.location.href = `/api/admin/backup/download?key=${encodeURIComponent(r.key!)}`;
-      flash(true, `پشتیبان دیتابیس آماده شد (${r.tables} جدول) — دانلود آغاز می‌شود.`);
+      const started = await startDatabaseBackupJobAction();
+      if (!started.ok) return flash(false, started.error || 'خطا');
+      for (let i = 0; i < 450; i++) { // حداکثر ~۱۵ دقیقه
+        await new Promise(r => setTimeout(r, 2000));
+        const r = await getDatabaseBackupJobAction(started.jobId!);
+        if (!r.ok) return flash(false, r.error || 'خطا');
+        if (r.status === 'done') {
+          window.location.href = `/api/admin/backup/download?key=${encodeURIComponent(r.key!)}`;
+          return flash(true, `پشتیبان دیتابیس آماده شد (${r.tables} جدول) دانلود آغاز میشود.`);
+        }
+        if (r.status === 'failed') return flash(false, r.error || 'ساخت پشتیبان دیتابیس ناموفق بود.');
+      }
+      return flash(false, 'تهیهٔ پشتیبان بیش از حد طول کشید؛ لطفاً دوباره تلاش کنید.');
     });
   };
 
