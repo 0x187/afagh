@@ -45,8 +45,11 @@ func TestSessionTransportMatrix(t *testing.T) {
 		wantSecure bool
 		wantSame   string
 	}{
-		// production is always Secure — even with AFAGH_COOKIE_SECURE=false
-		{"prod forces secure", transportEnv{NodeEnv: "production", CookieSecure: "false"}, true, "lax"},
+		// explicit operator decision — honored in production too (parity with the
+		// reference app: the production Next.js runs HTTP with this exact value)
+		{"prod explicit false", transportEnv{NodeEnv: "production", CookieSecure: "false"}, false, "lax"},
+		// unset in production leans fail-closed Secure
+		{"prod unset forces secure", transportEnv{NodeEnv: "production"}, true, "lax"},
 		// none without Secure falls back to lax (fail-safe)
 		{"none without secure", transportEnv{NodeEnv: "development", CookieSecure: "false", CookieSameSite: "none"}, false, "lax"},
 		// none is allowed with Secure

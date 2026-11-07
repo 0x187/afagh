@@ -11,15 +11,16 @@
 //	misconfigured proxy or an attacker could "downgrade" the cookie to an insecure channel.
 //
 //	1) Secure:
-//	   • NODE_ENV=production  → always true. The value AFAGH_COOKIE_SECURE=false
-//	     is ignored in production (a warning is logged once) so that
-//	     the session cookie is never sent over production HTTP.
-//	   • non-production:
-//	       AFAGH_COOKIE_SECURE=true   → true
-//	       AFAGH_COOKIE_SECURE=false  → false  (local HTTP only)
-//	       auto / empty / invalid      → if AFAGH_PUBLIC_BASE_URL has https://
-//	                                    then true, otherwise false.
-//	     An invalid/empty URL in production leans toward secure, not insecure.
+//	   • AFAGH_COOKIE_SECURE=false  → false  — an explicit operator decision,
+//	     honored in every environment (parity with afagh-next: the production
+//	     Next.js deployment runs plain HTTP with this exact value; a warning
+//	     is logged once so the choice stays visible).
+//	   • AFAGH_COOKIE_SECURE=true   → true
+//	   • unset / auto / invalid:
+//	       NODE_ENV=production → true (fail-closed: never ship the session
+//	       cookie over production HTTP by accident)
+//	       otherwise → if AFAGH_PUBLIC_BASE_URL has https:// then true,
+//	       otherwise false.
 //
 //	2) SameSite:
 //	       AFAGH_COOKIE_SAMESITE=none   → none  (only if Secure=true)
@@ -87,25 +88,34 @@ func sessionTransport(env transportEnv) (secure bool, sameSite string) {
 
 	production := env.NodeEnv == "production"
 	secureMode := "auto"
-	if env.CookieSecure != "" {
-		secureMode = strings.ToLower(env.CookieSecure)
+	if v := strings.TrimSpace(env.CookieSecure); v != "" {
+		// strconv.ParseBool accepts true/false and 1/0 (and t/f variants) so both
+		// spellings used across compose files behave identically; invalid → auto.
+		if b, err := strconv.ParseBool(v); err == nil {
+			if b {
+				secureMode = "true"
+			} else {
+				secureMode = "false"
+			}
+		}
 	}
-	// In production no ENV var can turn Secure off (fail-closed).
+	// Explicit operator decisions win; only an UNSET value leans fail-closed
+	// in production (parity: the reference production app runs plain HTTP
+	// with AFAGH_COOKIE_SECURE=false).
 	switch {
-	case production:
-		secure = true
 	case secureMode == "true":
 		secure = true
 	case secureMode == "false":
 		secure = false
-	default: // auto / empty / invalid
+		if production {
+			warnProductionSecureOverOnce.Do(func() {
+				loggerFor().Warn("⚠ [cookie] AFAGH_COOKIE_SECURE=false در production — کوکی سشن بدون Secure (تصمیم آگاهانهٔ اپراتور برای استقرار HTTP).", nil)
+			})
+		}
+	case production:
+		secure = true
+	default: // auto / empty / invalid in non-production
 		secure = https
-	}
-
-	if production && secureMode == "false" {
-		warnProductionSecureOverOnce.Do(func() {
-			loggerFor().Warn("⚠ [cookie] AFAGH_COOKIE_SECURE=false در production نادیده گرفته شد؛ Secure اجباری است.", nil)
-		})
 	}
 
 	mode := "auto"
