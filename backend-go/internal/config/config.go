@@ -34,6 +34,7 @@ type Config struct {
 	SpaUpstream   string   // If set, the SPA is proxied from this address (dev: Vite)
 	SpaDist       string   // otherwise the path to the SPA's built dist folder (production)
 	OwnedPrefixes []string // Prefixes the Go service answers itself; the rest → Next
+	UploadsDist   string   // AFAGH_UPLOADS_DIST: directory served at /uploads (legacy Next-era files); empty = disabled
 
 	// Security (the same ENVs as afagh-next)
 	AllowedExtraOrigins []string // ALLOWED_EXTRA_ORIGINS — CSRF allowlist
@@ -74,6 +75,7 @@ func Load() (*Config, error) {
 		NextUpstream:        nextUpstreamFromEnv(),
 		SpaUpstream:         strings.TrimSpace(os.Getenv("AFAGH_SPA_UPSTREAM")),
 		SpaDist:             strings.TrimSpace(os.Getenv("AFAGH_SPA_DIST")),
+		UploadsDist:         strings.TrimSpace(os.Getenv("AFAGH_UPLOADS_DIST")),
 		SessionCookiePrefix: strings.ToLower(env("AFAGH_SESSION_COOKIE_PREFIX", "")),
 		LogLevel:            strings.ToLower(env("LOG_LEVEL", "info")),
 		LogFormat:           strings.ToLower(env("LOG_FORMAT", "")),

@@ -107,6 +107,9 @@ func (a *App) buildServer() error {
 	}
 
 	root := edge.Root(a.Cfg.OwnedPrefixes, a.gin, spaHandler, a.Cfg.SpaDist, nextUpstream, a.Cfg.AllowedExtraOrigins)
+	if a.Cfg.UploadsDist != "" {
+		root = withUploads(root, a.Cfg.UploadsDist)
+	}
 	a.Server = &http.Server{
 		Addr:              ":" + a.Cfg.Port,
 		Handler:           root,
