@@ -138,7 +138,7 @@ import { AppShell } from '@/components/shell/AppShell';
 import { PwaRegister } from '@/components/shell/PwaRegister';
 import { ChangePassword } from '@/routes/ChangePassword';
 import { LoginPage } from '@/routes/login/LoginPage';
-import { Home } from '@/routes/Home';
+import { RoleLanding } from '@/routes/RoleLanding';
 
 export function App() {
   return (
@@ -175,7 +175,7 @@ export function App() {
 
         {/* Protected shell — the session guard is inside AppShell */}
         <Route element={<AppShell />}>
-          <Route index element={<Home />} />
+          <Route index element={<RoleLanding />} />
           <Route path="student" element={<StudentDashboardPage />} />
           <Route path="student/schedule" element={<StudentSchedulePage />} />
           <Route path="student/transcript" element={<StudentTranscriptPage />} />
