@@ -80,11 +80,31 @@ function BackupRestorePanel({ flash }: { flash: (ok: boolean, text: string) => v
   const handleRestoreDb = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.sql,.txt';
+    input.accept = '.sql,.txt,.sql.gz,.gz';
     input.onchange = async () => {
       const file = input.files?.[0];
       if (!file) return;
-      const text = await file.text();
+      // دامپ دیتابیس بهصورت gzip ذخیره میشود (.sql.gz)؛ پیش از ارسال به اکشن
+      // بازیابی، در مرورگر استخراج میشود تا همان متن SQL امضاشده به سرور برسد.
+      let text: string;
+      try {
+        if (/\.gz$/i.test(file.name)) {
+          type GzipCtor = new (format: string) => TransformStream<Uint8Array, Uint8Array>;
+          const DS = (globalThis as unknown as { DecompressionStream?: GzipCtor }).DecompressionStream;
+          if (!DS) return flash(false, 'مرورگر از باز کردن فایل فشرده پشتیبانی نمیکند؛ ابتدا فایل را استخراج کنید.');
+          text = await new Response(file.stream().pipeThrough(new DS('gzip'))).text();
+        } else {
+          text = await file.text();
+        }
+      } catch {
+        return flash(false, 'خواندن فایل پشتیبان ناموفق بود.');
+      }
+      // اکشن بازیابی فایل را بهصورت رشتۀ RSC دریافت میکند و سقف ۵۰ مگابایت دارد.
+      // دامپ پروداکشن بسیار بزرگتر است ⇒ صریحاً به مسیر خط فرمان هدایتش میکنیم،
+      // نه اینکه وسط ارسال با دیالوگ مرموز «An unexpected response» روبهرو شود.
+      if (new Blob([text]).size > 50 * 1024 * 1024) {
+        return flash(false, 'حجم این پشتیبان برای بازیابی از صفحه زیاد است؛ از دستور psql خط فرمان (که زیر دکمۀ دانلود نوشته شده) استفاده کنید.');
+      }
       const ok = await askConfirm({ title: 'بازیابی دیتابیس', body: 'آیا از بازیابی دیتابیس مطمئنید؟ تمام داده‌های فعلی جایگزین می‌شوند.', confirmText: 'بازیابی کن', danger: true });
       if (!ok) return;
       startTransition(async () => {
@@ -130,11 +150,11 @@ function BackupRestorePanel({ flash }: { flash: (ok: boolean, text: string) => v
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <h3 className="font-black text-slate-800 mb-3">پشتیبان‌گیری دیتابیس</h3>
         <p className="text-sm text-slate-600 mb-4">
-          یک فایل SQL حاوی تمام جداول و داده‌ها دانلود می‌شود. برای بازیابی:
-          <code className="mx-1 text-xs bg-slate-100 px-1 rounded">psql -U afagh -d afagh_db -f backup.sql</code>
+          یک فایل SQL فشرده (gzip) حاوی تمام جداول و داده‌ها دانلود می‌شود. برای بازیابی:
+          <code className="mx-1 text-xs bg-slate-100 px-1 rounded">gunzip -c backup.sql.gz | psql -U afagh -d afagh_db</code>
         </p>
         <button onClick={handleBackupDb} disabled={busy} className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 disabled:opacity-50">
-          {busy ? 'در حال پشتیبان‌گیری…' : 'دانلود پشتیبان دیتابیس (SQL)'}
+          {busy ? 'در حال پشتیبان‌گیری…' : 'دانلود پشتیبان دیتابیس (SQL.gz)'}
         </button>
       </div>
 

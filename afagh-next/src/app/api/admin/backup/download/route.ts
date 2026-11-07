@@ -5,9 +5,9 @@ import { getPlatformAdminUser } from '@/lib/backup-auth';
 
 export const dynamic = 'force-dynamic';
 
-// فقط کلیدهای ساخته‌شده توسط بکاپ (پیشوند afagh-backup/، پسوند sql/zip) مجازند —
+// فقط کلیدهای ساخته‌شده توسط بکاپ (پیشوند afagh-backup/، پسوند sql/sql.gz/zip) مجازند —
 // جلوگیری از دسترسی به سایر اشیاء باکت آرشیو.
-const KEY_RE = /^afagh-backup\/[A-Za-z0-9][A-Za-z0-9._\-/]*\.(sql|zip)$/;
+const KEY_RE = /^afagh-backup\/[A-Za-z0-9][A-Za-z0-9._\-/]*\.(?:sql\.gz|sql|zip)$/;
 
 /**
  * دانلود جریانیِ فایل بکاپی که پیش‌تر توسط start*BackupAction در MinIO ذخیره شده.
@@ -30,7 +30,9 @@ export async function GET(req: NextRequest) {
     const headers: Record<string, string> = {
       'Content-Disposition': `attachment; filename="${fileName}"`,
       'Cache-Control': 'no-store',
-      'Content-Type': key.endsWith('.sql') ? 'text/plain; charset=utf-8' : 'application/zip',
+      'Content-Type': key.endsWith('.sql.gz') ? 'application/gzip'
+        : key.endsWith('.sql') ? 'text/plain; charset=utf-8'
+        : 'application/zip',
     };
     return new NextResponse(webStream as unknown as BodyInit, { status: 200, headers });
   } catch (e) {

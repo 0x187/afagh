@@ -1,10 +1,9 @@
 'use server';
 
-import { createHash, createHmac, timingSafeEqual } from 'crypto';
+import { createHash } from 'crypto';
 import { desc } from 'drizzle-orm';
-import { Pool } from 'pg';
-import { pool } from '@/db';
-import { db } from '@/db';
+import { Pool, type PoolClient } from 'pg';
+import { pool, db } from '@/db';
 import { audit_logs } from '@/db/schema';
 import { observePoolErrors } from '@/db/pool-errors';
 import { S3, ARCHIVE_BUCKET, ensureBucket } from '@/lib/objectStore';
@@ -15,8 +14,15 @@ import { createWriteStream, createReadStream, statSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
+import { createGzip } from 'node:zlib';
 import { createZipStream } from '@/lib/zip-stream';
+import {
+  backupSigningKey, SignedBodyWriter, verifySignedBackup,
+  MISSING_SIGNING_KEY_ERROR, INVALID_BACKUP_SIZE_ERROR,
+  MISSING_SIGNATURE_ERROR, BAD_SIGNATURE_ERROR,
+} from '@/lib/backup-signing';
 
 const log = createLogger({ mod: 'admin.backup' });
 
@@ -73,34 +79,25 @@ const REDACTED_JSON = '{"redacted":true}';
 const SECRET_SETTING_RE = /SECRET|TOKEN|KEY|PASSWORD/i;
 /** رویدادهای حامل OTP — متن تحویل آن‌ها sanitize می‌شود */
 const OTP_EVENT_RE = /OTP/i;
-const BACKUP_SIGNATURE_MARKER = '-- AFAGH_BACKUP_SIGNATURE=';
+// کلید/نشانگر/تأیید امضا در `src/lib/backup-signing.ts` قرار دارد (بدون
+// `'use server'` ⇒ قابل تست مستقل). تنها وظیفهٔ اینجا: هشدار یکباره دربارهٔ
+// مشتقشدن کلید از AFAGH_PII_KEY وقتی متغیر اختصاصی تنظیم نشده است.
+let warnedDerivedSigningKey = false;
 
-function backupSigningKey(): Buffer {
-  const value = process.env.AFAGH_BACKUP_SIGNING_KEY?.trim() ?? '';
-  const key = Buffer.from(value, 'utf8');
-  if (key.length < 32 || value.startsWith('CHANGE_ME_')) {
-    throw new Error('کلید امضای پشتیبان تنظیم نشده است؛ بازیابی امن غیرفعال است.');
+function signingKey(): Buffer {
+  const { key, source } = backupSigningKey();
+  if (source === 'derived' && !warnedDerivedSigningKey) {
+    warnedDerivedSigningKey = true;
+    log.warn('backup_signing_key_derived', {
+      detail: 'AFAGH_BACKUP_SIGNING_KEY تنظیم نشده؛ کلید امضا از AFAGH_PII_KEY مشتق شد.',
+    });
   }
   return key;
 }
 
-function signBackup(body: string): string {
-  return createHmac('sha256', backupSigningKey()).update(body, 'utf8').digest('hex');
-}
-
+/** تأیید امضای فایل آپلودشده (همان قالب و پیامهای خطای قدیمی). */
 function verifyBackup(signedSql: string): string {
-  if (typeof signedSql !== 'string' || Buffer.byteLength(signedSql, 'utf8') > 50 * 1024 * 1024) {
-    throw new Error('فایل پشتیبان نامعتبر یا بزرگ‌تر از حد مجاز است.');
-  }
-  const match = /\r?\n-- AFAGH_BACKUP_SIGNATURE=([a-f0-9]{64})\r?\n?$/.exec(signedSql);
-  if (!match) throw new Error('پشتیبان امضای معتبر ندارد؛ بازیابی فایل‌های قدیمی و امضانشده مجاز نیست.');
-  const body = signedSql.slice(0, match.index);
-  const supplied = Buffer.from(match[1], 'hex');
-  const expected = Buffer.from(signBackup(body), 'hex');
-  if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) {
-    throw new Error('امضای پشتیبان معتبر نیست؛ هیچ دستوری اجرا نشد.');
-  }
-  return body;
+  return verifySignedBackup(signedSql, signingKey());
 }
 
 /**
@@ -199,80 +196,138 @@ async function getUserTables(): Promise<string[]> {
   return res.rows.map(r => r.tablename);
 }
 
-/** دامپ SQL از یک جدول */
-async function dumpTable(table: string): Promise<string> {
-  const cols = await backupPool().query(`
-    SELECT column_name, data_type, is_nullable, column_default
-    FROM information_schema.columns
-    WHERE table_schema = 'public' AND table_name = $1
-    ORDER BY ordinal_position
-  `, [table]);
+// ═══ دامپ جریانی (بدون رشتۀ غولپیکر) ═══
+// دیتابیس پروداکشن ~۱ گیگابایت است. نسخۀ پیشین `SELECT *` تمام ردیفها را در
+// آرایه و سپس کل SQL را در یک رشتۀ JS میریخت ⇒ «Invalid string length».
+// اینجا یک تراکنش REPEATABLE READ READ ONLY اسنپ‌شاتی سازگار میگیرد، هر جدول
+// با CURSOR سمت سرور دستهدسته FETCH میشود و بایتها بلافاصله به فایل/فشردهساز
+// میروند؛ امضا نیز افزایشی روی همان بایتها حساب میشود.
 
-  if (!cols.rows.length) return '';
+// صفحة بزرگتر ⇒ رفتوبرگشت کمتر با Postgres در دیتابیس ۱ گیگابایتی.
+const DUMP_FETCH_SIZE = 2000;
 
-  const colDefs = cols.rows.map(c => {
-    const nullable = c.is_nullable === 'YES' ? '' : ' NOT NULL';
-    const def = c.column_default ? ` DEFAULT ${c.column_default}` : '';
-    return `  "${c.column_name}" ${c.data_type}${nullable}${def}`;
-  });
-
-  let sql = `DROP TABLE IF EXISTS "${table}" CASCADE;\n`;
-  sql += `CREATE TABLE "${table}" (\n${colDefs.join(',\n')}\n);\n\n`;
-
-  const data = await backupPool().query(`SELECT * FROM "${table}"`);
-  if (data.rows.length === 0) return sql;
-
-  const colNames = cols.rows.map(c => `"${c.column_name}"`).join(', ');
-  const chunks: string[] = [];
-  const BATCH = 500;
-
-  for (let i = 0; i < data.rows.length; i += BATCH) {
-    const batch = data.rows.slice(i, i + BATCH);
-    const values = batch.map(orig => {
-      const row: Record<string, any> = { ...orig };
-      redactRow(table, row);
-      const vals = cols.rows.map(c => {
-        const v = row[c.column_name];
-        if (v === null || v === undefined) return 'NULL';
-        if (typeof v === 'number') return String(v);
-        if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';
-        if (v instanceof Date) return `'${v.toISOString()}'`;
-        if (v instanceof Buffer) return `E'\\\\x${v.toString('hex')}'`;
-        const s = String(v).replace(/'/g, "''").replace(/\\/g, '\\\\');
-        return `'${s}'`;
-      });
-      return `(${vals.join(', ')})`;
-    });
-    chunks.push(`INSERT INTO "${table}" (${colNames}) VALUES\n${values.join(',\n')};\n`);
-  }
-
-  return sql + chunks.join('\n');
+/** تبدیل مقدار یک سلول به لیترال SQL (همان منطق sanitizeشدۀ قبلی). */
+function sqlLiteral(v: unknown): string {
+  if (v === null || v === undefined) return 'NULL';
+  if (typeof v === 'number') return String(v);
+  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';
+  if (v instanceof Date) return `'${v.toISOString()}'`;
+  if (Buffer.isBuffer(v)) return `E'\\\\x${v.toString('hex')}'`;
+  const s = String(v).replace(/'/g, "''").replace(/\\/g, '\\\\');
+  return `'${s}'`;
 }
 
-/** دامپ کل دیتابیس + امضای امن (برای بازیابی از UI). */
-async function generateSignedDatabaseDump(): Promise<{ sql: string; tables: number }> {
-  const tables = await getUserTables();
-  const parts: string[] = [
-    '-- ═══ پشتیبان آفاق — ' + new Date().toISOString() + ' ═══',
-    '-- بازیابی: psql -U afagh -d afagh_db -f backup.sql',
-    '',
-  ];
-  for (const t of tables) {
-    const dump = await dumpTable(t);
-    if (dump) parts.push(dump);
+/**
+ * آمادهسازی جریان SQL امضاشده. یک اتصال اختصاصی + تراکنش اسنپ‌شات تا پایان
+ * مصرف جریان نگه داشته میشود؛ `finally` ژنراتور همیشه آزادسازی اتصال را
+ * تضمین میکند (حتی اگر آپلود MinIO نیمهراه شکست بخورد).
+ */
+async function openSignedDumpStream(): Promise<{ stream: Readable; tables: number }> {
+  const client: PoolClient = await backupPool().connect();
+  let committed = false;
+  let released = false;
+  const release = async (): Promise<void> => {
+    if (released) return;
+    released = true;
+    if (!committed) {
+      try { await client.query('ROLLBACK'); } catch { /* اتصال ممکن است بسته شده باشد */ }
+    }
+    client.release();
+  };
+
+  try {
+    await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+    const tRes = await client.query(
+      `SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`,
+    );
+    const tables: string[] = tRes.rows.map((r: any) => String(r.tablename));
+    const writer = new SignedBodyWriter(signingKey());
+
+    async function* gen(): AsyncGenerator<Buffer> {
+      try {
+        function* feed(text: string): Generator<Buffer> {
+          const buf = writer.push(text);
+          if (buf.length) yield buf;
+        }
+
+        yield* feed(`-- ═══ پشتیبان آفاق — ${new Date().toISOString()} ═══\n`);
+        yield* feed('-- بازیابی: gunzip backup.sql.gz | psql -U afagh -d afagh_db\n\n');
+
+        for (const table of tables) {
+          const cols = await client.query(
+            `SELECT column_name, data_type, is_nullable, column_default
+             FROM information_schema.columns
+             WHERE table_schema = 'public' AND table_name = $1
+             ORDER BY ordinal_position`,
+            [table],
+          );
+          if (!cols.rows.length) continue;
+          const defs = cols.rows.map((c: any) => {
+            const nullable = c.is_nullable === 'YES' ? '' : ' NOT NULL';
+            const def = c.column_default ? ` DEFAULT ${c.column_default}` : '';
+            return `  "${c.column_name}" ${c.data_type}${nullable}${def}`;
+          });
+          yield* feed(`DROP TABLE IF EXISTS "${table}" CASCADE;\n`);
+          yield* feed(`CREATE TABLE "${table}" (\n${defs.join(',\n')}\n);\n\n`);
+
+          const colNames = cols.rows.map((c: any) => `"${c.column_name}"`).join(', ');
+          await client.query(`DECLARE afagh_bk_cursor CURSOR FOR SELECT * FROM "${table}"`);
+          try {
+            for (;;) {
+              const page = await client.query(`FETCH ${DUMP_FETCH_SIZE} FROM afagh_bk_cursor`);
+              if (!page.rows.length) break;
+              const values = page.rows.map((orig: Record<string, any>) => {
+                const row: Record<string, any> = { ...orig };
+                redactRow(table, row);
+                return `(${cols.rows.map((c: any) => sqlLiteral(row[c.column_name])).join(', ')})`;
+              });
+              yield* feed(`INSERT INTO "${table}" (${colNames}) VALUES\n${values.join(',\n')};\n`);
+            }
+          } finally {
+            await client.query('CLOSE afagh_bk_cursor').catch(() => {});
+          }
+        }
+
+        // دامپ sanitize شده است (ردکشن رازها) — ثبت ممیزی، بدون اثر بر خروجی.
+        await auditBackup(tables.length);
+        yield writer.finish();
+        await client.query('COMMIT');
+        committed = true;
+      } finally {
+        await release();
+      }
+    }
+
+    return { stream: Readable.from(gen(), { objectMode: false }), tables: tables.length };
+  } catch (err) {
+    await release();
+    throw err;
   }
-  // دامپ sanitize شده است (ردکشن رازها) — ثبت ممیزی، بدون اثر بر خروجی دانلود
-  await auditBackup(tables.length);
-  const body = parts.join('\n').replace(/\r?\n+$/, '');
-  const signature = signBackup(body);
-  return { sql: `${body}\n${BACKUP_SIGNATURE_MARKER}${signature}\n`, tables: tables.length };
 }
 
-/** دامپ کل دیتابیس (مسیر سنتی: پاسخ inline — برای سازگاری باقی ماند). */
+/** مسیر قدیمی inline: فقط دامپهای کوچک؛ برای پروداکشن خطای تمیز میدهد. */
+const MAX_INLINE_SQL = 16 * 1024 * 1024;
+
+async function collectSignedDump(): Promise<{ sql: string; tables: number }> {
+  const { stream, tables } = await openSignedDumpStream();
+  const chunks: Buffer[] = [];
+  let total = 0;
+  for await (const chunk of stream) {
+    const b = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk as Uint8Array);
+    total += b.length;
+    if (total > MAX_INLINE_SQL) {
+      stream.destroy();
+      throw new Error('حجم دامپ برای پاسخ inline بیش از حد است؛ از دکمهٔ دانلود پشتیبان استفاده کنید.');
+    }
+    chunks.push(b);
+  }
+  return { sql: Buffer.concat(chunks).toString('utf8'), tables };
+}
+
 export async function backupDatabaseAction(): Promise<{ ok: boolean; sql?: string; error?: string; tables?: number }> {
   try {
     await assertPlatformAdmin();
-    const { sql, tables } = await generateSignedDatabaseDump();
+    const { sql, tables } = await collectSignedDump();
     return { ok: true, sql, tables };
   } catch (err: any) {
     log.error('database_backup_failed', { error: err instanceof Error ? err.message : String(err), auth: !!err?.auth });
@@ -291,7 +346,7 @@ const BACKUP_KEY_PREFIX = 'afagh-backup/';
 function backupKey(kind: 'db' | 'minio'): string {
   const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
   const rand = createHash('sha256').update(String(Math.random()) + ts + process.pid).digest('hex').slice(0, 16);
-  return `${BACKUP_KEY_PREFIX}${kind}-${ts}-${rand}.${kind === 'db' ? 'sql' : 'zip'}`;
+  return `${BACKUP_KEY_PREFIX}${kind}-${ts}-${rand}.${kind === 'db' ? 'sql.gz' : 'zip'}`;
 }
 
 /** حذف بکاپ‌های قدیمی (فراتر از keep) تا باکت پر نشود. */
@@ -308,23 +363,32 @@ async function cleanupOldBackups(keep = 10): Promise<void> {
   } catch { /* بکاپ‌پاکسازی نباید جلوی بکاپ جدید را بگیرد */ }
 }
 
-/** بکاپ دیتابیس → ذخیره در MinIO → بازگرداندن کلید دانلود. */
+/** بکاپ دیتابیس → جریانی به فایل موقت (gzip) → MinIO → بازگرداندن کلید دانلود. */
 export async function startDatabaseBackupAction(): Promise<{ ok: boolean; key?: string; size?: number; tables?: number; error?: string }> {
+  let tmpDir: string | undefined;
   try {
     await assertPlatformAdmin();
-    const { sql, tables } = await generateSignedDatabaseDump();
+    const { stream, tables } = await openSignedDumpStream();
     const key = backupKey('db');
-    const buf = Buffer.from(sql, 'utf8');
-    await S3.putObject(ARCHIVE_BUCKET, key, buf, buf.length, { 'Content-Type': 'text/plain; charset=utf-8' });
+    tmpDir = await mkdtemp(join(tmpdir(), 'afagh-db-bk-'));
+    const tmpFile = join(tmpDir, 'db-backup.sql.gz');
+    // level 1: روی SQL تکرارپذیر همچنان فشردهسازی خوبی میدهد ولی چند برابر
+    // سریعتر است — مهم است چون اکشن تا پایان دامپ پاسخ نمیدهد و لبهٔ CDN
+    // درخواستهای خیلی طولانی را قطع میکند.
+    await pipeline(stream, createGzip({ level: 1 }), createWriteStream(tmpFile));
+    const size = statSync(tmpFile).size;
+    // minio-js رشته را محتوای شیء میداند ⇒ استریم فایل + اندازة معلوم (multipart).
+    await S3.putObject(ARCHIVE_BUCKET, key, createReadStream(tmpFile), size, { 'Content-Type': 'application/gzip' });
     await cleanupOldBackups();
-    return { ok: true, key, size: buf.length, tables };
+    return { ok: true, key, size, tables };
   } catch (err: any) {
     log.error('database_backup_start_failed', { error: err instanceof Error ? err.message : String(err), auth: !!err?.auth });
     return actionError(err, 'ساخت پشتیبان دیتابیس ناموفق بود.');
+  } finally {
+    if (tmpDir) await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
   }
 }
 
-/** بکاپ کل فایل‌های آرشیو (MinIO) → زیپ → ذخیره در MinIO → بازگرداندن کلید. */
 export async function startMinioBackupAction(): Promise<{ ok: boolean; key?: string; size?: number; objects?: number; error?: string }> {
   try {
     await assertPlatformAdmin();
@@ -505,10 +569,10 @@ export async function restoreDatabaseAction(sql: string): Promise<{ ok: boolean;
     const message = err instanceof Error ? err.message : String(err);
     log.error('database_restore_failed', { error: message });
     const safeErrors = new Set([
-      'کلید امضای پشتیبان تنظیم نشده است؛ بازیابی امن غیرفعال است.',
-      'فایل پشتیبان نامعتبر یا بزرگ‌تر از حد مجاز است.',
-      'پشتیبان امضای معتبر ندارد؛ بازیابی فایل‌های قدیمی و امضانشده مجاز نیست.',
-      'امضای پشتیبان معتبر نیست؛ هیچ دستوری اجرا نشد.',
+      MISSING_SIGNING_KEY_ERROR,
+      INVALID_BACKUP_SIZE_ERROR,
+      MISSING_SIGNATURE_ERROR,
+      BAD_SIGNATURE_ERROR,
       'سشن منقضی شده است؛ لطفاً دوباره وارد شوید.',
       'این عملیات نیازمند نقش ادمین است.',
       'این عملیات فقط برای مدیر پلتفرم مجاز است.',
