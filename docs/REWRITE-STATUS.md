@@ -298,6 +298,11 @@ S3_ENDPOINT, S3_BUCKET=afagh-archive, S3_ACCESS_KEY, S3_SECRET_KEY
 NEXT: AFAGH_NEXT_UPSTREAM=http://127.0.0.1:8080 (تا پایان مهاجرت)
 ```
 
+حالت فقط-Go (بعد از بازنشستگی Next): با `AFAGH_NEXT_UPSTREAM=""` پروکسی Next
+کاملاً قطع میشود و مسیرهای غیرمالک به SPA fallback میشوند (صفحات عمومی ریشه) —
+استقرار 10.10.10.80 با همین حالت کار میکند (`edge.Root` با upstream تهی + تست
+`TestGoOnlyNoUpstream`).
+
 `TICKET_TOKEN_SECRET` و رازهای کرون در production الزامی‌اند (بدون آن‌ها
 استعلام‌ها/جاب‌ها fail-closed می‌شوند؛ همان رفتار TS).
 

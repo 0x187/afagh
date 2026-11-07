@@ -52,6 +52,17 @@ func env(key, def string) string {
 	return def
 }
 
+// nextUpstreamFromEnv reads AFAGH_NEXT_UPSTREAM. Setting it to an empty string
+// explicitly disables the Next.js proxy (Go-only mode — the post-retirement
+// production shape); when the variable is unset the development default keeps
+// pointing at the local Next.js server.
+func nextUpstreamFromEnv() string {
+	if v, ok := os.LookupEnv("AFAGH_NEXT_UPSTREAM"); ok {
+		return strings.TrimSpace(v)
+	}
+	return "http://127.0.0.1:8080"
+}
+
 func isProduction(env string) bool { return env == "production" }
 
 // Load reads the configuration from the environment; in production a missing DATABASE_URL is a fatal error.
@@ -60,7 +71,7 @@ func Load() (*Config, error) {
 		Env:                 env("NODE_ENV", "development"),
 		Port:                env("PORT", "8090"),
 		Version:             env("AFAGH_VERSION", env("APP_VERSION", "dev")),
-		NextUpstream:        env("AFAGH_NEXT_UPSTREAM", "http://127.0.0.1:8080"),
+		NextUpstream:        nextUpstreamFromEnv(),
 		SpaUpstream:         strings.TrimSpace(os.Getenv("AFAGH_SPA_UPSTREAM")),
 		SpaDist:             strings.TrimSpace(os.Getenv("AFAGH_SPA_DIST")),
 		SessionCookiePrefix: strings.ToLower(env("AFAGH_SESSION_COOKIE_PREFIX", "")),

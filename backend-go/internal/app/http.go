@@ -96,10 +96,14 @@ func (a *App) buildServer() error {
 		}
 		spaHandler = newHostPreservingProxy(u)
 	}
-	nextUpstream, err := url.Parse(a.Cfg.NextUpstream)
-	if err != nil {
-		logger.For("app").Error("next_upstream_invalid", logger.Fields{"error": err.Error()})
-		return fmt.Errorf("parse next upstream: %w", err)
+	var nextUpstream *url.URL
+	if a.Cfg.NextUpstream != "" {
+		u, err := url.Parse(a.Cfg.NextUpstream)
+		if err != nil {
+			logger.For("app").Error("next_upstream_invalid", logger.Fields{"error": err.Error()})
+			return fmt.Errorf("parse next upstream: %w", err)
+		}
+		nextUpstream = u
 	}
 
 	root := edge.Root(a.Cfg.OwnedPrefixes, a.gin, spaHandler, a.Cfg.SpaDist, nextUpstream, a.Cfg.AllowedExtraOrigins)

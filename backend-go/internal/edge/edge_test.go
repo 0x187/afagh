@@ -88,6 +88,46 @@ func TestSPAFallback(t *testing.T) {
 	}
 }
 
+// TestGoOnlyNoUpstream — with a nil Next upstream (post-retirement mode),
+// non-owned paths fall back to the static SPA instead of proxying.
+func TestGoOnlyNoUpstream(t *testing.T) {
+	dir := t.TempDir()
+	_ = os.WriteFile(filepath.Join(dir, "index.html"), []byte("INDEX"), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, "verify.js"), []byte("JS"), 0o644)
+
+	h := Root([]string{"/api/v2", "/app"}, handler(tagAPI), nil, dir, nil, nil)
+
+	// public client route at the root → index.html
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "http://x/verify-enrollment", nil))
+	if w.Body.String() != "INDEX" {
+		t.Fatalf("در حالت Go-only مسیر عمومی باید index.html بدهد، داد: %q", w.Body.String())
+	}
+	// root asset served from dist
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "http://x/verify.js", nil))
+	if w.Body.String() != "JS" {
+		t.Fatalf("دارایی ریشه باید سرو شود، داد: %q", w.Body.String())
+	}
+	// missing root asset → 404
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "http://x/missing.js", nil))
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("دارایی گمشده باید 404 بدهد، داد %d", w.Code)
+	}
+	// owned prefixes keep working
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "http://x/api/v2/health", nil))
+	if w.Body.String() != tagAPI {
+		t.Fatalf("API مالک‌شده دست‌نخورده باید بماند، داد: %q", w.Body.String())
+	}
+	w = httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "http://x/app/", nil))
+	if w.Body.String() != "INDEX" {
+		t.Fatalf("/app باید SPA باشد، داد: %q", w.Body.String())
+	}
+}
+
 func TestIsAPIPath(t *testing.T) {
 	owned := []string{"/api/v2", "/app"}
 	if !IsAPIPath(owned, "/api/v2/session") {

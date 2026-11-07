@@ -47,11 +47,25 @@ func IsAPIPath(owned []string, p string) bool {
 }
 
 // Root builds the full root handler (routing + security headers + CSRF + logging).
+// When nextUpstream is nil (AFAGH_NEXT_UPSTREAM="" — Next.js retired), non-owned
+// paths fall back to the SPA (public pages live at the root) instead of proxying.
 func Root(owned []string, api http.Handler, spa http.Handler, spaDist string, nextUpstream *url.URL, extraOrigins []string) http.Handler {
-	next := &httputil.ReverseProxy{Rewrite: func(req *httputil.ProxyRequest) {
-		req.SetURL(nextUpstream)
-		req.Out.Host = nextUpstream.Host
-	}}
+	var next http.Handler
+	if nextUpstream != nil && nextUpstream.Host != "" {
+		next = &httputil.ReverseProxy{Rewrite: func(req *httputil.ProxyRequest) {
+			req.SetURL(nextUpstream)
+			req.Out.Host = nextUpstream.Host
+		}}
+	}
+
+	// Go-only fallback for non-owned paths: SPA proxy (dev) or static dist.
+	var fallback http.Handler
+	switch {
+	case spa != nil:
+		fallback = spa
+	case spaDist != "":
+		fallback = spaStaticHandler("", spaDist)
+	}
 
 	// For each SPA prefix, the appropriate handler is built (proxy or static).
 	spaByPrefix := map[string]http.Handler{}
@@ -70,7 +84,14 @@ func Root(owned []string, api http.Handler, spa http.Handler, spaDist string, ne
 	return middleware.AccessLog(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		prefix, ok := IsOwned(owned, req.URL.Path)
 		if !ok {
-			next.ServeHTTP(w, req)
+			switch {
+			case next != nil:
+				next.ServeHTTP(w, req)
+			case fallback != nil:
+				middleware.SecurityHeaders(fallback).ServeHTTP(w, req)
+			default:
+				http.Error(w, "SPA پیکربندی نشده است (AFAGH_SPA_DIST یا AFAGH_SPA_UPSTREAM)", http.StatusNotImplemented)
+			}
 			return
 		}
 		if strings.HasPrefix(prefix, "/api/") {
