@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useTransition } from 'react';
 import { resetSettingAction, saveSettingsAction, uploadLogoAction } from '@/lib/settings-actions';
-import { backupDatabaseAction, listMinioObjectsAction, downloadMinioObjectAction, restoreDatabaseAction, restoreMinioObjectAction, getBackupStatsAction } from './backup-actions';
+import { backupDatabaseAction, listMinioObjectsAction, downloadMinioObjectAction, restoreDatabaseAction, restoreMinioObjectAction, getBackupStatsAction, startDatabaseBackupAction, startMinioBackupAction } from './backup-actions';
 import { SECRET_MASK, type SettingView } from '@/lib/settings-shared';
 import { askConfirm } from '@/lib/ui-feedback';
 
@@ -35,16 +35,20 @@ function BackupRestorePanel({ flash }: { flash: (ok: boolean, text: string) => v
 
   const handleBackupDb = () => {
     startTransition(async () => {
-      const r = await backupDatabaseAction();
+      const r = await startDatabaseBackupAction();
       if (!r.ok) return flash(false, r.error || 'خطا');
-      const blob = new Blob([r.sql || ''], { type: 'text/sql;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `afagh-backup-${new Date().toISOString().slice(0, 10)}.sql`;
-      a.click();
-      URL.revokeObjectURL(url);
-      flash(true, `پشتیبان دیتابیس دانلود شد (${r.tables} جدول)`);
+      // دانلود از مسیر جریانی (با کلید) — بار/حجم بزرگ از پاسخ سروراکشن خارج شد.
+      window.location.href = `/api/admin/backup/download?key=${encodeURIComponent(r.key!)}`;
+      flash(true, `پشتیبان دیتابیس آماده شد (${r.tables} جدول) — دانلود آغاز می‌شود.`);
+    });
+  };
+
+  const handleBackupMinio = () => {
+    startTransition(async () => {
+      const r = await startMinioBackupAction();
+      if (!r.ok) return flash(false, r.error || 'خطا');
+      window.location.href = `/api/admin/backup/download?key=${encodeURIComponent(r.key!)}`;
+      flash(true, `بکاپ فایل‌ها آماده شد (${r.objects} فایل) — دانلود آغاز می‌شود.`);
     });
   };
 
@@ -131,6 +135,17 @@ function BackupRestorePanel({ flash }: { flash: (ok: boolean, text: string) => v
         </p>
         <button onClick={handleBackupDb} disabled={busy} className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 disabled:opacity-50">
           {busy ? 'در حال پشتیبان‌گیری…' : 'دانلود پشتیبان دیتابیس (SQL)'}
+        </button>
+      </div>
+
+      {/* پشتیبان‌گیری فایل‌های آرشیو (MinIO) */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <h3 className="font-black text-slate-800 mb-3">پشتیبان‌گیری فایل‌ها (آرشیو)</h3>
+        <p className="text-sm text-slate-600 mb-4">
+          تمام فایل‌های آپلودی (عکس، اسناد، PDF) در یک فایل ZIP بسته‌بندی و دانلود می‌شود.
+        </p>
+        <button onClick={handleBackupMinio} disabled={busy} className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 disabled:opacity-50">
+          {busy ? 'در حال بسته‌بندی…' : 'دانلود بکاپ فایل‌ها (ZIP)'}
         </button>
       </div>
 

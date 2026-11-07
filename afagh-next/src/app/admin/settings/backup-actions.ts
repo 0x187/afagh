@@ -8,11 +8,27 @@ import { db } from '@/db';
 import { audit_logs } from '@/db/schema';
 import { observePoolErrors } from '@/db/pool-errors';
 import { S3, ARCHIVE_BUCKET, ensureBucket } from '@/lib/objectStore';
-import { getSessionUser, requireRole } from '@/lib/auth';
-import { requirePlatformAdmin } from '@/lib/platform-admin';
+import { getSessionUser } from '@/lib/auth';
 import { createLogger } from '@/lib/logger';
+import { assertAdmin, assertPlatformAdmin, isBackupAuthError } from '@/lib/backup-auth';
+import { createWriteStream, createReadStream, statSync } from 'node:fs';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { pipeline } from 'node:stream/promises';
+import { createZipStream } from '@/lib/zip-stream';
 
 const log = createLogger({ mod: 'admin.backup' });
+
+/** تبدیل خطای اکشن به پاسخِ ساختاریافته (پیام احراز هویت حفظ می‌شود، بقیه عمومی) */
+function actionError(err: unknown, fallback: string): { ok: false; error: string } {
+  const msg = err instanceof Error ? err.message : String(err);
+  return { ok: false, error: isBackupAuthError(err) ? msg : fallback };
+}
+
+// احراز هویتِ بدون redirect از `@/lib/backup-auth` وارد می‌شود (کد خطای تخصصی
+// BackupAuthError) تا پیام فارسیِ تمیز به کلاینت برسد، نه دیالوگِ مرموزِ
+// «An unexpected response» ناشی از redirect درون اکشن.
 
 // ═══ استخر اختصاصی پشتیبان/بازیابی (فاز ۳) ═══
 // پیش‌فرض: همان استخر مالک (`pool` از DATABASE_URL) تا رفتار امروز دست‌نخورده بماند.
@@ -233,38 +249,124 @@ async function dumpTable(table: string): Promise<string> {
   return sql + chunks.join('\n');
 }
 
-/** دامپ کل دیتابیس */
+/** دامپ کل دیتابیس + امضای امن (برای بازیابی از UI). */
+async function generateSignedDatabaseDump(): Promise<{ sql: string; tables: number }> {
+  const tables = await getUserTables();
+  const parts: string[] = [
+    '-- ═══ پشتیبان آفاق — ' + new Date().toISOString() + ' ═══',
+    '-- بازیابی: psql -U afagh -d afagh_db -f backup.sql',
+    '',
+  ];
+  for (const t of tables) {
+    const dump = await dumpTable(t);
+    if (dump) parts.push(dump);
+  }
+  // دامپ sanitize شده است (ردکشن رازها) — ثبت ممیزی، بدون اثر بر خروجی دانلود
+  await auditBackup(tables.length);
+  const body = parts.join('\n').replace(/\r?\n+$/, '');
+  const signature = signBackup(body);
+  return { sql: `${body}\n${BACKUP_SIGNATURE_MARKER}${signature}\n`, tables: tables.length };
+}
+
+/** دامپ کل دیتابیس (مسیر سنتی: پاسخ inline — برای سازگاری باقی ماند). */
 export async function backupDatabaseAction(): Promise<{ ok: boolean; sql?: string; error?: string; tables?: number }> {
-  await requirePlatformAdmin();
+  await assertPlatformAdmin();
   try {
-    const tables = await getUserTables();
-    const parts: string[] = [
-      '-- ═══ پشتیبان آفاق — ' + new Date().toISOString() + ' ═══',
-      '-- بازیابی: psql -U afagh -d afagh_db -f backup.sql',
-      '',
-    ];
-
-    for (const t of tables) {
-      const dump = await dumpTable(t);
-      if (dump) parts.push(dump);
-    }
-
-    // دامپ sanitize شده است (ردکشن رازها) — ثبت ممیزی، بدون اثر بر خروجی دانلود
-    await auditBackup(tables.length);
-
-    const body = parts.join('\n').replace(/\r?\n+$/, '');
-    const signature = signBackup(body);
-    return { ok: true, sql: `${body}\n${BACKUP_SIGNATURE_MARKER}${signature}\n`, tables: tables.length };
+    const { sql, tables } = await generateSignedDatabaseDump();
+    return { ok: true, sql, tables };
   } catch (err: any) {
-    log.error('database_backup_failed', { error: err instanceof Error ? err.message : String(err) });
-    return { ok: false, error: 'ساخت پشتیبان دیتابیس ناموفق بود.' };
+    log.error('database_backup_failed', { error: err instanceof Error ? err.message : String(err), auth: !!err?.auth });
+    return actionError(err, 'ساخت پشتیبان دیتابیس ناموفق بود.');
+  }
+}
+
+// ═══ بکاپ مستقیم از UI (جریانی، بدون پاسخ RSC حجیم) ═══
+// دامپ/زیپ ابتدا در MinIO (کلید afagh-backup/) ذخیره می‌شود و کلاینت سپس از
+// مسیر /api/admin/backup/download آن را به‌صورت جریانی دریافت می‌کند. این کار
+// پاسخِ حجیمِ سروراکشن (که لبهٔ Arvan قطع می‌کرد) را حذف می‌کند و احراز هویت نیز
+// پیام فارسیِ خوانا می‌دهد (نه دیالوگِ مرموز).
+
+const BACKUP_KEY_PREFIX = 'afagh-backup/';
+
+function backupKey(kind: 'db' | 'minio'): string {
+  const ts = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+  const rand = createHash('sha256').update(String(Math.random()) + ts + process.pid).digest('hex').slice(0, 16);
+  return `${BACKUP_KEY_PREFIX}${kind}-${ts}-${rand}.${kind === 'db' ? 'sql' : 'zip'}`;
+}
+
+/** حذف بکاپ‌های قدیمی (فراتر از keep) تا باکت پر نشود. */
+async function cleanupOldBackups(keep = 10): Promise<void> {
+  try {
+    const keys: string[] = [];
+    for await (const obj of S3.listObjectsV2(ARCHIVE_BUCKET, BACKUP_KEY_PREFIX, true)) {
+      if (obj.name) keys.push(obj.name);
+    }
+    keys.sort();
+    for (const old of keys.slice(0, Math.max(0, keys.length - keep))) {
+      await S3.removeObject(ARCHIVE_BUCKET, old).catch(() => {});
+    }
+  } catch { /* بکاپ‌پاکسازی نباید جلوی بکاپ جدید را بگیرد */ }
+}
+
+/** بکاپ دیتابیس → ذخیره در MinIO → بازگرداندن کلید دانلود. */
+export async function startDatabaseBackupAction(): Promise<{ ok: boolean; key?: string; size?: number; tables?: number; error?: string }> {
+  await assertPlatformAdmin();
+  try {
+    const { sql, tables } = await generateSignedDatabaseDump();
+    const key = backupKey('db');
+    const buf = Buffer.from(sql, 'utf8');
+    await S3.putObject(ARCHIVE_BUCKET, key, buf, buf.length, { 'Content-Type': 'text/plain; charset=utf-8' });
+    await cleanupOldBackups();
+    return { ok: true, key, size: buf.length, tables };
+  } catch (err: any) {
+    log.error('database_backup_start_failed', { error: err instanceof Error ? err.message : String(err), auth: !!err?.auth });
+    return actionError(err, 'ساخت پشتیبان دیتابیس ناموفق بود.');
+  }
+}
+
+/** بکاپ کل فایل‌های آرشیو (MinIO) → زیپ → ذخیره در MinIO → بازگرداندن کلید. */
+export async function startMinioBackupAction(): Promise<{ ok: boolean; key?: string; size?: number; objects?: number; error?: string }> {
+  await assertPlatformAdmin();
+  try {
+    await ensureBucket();
+    const objects: string[] = [];
+    for await (const obj of S3.listObjectsV2(ARCHIVE_BUCKET, '', true)) {
+      // خودِ بکاپ‌ها را وارد بکاپ نمی‌کنیم (جلوگیری از بازگشتی).
+      if (obj.name && !obj.name.startsWith(BACKUP_KEY_PREFIX)) objects.push(obj.name);
+    }
+    objects.sort();
+
+    const key = backupKey('minio');
+    const tmpDir = await mkdtemp(join(tmpdir(), 'afagh-bk-'));
+    const tmpFile = join(tmpDir, 'minio-backup.zip');
+    const writeStream = createWriteStream(tmpFile);
+
+    const entries: AsyncIterable<{ name: string; data: Buffer }> = (async function* () {
+      for (const name of objects) {
+        const chunks: Buffer[] = [];
+        const objStream = await S3.getObject(ARCHIVE_BUCKET, name);
+        for await (const c of objStream) chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c));
+        yield { name, data: Buffer.concat(chunks) };
+      }
+    })();
+
+    await pipeline(createZipStream(entries), writeStream);
+    const size = statSync(tmpFile).size;
+    // minio-js رشته را محتوای شیء می‌داند (نه مسیر فایل) ⇒ از stream فایل استفاده می‌کنیم.
+    await S3.putObject(ARCHIVE_BUCKET, key, createReadStream(tmpFile), size, { 'Content-Type': 'application/zip' });
+    await rm(tmpDir, { recursive: true, force: true }).catch(() => {});
+    await cleanupOldBackups();
+    return { ok: true, key, size, objects: objects.length };
+  } catch (err: any) {
+    log.error('minio_backup_start_failed', { error: err instanceof Error ? err.message : String(err), auth: !!err?.auth });
+    return actionError(err, 'ساخت بکاپ فایل‌ها ناموفق بود.');
   }
 }
 
 // ═══ پشتیبان MinIO ═══
 
 export async function listMinioObjectsAction(): Promise<{ ok: boolean; objects?: { key: string; size: number; lastModified: Date }[]; error?: string }> {
-  await requireRole(['ADMIN']);
+  await assertAdmin();
   try {
     await ensureBucket();
     const exists = await S3.bucketExists(ARCHIVE_BUCKET);
@@ -283,13 +385,13 @@ export async function listMinioObjectsAction(): Promise<{ ok: boolean; objects?:
     }
     return { ok: true, objects };
   } catch (err: any) {
-    log.error('minio_list_failed', { error: err instanceof Error ? err.message : String(err) });
-    return { ok: false, error: 'دریافت فهرست فایل‌ها ناموفق بود.' };
+    log.error('minio_list_failed', { error: err instanceof Error ? err.message : String(err), auth: !!err?.auth });
+    return actionError(err, 'دریافت فهرست فایل‌ها ناموفق بود.');
   }
 }
 
 export async function downloadMinioObjectAction(key: string): Promise<{ ok: boolean; data?: string; name?: string; error?: string }> {
-  await requirePlatformAdmin();
+  await assertPlatformAdmin();
   // اعتبارسنجی کلید: جلوگیری از traversal، جداکنندهٔ بک‌اسلش و کلیدهای خارج از bucket آرشیو.
   if (typeof key !== 'string' || key.length === 0 || key.length > 512 ||
       key.startsWith('/') || key.includes('..') || key.includes('\\') || key.includes('\u0000') ||
@@ -314,8 +416,8 @@ export async function downloadMinioObjectAction(key: string): Promise<{ ok: bool
     const name = key.split('/').pop() || key;
     return { ok: true, data: buf.toString('base64'), name };
   } catch (err: any) {
-    log.error('minio_download_failed', { error: err instanceof Error ? err.message : String(err) });
-    return { ok: false, error: 'دریافت فایل پشتیبان ناموفق بود.' };
+    log.error('minio_download_failed', { error: err instanceof Error ? err.message : String(err), auth: !!err?.auth });
+    return actionError(err, 'دریافت فایل پشتیبان ناموفق بود.');
   }
 }
 
@@ -361,7 +463,7 @@ async function restoreDataOnly(statements: string[], tables: string[]): Promise<
 }
 
 export async function restoreDatabaseAction(sql: string): Promise<{ ok: boolean; error?: string; statements?: number }> {
-  await requirePlatformAdmin();
+  await assertPlatformAdmin();
   try {
     // فقط دامپی که خود سرور با کلید محرمانه امضا کرده باشد قابل اجراست؛
     // فایل دلخواه SQL هرگز مستقیماً به استخر پشتیبان فرستاده نمی‌شود.
@@ -407,13 +509,16 @@ export async function restoreDatabaseAction(sql: string): Promise<{ ok: boolean;
       'فایل پشتیبان نامعتبر یا بزرگ‌تر از حد مجاز است.',
       'پشتیبان امضای معتبر ندارد؛ بازیابی فایل‌های قدیمی و امضانشده مجاز نیست.',
       'امضای پشتیبان معتبر نیست؛ هیچ دستوری اجرا نشد.',
+      'سشن منقضی شده است؛ لطفاً دوباره وارد شوید.',
+      'این عملیات نیازمند نقش ادمین است.',
+      'این عملیات فقط برای مدیر پلتفرم مجاز است.',
     ]);
     return { ok: false, error: safeErrors.has(message) ? message : 'بازیابی دیتابیس ناموفق بود.' };
   }
 }
 
 export async function restoreMinioObjectAction(key: string, dataBase64: string): Promise<{ ok: boolean; error?: string }> {
-  await requirePlatformAdmin();
+  await assertPlatformAdmin();
   try {
     // بازیابی فقط به کلیدهای تولیدشدهٔ اسناد آرشیو محدود است؛ از نوشتن در کلید
     // دلخواه یا مسیرهای دیگر bucket جلوگیری می‌شود.
@@ -435,15 +540,15 @@ export async function restoreMinioObjectAction(key: string, dataBase64: string):
     await S3.putObject(ARCHIVE_BUCKET, key, buf, buf.length, { 'Content-Type': contentType });
     return { ok: true };
   } catch (err: any) {
-    log.error('minio_restore_failed', { error: err instanceof Error ? err.message : String(err) });
-    return { ok: false, error: 'بازیابی فایل ناموفق بود.' };
+    log.error('minio_restore_failed', { error: err instanceof Error ? err.message : String(err), auth: !!err?.auth });
+    return actionError(err, 'بازیابی فایل ناموفق بود.');
   }
 }
 
 // ═══ آمار ═══
 
 export async function getBackupStatsAction(): Promise<{ ok: boolean; stats?: { tables: number; totalRows: number; dbSize: string; minioObjects: number; minioSize: string }; error?: string }> {
-  await requireRole(['ADMIN']);
+  await assertAdmin();
   try {
     const tables = await getUserTables();
     let totalRows = 0;
@@ -486,7 +591,7 @@ export async function getBackupStatsAction(): Promise<{ ok: boolean; stats?: { t
       },
     };
   } catch (err: any) {
-    log.error('backup_stats_failed', { error: err instanceof Error ? err.message : String(err) });
-    return { ok: false, error: 'دریافت آمار پشتیبان ناموفق بود.' };
+    log.error('backup_stats_failed', { error: err instanceof Error ? err.message : String(err), auth: !!err?.auth });
+    return actionError(err, 'دریافت آمار پشتیبان ناموفق بود.');
   }
 }
