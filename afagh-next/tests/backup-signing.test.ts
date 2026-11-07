@@ -17,7 +17,7 @@ import { Readable, Writable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { createGzip, createGunzip } from 'node:zlib';
 import {
-  backupSigningKey, SignedBodyWriter, verifySignedBackup,
+  backupSigningKey, backupSigningKeys, SignedBodyWriter, verifySignedBackup,
   BACKUP_SIGNATURE_MARKER,
   MISSING_SIGNING_KEY_ERROR, INVALID_BACKUP_SIZE_ERROR,
   MISSING_SIGNATURE_ERROR, BAD_SIGNATURE_ERROR,
@@ -65,6 +65,7 @@ ok(
 );
 ok(expectThrow(() => backupSigningKey({}), MISSING_SIGNING_KEY_ERROR), 'نبود هر دو راز ⇒ خطای مشخص');
 
+
 console.log('\n— امضای افزایشی و قالب فایل —');
 const bodyChunks = [
   '-- ═══ پشتیبان آفاق ═══\n',
@@ -85,6 +86,19 @@ ok(one.file.startsWith(rawBody), 'بدنۀ ذخیرهشده دقیقاً هما�
 ok(one.file.slice(0, rawBody.length) === rawBody, 'هیچ بایت اضافهای پیش از نشانگر نیست');
 ok(verifySignedBackup(one.file, explicit.key) === rawBody, 'تأیید امضا بدنۀ اصلی را برمیگرداند');
 ok(one.file.includes('زهرا') && one.file.includes('true'), 'محتوای فارسی/رشتههای escaped بایتبهبایت حفظ میشوند');
+
+console.log('\n— گردش کلید / سازگاری عقبرَو —');
+const both = backupSigningKeys({ AFAGH_BACKUP_SIGNING_KEY: 'K'.repeat(48), AFAGH_PII_KEY: 'P'.repeat(64) });
+ok(both.length === 2 && both[0].source === 'explicit' && both[1].source === 'derived', 'دو کلید معتبر، صریح مقدم است');
+ok(both[0].key.equals(explicit.key) && both[1].key.equals(derived.key), 'کلیدها دقیقاً همان صریح و مشتقاند');
+ok(backupSigningKeys({ AFAGH_BACKUP_SIGNING_KEY: 'K'.repeat(48) }).length === 1, 'فقط کلید صریح ⇒ یک کاندیدا');
+ok(expectThrow(() => backupSigningKeys({}), MISSING_SIGNING_KEY_ERROR), 'نبود هر دو راز ⇒ فهرست خالی ممنوع');
+const allKeys = both.map(c => c.key);
+ok(verifySignedBackup(one.file, allKeys) === rawBody, 'بکاپ امضاشده با کلید صریح با فهرست کلیدها تأیید میشود');
+const oldSigned = signed(bodyChunks, derived.key);
+ok(verifySignedBackup(oldSigned.file, allKeys) === rawBody, 'بکاپ قدیمی (کلید مشتق) پس از افزودن کلید صریح همچنان تأیید میشود');
+ok(expectThrow(() => verifySignedBackup(signed(bodyChunks, Buffer.from('Z'.repeat(32))).file, allKeys), BAD_SIGNATURE_ERROR), 'کلید سوم/ناشناخته همچنان رد میشود');
+ok(expectThrow(() => verifySignedBackup(one.file, []), MISSING_SIGNING_KEY_ERROR), 'فهرست خالی کلیدها ⇒ خطای مشخص');
 
 console.log('\n— رد کردن فایلهای مخرب —');
 ok(expectThrow(() => verifySignedBackup(one.file.replace('(1)', '(9)'), explicit.key), BAD_SIGNATURE_ERROR), 'دستکاری محتوا ⇒ امضا رد میشود');

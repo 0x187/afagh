@@ -40,7 +40,7 @@ function BackupRestorePanel({ flash }: { flash: (ok: boolean, text: string) => v
       if (includeSecrets) {
         const confirmed = await askConfirm({
           title: 'پشتیبان کامل شامل اسرار',
-          body: 'این فایل گذرواژهها، توکنها و کلیدهای درون دیتابیس را بدون پنهانسازی در خود دارد. فقط برای disaster recovery و در محل امن نگهداری شود. ادامه میدهید؟',
+          body: 'این فایل رازهای زندۀ دیتابیس (توکنها، OTPها، کلید درگاهها، PAN کارت) را بدون پنهانسازی در خود دارد؛ بکاپ پیشفرض آنها را [REDACTED] میکند. فقط برای disaster recovery و در محل امن نگهداری شود. ادامه میدهید؟',
           confirmText: 'بله، بکاپ کامل بگیر',
           danger: true,
         });
@@ -176,10 +176,19 @@ function BackupRestorePanel({ flash }: { flash: (ok: boolean, text: string) => v
           سپس:
           <code className="mx-1 text-xs bg-slate-100 px-1 rounded">gunzip -c backup.sql.gz | psql -U afagh -d afagh_db</code>
         </p>
-        <p className="text-xs text-amber-700 mb-4">
-          بهصورت پیشفرض گذرواژهها/توکنها/OTPها <strong>[REDACTED]</strong>اند؛ یعنی پس از
-          بازیابی باید رمزها reset شوند. برای بازیابی صددرصدی (شامل لاگین)، دکمۀ «کامل» را بزنید.
-          فایل حاوی اسرار را فقط در محل امن نگه دارید.
+        <p className="text-xs text-amber-700 mb-3">
+          <strong>هش رمزهای عبور حفظ میشود</strong> ⇒ پس از بازیابی، کاربران همان رمز قبلی را دارند.
+          فقط رازهای زنده (توکنها، OTPها، کلید درگاهها، شمارهٔ کارت) بهصورت پیشفرض{' '}
+          <strong>[REDACTED]</strong>اند. برای بازیابی صددرصدی آنها دکمۀ «کامل» را بزنید و فایل را
+          فقط در محل امن نگه دارید.
+        </p>
+        <p className="text-xs text-slate-600 mb-4 leading-6">
+          بازیابی روی دیتابیس <strong>تازه و خالی</strong> (نه سرور فعال):
+          <code className="mx-1 text-xs bg-slate-100 px-1 rounded" dir="ltr">
+            node scripts/restore-db-backup.mjs backup.sql.gz --yes
+          </code>
+          این اسکریپت نخست امضا را تأیید میکند، خالیبودن مقصد را چک مینماید و سپس{' '}
+          <code className="text-xs bg-slate-100 px-1 rounded">psql</code> را اجرا میکند.
         </p>
         <div className="flex flex-wrap gap-3">
           <button onClick={() => handleBackupDb(false)} disabled={busy} className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 disabled:opacity-50">

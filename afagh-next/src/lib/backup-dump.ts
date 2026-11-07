@@ -32,13 +32,18 @@ const ql = (s: string): string => "'" + String(s).replace(/'/g, "''") + "'";
 const OTP = { needs: ['eventCode'], sql: `"eventCode" ~* 'OTP'` };
 const SECRET_KEY = { needs: ['key'], sql: `"key" ~* 'SECRET|TOKEN|KEY|PASSWORD'` };
 
-/** همان قواعد `redactRow()` قدیمی، ترجمهشده به عبارت SQL. */
+/**
+ * همان قواعد `redactRow()` قدیمی، ترجمهشده به عبارت SQL.
+ *
+ * ⚠ `users.passwordHash` عمداً **ردکشن نمیشود**: هش رمز عبور دادهٔ هویتی خام
+ * نیست و بدون آن پس از Disaster Recovery هیچ کاربری نمیتواند وارد شود (تست سخت
+ * PGlite نشان داد بکاپ پیشفرض لاگین را میشکند). رازهای واقعاً قابل سوءاستفاده
+ * — توکنهای زنده، OTP، کلید درگاهها، PAN کارت — همچنان پاک میشوند؛ تفاوت بکاپ
+ * «کامل» با پیشفرض دقیقاً همین رازهاست، نه هش رمزها.
+ */
 const RULES: Record<string, Rule[]> = {
   system_settings: [
     { column: 'value', when: SECRET_KEY, replacement: ql(REDACTED) },
-  ],
-  users: [
-    { column: 'passwordHash', replacement: ql(REDACTED) },
   ],
   notification_deliveries: [
     { column: 'body', when: OTP, replacement: ql(REDACTED) },

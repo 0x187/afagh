@@ -1,6 +1,6 @@
 'use server';
 
-import { createHash } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { desc } from 'drizzle-orm';
 import { Pool, type PoolClient } from 'pg';
 import { pool, db } from '@/db';
@@ -19,7 +19,7 @@ import { pipeline } from 'node:stream/promises';
 import { createGzip } from 'node:zlib';
 import { createZipStream } from '@/lib/zip-stream';
 import {
-  backupSigningKey, SignedBodyWriter, verifySignedBackup,
+  backupSigningKey, backupSigningKeys, SignedBodyWriter, verifySignedBackup,
   MISSING_SIGNING_KEY_ERROR, INVALID_BACKUP_SIZE_ERROR,
   MISSING_SIGNATURE_ERROR, BAD_SIGNATURE_ERROR,
 } from '@/lib/backup-signing';
@@ -28,6 +28,7 @@ import {
   REQUIRED_ENV_KEYS, RESTORE_COMMAND, restoreGuide, type CatalogQuery,
 } from '@/lib/backup-schema';
 import { buildRowLiteralSql, insertHead } from '@/lib/backup-dump';
+import { getBackupJobStore, type DbBackupJob } from '@/lib/backup-job-store';
 
 const log = createLogger({ mod: 'admin.backup' });
 
@@ -80,8 +81,9 @@ function backupPool(): Pool {
 // قواعد ردکشن و ساخت لیترال ردیفها در `src/lib/backup-dump.ts` قرار دارند
 // (بدون `'use server'` ⇒ قابل تست مستقل).
 // کلید/نشانگر/تأیید امضا در `src/lib/backup-signing.ts` قرار دارد (بدون
-// `'use server'` ⇒ قابل تست مستقل). تنها وظیفهٔ اینجا: هشدار یکباره دربارهٔ
-// مشتقشدن کلید از AFAGH_PII_KEY وقتی متغیر اختصاصی تنظیم نشده است.
+// `'use server'` ⇒ قابل تست مستقل). امضا با کلید صریح انجام میشود، ولی تأیید
+// همۀ کلیدهای معتبر (صریح + مشتق قدیمی) را امتحان میکند ⇒ گردش کلید، بکاپهای
+// آرشیوشده را بیاعتبار نمیکند.
 let warnedDerivedSigningKey = false;
 
 function signingKey(): Buffer {
@@ -95,9 +97,9 @@ function signingKey(): Buffer {
   return key;
 }
 
-/** تأیید امضای فایل آپلودشده (همان قالب و پیامهای خطای قدیمی). */
+/** تأیید امضای فایل آپلودشده با همۀ کلیدهای معتبر (سازگار با بکاپهای قدیمی). */
 function verifyBackup(signedSql: string): string {
-  return verifySignedBackup(signedSql, signingKey());
+  return verifySignedBackup(signedSql, backupSigningKeys().map(c => c.key));
 }
 
 /** ثبت ممیزی ایجاد پشتیبان در زنجیرهٔ audit_logs — خطا هرگز دانلود را خراب نمی‌کند */
@@ -332,47 +334,28 @@ export async function startDatabaseBackupAction(): Promise<{ ok: boolean; key?: 
 }
 
 // ═══ اجرای پسزمینه (جلوگیری از تایماوت لبهٔ CDN) ═══
-// دامپ پروداکشن حدود ۱۴۰ ثانیه طول میکشد. نگهداشتنِ درخواست اکشن تا پایان،
+// دامپ پروداکشن حدود ۱۰۰–۱۴۰ ثانیه طول میکشد. نگهداشتنِ درخواست اکشن تا پایان،
 // لبهٔ CDN را به ۵۰۴ و دیالوگ مرموز «An unexpected response» میکشاند. اکشن
-// فقط یک jobId برمیگرداند و کار سنگین بهصورت Promise شناور در همان پروسس
-// ادامه مییابد؛ کلاینت هر ۲ ثانیه وضعیت را پول میکند و بعد دانلود را آغاز مینماید.
-// (تککانتینر است؛ با چند replica باید وضعیت به Redis/DB منتقل شود.)
+// فقط یک jobId برمیگرداند و کار سنگین بهصورت Promise شناور ادامه مییابد؛
+// کلاینت هر ۲ ثانیه وضعیت را پول میکند و بعد دانلود را آغاز مینماید.
+// وضعیت در Redis (با TTL) مشترک بین replicaهاست + کش محلی بهعنوان fallback
+// ⇒ پول روی هر کانتینری برود جواب میگیرد (lib/backup-job-store.ts).
 
-type DbBackupJob = {
-  id: string;
-  startedAt: number;
-  includeSecrets: boolean;
-  status: 'running' | 'done' | 'failed';
-  key?: string;
-  size?: number;
-  tables?: number;
-  error?: string;
-};
-
-const globalForJobs = globalThis as unknown as { dbBackupJobs?: Map<string, DbBackupJob> };
-const dbBackupJobs: Map<string, DbBackupJob> = globalForJobs.dbBackupJobs ?? (globalForJobs.dbBackupJobs = new Map());
-const JOB_TTL_MS = 15 * 60 * 1000;
-
-function pruneJobs(): void {
-  const now = Date.now();
-  for (const [id, j] of dbBackupJobs) {
-    if (now - j.startedAt > JOB_TTL_MS) dbBackupJobs.delete(id);
-  }
-}
-
-async function runDatabaseBackupJob(job: DbBackupJob): Promise<void> {
+async function runDatabaseBackupJob(id: string, startedAt: number, includeSecrets: boolean): Promise<void> {
   const t0 = Date.now();
+  const store = getBackupJobStore();
   try {
-    const r = await performDatabaseBackup(job.includeSecrets);
-    job.key = r.key;
-    job.size = r.size;
-    job.tables = r.tables;
-    job.status = 'done';
-    log.info('database_backup_job_done', { tables: r.tables, size: r.size, ms: Date.now() - t0 });
+    const r = await performDatabaseBackup(includeSecrets);
+    const job: DbBackupJob = {
+      id, startedAt, includeSecrets, status: 'done',
+      key: r.key, size: r.size, tables: r.tables,
+    };
+    await store.put(job);
+    log.info('database_backup_job_done', { tables: r.tables, size: r.size, ms: Date.now() - t0, store: store.source() });
   } catch (err: any) {
-    job.status = 'failed';
-    job.error = err instanceof Error ? err.message : String(err);
-    log.error('database_backup_job_failed', { error: job.error, ms: Date.now() - t0 });
+    const error = err instanceof Error ? err.message : String(err);
+    await store.put({ id, startedAt, includeSecrets, status: 'failed', error });
+    log.error('database_backup_job_failed', { error, ms: Date.now() - t0 });
   }
 }
 
@@ -382,13 +365,13 @@ export async function startDatabaseBackupJobAction(includeSecrets = false): Prom
     await assertPlatformAdmin();
     // ورودی سروراکشن غیرقابلاعتماد است: فقط true بولی دقیقاً حالت «کامل» را فعال میکند.
     const full = includeSecrets === true;
-    pruneJobs();
-    const id = createHash('sha256').update(String(Math.random()) + Date.now() + process.pid).digest('hex').slice(0, 32);
-    const job: DbBackupJob = { id, startedAt: Date.now(), includeSecrets: full, status: 'running' };
-    dbBackupJobs.set(id, job);
-    void runDatabaseBackupJob(job).catch((e) => {
-      job.status = 'failed';
-      job.error = e instanceof Error ? e.message : String(e);
+    const store = getBackupJobStore();
+    store.prune();
+    const id = randomBytes(16).toString('hex');
+    const startedAt = Date.now();
+    await store.put({ id, startedAt, includeSecrets: full, status: 'running' });
+    void runDatabaseBackupJob(id, startedAt, full).catch((e) => {
+      log.error('database_backup_job_unhandled', { error: e instanceof Error ? e.message : String(e) });
     });
     return { ok: true, jobId: id };
   } catch (err: any) {
@@ -396,14 +379,14 @@ export async function startDatabaseBackupJobAction(includeSecrets = false): Prom
   }
 }
 
-/** پولینگ وضعیت کار — فقط همان ادمین پلتفرم که کار را ساخته اجازهٔ دیدن دارد. */
+/** پولینگ وضعیت کار — فقط ادمین پلتفرم، و فقط شناسهٔ ۳۲ هکزی معتبر. */
 export async function getDatabaseBackupJobAction(jobId: string): Promise<{ ok: boolean; status?: 'running' | 'done' | 'failed'; key?: string; size?: number; tables?: number; error?: string }> {
   try {
     await assertPlatformAdmin();
     if (typeof jobId !== 'string' || !/^[a-f0-9]{32}$/.test(jobId)) {
       return { ok: false, error: 'شناسهٔ کار نامعتبر است.' };
     }
-    const job = dbBackupJobs.get(jobId);
+    const job = await getBackupJobStore().get(jobId);
     if (!job) return { ok: false, error: 'کار پشتیبانگیری یافت نشد یا منقضی شده است؛ دوباره تلاش کنید.' };
     return { ok: true, status: job.status, key: job.key, size: job.size, tables: job.tables, error: job.error };
   } catch (err: any) {

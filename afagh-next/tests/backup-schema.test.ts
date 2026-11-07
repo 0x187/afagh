@@ -149,6 +149,15 @@ async function main(): Promise<void> {
   const fullRows = await src.query(`SELECT ${fullExpr} AS lit FROM public.system_settings`);
   ok((fullRows.rows as any[]).some(r => String(r.lit).includes('بسیار-محرمانه')), 'حالت includeSecrets ردکشن نمیکند');
 
+  // لاگین پس از DR: هش رمز عبور نباید [REDACTED] شود، ولی رازهای زنده باید.
+  const usersLit = buildRowLiteralSql('public', 'users', ['id', 'passwordHash', 'fullName'], true);
+  ok(usersLit.includes('quote_nullable("passwordHash"::text)') && !usersLit.includes('[REDACTED]'),
+    'users.passwordHash در بکاپ پیشفرض حفظ میشود ⇒ لاگین پس از بازیابی');
+  ok(usersLit.includes('quote_nullable("fullName"::text)'), 'سایر ستونهای users عادی میمانند');
+  const otpLit = buildRowLiteralSql('public', 'verification_otps', ['otpCode', 'otpHash'], true);
+  ok(otpLit.includes('[REDACTED]') && !otpLit.includes('quote_nullable("otpCode"::text)'),
+    'رازهای زنده (OTP) همچنان ردکشن میشوند');
+
   // ── restore روی دیتابیس کاملاً خالی ──
   const dst = new PGlite();
   await dst.waitReady;

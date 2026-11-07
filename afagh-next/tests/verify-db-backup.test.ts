@@ -19,8 +19,7 @@ const PII = 't'.repeat(64);
 const script = join(process.cwd(), 'scripts/verify-db-backup.mjs');
 const dir = mkdtempSync(join(tmpdir(), 'afagh-verify-'));
 
-function signedFile(): Buffer {
-  const { key } = backupSigningKey({ AFAGH_PII_KEY: PII });
+function signedFile(key = backupSigningKey({ AFAGH_PII_KEY: PII }).key): Buffer {
   const w = new SignedBodyWriter(key);
   const parts: Buffer[] = [];
   // چند تکه، شامل متن فارسی و بکاسلش — امزا نباید به تقسیمبندی وابسته باشد.
@@ -78,6 +77,25 @@ try {
 
   const noKey = run(gz, { AFAGH_PII_KEY: '' });
   ok(noKey.status === 3 && noKey.stderr?.includes('هیچ کلید'), 'نبود کلید امضا خطای مشخص میدهد');
+
+  // ── گردش کلید: بکاپ قدیمی (مشتق) بعد از افزودن کلید صریح همچنان معتبر است ──
+  const EXPLICIT = 'E'.repeat(48);
+  const explicitKey = backupSigningKey({ AFAGH_BACKUP_SIGNING_KEY: EXPLICIT }).key;
+  const withBoth = (file: string) => run(file, { AFAGH_BACKUP_SIGNING_KEY: EXPLICIT });
+
+  const oldWithBoth = withBoth(gz);
+  ok(oldWithBoth.status === 0 && oldWithBoth.stdout.includes('SIGNATURE_MATCH=true') &&
+     oldWithBoth.stdout.includes('KEY_SOURCE=derived-from-AFAGH_PII_KEY'),
+  'بکاپ قدیمی با هر دو کلید موجود تأیید شد (سازگاری عقبرَو)');
+
+  const explicitGz = join(dir, 'explicit.sql.gz');
+  writeFileSync(explicitGz, gzipSync(signedFile(explicitKey)));
+  const newWithBoth = withBoth(explicitGz);
+  ok(newWithBoth.status === 0 && newWithBoth.stdout.includes('KEY_SOURCE=explicit'),
+    'بکاپ جدید با کلید صریح امضا و تأیید شد');
+  const newWithoutExplicit = run(explicitGz, { AFAGH_BACKUP_SIGNING_KEY: '' });
+  ok(newWithoutExplicit.status !== 0 && newWithoutExplicit.stdout.includes('KEY_SOURCE=none'),
+    'بکاپ جدید بدون کلید صریح رد میشود (هیچ جایگزین پنهانی نیست)');
 } finally {
   rmSync(dir, { recursive: true, force: true });
 }

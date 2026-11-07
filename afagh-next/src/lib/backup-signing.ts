@@ -38,19 +38,35 @@ export type SigningKeySource = 'explicit' | 'derived';
  * همیشه throw میکرد). مشتقگیری با HMAC + جداسازی دامنه، وابستگی به ویرایش
  * دستی `.env` سرور را حذف میکند و در عین حال کلید خام PII را افشا نمیکند.
  */
-export function backupSigningKey(env: Record<string, string | undefined> = process.env): { key: Buffer; source: SigningKeySource } {
+export type SigningCandidate = { key: Buffer; source: SigningKeySource };
+
+/**
+ * همۀ کلیدهای معتبر محیط فعلی، بهترتیب اولویت.
+ *
+ * چرا بیش از یکی؟ تا وقتی `AFAGH_BACKUP_SIGNING_KEY` صریح روی سرور ست میشود،
+ * بکاپهای قدیمیِ امضاشده با کلید مشتقازPII همچنان قابل تأیید بمانند (گردش کلید
+ * نباید آرشیو بکاپها را بیاعتبار کند). `backupSigningKey()` فقط اولی را میدهد
+ * ⇒ همیشه با قویترین/جدیدترین کلید امضا میکنیم.
+ */
+export function backupSigningKeys(env: Record<string, string | undefined> = process.env): SigningCandidate[] {
+  const out: SigningCandidate[] = [];
   const explicit = env.AFAGH_BACKUP_SIGNING_KEY?.trim() ?? '';
   if (explicit.length >= 32 && !explicit.startsWith('CHANGE_ME_')) {
-    return { key: Buffer.from(explicit, 'utf8'), source: 'explicit' };
+    out.push({ key: Buffer.from(explicit, 'utf8'), source: 'explicit' });
   }
   const pii = env.AFAGH_PII_KEY?.trim() ?? '';
   if (pii.length >= 32) {
-    return {
-      key: createHmac('sha256', Buffer.from(pii, 'utf8')).update(BACKUP_SIGNING_DOMAIN).digest(),
-      source: 'derived',
-    };
+    const derived = createHmac('sha256', Buffer.from(pii, 'utf8')).update(BACKUP_SIGNING_DOMAIN).digest();
+    // اگر دو متغیر تصادفاً یک مقدار دادند، کلید تکراری وارد فهرست نشود.
+    if (!out.some(c => c.key.equals(derived))) out.push({ key: derived, source: 'derived' });
   }
-  throw new Error(MISSING_SIGNING_KEY_ERROR);
+  if (!out.length) throw new Error(MISSING_SIGNING_KEY_ERROR);
+  return out;
+}
+
+/** کلید اصلی امضا (صریح مقدم است). */
+export function backupSigningKey(env: Record<string, string | undefined> = process.env): SigningCandidate {
+  return backupSigningKeys(env)[0];
 }
 
 /** نویسندة افزایشی بدنة امضاشده. هیچ رشتۀ بزرگی در حافظه نگه نمیدارد. */
@@ -85,10 +101,14 @@ export class SignedBodyWriter {
   }
 }
 
-/** تأیید امضا و بازگرداندن بدنة بدون امضا (همان رفتار restore قدیمی). */
+/**
+ * تأیید امضا و بازگرداندن بدنة بدون امضا (همان رفتار restore قدیمی).
+ * `keys` میتواند یک کلید یا فهرست کلیدهای مجاز باشد؛ هرکدام match کرد پذیرفته
+ * میشود ⇒ سازگاری عقبرَو با بکاپهای پیش از گردش کلید حفظ میگردد.
+ */
 export function verifySignedBackup(
   signedSql: string,
-  key: Buffer,
+  keys: Buffer | readonly Buffer[],
   maxBytes = 50 * 1024 * 1024,
 ): string {
   if (typeof signedSql !== 'string' || Buffer.byteLength(signedSql, 'utf8') > maxBytes) {
@@ -98,9 +118,10 @@ export function verifySignedBackup(
   if (!match) throw new Error(MISSING_SIGNATURE_ERROR);
   const body = signedSql.slice(0, match.index);
   const supplied = Buffer.from(match[1], 'hex');
-  const expected = Buffer.from(createHmac('sha256', key).update(body, 'utf8').digest('hex'), 'hex');
-  if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) {
-    throw new Error(BAD_SIGNATURE_ERROR);
-  }
+  const candidates: readonly Buffer[] = Buffer.isBuffer(keys) ? [keys] : keys;
+  if (!candidates.length) throw new Error(MISSING_SIGNING_KEY_ERROR);
+  const expected = candidates.map(key => createHmac('sha256', key).update(body, 'utf8').digest());
+  const matched = expected.some(e => supplied.length === e.length && timingSafeEqual(supplied, e));
+  if (!matched) throw new Error(BAD_SIGNATURE_ERROR);
   return body;
 }

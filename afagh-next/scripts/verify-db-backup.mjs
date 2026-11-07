@@ -12,6 +12,8 @@
  *
  * کلید: AFAGH_BACKUP_SIGNING_KEY، وگرنه HMAC-SHA256(AFAGH_PII_KEY,
  * "afagh/backup/signature/v1") — همان منطق `src/lib/backup-signing.ts`.
+ * اگر هر دو موجود باشند، هر دو کلید بهصورت همزمان آزمایش میشوند تا بکاپهای
+ * قدیمی (پیش از تنظیم کلید صریح) همچنان قابل تأیید بمانند.
  */
 import { createReadStream } from 'node:fs';
 import { createGunzip } from 'node:zlib';
@@ -26,31 +28,37 @@ if (!path) {
   process.exit(2);
 }
 
-function signingKey() {
+function signingKeys() {
+  const out = [];
   const explicit = (process.env.AFAGH_BACKUP_SIGNING_KEY ?? '').trim();
   if (explicit.length >= 32 && !explicit.startsWith('CHANGE_ME_')) {
-    return { key: Buffer.from(explicit, 'utf8'), source: 'explicit' };
+    out.push({ key: Buffer.from(explicit, 'utf8'), source: 'explicit' });
   }
   const pii = (process.env.AFAGH_PII_KEY ?? '').trim();
   if (pii.length >= 32) {
-    return {
-      key: createHmac('sha256', Buffer.from(pii, 'utf8')).update(DOMAIN).digest(),
-      source: 'derived-from-AFAGH_PII_KEY',
-    };
+    const derived = createHmac('sha256', Buffer.from(pii, 'utf8')).update(DOMAIN).digest();
+    if (!out.some(c => c.key.equals(derived))) {
+      out.push({ key: derived, source: 'derived-from-AFAGH_PII_KEY' });
+    }
   }
-  throw new Error('هیچ کلید امضایی یافت نشد: AFAGH_BACKUP_SIGNING_KEY یا AFAGH_PII_KEY را تنظیم کنید.');
+  if (!out.length) {
+    throw new Error('هیچ کلید امضایی یافت نشد: AFAGH_BACKUP_SIGNING_KEY یا AFAGH_PII_KEY را تنظیم کنید.');
+  }
+  return out;
 }
 
-let key, keySource;
+let candidates;
 try {
-  ({ key, source: keySource } = signingKey());
+  candidates = signingKeys();
 } catch (e) {
   console.error('SIGNATURE_MATCH=false');
   console.error('ERROR=' + e.message);
   process.exit(3);
 }
 
-const hmac = createHmac('sha256', key);
+// بهازای هر کلید یک HMAC جداگانه نگه میداریم؛ هر قطعه فقط یکبار خوانده میشود.
+const hmacs = candidates.map(c => createHmac('sha256', c.key));
+const feedHmacs = (buf) => { for (const h of hmacs) h.update(buf); };
 let tail = Buffer.alloc(0);          // بایتهایی که هنوز HMAC نشدهاند
 let sqlBytes = 0;                    // اندازة بدنة SQL (بدون خط امضا)
 let found = null;                    // هگز امضای یافتشده
@@ -72,7 +80,7 @@ try {
     const match = MARKER.exec(text);
     if (match) {
       const bodyBytes = Buffer.byteLength(text.slice(0, match.index), 'utf8');
-      hmac.update(combined.subarray(0, bodyBytes));
+      feedHmacs(combined.subarray(0, bodyBytes));
       sqlBytes += bodyBytes;
       found = match[1];
       tail = Buffer.alloc(0);
@@ -81,7 +89,7 @@ try {
     // فقط KEEP بایت آخر را نگه میداریم؛ بقیه وارد HMAC میشوند.
     if (combined.length > KEEP) {
       const cut = combined.length - KEEP;
-      hmac.update(combined.subarray(0, cut));
+      feedHmacs(combined.subarray(0, cut));
       sqlBytes += cut;
       tail = Buffer.from(combined.subarray(cut));
     } else {
@@ -93,7 +101,7 @@ try {
     const m = MARKER.exec(tail.toString('utf8'));
     if (m) {
       const bodyBytes = Buffer.byteLength(tail.toString('utf8').slice(0, m.index), 'utf8');
-      hmac.update(tail.subarray(0, bodyBytes));
+      feedHmacs(tail.subarray(0, bodyBytes));
       sqlBytes += bodyBytes;
       found = m[1];
     }
@@ -110,9 +118,11 @@ if (!found) {
   process.exit(5);
 }
 
-const expected = hmac.digest();
 const supplied = Buffer.from(found, 'hex');
-const ok = supplied.length === expected.length && timingSafeEqual(supplied, expected);
+const digests = hmacs.map(h => h.digest());
+const matchedIndex = digests.findIndex(d => supplied.length === d.length && timingSafeEqual(supplied, d));
+const ok = matchedIndex >= 0;
+const keySource = ok ? candidates[matchedIndex].source : 'none';
 
 console.log(`KEY_SOURCE=${keySource}`);
 console.log(`SQL_BYTES=${sqlBytes}`);
