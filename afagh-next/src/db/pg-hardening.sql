@@ -986,3 +986,13 @@ DROP POLICY IF EXISTS saved_reports_write ON "saved_reports";
 CREATE POLICY saved_reports_write ON "saved_reports" FOR ALL TO afagh_app
   USING ("ownerUserId" = nullif(current_setting('app.user_id', true), '')::int)
   WITH CHECK ("ownerUserId" = nullif(current_setting('app.user_id', true), '')::int);
+
+-- ── ارزیابی جامع دکتری (comprehensive_exams، مهاجرت 0135) ──
+-- دادهٔ شخصیِ دانشجو (studentId + نمره/نتیجه). الگوی مشترک جداول دانشجویی:
+-- دانشجو فقط ردیفِ خودش را می‌بیند (از طریق students.userId)؛ دسترسی اداری/نوشتن
+-- از مسیر نقش مالک (BYPASSRLS) انجام می‌شود — همانند transcript_snapshots.
+ALTER TABLE "comprehensive_exams" ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS comprehensive_exams_self_read ON "comprehensive_exams";
+CREATE POLICY comprehensive_exams_self_read ON "comprehensive_exams" FOR SELECT TO afagh_app
+  USING ("studentId" IN (SELECT "id" FROM "students"
+    WHERE "userId" = nullif(current_setting('app.user_id', true), '')::int));
