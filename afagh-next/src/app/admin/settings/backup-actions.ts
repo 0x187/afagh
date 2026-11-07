@@ -270,8 +270,8 @@ async function generateSignedDatabaseDump(): Promise<{ sql: string; tables: numb
 
 /** دامپ کل دیتابیس (مسیر سنتی: پاسخ inline — برای سازگاری باقی ماند). */
 export async function backupDatabaseAction(): Promise<{ ok: boolean; sql?: string; error?: string; tables?: number }> {
-  await assertPlatformAdmin();
   try {
+    await assertPlatformAdmin();
     const { sql, tables } = await generateSignedDatabaseDump();
     return { ok: true, sql, tables };
   } catch (err: any) {
@@ -310,8 +310,8 @@ async function cleanupOldBackups(keep = 10): Promise<void> {
 
 /** بکاپ دیتابیس → ذخیره در MinIO → بازگرداندن کلید دانلود. */
 export async function startDatabaseBackupAction(): Promise<{ ok: boolean; key?: string; size?: number; tables?: number; error?: string }> {
-  await assertPlatformAdmin();
   try {
+    await assertPlatformAdmin();
     const { sql, tables } = await generateSignedDatabaseDump();
     const key = backupKey('db');
     const buf = Buffer.from(sql, 'utf8');
@@ -326,8 +326,8 @@ export async function startDatabaseBackupAction(): Promise<{ ok: boolean; key?: 
 
 /** بکاپ کل فایل‌های آرشیو (MinIO) → زیپ → ذخیره در MinIO → بازگرداندن کلید. */
 export async function startMinioBackupAction(): Promise<{ ok: boolean; key?: string; size?: number; objects?: number; error?: string }> {
-  await assertPlatformAdmin();
   try {
+    await assertPlatformAdmin();
     await ensureBucket();
     const objects: string[] = [];
     for await (const obj of S3.listObjectsV2(ARCHIVE_BUCKET, '', true)) {
@@ -366,8 +366,8 @@ export async function startMinioBackupAction(): Promise<{ ok: boolean; key?: str
 // ═══ پشتیبان MinIO ═══
 
 export async function listMinioObjectsAction(): Promise<{ ok: boolean; objects?: { key: string; size: number; lastModified: Date }[]; error?: string }> {
-  await assertAdmin();
   try {
+    await assertAdmin();
     await ensureBucket();
     const exists = await S3.bucketExists(ARCHIVE_BUCKET);
     if (!exists) return { ok: true, objects: [] };
@@ -391,7 +391,6 @@ export async function listMinioObjectsAction(): Promise<{ ok: boolean; objects?:
 }
 
 export async function downloadMinioObjectAction(key: string): Promise<{ ok: boolean; data?: string; name?: string; error?: string }> {
-  await assertPlatformAdmin();
   // اعتبارسنجی کلید: جلوگیری از traversal، جداکنندهٔ بک‌اسلش و کلیدهای خارج از bucket آرشیو.
   if (typeof key !== 'string' || key.length === 0 || key.length > 512 ||
       key.startsWith('/') || key.includes('..') || key.includes('\\') || key.includes('\u0000') ||
@@ -399,6 +398,7 @@ export async function downloadMinioObjectAction(key: string): Promise<{ ok: bool
     return { ok: false, error: 'کلید فایل برای دریافت مجاز نیست.' };
   }
   try {
+    await assertPlatformAdmin();
     const stream = await S3.getObject(ARCHIVE_BUCKET, key);
     const chunks: Buffer[] = [];
     let total = 0;
@@ -463,8 +463,8 @@ async function restoreDataOnly(statements: string[], tables: string[]): Promise<
 }
 
 export async function restoreDatabaseAction(sql: string): Promise<{ ok: boolean; error?: string; statements?: number }> {
-  await assertPlatformAdmin();
   try {
+    await assertPlatformAdmin();
     // فقط دامپی که خود سرور با کلید محرمانه امضا کرده باشد قابل اجراست؛
     // فایل دلخواه SQL هرگز مستقیماً به استخر پشتیبان فرستاده نمی‌شود.
     const verifiedSql = verifyBackup(sql);
@@ -518,8 +518,8 @@ export async function restoreDatabaseAction(sql: string): Promise<{ ok: boolean;
 }
 
 export async function restoreMinioObjectAction(key: string, dataBase64: string): Promise<{ ok: boolean; error?: string }> {
-  await assertPlatformAdmin();
   try {
+    await assertPlatformAdmin();
     // بازیابی فقط به کلیدهای تولیدشدهٔ اسناد آرشیو محدود است؛ از نوشتن در کلید
     // دلخواه یا مسیرهای دیگر bucket جلوگیری می‌شود.
     if (!/^archive\/[1-9]\d{0,9}\/[1-9]\d{0,9}-\d{10,13}-[a-f0-9]{16}\.(?:pdf|png|jpe?g|webp|gif|bmp)$/i.test(key)) {
@@ -548,8 +548,8 @@ export async function restoreMinioObjectAction(key: string, dataBase64: string):
 // ═══ آمار ═══
 
 export async function getBackupStatsAction(): Promise<{ ok: boolean; stats?: { tables: number; totalRows: number; dbSize: string; minioObjects: number; minioSize: string }; error?: string }> {
-  await assertAdmin();
   try {
+    await assertAdmin();
     const tables = await getUserTables();
     let totalRows = 0;
     for (const t of tables) {
