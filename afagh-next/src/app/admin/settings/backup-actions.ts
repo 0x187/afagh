@@ -23,6 +23,11 @@ import {
   MISSING_SIGNING_KEY_ERROR, INVALID_BACKUP_SIZE_ERROR,
   MISSING_SIGNATURE_ERROR, BAD_SIGNATURE_ERROR,
 } from '@/lib/backup-signing';
+import {
+  buildSchemaDump, BACKUP_FORMAT, DR_MODE_MARKER, EXCLUDED_SCHEMAS,
+  REQUIRED_ENV_KEYS, RESTORE_COMMAND, restoreGuide, type CatalogQuery,
+} from '@/lib/backup-schema';
+import { buildRowLiteralSql, insertHead } from '@/lib/backup-dump';
 
 const log = createLogger({ mod: 'admin.backup' });
 
@@ -72,13 +77,8 @@ function backupPool(): Pool {
   return globalForBackup.backupPool;
 }
 
-const REDACTED = '[REDACTED]';
-/** جایگزین امن برای ستون‌های jsonb (رشتهٔ [REDACTED] در jsonb نامعتبر است و restore را می‌شکند) */
-const REDACTED_JSON = '{"redacted":true}';
-/** کلیدهای محرمانهٔ system_settings که مقدارشان هرگز در دامپ نمی‌آید */
-const SECRET_SETTING_RE = /SECRET|TOKEN|KEY|PASSWORD/i;
-/** رویدادهای حامل OTP — متن تحویل آن‌ها sanitize می‌شود */
-const OTP_EVENT_RE = /OTP/i;
+// قواعد ردکشن و ساخت لیترال ردیفها در `src/lib/backup-dump.ts` قرار دارند
+// (بدون `'use server'` ⇒ قابل تست مستقل).
 // کلید/نشانگر/تأیید امضا در `src/lib/backup-signing.ts` قرار دارد (بدون
 // `'use server'` ⇒ قابل تست مستقل). تنها وظیفهٔ اینجا: هشدار یکباره دربارهٔ
 // مشتقشدن کلید از AFAGH_PII_KEY وقتی متغیر اختصاصی تنظیم نشده است.
@@ -100,77 +100,8 @@ function verifyBackup(signedSql: string): string {
   return verifySignedBackup(signedSql, signingKey());
 }
 
-/**
- * حذف مقادیر محرمانه از یک ردیف پیش از دامپ (درجا روی کپی ردیف).
- *
- * قاعده: هر ستونی که «محرمانه» است حذف می‌شود، حتی اگر امروز فقط هش/نام مستعار
- * باشد — چون ردیف‌های قدیمی هنوز مقدار خام دارند و دامپ باید مستقل از سنِ
- * ردیف امن باشد. ستون غایب بی‌اثر رد می‌شود (guard با `in`).
- */
-function redactRow(table: string, row: Record<string, any>): void {
-  if (table === 'system_settings' && SECRET_SETTING_RE.test(String(row.key ?? ''))) {
-    row.value = REDACTED;
-  } else if (table === 'users') {
-    if ('passwordHash' in row) row.passwordHash = REDACTED;
-  } else if (table === 'notification_deliveries' && OTP_EVENT_RE.test(String(row.eventCode ?? ''))) {
-    row.body = REDACTED;
-  } else if (table === 'notifications' && OTP_EVENT_RE.test(String(row.eventCode ?? ''))) {
-    row.payload = REDACTED;
-  } else if (table === 'verification_otps') {
-    if ('otpCode' in row) row.otpCode = REDACTED;
-    if ('otpHash' in row) row.otpHash = REDACTED;
-  } else if (table === 'instructor_deliveries') {
-    // توکن برداشت اوراق توسط استاد — bearer واقعی؛ حتی پس از هش‌شدن، ردیف قدیمی
-    // مقدار خام دارد و نباید هرگز وارد فایل پشتیبان شود.
-    if ('pickupToken' in row) row.pickupToken = REDACTED;
-  } else if (table === 'student_cards') {
-    // توکن امنیتی کارت دانشجویی — گیت حراست (/id/[token]) را باز می‌کند؛
-    // دامپ نباید آن را به کسی بدهد که فقط دسترسی خواندن پشتیبان دارد.
-    if ('secureToken' in row) row.secureToken = REDACTED;
-  } else if (table === 'integrations_config') {
-    // کلیدها و توکن‌های سرویس‌های ثالث (API key/secret) به‌صورت JSON خام
-    // ذخیره می‌شوند → کل ستون حذف می‌شود، نه فقط چند کلید مشخص.
-    if ('authCredentials' in row) row.authCredentials = REDACTED;
-  } else if (table === 'api_audit_logs') {
-    // بدنهٔ خام درخواست به سرویس‌های ثالث می‌رود و می‌تواند کد ملی/شمارهٔ تماس و
-    // سایر PII خام را حمل کند → کل ستون حذف می‌شود.
-    if ('requestPayload' in row) row.requestPayload = REDACTED;
-  } else if (table === 'grade_submission_otps' || table === 'signature_otps' || table === 'doc_sign_otps') {
-    // هش OTP امضای نمره/سند/قرارداد — حتی هش‌شده هم نباید در فایل پشتیبان باشد.
-    if ('otpHash' in row) row.otpHash = REDACTED;
-  } else if (table === 'document_signatures') {
-    // OTP خامی که امضای سند با آن انجام شده (varchar(10)) — کاملاً محرمانه.
-    if ('otpUsed' in row) row.otpUsed = REDACTED;
-  } else if (table === 'messenger_link_tokens') {
-    // هش توکن/کد پیوند پیام‌رسان + chatId معلق؛ مبنای احراز هویت در بات هستند.
-    if ('tokenHash' in row) row.tokenHash = REDACTED;
-    if ('codeHash' in row) row.codeHash = REDACTED;
-    if ('pendingChatId' in row) row.pendingChatId = REDACTED;
-  } else if (table === 'samin_connections') {
-    // اعتبارنامهٔ ثمین به‌صورت رمزنگاری‌شده (AES-GCM) ذخیره می‌شود؛ کلید رمزگشایی
-    // بیرون از دامپ است، اما ciphertext هم نباید در پشتیبان پخش شود.
-    if ('clientSecretEnc' in row) row.clientSecretEnc = REDACTED;
-    if ('passwordEnc' in row) row.passwordEnc = REDACTED;
-    if ('tokenEnc' in row) row.tokenEnc = REDACTED;
-  } else if (table === 'payment_gateways') {
-    // config (jsonb) شامل merchantId/terminalId/apiKey/pin است → جایگزین JSON-معتبر.
-    if ('config' in row) row.config = REDACTED_JSON;
-  } else if (table === 'pos_terminals') {
-    // config (jsonb) شامل اطلاعات شبکهٔ کارت‌خوان (ip/port/serial) است.
-    if ('config' in row) row.config = REDACTED_JSON;
-  } else if (table === 'payment_transactions') {
-    // authority در ایندکس یکتا (uq_payment_txn_authority) است؛ برای حفظ قابلیت
-    // restore مقدار یکتای هر ردیف می‌گذاریم، نه ثابت (وگرنه درج تکراری می‌شود).
-    if ('authority' in row) row.authority = `${REDACTED}#${row.id ?? ''}`;
-    if ('bankRefId' in row) row.bankRefId = REDACTED;
-    if ('cardPan' in row) row.cardPan = REDACTED;
-    if ('payerMobile' in row) row.payerMobile = REDACTED;
-    if ('payerEmail' in row) row.payerEmail = REDACTED;
-  }
-}
-
 /** ثبت ممیزی ایجاد پشتیبان در زنجیرهٔ audit_logs — خطا هرگز دانلود را خراب نمی‌کند */
-async function auditBackup(tables: number): Promise<void> {
+async function auditBackup(tables: number, includeSecrets = false): Promise<void> {
   try {
     const user = await getSessionUser().catch(() => null);
     const [last] = await db.select({ hash: audit_logs.hash }).from(audit_logs).orderBy(desc(audit_logs.id)).limit(1);
@@ -179,7 +110,7 @@ async function auditBackup(tables: number): Promise<void> {
     const action = 'BACKUP_CREATED';
     await db.insert(audit_logs).values({
       actorUserId: user?.id ?? null, action, entityType: 'database', entityId: null,
-      details: JSON.stringify({ tables, redacted: true }), prevHash,
+      details: JSON.stringify({ tables, redacted: !includeSecrets, format: BACKUP_FORMAT }), prevHash,
       hash: createHash('sha256').update(prevHash + '|' + action + '|' + now.toISOString()).digest('hex'),
     });
   } catch { /* ممیزی نباید جلوی پشتیبان را بگیرد */ }
@@ -196,33 +127,29 @@ async function getUserTables(): Promise<string[]> {
   return res.rows.map(r => r.tablename);
 }
 
-// ═══ دامپ جریانی (بدون رشتۀ غولپیکر) ═══
-// دیتابیس پروداکشن ~۱ گیگابایت است. نسخۀ پیشین `SELECT *` تمام ردیفها را در
-// آرایه و سپس کل SQL را در یک رشتۀ JS میریخت ⇒ «Invalid string length».
-// اینجا یک تراکنش REPEATABLE READ READ ONLY اسنپ‌شاتی سازگار میگیرد، هر جدول
-// با CURSOR سمت سرور دستهدسته FETCH میشود و بایتها بلافاصله به فایل/فشردهساز
-// میروند؛ امضا نیز افزایشی روی همان بایتها حساب میشود.
+// ═══ دامپ جریانی DR-ready (بدون رشتۀ غولپیکر) ═══
+// دیتابیس پروداکشن ~۱ گیگابایت است. نسخۀ پیشین تمام ردیفها را در یک رشتۀ JS
+// میریخت ⇒ «Invalid string length». اینجا یک تراکنش REPEATABLE READ READ ONLY
+// اسنپشات میگیرد، DDL کامل را از همان اسنپشات میخواند (lib/backup-schema.ts)،
+// سپس هر جدول با CURSOR سمتسرور FETCH میشود و بایتها بلافاصله به gzip/MinIO
+// میروند؛ امضا هم افزایشی روی همان بایتها حساب میشود.
+// لیترال ردیفها را خود Postgres با quote_nullable میسازد (lib/backup-dump.ts)
+// ⇒ jsonb/array/bytea و بکاسلشها دیگر فاسد نمیشوند.
 
 // صفحة بزرگتر ⇒ رفتوبرگشت کمتر با Postgres در دیتابیس ۱ گیگابایتی.
 const DUMP_FETCH_SIZE = 2000;
 
-/** تبدیل مقدار یک سلول به لیترال SQL (همان منطق sanitizeشدۀ قبلی). */
-function sqlLiteral(v: unknown): string {
-  if (v === null || v === undefined) return 'NULL';
-  if (typeof v === 'number') return String(v);
-  if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';
-  if (v instanceof Date) return `'${v.toISOString()}'`;
-  if (Buffer.isBuffer(v)) return `E'\\\\x${v.toString('hex')}'`;
-  const s = String(v).replace(/'/g, "''").replace(/\\/g, '\\\\');
-  return `'${s}'`;
+/** نقلقول امن شناسه (نامها از کاتالوگ میآیند، نه ورودی کاربر). */
+function quoteIdent(name: string): string {
+  return '"' + String(name).replace(/"/g, '""') + '"';
 }
 
 /**
- * آمادهسازی جریان SQL امضاشده. یک اتصال اختصاصی + تراکنش اسنپ‌شات تا پایان
- * مصرف جریان نگه داشته میشود؛ `finally` ژنراتور همیشه آزادسازی اتصال را
- * تضمین میکند (حتی اگر آپلود MinIO نیمهراه شکست بخورد).
+ * آمادهسازی جریان SQL امضاشده و کاملاً قابل بازیابی. یک اتصال اختصاصی + تراکنش
+ * اسنپشات تا پایان مصرف جریان نگه داشته میشود؛ `finally` ژنراتور همیشه آزادسازی
+ * اتصال را تضمین میکند (حتی اگر آپلود MinIO نیمهراه شکست بخورد).
  */
-async function openSignedDumpStream(): Promise<{ stream: Readable; tables: number }> {
+async function openSignedDumpStream(includeSecrets = false): Promise<{ stream: Readable; tables: number }> {
   const client: PoolClient = await backupPool().connect();
   let committed = false;
   let released = false;
@@ -237,10 +164,12 @@ async function openSignedDumpStream(): Promise<{ stream: Readable; tables: numbe
 
   try {
     await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
-    const tRes = await client.query(
-      `SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`,
-    );
-    const tables: string[] = tRes.rows.map((r: any) => String(r.tablename));
+    const q: CatalogQuery = async (sql, params = []) => {
+      const r = await client.query(sql, params as any[]);
+      return { rows: r.rows };
+    };
+    // DDL و داده دقیقاً از یک اسنپشات خوانده میشوند (سازگاری کامل schema/data).
+    const { pre, post, manifest, dataTables } = await buildSchemaDump(q);
     const writer = new SignedBodyWriter(signingKey());
 
     async function* gen(): AsyncGenerator<Buffer> {
@@ -250,46 +179,52 @@ async function openSignedDumpStream(): Promise<{ stream: Readable; tables: numbe
           if (buf.length) yield buf;
         }
 
-        yield* feed(`-- ═══ پشتیبان آفاق — ${new Date().toISOString()} ═══\n`);
-        yield* feed('-- بازیابی: gunzip backup.sql.gz | psql -U afagh -d afagh_db\n\n');
+        const now = new Date().toISOString();
+        const meta = {
+          format: BACKUP_FORMAT,
+          generatedAt: now,
+          ...manifest,
+          excludedSchemas: [...EXCLUDED_SCHEMAS],
+          redacted: !includeSecrets,
+          requiredEnv: [...REQUIRED_ENV_KEYS],
+          restoreCommand: RESTORE_COMMAND,
+        };
+        yield* feed(`-- ═══ پشتیبان آفاق — ${now} ═══\n`);
+        yield* feed(`${DR_MODE_MARKER}\n`);
+        yield* feed(`-- AFAGH_BACKUP_REDACTED=${includeSecrets ? 'false' : 'true'}\n`);
+        yield* feed(`-- AFAGH_BACKUP_MANIFEST=${JSON.stringify(meta)}\n`);
+        for (const line of restoreGuide().split('\n')) yield* feed(`-- ${line}\n`);
+        yield* feed('\n');
 
-        for (const table of tables) {
-          const cols = await client.query(
-            `SELECT column_name, data_type, is_nullable, column_default
-             FROM information_schema.columns
-             WHERE table_schema = 'public' AND table_name = $1
-             ORDER BY ordinal_position`,
-            [table],
+        yield* feed('-- ═══ بخش ۱/۳: ساختار (اسکیما، sequenceها، جدولها) ═══\n\n');
+        yield* feed(pre);
+        yield* feed('\n-- ═══ بخش ۲/۳: دادهها ═══\n\n');
+
+        for (const t of dataTables) {
+          const tableRef = `${quoteIdent(t.schema)}.${quoteIdent(t.name)}`;
+          // لیترالها سمت سرور ساخته میشوند؛ فقط یک رشته از هر ردیف به Node میآید.
+          const expr = buildRowLiteralSql(t.schema, t.name, t.insertColumns, !includeSecrets);
+          const head = insertHead(t.schema, t.name, t.insertColumns, t.hasIdentityAlways);
+          await client.query(
+            `DECLARE afagh_bk_cursor CURSOR FOR SELECT ${expr} AS "__afagh_row_literal" FROM ${tableRef}`,
           );
-          if (!cols.rows.length) continue;
-          const defs = cols.rows.map((c: any) => {
-            const nullable = c.is_nullable === 'YES' ? '' : ' NOT NULL';
-            const def = c.column_default ? ` DEFAULT ${c.column_default}` : '';
-            return `  "${c.column_name}" ${c.data_type}${nullable}${def}`;
-          });
-          yield* feed(`DROP TABLE IF EXISTS "${table}" CASCADE;\n`);
-          yield* feed(`CREATE TABLE "${table}" (\n${defs.join(',\n')}\n);\n\n`);
-
-          const colNames = cols.rows.map((c: any) => `"${c.column_name}"`).join(', ');
-          await client.query(`DECLARE afagh_bk_cursor CURSOR FOR SELECT * FROM "${table}"`);
           try {
             for (;;) {
               const page = await client.query(`FETCH ${DUMP_FETCH_SIZE} FROM afagh_bk_cursor`);
               if (!page.rows.length) break;
-              const values = page.rows.map((orig: Record<string, any>) => {
-                const row: Record<string, any> = { ...orig };
-                redactRow(table, row);
-                return `(${cols.rows.map((c: any) => sqlLiteral(row[c.column_name])).join(', ')})`;
-              });
-              yield* feed(`INSERT INTO "${table}" (${colNames}) VALUES\n${values.join(',\n')};\n`);
+              const values = page.rows.map((r: any) => String(r.__afagh_row_literal));
+              yield* feed(`${head}${values.join(',\n')};\n`);
             }
           } finally {
             await client.query('CLOSE afagh_bk_cursor').catch(() => {});
           }
         }
 
+        yield* feed('\n-- ═══ بخش ۳/۳: قیود، ایندکسها، RLS، GRANTها، setval ═══\n\n');
+        yield* feed(post);
+
         // دامپ sanitize شده است (ردکشن رازها) — ثبت ممیزی، بدون اثر بر خروجی.
-        await auditBackup(tables.length);
+        await auditBackup(dataTables.length, includeSecrets);
         yield writer.finish();
         await client.query('COMMIT');
         committed = true;
@@ -298,7 +233,7 @@ async function openSignedDumpStream(): Promise<{ stream: Readable; tables: numbe
       }
     }
 
-    return { stream: Readable.from(gen(), { objectMode: false }), tables: tables.length };
+    return { stream: Readable.from(gen(), { objectMode: false }), tables: dataTables.length };
   } catch (err) {
     await release();
     throw err;
@@ -364,10 +299,10 @@ async function cleanupOldBackups(keep = 10): Promise<void> {
 }
 
 /** اجرای واقعی دامپ → فایل موقت gzip → MinIO (مشترکِ مسیر همزمان و پسزمینه). */
-async function performDatabaseBackup(): Promise<{ key: string; size: number; tables: number }> {
+async function performDatabaseBackup(includeSecrets = false): Promise<{ key: string; size: number; tables: number }> {
   let tmpDir: string | undefined;
   try {
-    const { stream, tables } = await openSignedDumpStream();
+    const { stream, tables } = await openSignedDumpStream(includeSecrets);
     const key = backupKey('db');
     tmpDir = await mkdtemp(join(tmpdir(), 'afagh-db-bk-'));
     const tmpFile = join(tmpDir, 'db-backup.sql.gz');
@@ -406,6 +341,7 @@ export async function startDatabaseBackupAction(): Promise<{ ok: boolean; key?: 
 type DbBackupJob = {
   id: string;
   startedAt: number;
+  includeSecrets: boolean;
   status: 'running' | 'done' | 'failed';
   key?: string;
   size?: number;
@@ -427,7 +363,7 @@ function pruneJobs(): void {
 async function runDatabaseBackupJob(job: DbBackupJob): Promise<void> {
   const t0 = Date.now();
   try {
-    const r = await performDatabaseBackup();
+    const r = await performDatabaseBackup(job.includeSecrets);
     job.key = r.key;
     job.size = r.size;
     job.tables = r.tables;
@@ -441,12 +377,14 @@ async function runDatabaseBackupJob(job: DbBackupJob): Promise<void> {
 }
 
 /** آغاز پشتیبانگیری در پسزمینه — پاسخ فوری، بدون انتظار ۲ دقیهای. */
-export async function startDatabaseBackupJobAction(): Promise<{ ok: boolean; jobId?: string; error?: string }> {
+export async function startDatabaseBackupJobAction(includeSecrets = false): Promise<{ ok: boolean; jobId?: string; error?: string }> {
   try {
     await assertPlatformAdmin();
+    // ورودی سروراکشن غیرقابلاعتماد است: فقط true بولی دقیقاً حالت «کامل» را فعال میکند.
+    const full = includeSecrets === true;
     pruneJobs();
     const id = createHash('sha256').update(String(Math.random()) + Date.now() + process.pid).digest('hex').slice(0, 32);
-    const job: DbBackupJob = { id, startedAt: Date.now(), status: 'running' };
+    const job: DbBackupJob = { id, startedAt: Date.now(), includeSecrets: full, status: 'running' };
     dbBackupJobs.set(id, job);
     void runDatabaseBackupJob(job).catch((e) => {
       job.status = 'failed';
@@ -484,12 +422,38 @@ export async function startMinioBackupAction(): Promise<{ ok: boolean; key?: str
     }
     objects.sort();
 
+    // کلید پشتیبانهای دیتابیس موجود (برای پیوند دادن بستۀ فایلها به دامپ SQL).
+    const dbKeys: string[] = [];
+    try {
+      for await (const obj of S3.listObjectsV2(ARCHIVE_BUCKET, BACKUP_KEY_PREFIX, true)) {
+        if (obj.name && /^afagh-backup\/db-.*\.sql\.gz$/.test(obj.name)) dbKeys.push(obj.name);
+      }
+    } catch { /* نبود فهرست نباید بستۀ فایلها را خراب کند */ }
+    dbKeys.sort();
+
+    // بستۀ پیکربندی: فقط «نام» متغیرها و اینکه تنظیم شدهاند یا نه. هیچ مقدار
+    // محرمانهای (رمز DB، PII_KEY، کلید MinIO) وارد فایل قابلدانلود نمیشود.
+    const envManifest = REQUIRED_ENV_KEYS.map(name => ({ name, set: !!process.env[name]?.trim() }));
+    const bundle = {
+      format: BACKUP_FORMAT,
+      generatedAt: new Date().toISOString(),
+      archiveObjects: objects.length,
+      dbBackupKeys: dbKeys.slice(-5),
+      excludedSchemas: [...EXCLUDED_SCHEMAS],
+      requiredEnv: envManifest,
+      secretsPolicy: 'مقادیر env عمداً در بسته نیستند؛ از خزانهٔ اسرار سازمان بازگردانید.',
+      restoreCommand: RESTORE_COMMAND,
+    };
+
     const key = backupKey('minio');
     const tmpDir = await mkdtemp(join(tmpdir(), 'afagh-bk-'));
     const tmpFile = join(tmpDir, 'minio-backup.zip');
     const writeStream = createWriteStream(tmpFile);
 
     const entries: AsyncIterable<{ name: string; data: Buffer }> = (async function* () {
+      yield { name: 'MANIFEST.json', data: Buffer.from(JSON.stringify(bundle, null, 2), 'utf8') };
+      yield { name: 'RESTORE.md', data: Buffer.from(restoreGuide(), 'utf8') };
+      yield { name: 'env/required-env.json', data: Buffer.from(JSON.stringify(envManifest, null, 2), 'utf8') };
       for (const name of objects) {
         const chunks: Buffer[] = [];
         const objStream = await S3.getObject(ARCHIVE_BUCKET, name);
@@ -571,10 +535,6 @@ export async function downloadMinioObjectAction(key: string): Promise<{ ok: bool
 
 // ═══ بازیابی ═══
 
-/** نقل‌قول امن شناسه برای TRUNCATE (نام‌ها از دامپِ امضاشده می‌آیند، نه ورودی کاربر). */
-function quoteIdent(name: string): string {
-  return '"' + name.replace(/"/g, '""') + '"';
-}
 
 /**
  * بازیابی «داده‌به‌جای DDL» برای نقش کم‌مجوز.
@@ -616,6 +576,15 @@ export async function restoreDatabaseAction(sql: string): Promise<{ ok: boolean;
     // فقط دامپی که خود سرور با کلید محرمانه امضا کرده باشد قابل اجراست؛
     // فایل دلخواه SQL هرگز مستقیماً به استخر پشتیبان فرستاده نمی‌شود.
     const verifiedSql = verifyBackup(sql);
+    // دامپ DR ساختار کامل دارد (DROP SCHEMA + DO$$ + CREATE POLICY + GRANT) و
+    // پارسِر سادۀ خطبهخط این اکشن برایش طراحی نشده؛ اجرای آن از روی UI میتواند
+    // دیتابیس زنده را نیمهکاره رها کند. مسیر رسمیِ آن psql خط فرمان است.
+    if (verifiedSql.includes(DR_MODE_MARKER)) {
+      return {
+        ok: false,
+        error: `این پشتیبانِ کاملِ ساختاری است؛ بازیابی آن فقط از خط فرمان مجاز است: ${RESTORE_COMMAND}`,
+      };
+    }
     const statements: string[] = [];
     let current = '';
     for (const line of verifiedSql.split('\n')) {

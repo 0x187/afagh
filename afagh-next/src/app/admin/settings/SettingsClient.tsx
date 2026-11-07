@@ -33,11 +33,20 @@ function BackupRestorePanel({ flash }: { flash: (ok: boolean, text: string) => v
     });
   };
 
-  const handleBackupDb = () => {
+  const handleBackupDb = (includeSecrets = false) => {
     // دامپ پروداکشن دقیقهای طول میکشد؛ اکشن فقط jobId میدهد و کار در پسزمینه
     // ادامه مییابد تا لبهٔ CDN درخواست بلندمدت را قطع نکند. تا آمادهشدن پول میکنیم.
     startTransition(async () => {
-      const started = await startDatabaseBackupJobAction();
+      if (includeSecrets) {
+        const confirmed = await askConfirm({
+          title: 'پشتیبان کامل شامل اسرار',
+          body: 'این فایل گذرواژهها، توکنها و کلیدهای درون دیتابیس را بدون پنهانسازی در خود دارد. فقط برای disaster recovery و در محل امن نگهداری شود. ادامه میدهید؟',
+          confirmText: 'بله، بکاپ کامل بگیر',
+          danger: true,
+        });
+        if (!confirmed) return;
+      }
+      const started = await startDatabaseBackupJobAction(includeSecrets);
       if (!started.ok) return flash(false, started.error || 'خطا');
       for (let i = 0; i < 450; i++) { // حداکثر ~۱۵ دقیقه
         await new Promise(r => setTimeout(r, 2000));
@@ -159,13 +168,27 @@ function BackupRestorePanel({ flash }: { flash: (ok: boolean, text: string) => v
       {/* پشتیبان‌گیری دیتابیس */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <h3 className="font-black text-slate-800 mb-3">پشتیبان‌گیری دیتابیس</h3>
-        <p className="text-sm text-slate-600 mb-4">
-          یک فایل SQL فشرده (gzip) حاوی تمام جداول و داده‌ها دانلود می‌شود. برای بازیابی:
+        <p className="text-sm text-slate-600 mb-3">
+          فایل SQL فشرده (gzip) اکنون <strong>کامل و قابل بازیابی</strong> است: اسکیما،
+          sequenceها، کلیدهای اصلی/خارجی، ایندکسها، RLS و policyها، GRANTها، توابع و
+          تاریخچۀ migrations، علاوه بر دادهها. پیش از بازیابی امضا را بررسی کنید:
+          <code className="mx-1 text-xs bg-slate-100 px-1 rounded">node scripts/verify-db-backup.mjs backup.sql.gz</code>
+          سپس:
           <code className="mx-1 text-xs bg-slate-100 px-1 rounded">gunzip -c backup.sql.gz | psql -U afagh -d afagh_db</code>
         </p>
-        <button onClick={handleBackupDb} disabled={busy} className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 disabled:opacity-50">
-          {busy ? 'در حال پشتیبان‌گیری…' : 'دانلود پشتیبان دیتابیس (SQL.gz)'}
-        </button>
+        <p className="text-xs text-amber-700 mb-4">
+          بهصورت پیشفرض گذرواژهها/توکنها/OTPها <strong>[REDACTED]</strong>اند؛ یعنی پس از
+          بازیابی باید رمزها reset شوند. برای بازیابی صددرصدی (شامل لاگین)، دکمۀ «کامل» را بزنید.
+          فایل حاوی اسرار را فقط در محل امن نگه دارید.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <button onClick={() => handleBackupDb(false)} disabled={busy} className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 disabled:opacity-50">
+            {busy ? 'در حال پشتیبانگیری…' : 'دانلود پشتیبان دیتابیس (SQL.gz)'}
+          </button>
+          <button onClick={() => handleBackupDb(true)} disabled={busy} className="px-5 py-2.5 rounded-xl border border-amber-500 text-amber-800 font-bold text-sm hover:bg-amber-50 disabled:opacity-50">
+            پشتیبان کامل (شامل اسرار)
+          </button>
+        </div>
       </div>
 
       {/* پشتیبان‌گیری فایل‌های آرشیو (MinIO) */}
@@ -183,8 +206,12 @@ function BackupRestorePanel({ flash }: { flash: (ok: boolean, text: string) => v
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <h3 className="font-black text-slate-800 mb-3">بازیابی دیتابیس</h3>
         <p className="text-sm text-rose-600 mb-4">
-          ⚠️ بازیابی تمام داده‌های فعلی را جایگزین می‌کند. ابتدا پشتیبان بگیرید.
+          ⚠️ بازیابی تمام دادههای فعلی را جایگزین میکند. ابتدا پشتیبان بگیرید.
+          پشتیبانهای جدید (DR کامل) ساختار دیتابیس را هم بازسازی میکنند و فقط از
+          خط فرمان <code className="mx-1 text-xs bg-slate-100 px-1 rounded">psql</code> قابل بازیابیاند؛
+          این دکمه فقط برای دامپهای قدیمی کوچک است.
         </p>
+
         <button onClick={handleRestoreDb} disabled={busy} className="px-5 py-2.5 rounded-xl bg-rose-600 text-white font-bold text-sm hover:bg-rose-700 disabled:opacity-50">
           انتخاب فایل SQL و بازیابی
         </button>
