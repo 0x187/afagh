@@ -5,7 +5,8 @@ import type { FinanceData } from './student-api';
 export type AdminDashboardData = {
   universityTitle: string;
   stats: { studentsTotal: number; studentsActive: number; offerings: number; enrollments: number; requestsOpen: number; requestsTotal: number };
-  inbox: { id: number; trackingCode: string; status: string; created: string | null; studentName: string; studentCode: string; processTitle: string | null }[];
+  requestStatusCounts: Record<string, number>;
+  inbox: { id: number; trackingCode: string; status: string; created: string | null; studentName: string; studentCode: string; processTitle: string | null; offeringTitle?: string | null; reasons?: string[] | null }[];
   queueLength: number;
   warmedOfferings: number;
   gradeLive: { actor: string; actorRole: string | null; studentCode: string | null; course: string | null; grade: string | null; at: string | null }[];

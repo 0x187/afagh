@@ -1,131 +1,304 @@
-import { useQuery } from '@tanstack/react-query';
-import { Link } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { Link, useSearchParams } from 'react-router-dom';
+import { useState } from 'react';
 
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { faDigits, faNumber } from '@/lib/fa';
 import { getAdminDashboard } from '@/lib/admin-api';
 import { useSession } from '@/lib/session';
 import { groupedModules } from './admin-modules';
+import PanelHero, { HeroStatsRow } from '@/components/PanelHero';
 
-// ═══ Admin dashboard — port of admin/page.tsx (summary) ═══
+// ═══ Admin dashboard — line-by-line port of admin/page.tsx ═══
+// Showcase hero (with the request-status stats row), the category grid, the
+// live grade activity card, the Redis waiting-room status and the council
+// inbox with sortable columns and the approve/reject actions.
 
 const STATUS_FA: Record<string, string> = {
-  SUBMITTED: 'ثبت‌شده', IN_REVIEW: 'در بررسی', APPROVED: 'تأییدشده', REJECTED: 'ردشده', RETURNED: 'بازگشتی',
+  SUBMITTED: 'ثبت‌شده', IN_REVIEW: 'در بررسی', APPROVED: 'تاییدشده', REJECTED: 'ردشده', RETURNED: 'بازگشتی', DRAFT: 'پیش‌نویس',
 };
 
+const STATUS_COLOR: Record<string, string> = {
+  SUBMITTED: 'bg-amber-100 text-amber-800 border border-amber-300 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200',
+  IN_REVIEW: 'bg-sky-100 text-sky-800 border border-sky-300 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-200',
+  APPROVED: 'bg-emerald-100 text-emerald-800 border border-emerald-300 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-200',
+  REJECTED: 'bg-red-100 text-red-700 border border-red-300 dark:border-red-800 dark:bg-red-950 dark:text-red-200',
+  RETURNED: 'bg-purple-100 text-purple-800 border border-purple-300 dark:border-purple-800 dark:bg-purple-950 dark:text-purple-200',
+};
+
+/** Sortable column header — click navigates with ?sort=col&dir=asc|desc. */
+function InboxTh({
+  label, col, sortKey, sortDir,
+}: {
+  label: string;
+  col: string;
+  sortKey: string | null;
+  sortDir: 'asc' | 'desc';
+}) {
+  const [, setParams] = useSearchParams();
+  const active = sortKey === col;
+  const next = () => {
+    if (sortKey !== col) setParams({ sort: col, dir: 'asc' });
+    else if (sortDir === 'asc') setParams({ sort: col, dir: 'desc' });
+    else setParams({});
+  };
+  return (
+    <th className="p-2.5">
+      <button
+        type="button"
+        onClick={next}
+        title="مرتب‌سازی"
+        className={`whitespace-nowrap font-bold hover:text-indigo-700 ${active ? 'text-indigo-700' : ''}`}
+      >
+        {label}{' '}
+        <span className="inline-block w-4 text-center">
+          {active ? (sortDir === 'asc' ? '▲' : '▼') : <span className="opacity-30">↕</span>}
+        </span>
+      </button>
+    </th>
+  );
+}
+
+/** Council decision buttons — port of RequestActionButtons (approve/reject). */
+function RequestActionButtons({ requestId, status }: { requestId: number; status: string }) {
+  const queryClient = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const decidable = ['SUBMITTED', 'IN_REVIEW', 'DRAFT'].includes(status);
+  const decision = useMutation({
+    mutationFn: async (action: 'APPROVE' | 'REJECT') => {
+      const res = await fetch(`/api/v2/admin/requests/${requestId}/decision`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action }),
+      });
+      return res.json() as Promise<{ ok: boolean; error?: string }>;
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['admin-dashboard'] });
+      setBusy(false);
+    },
+    onError: () => setBusy(false),
+  });
+  if (!decidable) {
+    return <span className="text-[10px] text-slate-400">{STATUS_FA[status] ?? status} ✓</span>;
+  }
+  const run = (action: 'APPROVE' | 'REJECT') => {
+    if (busy) return;
+    if (action === 'REJECT' && !window.confirm('این درخواست رد شود؟')) return;
+    setBusy(true);
+    decision.mutate(action);
+  };
+  return (
+    <div className="flex items-center justify-end gap-1.5">
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => run('APPROVE')}
+        className="rounded-lg bg-emerald-600 px-2.5 py-1 text-2xs font-bold text-white transition hover:bg-emerald-700 disabled:opacity-50"
+      >
+        تأیید
+      </button>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => run('REJECT')}
+        className="rounded-lg bg-rose-600 px-2.5 py-1 text-2xs font-bold text-white transition hover:bg-rose-700 disabled:opacity-50"
+      >
+        رد
+      </button>
+    </div>
+  );
+}
 
 export function AdminDashboardPage() {
-  const { data, isLoading, isError } = useQuery({ queryKey: ['admin-dashboard'], queryFn: getAdminDashboard, staleTime: 20_000 });
+  const [params] = useSearchParams();
   const { data: session } = useSession();
   const roles = session?.user?.roles ?? [];
-  const categories = groupedModules(roles);
+  const isEdu = roles.includes('ADMIN') || roles.includes('EDU_EXPERT');
+  const sortKey = (params.get('sort') || '').trim() || null;
+  const sortDir = params.get('dir') === 'desc' ? 'desc' : 'asc';
+
+  const { data, isLoading, isError } = useQuery({ queryKey: ['admin-dashboard'], queryFn: getAdminDashboard, staleTime: 20_000 });
+
+  const groups = groupedModules(roles);
+  const moduleCount = groups.reduce((s, g) => s + g.modules.length, 0);
 
   if (isLoading) {
     return <div className="space-y-4"><Skeleton className="h-28 w-full" /><Skeleton className="h-64 w-full" /></div>;
   }
   if (isError || !data) {
-    return <Card><CardContent className="py-8 text-center text-sm text-muted-foreground">دریافت داشبورد مدیریت ناموفق بود.</CardContent></Card>;
+    return <div className="card">دریافت داشبورد مدیریت ناموفق بود.</div>;
   }
 
+  const counts = data.requestStatusCounts ?? {};
+  const total = Object.values(counts).reduce((a, b) => a + b, 0) || data.stats.requestsTotal;
+  const inbox = data.inbox ?? [];
+
   return (
-    <div className="space-y-4">
-      <Card className="border-0 bg-gradient-to-l from-slate-900 via-indigo-900 to-slate-800 text-white">
-        <CardContent className="flex flex-wrap items-center justify-between gap-3 p-5">
-          <div>
-            <p className="text-[11px] text-indigo-200">پنل مدیریت — {data.universityTitle}</p>
-            <h1 className="mt-1 text-lg font-black">نمای کلی سامانه</h1>
-          </div>
-          <div className="flex flex-wrap gap-2 text-[11px]">
-            <span className="rounded-lg bg-white/10 px-2.5 py-1.5">صف ثبت‌نام: {faNumber(data.queueLength)}</span>
-            <span className="rounded-lg bg-white/10 px-2.5 py-1.5">ظرفیت گرم‌شده: {faNumber(data.warmedOfferings)}</span>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="space-y-5">
+      {/* ═══ Showcase hero ═══ */}
+      <PanelHero
+        tone="indigo"
+        icon="🧭"
+        eyebrow="کارتابل مدیریت"
+        title="داشبورد مدیریت جامع"
+        subtitle={`${faNumber(moduleCount)} ماژول در دسترسِ نقش شما — برای ورود به هر حوزه، دستهٔ مربوط را انتخاب کنید.`}
+        statsSlot={
+          isEdu ? (
+            <HeroStatsRow
+              stats={[
+                { label: 'کل درخواست‌ها', value: faNumber(total), tone: 'text-indigo-700', title: 'همهٔ درخواست‌های ثبت‌شدهٔ این دانشگاه' },
+                ...(['SUBMITTED', 'IN_REVIEW', 'APPROVED', 'REJECTED'] as const).map(k => ({
+                  label: STATUS_FA[k],
+                  value: faNumber(counts[k] ?? 0),
+                  title: `درخواست‌های ${STATUS_FA[k]}`,
+                })),
+              ]}
+            />
+          ) : undefined
+        }
+      />
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-        {[
-          ['دانشجویان', data.stats.studentsTotal, `${faNumber(data.stats.studentsActive)} فعال`],
-          ['ارائه‌های ترم', data.stats.offerings, 'فعال'],
-          ['ثبت‌نام‌ها', data.stats.enrollments, 'ترم جاری'],
-          ['درخواست‌ها', data.stats.requestsTotal, `${faNumber(data.stats.requestsOpen)} باز`],
-          ['صف ثبت‌نام', data.queueLength, 'Redis'],
-          ['ظرفیت گرم', data.warmedOfferings, 'کلاس'],
-        ].map(([label, value, hint]) => (
-          <Card key={String(label)}>
-            <CardContent className="p-3 text-center">
-              <p className="font-mono text-xl font-black">{faNumber(Number(value))}</p>
-              <p className="mt-0.5 text-[11px] font-bold">{label}</p>
-              <p className="text-[10px] text-muted-foreground">{hint}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      <div className="space-y-4">
-        {categories.map((g) => (
-          <section key={g.key} className="space-y-2">
-            <div className="flex items-baseline justify-between px-1">
-              <h2 className="text-sm font-black">{g.emoji} {g.title}</h2>
-              <span className="text-[10px] text-muted-foreground">{faNumber(g.modules.length)} ماژول</span>
-            </div>
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
-              {g.modules.map((m) => (
-                <Link key={m.href} to={m.href} title={m.desc}
-                  className={`rounded-xl border bg-gradient-to-br p-3 text-white shadow-xs transition hover:-translate-y-0.5 hover:shadow-md ${m.accent}`}>
-                  <span className={`flex size-8 items-center justify-center rounded-lg text-base ${m.iconBg}`}>{m.emoji}</span>
-                  <p className="mt-2 text-[11px] font-black leading-tight">{m.title}</p>
-                  <p className="mt-1 line-clamp-2 text-[10px] text-white/70">{m.desc}</p>
-                </Link>
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
-
-      <div className="grid gap-3 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">کارتابل درخواست‌ها</CardTitle></CardHeader>
-          <CardContent className="space-y-2">
-            {data.inbox.length === 0 ? (
-              <p className="py-4 text-center text-xs text-muted-foreground">درخواستی ثبت نشده است.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse text-right text-[11px]">
-                  <thead><tr className="border-b border-border text-muted-foreground"><th className="p-1.5">کد رهگیری</th><th className="p-1.5">دانشجو</th><th className="p-1.5">فرایند</th><th className="p-1.5">وضعیت</th></tr></thead>
-                  <tbody>
-                    {data.inbox.map((r) => (
-                      <tr key={r.id} className="border-b border-border/50 last:border-0">
-                        <td className="p-1.5 font-mono" dir="ltr">{r.trackingCode}</td>
-                        <td className="p-1.5">{r.studentName} <span className="text-muted-foreground" dir="ltr">{faDigits(r.studentCode)}</span></td>
-                        <td className="p-1.5">{r.processTitle ?? '—'}</td>
-                        <td className="p-1.5"><Badge variant="secondary" className="text-[10px]">{STATUS_FA[r.status] ?? r.status}</Badge></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+      {/* ═══ Category cards ═══ */}
+      <section>
+        <div className="grid grid-cols-2 gap-2.5 sm:gap-3.5 lg:grid-cols-4">
+          {groups.map(g => (
+            <Link
+              key={g.key}
+              to={`/admin/c/${g.key}`}
+              className="group relative flex h-full items-start gap-3 overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-lg sm:p-4"
+            >
+              <span
+                aria-hidden
+                className="absolute inset-x-0 top-0 h-0.5 origin-right scale-x-0 bg-gradient-to-l from-indigo-500 via-violet-500 to-fuchsia-500 transition-transform duration-200 group-hover:scale-x-100"
+              />
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-500 text-lg text-white shadow-sm transition-transform group-hover:scale-105">
+                {g.emoji}
               </div>
-            )}
-          </CardContent>
-        </Card>
+              <div className="min-w-0 flex-1">
+                <h3 className="text-[12px] font-extrabold leading-tight text-slate-800 sm:text-sm">{g.title}</h3>
+                <p className="mt-1 hidden text-[10px] leading-5 text-slate-500 sm:block">{g.desc}</p>
+                <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-black text-indigo-700">
+                  {faNumber(g.modules.length)} ماژول
+                  <span aria-hidden className="transition-transform group-hover:-translate-x-0.5">←</span>
+                </span>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
 
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">فعالیت زندهٔ نمرات (۳۰ دقیقه)</CardTitle></CardHeader>
-          <CardContent className="space-y-1.5">
-            {data.gradeLive.length === 0 ? (
-              <p className="py-4 text-center text-xs text-muted-foreground">تغییر نمره‌ای در ۳۰ دقیقهٔ اخیر ثبت نشده است.</p>
+      {isEdu && (
+        <>
+          {/* 🔴 Live grade activity */}
+          <div className="card border-red-300">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
+              <h2 className="text-sm font-extrabold text-slate-900">🔴 فعالیت زندهٔ نمرات</h2>
+              <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+                {(data.gradeLive ?? []).length} تغییر در ۳۰ دقیقهٔ اخیر
+              </span>
+            </div>
+            {(data.gradeLive ?? []).length === 0 ? (
+              <p className="text-xs text-slate-400">در ۳۰ دقیقهٔ اخیر تغییری در نمرات ثبت نشده است.</p>
             ) : (
-              data.gradeLive.map((g, i) => (
-                <div key={i} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/30 px-2 py-1.5 text-[11px]">
-                  <span><b>{g.actor}</b> — {g.course ?? '—'} (<span className="font-mono" dir="ltr">{g.studentCode ?? '—'}</span>)</span>
-                  <span className="font-mono font-bold">{g.grade ?? '—'}</span>
-                </div>
-              ))
+              <ul className="space-y-1.5 text-xs">
+                {(data.gradeLive ?? []).map((g, i) => (
+                  <li key={i} className="flex flex-wrap items-center gap-x-2 border-b border-slate-100 pb-1.5">
+                    <b>{g.actor}</b>
+                    {g.actorRole ? <span className="text-slate-500">({g.actorRole})</span> : null}
+                    <span>دانشجو <span className="font-mono" dir="ltr">{faDigits(g.studentCode ?? '—')}</span></span>
+                    <span className="text-slate-600">{g.course}</span>
+                    <span>→ <b className="font-mono">{faDigits(g.grade ?? '—')}</b></span>
+                  </li>
+                ))}
+              </ul>
             )}
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+
+          {/* Redis waiting-room engine status */}
+          <div className={'card flex flex-wrap items-center justify-between gap-3 ' + (data.queueLength >= 0 ? 'border-emerald-300' : 'border-red-300')}>
+            <div className="flex min-w-0 items-start gap-2.5">
+              <span
+                aria-hidden
+                className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500"
+                style={{ boxShadow: '0 0 0 4px rgba(16,185,129,.15)' }}
+              />
+              <div className="min-w-0">
+                <h2 className="text-sm font-extrabold text-slate-900">اتاق انتظار Redis (§۶۹۰۶)</h2>
+                <p className="mt-0.5 text-[11px] font-bold text-slate-500">
+                  فعال — {faNumber(data.warmedOfferings)} کلاس گرم‌شده · صف ثبت نهایی: {faNumber(data.queueLength)} درخواست
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Council inbox */}
+          <div className="card !p-0">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
+              <div className="min-w-0">
+                <h2 className="text-sm font-extrabold text-slate-900">کارتابل رسیدگی به درخواست‌های دانشجویی</h2>
+                <p className="mt-0.5 text-[11px] font-bold text-slate-500">شورای آموزشی · {faNumber(inbox.length)} پروندهٔ اخیر</p>
+              </div>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-right text-sm">
+                <thead>
+                  <tr className="border-b border-slate-200 text-xs text-slate-500">
+                    <InboxTh label="کد رهگیری" col="track" sortKey={sortKey} sortDir={sortDir} />
+                    <InboxTh label="دانشجو" col="name" sortKey={sortKey} sortDir={sortDir} />
+                    <InboxTh label="موضوع / درس" col="proc" sortKey={sortKey} sortDir={sortDir} />
+                    <InboxTh label="وضعیت" col="status" sortKey={sortKey} sortDir={sortDir} />
+                    <InboxTh label="زمان" col="created" sortKey={sortKey} sortDir={sortDir} />
+                    <th className="p-2.5 text-left">اقدام شورا</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {inbox.length === 0 && (
+                    <tr>
+                      <td colSpan={6} className="px-4 py-10 text-center">
+                        <p className="text-2xl" aria-hidden>🗂️</p>
+                        <p className="mt-1 text-xs font-bold text-slate-500">درخواستی در کارتابل موجود نیست.</p>
+                        <p className="mt-0.5 text-[10px] font-bold text-slate-400">درخواست‌های تازه پس از ثبت دانشجو همین‌جا دیده می‌شوند.</p>
+                      </td>
+                    </tr>
+                  )}
+                  {inbox.map(r => (
+                    <tr key={r.id} className="border-t border-slate-100 transition-colors hover:bg-slate-50/70">
+                      <td className="p-2.5 font-mono text-xs font-bold text-slate-700" dir="ltr">{faDigits(r.trackingCode)}</td>
+                      <td className="p-2.5">
+                        <p className="font-semibold text-slate-800">{r.studentName}</p>
+                        <p className="font-mono text-[10px] text-slate-400" dir="ltr">{faDigits(r.studentCode)}</p>
+                      </td>
+                      <td className="p-2.5">
+                        <p className="text-xs font-medium text-slate-700">
+                          {r.offeringTitle ? `اخذ درس ${r.offeringTitle}` : (r.processTitle || 'کمیسیون موارد خاص')}
+                        </p>
+                        {r.reasons && r.reasons.length > 0 ? (
+                          <p className="mt-0.5 max-w-[200px] truncate text-[10px] text-amber-700" title={r.reasons.join('، ')}>
+                            {r.reasons.join('، ')}
+                          </p>
+                        ) : null}
+                      </td>
+                      <td className="p-2.5">
+                        <span className={'inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ' + (STATUS_COLOR[r.status] ?? '')}>
+                          {STATUS_FA[r.status] ?? r.status}
+                        </span>
+                      </td>
+                      <td className="p-2.5 text-xs text-slate-500">
+                        {r.created ? new Date(r.created).toLocaleString('fa-IR', { dateStyle: 'short', timeStyle: 'short' }) : '—'}
+                      </td>
+                      <td className="p-2.5 text-left">
+                        <RequestActionButtons requestId={r.id} status={r.status} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

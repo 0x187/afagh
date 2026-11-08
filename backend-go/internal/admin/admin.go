@@ -3,6 +3,7 @@ package admin
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strconv"
 	"strings"
@@ -68,13 +69,15 @@ type DashboardStats struct {
 
 // InboxRow is an inbox row.
 type InboxRow struct {
-	ID      int64   `json:"id"`
-	Track   string  `json:"trackingCode"`
-	Status  string  `json:"status"`
-	Created *string `json:"created"`
-	Student string  `json:"studentName"`
-	Code    string  `json:"studentCode"`
-	Process *string `json:"processTitle"`
+	ID            int64    `json:"id"`
+	Track         string   `json:"trackingCode"`
+	Status        string   `json:"status"`
+	Created       *string  `json:"created"`
+	Student       string   `json:"studentName"`
+	Code          string   `json:"studentCode"`
+	Process       *string  `json:"processTitle"`
+	OfferingTitle *string  `json:"offeringTitle,omitempty"`
+	Reasons       []string `json:"reasons,omitempty"`
 }
 
 // GradeLive is live grade activity.
@@ -89,12 +92,13 @@ type GradeLive struct {
 
 // DashboardResponse is the dashboard response.
 type DashboardResponse struct {
-	UniversityTitle string         `json:"universityTitle"`
-	Stats           DashboardStats `json:"stats"`
-	Inbox           []InboxRow     `json:"inbox"`
-	QueueLength     int            `json:"queueLength"`
-	WarmedOfferings int            `json:"warmedOfferings"`
-	GradeLive       []GradeLive    `json:"gradeLive"`
+	UniversityTitle     string         `json:"universityTitle"`
+	Stats               DashboardStats `json:"stats"`
+	RequestStatusCounts map[string]int `json:"requestStatusCounts"`
+	Inbox               []InboxRow     `json:"inbox"`
+	QueueLength         int            `json:"queueLength"`
+	WarmedOfferings     int            `json:"warmedOfferings"`
+	GradeLive           []GradeLive    `json:"gradeLive"`
 }
 
 // GetDashboard ports admin/page.tsx (summary).
@@ -134,9 +138,26 @@ func (s *Service) GetDashboard(ctx context.Context, user *session.User, uniCooki
 		  from student_requests r where `+scopeCond, uniID).
 		Scan(&resp.Stats.RequestsTotal, &resp.Stats.RequestsOpen)
 
+	// Per-status counts for the hero stats row (port of HeroStatsSection).
+	resp.RequestStatusCounts = map[string]int{}
+	crows, cerr := s.DB.Pool.Query(ctx, `
+		select status, count(*)::int from student_requests r where `+scopeCond+`
+		 group by status`, uniID)
+	if cerr == nil {
+		for crows.Next() {
+			var st string
+			var n int
+			if err := crows.Scan(&st, &n); err == nil {
+				resp.RequestStatusCounts[st] = n
+			}
+		}
+		crows.Close()
+	}
+
 	rows, err := s.DB.Pool.Query(ctx, `
 		select r.id, r."trackingCode", r.status, r."createdAt"::text,
-		       coalesce(u."firstName" || ' ' || u."lastName",''), st."studentCode", p.title
+		       coalesce(u."firstName" || ' ' || u."lastName",''), st."studentCode", p.title,
+		       coalesce(r."formData",'')
 		  from student_requests r
 		  join students st on st.id = r."studentId"
 		  join users u on u.id = st."userId"
@@ -146,7 +167,22 @@ func (s *Service) GetDashboard(ctx context.Context, user *session.User, uniCooki
 	if err == nil {
 		for rows.Next() {
 			var r InboxRow
-			if err := rows.Scan(&r.ID, &r.Track, &r.Status, &r.Created, &r.Student, &r.Code, &r.Process); err == nil {
+			var formData string
+			if err := rows.Scan(&r.ID, &r.Track, &r.Status, &r.Created, &r.Student, &r.Code, &r.Process, &formData); err == nil {
+				// formData extras — the offering title and rejection reasons the
+				// reference inbox shows under the process column.
+				var extra struct {
+					OfferingTitle string   `json:"offeringTitle"`
+					Reasons       []string `json:"reasons"`
+				}
+				if formData != "" && jsonUnmarshalAdmin(formData, &extra) == nil {
+					if extra.OfferingTitle != "" {
+						r.OfferingTitle = &extra.OfferingTitle
+					}
+					if len(extra.Reasons) > 0 {
+						r.Reasons = extra.Reasons
+					}
+				}
 				r.Student = strings.TrimSpace(r.Student)
 				resp.Inbox = append(resp.Inbox, r)
 			}
@@ -400,3 +436,7 @@ func boolInt(b bool) int {
 }
 
 var _ = pgxpool.Pool{}
+
+func jsonUnmarshalAdmin(raw string, out any) error {
+	return json.Unmarshal([]byte(raw), out)
+}

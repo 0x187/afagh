@@ -36,6 +36,7 @@ type AdminAPI struct {
 
 func (a *AdminAPI) Register(r gin.IRouter) {
 	r.GET("/admin/dashboard", a.dashboard)
+	r.POST("/admin/requests/:id/decision", a.requestDecision)
 	r.GET("/admin/students", a.students)
 	r.POST("/admin/students/active", a.studentActive)
 	r.POST("/admin/students/reset-password", a.studentResetPassword)
