@@ -17,6 +17,11 @@ const SamaSyncPage = lazyNamed(() => import('@/routes/admin/SamaSyncPage'), 'Sam
 const AdminReportsBuilderPage = lazyNamed(() => import('@/routes/admin/ReportsBuilderPage'), 'AdminReportsBuilderPage');
 const AdminReportsSavedPage = lazyNamed(() => import('@/routes/admin/ReportsSavedPage'), 'AdminReportsSavedPage');
 const AdminBackupPage = lazyNamed(() => import('@/routes/admin/BackupPage'), 'AdminBackupPage');
+const AdminTermsPage = lazyNamed(() => import('@/routes/admin/TermsPage'), 'TermsPage');
+const AdminGradesAuditPage = lazyNamed(() => import('@/routes/admin/GradesAuditPage'), 'GradesAuditPage');
+const AdminSahamSettingsPage = lazyNamed(() => import('@/routes/admin/SahamSettingsPage'), 'AdminSahamSettingsPage');
+const AdminCompliancePolicyPage = lazyNamed(() => import('@/routes/admin/CompliancePolicyPage'), 'AdminCompliancePolicyPage');
+const AdminFinanceStudentDetailPage = lazyNamed(() => import('@/routes/admin/FinanceStudentDetailPage'), 'AdminFinanceStudentDetailPage');
 const StudentDashboardPage = lazyNamed(() => import('@/routes/student/DashboardPage'), 'StudentDashboardPage');
 const StudentTranscriptPage = lazyNamed(() => import('@/routes/student/TranscriptPage'), 'StudentTranscriptPage');
 const StudentExamCardPage = lazyNamed(() => import('@/routes/student/ExamCardPage'), 'StudentExamCardPage');
@@ -251,7 +256,8 @@ export function App() {
           <Route path="admin/finance" element={<AdminFinancePage />} />
           <Route path="admin/finance/reports" element={<AdminFinanceReportsPage />} />
           <Route path="admin/finance/reports/student-statement" element={<AdminStudentStatementPage />} />
-          <Route path="admin/finance/student/:id" element={<AdminStudentFinanceRoute />} />
+          <Route path="admin/finance/student/:id" element={<AdminFinanceStudentDetailPage />} />
+          <Route path="admin/finance/student/:id/manage" element={<AdminStudentFinanceRoute />} />
           <Route path="admin/course-finance" element={<AdminCourseFinancePage />} />
           <Route path="admin/payroll" element={<AdminPayrollPage />} />
           <Route path="admin/payroll/roles" element={<PayrollRolesPage />} />
@@ -305,6 +311,10 @@ export function App() {
           <Route path="admin/universities" element={<UniversitiesPage />} />
           <Route path="admin/sama-sync" element={<SamaSyncPage />} />
           <Route path="admin/backup" element={<AdminBackupPage />} />
+          <Route path="admin/terms" element={<AdminTermsPage />} />
+          <Route path="admin/grades/audit" element={<AdminGradesAuditPage />} />
+          <Route path="admin/saham/settings" element={<AdminSahamSettingsPage />} />
+          <Route path="admin/compliance-policy" element={<AdminCompliancePolicyPage />} />
           <Route path="admin/c/:group" element={<AdminCategoryPage />} />
           <Route path="admin/curriculum" element={<AdminCurriculumPage />} />
           <Route path="admin/templates" element={<AdminTemplatesPage />} />
