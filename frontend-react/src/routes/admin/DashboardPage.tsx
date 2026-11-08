@@ -7,6 +7,7 @@ import { faDigits, faNumber } from '@/lib/fa';
 import { getAdminDashboard } from '@/lib/admin-api';
 import { useSession } from '@/lib/session';
 import { groupedModules } from './admin-modules';
+import { MakeupInboxCard } from './MakeupInboxCard';
 import PanelHero, { HeroStatsRow } from '@/components/PanelHero';
 
 // ═══ Admin dashboard — line-by-line port of admin/page.tsx ═══
@@ -190,6 +191,9 @@ export function AdminDashboardPage() {
 
       {isEdu && (
         <>
+          {/* Makeup class requests inbox (streamed separately in the reference) */}
+          <MakeupInboxCard />
+
           {/* 🔴 Live grade activity */}
           <div className="card border-red-300">
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
