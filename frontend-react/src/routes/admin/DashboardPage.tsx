@@ -6,7 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { faDigits, faNumber } from '@/lib/fa';
 import { getAdminDashboard } from '@/lib/admin-api';
-import { MODULES } from './admin-modules';
+import { useSession } from '@/lib/session';
+import { groupedModules } from './admin-modules';
 
 // ═══ Admin dashboard — port of admin/page.tsx (summary) ═══
 
@@ -17,6 +18,9 @@ const STATUS_FA: Record<string, string> = {
 
 export function AdminDashboardPage() {
   const { data, isLoading, isError } = useQuery({ queryKey: ['admin-dashboard'], queryFn: getAdminDashboard, staleTime: 20_000 });
+  const { data: session } = useSession();
+  const roles = session?.user?.roles ?? [];
+  const categories = groupedModules(roles);
 
   if (isLoading) {
     return <div className="space-y-4"><Skeleton className="h-28 w-full" /><Skeleton className="h-64 w-full" /></div>;
@@ -59,16 +63,25 @@ export function AdminDashboardPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-6">
-        {MODULES.map((m) => {
-          const Icon = m.icon;
-          return (
-            <Link key={m.to} to={m.to} className="rounded-xl border border-border bg-card p-3 shadow-xs transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-md">
-              <span className={`flex size-9 items-center justify-center rounded-xl ${m.tone}`}><Icon className="size-4.5" aria-hidden /></span>
-              <p className="mt-2 text-[11px] font-black">{m.label}</p>
-            </Link>
-          );
-        })}
+      <div className="space-y-4">
+        {categories.map((g) => (
+          <section key={g.key} className="space-y-2">
+            <div className="flex items-baseline justify-between px-1">
+              <h2 className="text-sm font-black">{g.emoji} {g.title}</h2>
+              <span className="text-[10px] text-muted-foreground">{faNumber(g.modules.length)} ماژول</span>
+            </div>
+            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4 lg:grid-cols-6">
+              {g.modules.map((m) => (
+                <Link key={m.href} to={m.href} title={m.desc}
+                  className={`rounded-xl border bg-gradient-to-br p-3 text-white shadow-xs transition hover:-translate-y-0.5 hover:shadow-md ${m.accent}`}>
+                  <span className={`flex size-8 items-center justify-center rounded-lg text-base ${m.iconBg}`}>{m.emoji}</span>
+                  <p className="mt-2 text-[11px] font-black leading-tight">{m.title}</p>
+                  <p className="mt-1 line-clamp-2 text-[10px] text-white/70">{m.desc}</p>
+                </Link>
+              ))}
+            </div>
+          </section>
+        ))}
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">

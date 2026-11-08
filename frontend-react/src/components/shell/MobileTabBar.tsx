@@ -1,8 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
-  Archive,
-  BookOpen,
   BookOpenCheck,
   Calculator,
   CalendarDays,
@@ -23,7 +21,6 @@ import {
   MonitorPlay,
   Printer,
   ScrollText,
-  ShieldAlert,
   ShoppingCart,
   Target,
   TrendingUp,
@@ -31,14 +28,15 @@ import {
   Wallet,
 } from 'lucide-react';
 
-import { MODULES, type AdminModule } from '@/routes/admin/admin-modules';
+import { ADMIN_MODULES, canSeeModule } from '@/routes/admin/admin-modules';
+import { useSession } from '@/lib/session';
 import { cn } from '@/lib/utils';
 
 // Mobile bottom navigation for student/professor/admin shells, ported from
 // StudentNav/ProfessorNav. Shows five frequent destinations plus a menu button
 // that opens the full destination list in a bottom sheet.
 
-type Tab = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
+type Tab = { to: string; label: string; icon: typeof LayoutDashboard | string; exact?: boolean };
 
 const STUDENT_TABS: Tab[] = [
   { to: '/student', label: 'داشبورد', icon: LayoutDashboard, exact: true },
@@ -93,45 +91,40 @@ const ADMIN_TABS: Tab[] = [
   { to: '/admin/payroll', label: 'حقوق', icon: Landmark },
 ];
 
-const ADMIN_MENU: Tab[] = (() => {
-  // The dashboard tiles (MODULES) do not cover every admin sub-page. Merge a
-  // supplementary list so the mobile menu reaches the full admin surface,
-  // skipping duplicate destinations.
-  const extra: Tab[] = [
-    { to: '/admin', label: 'داشبورد مدیریت', icon: LayoutDashboard, exact: true },
-    { to: '/admin/archive', label: 'بایگانی الکترونیک', icon: Archive },
-    { to: '/admin/attendance-manual', label: 'تأیید دستی حضور استاد', icon: ClipboardCheck },
-    { to: '/admin/attendance-control', label: 'کنترل تشکیل کلاس', icon: ClipboardList },
-    { to: '/admin/council', label: 'شورای آموزشی', icon: Users },
-    { to: '/admin/course-finance', label: 'مالی دروس', icon: CreditCard },
-    { to: '/admin/curriculum', label: 'سرفصل و کاتالوگ', icon: BookOpen },
-    { to: '/admin/discipline', label: 'کمیتهٔ انضباطی', icon: ShieldAlert },
-    { to: '/admin/exams', label: 'برنامهٔ امتحانات', icon: CalendarDays },
-    { to: '/admin/finance/advanced', label: 'مالی پیشرفته', icon: Wallet },
-    { to: '/admin/finance/pos', label: 'ترمینال POS', icon: CreditCard },
-    { to: '/admin/finance/reports', label: 'گزارش‌های مالی', icon: FileText },
-    { to: '/admin/finance/rules', label: 'تعاریف موتور مالی', icon: Wallet },
-    { to: '/admin/finance/time-control', label: 'کنترل زمانی ثبت مالی', icon: Clock },
-    { to: '/admin/finance/welfare', label: 'صندوق رفاه', icon: Wallet },
-    { to: '/admin/finance/student-formula', label: 'فرمول ویژهٔ دانشجو', icon: Calculator },
-    { to: '/admin/tuition/tariff', label: 'تعرفهٔ سالانه', icon: CreditCard },
-    { to: '/admin/templates', label: 'قالب‌های اعلان', icon: FileText },
-    { to: '/admin/payroll/roles', label: 'سمت‌های موظفی', icon: Landmark },
-    { to: '/admin/payroll/teaching-roles', label: 'نقش‌های تدریس', icon: Landmark },
-    { to: '/admin/payroll/coverage', label: 'پوشش فرمول', icon: Landmark },
-    { to: '/admin/payroll/decrees', label: 'ابلاغ‌های آموزشی', icon: Landmark },
-    { to: '/admin/payroll/regs-objections', label: 'آیین‌نامه/اعتراض حقوق', icon: Landmark },
-    { to: '/admin/payroll/operations', label: 'عملیات حقوق', icon: Landmark },
+const ADMIN_MENU_EXTRA: Tab[] = [
+  { to: '/admin', label: 'داشبورد مدیریت', icon: LayoutDashboard, exact: true },
+  { to: '/admin/attendance-manual', label: 'تأیید دستی حضور استاد', icon: ClipboardCheck },
+  { to: '/admin/finance/advanced', label: 'مالی پیشرفته', icon: Wallet },
+  { to: '/admin/finance/rules', label: 'تعاریف موتور مالی', icon: Wallet },
+  { to: '/admin/finance/time-control', label: 'کنترل زمانی ثبت مالی', icon: Clock },
+  { to: '/admin/finance/welfare', label: 'صندوق رفاه', icon: Wallet },
+  { to: '/admin/finance/student-formula', label: 'فرمول ویژهٔ دانشجو', icon: Calculator },
+  { to: '/admin/tuition/tariff', label: 'تعرفهٔ سالانه', icon: CreditCard },
+  { to: '/admin/payroll/roles', label: 'سمت‌های موظفی', icon: Landmark },
+  { to: '/admin/payroll/teaching-roles', label: 'نقش‌های تدریس', icon: Landmark },
+  { to: '/admin/payroll/decrees', label: 'ابلاغ‌های آموزشی', icon: Landmark },
+  { to: '/admin/payroll/regs-objections', label: 'آیین‌نامه/اعتراض حقوق', icon: Landmark },
+  { to: '/admin/payroll/operations', label: 'عملیات حقوق', icon: Landmark },
+];
+
+function adminMenu(roles: string[]): Tab[] {
+  // Registry modules (role-filtered) merged with the sub-pages that are not
+  // registry roots, so the mobile menu reaches the full admin surface.
+  const items: Tab[] = [
+    ...ADMIN_MENU_EXTRA,
+    ...ADMIN_MODULES.filter((m) => m.href !== '/admin' && canSeeModule(roles, m)).map((m) => ({
+      to: m.href, label: m.title, icon: m.emoji as string | typeof LayoutDashboard,
+    })),
   ];
   const seen = new Set<string>();
   const out: Tab[] = [];
-  for (const item of [...extra, ...MODULES.map((m: AdminModule) => ({ to: m.to, label: m.label, icon: m.icon }))]) {
+  for (const item of items) {
     if (seen.has(item.to)) continue;
     seen.add(item.to);
     out.push(item);
   }
   return out;
-})();
+}
 
 function sectionOf(pathname: string): 'student' | 'professor' | 'admin' | null {
   if (pathname === '/student' || pathname.startsWith('/student/')) return 'student';
@@ -147,13 +140,14 @@ function isActive(pathname: string, tab: Tab): boolean {
 const DATA = {
   student: { tabs: STUDENT_TABS, menu: STUDENT_MENU, title: 'منوی دانشجو', aria: 'ناوبری اصلی دانشجو' },
   professor: { tabs: PROFESSOR_TABS, menu: PROFESSOR_MENU, title: 'منوی استاد', aria: 'ناوبری اصلی استاد' },
-  admin: { tabs: ADMIN_TABS, menu: ADMIN_MENU, title: 'منوی مدیریت', aria: 'ناوبری اصلی مدیریت' },
+  admin: { tabs: ADMIN_TABS, menu: [] as Tab[], title: 'منوی مدیریت', aria: 'ناوبری اصلی مدیریت' },
 };
 
 /** Fixed mobile tab bar; returns null outside student/professor/admin routes. */
 export function MobileTabBar() {
   const { pathname } = useLocation();
   const section = sectionOf(pathname);
+  const { data: session } = useSession();
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -175,7 +169,10 @@ export function MobileTabBar() {
   }, [open]);
 
   if (!section) return null;
-  const data = DATA[section];
+  const base = DATA[section];
+  const data = section === 'admin'
+    ? { ...base, menu: adminMenu(session?.user?.roles ?? []) }
+    : base;
 
   return (
     <>
@@ -198,7 +195,9 @@ export function MobileTabBar() {
                   active ? 'bg-primary/10 font-bold text-primary' : 'text-muted-foreground hover:bg-muted',
                 )}
               >
-                <Icon className="size-5" aria-hidden />
+                {typeof Icon === 'string'
+                  ? <span className="text-base leading-none" aria-hidden>{Icon}</span>
+                  : <Icon className="size-5" aria-hidden />}
                 <span className="text-[10px] leading-tight text-center">{tab.label}</span>
               </Link>
             );
@@ -239,7 +238,9 @@ export function MobileTabBar() {
                       active ? 'bg-primary text-primary-foreground shadow-sm' : 'text-foreground hover:bg-muted',
                     )}
                   >
-                    <Icon className="size-4 shrink-0" aria-hidden />
+                    {typeof Icon === 'string'
+                      ? <span className="w-4 shrink-0 text-center text-base leading-none" aria-hidden>{Icon}</span>
+                      : <Icon className="size-4 shrink-0" aria-hidden />}
                     <span>{item.label}</span>
                   </Link>
                 );
