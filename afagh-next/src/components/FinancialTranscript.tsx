@@ -44,6 +44,30 @@ function jdate(d: string | Date | null | undefined): string {
   return faDigits(`${jy}/${String(jm).padStart(2, '0')}/${String(jd).padStart(2, '0')}`);
 }
 
+/**
+ * کد مقطعِ سما (SAMA-5 / HAMAVA-5 …) → عدد خالص همان سند قدیمی.
+ * عنوان‌های استاندارد هم اینجا نگه داشته می‌شوند تا اگر عنوانِ DB عنوانِ
+ * فنی («مقطع ۵») بود، سند همان عبارت رسمی را نشان دهد.
+ */
+const SAMA_DEGREE_FA: Record<string, string> = {
+  '1': 'کاردانی پیوسته',
+  '2': 'کاردانی ناپیوسته',
+  '3': 'کارشناسی پیوسته',
+  '4': 'کارشناسی ارشد',
+  '5': 'کارشناسی ناپیوسته',
+  '6': 'دکتری',
+  '7': 'دکتری حرفه‌ای',
+};
+
+function legacyNumericCode(code: string | number | null | undefined): string | null {
+  if (code == null) return null;
+  const s = String(code).trim();
+  if (!s) return null;
+  const m = /^[A-Za-z_]+-(\d+)$/.exec(s);
+  if (m) return m[1];
+  return s;
+}
+
 /** «کد=عنوان» — همان قرارداد سیستم قدیمی */
 function codeLabel(code: string | number | null | undefined, title: string | null | undefined): string {
   const c = code == null ? '' : String(code).trim();
@@ -290,6 +314,8 @@ export default function FinancialTranscript({
     ? (COURSE_TYPE_FA[String(student.courseTypeCode)] ?? student.courseType ?? null)
     : (student.courseType ?? null);
   const quotaTitle = student.quotaType ? (QUOTA_FA[student.quotaType] ?? student.quotaType) : null;
+  const degreeCode = legacyNumericCode(student.degreeCode);
+  const degreeTitle = (degreeCode && SAMA_DEGREE_FA[degreeCode]) || student.degreeTitle;
 
   return (
     <div dir="rtl" className="transcript-print-area tr-root tr-fin-root bg-white border-2 border-slate-800 text-[10px] text-slate-900 print:shadow-none">
@@ -328,7 +354,7 @@ export default function FinancialTranscript({
         {/* ستون چپ: کدهای ثبتی */}
         <div className="space-y-0.5 text-left leading-4">
           <p className="text-[9px] text-slate-600">
-            مقطع: <b>{codeLabel(student.degreeCode, student.degreeTitle)}</b>
+            مقطع: <b>{codeLabel(degreeCode, degreeTitle)}</b>
           </p>
           <p className="text-[9px] text-slate-600">
             نوع دوره: <b>{codeLabel(student.courseTypeCode, courseTypeTitle)}</b>
@@ -459,7 +485,7 @@ export default function FinancialTranscript({
             <div className="mt-1 flex flex-wrap items-center justify-between gap-1 border border-slate-600 bg-slate-100 px-2 py-0.5 text-[9px] font-bold">
               <span>
                 نیمسال {faDigits(t.termCode || '—')} : وضعیت دانشجو{' '}
-                {codeLabel(t.statusCode, t.statusTitle)}
+                {codeLabel(t.statusCode, t.statusTitle || (t.statusCode ? SAMA_STATUS_TITLE[String(t.statusCode)] : null))}
               </span>
               <span className="font-mono text-[8px] text-slate-600">
                 مبنای نرخ: {rateBasisLabel(t)} · کد گروه تعرفه: {t.tariffGroupCode || '—'}
