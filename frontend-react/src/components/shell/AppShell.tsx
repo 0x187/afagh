@@ -1,22 +1,29 @@
 import { GraduationCap, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
+import { AdminBackBar } from '@/components/shell/AdminBackBar';
 import { AdminNav } from '@/components/shell/AdminNav';
-import { PanelSwitcher } from '@/components/shell/PanelSwitcher';
+import { HeaderActions } from '@/components/shell/HeaderActions';
 import { MobileTabBar, sectionOf } from '@/components/shell/MobileTabBar';
+import { PanelSwitcher } from '@/components/shell/PanelSwitcher';
 import { SessionLockOverlay } from '@/components/shell/SessionLockOverlay';
 import { TermSwitcher } from '@/components/shell/TermSwitcher';
 import { ThemeToggle } from '@/components/shell/ThemeToggle';
 import { UniversitySwitcher } from '@/components/shell/UniversitySwitcher';
+import { UserAvatar } from '@/components/shell/UserAvatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { logout } from '@/lib/auth-api';
+import { getScope } from '@/lib/scope-api';
 import { useSession } from '@/lib/session';
 
 // Global shell: dark header, switchers, idle lock, and mobile navigation.
+// The admin area carries the reference app's own chrome: a two-row header
+// (identity + switchers row) and a two-column body (AdminNav sidebar + main
+// with the two-level back bar); student/professor keep the generic shell.
 export function AppShell() {
   const { data, isLoading } = useSession();
   const queryClient = useQueryClient();
@@ -25,9 +32,31 @@ export function AppShell() {
   const [busy, setBusy] = useState(false);
 
   const user = data?.user ?? null;
+  const isAdmin = sectionOf(location.pathname) === 'admin';
 
-  // Route guard: no session -> login; password change pending -> change screen.
-  if (!isLoading && !user) {
+  // Current university title for the admin header badge/label.
+  const { data: scope } = useQuery({
+    queryKey: ['scope'],
+    queryFn: getScope,
+    staleTime: 60_000,
+    enabled: isAdmin,
+  });
+  const curUni = isAdmin ? scope?.universities.find(u => u.id === scope.universityId) : undefined;
+
+  // Route guard: loading skeleton first, then no session -> login; password
+  // change pending -> change screen. After these, `user` is non-null.
+  if (isLoading) {
+    return (
+      <div className="min-h-dvh bg-sky-50/70 dark:bg-slate-950">
+        <Skeleton className="h-14 w-full rounded-none" />
+        <div className="mx-auto max-w-6xl space-y-4 p-4 pt-6">
+          <Skeleton className="h-28 w-full" />
+          <Skeleton className="h-64 w-full" />
+        </div>
+      </div>
+    );
+  }
+  if (!user) {
     if (data?.pendingPasswordChange) {
       return <Navigate to="/change-password" replace />;
     }
@@ -44,6 +73,66 @@ export function AppShell() {
     await queryClient.invalidateQueries({ queryKey: ['session'] });
     setBusy(false);
     navigate('/login', { replace: true });
+  }
+
+  if (isAdmin) {
+    return (
+      <div className="min-h-screen bg-sky-50/70 print:!bg-white dark:bg-slate-950">
+        <SessionLockOverlay />
+        <header className="sticky top-0 z-40 bg-indigo-950 text-white shadow-sm transition-colors print:hidden">
+          {/* Explicit two-row header (same pattern as the professor panel):
+              row 1 — identity + tools; row 2 — the cartable/term/university
+              switchers (visible on every size so mobile never loses them). */}
+          <div className="mx-auto flex max-w-[1600px] flex-wrap items-center gap-2 p-3 sm:p-3.5 lg:flex-nowrap lg:gap-3">
+            {/* Row 1: identity + tools (the mobile "منو" button floats above) */}
+            <div className="order-1 flex min-w-0 flex-1 items-center gap-2">
+              <div aria-hidden className="w-14 shrink-0 lg:hidden" />
+              <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-indigo-600/60 bg-indigo-900/90 text-sm font-bold shadow-inner">
+                  {(curUni?.title ?? 'آ').slice(0, 1)}
+                </div>
+                <UserAvatar userId={user.id} name={user.name} className="size-9" />
+                <div className="min-w-0">
+                  <Link
+                    to="/admin"
+                    title="بازگشت به صفحه اول (داشبورد)"
+                    className="block transition-opacity hover:opacity-90"
+                  >
+                    <p className="truncate text-sm font-extrabold tracking-wide">
+                      <span className="sm:hidden">داشبورد مدیریت</span>
+                      <span className="hidden sm:inline">داشبورد مدیریت جامع {curUni?.title ?? ''}</span>
+                    </p>
+                  </Link>
+                  <p className="truncate text-xs opacity-80">{user.name} · {user.roles.join('، ')}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Row 2 (mobile) / middle column (desktop): switchers */}
+            <div className="relative order-3 flex w-full flex-wrap items-center gap-1.5 sm:gap-2 lg:order-2 lg:w-auto lg:flex-nowrap lg:justify-center">
+              {user && <PanelSwitcher roles={user.roles} />}
+              <TermSwitcher />
+              <UniversitySwitcher />
+            </div>
+
+            {/* Tools */}
+            <div className="order-2 flex shrink-0 items-center gap-1.5 lg:order-3">
+              <HeaderActions helpHref="/help/admin" pdfHref="/help/pdfs/admin.pdf" />
+            </div>
+          </div>
+        </header>
+
+        {/* Two-column body: permanent sidebar (lg+) + content with back bar */}
+        <div className="mx-auto flex w-full max-w-[2100px] items-start gap-4 p-3 pb-16 sm:p-5 lg:gap-6">
+          <AdminNav />
+          <main id="main" className="min-w-0 flex-1 pb-4">
+            <AdminBackBar />
+            <Outlet />
+          </main>
+        </div>
+        <MobileTabBar />
+      </div>
+    );
   }
 
   return (
@@ -85,18 +174,9 @@ export function AppShell() {
           </div>
         </div>
       </header>
-      {sectionOf(location.pathname) === 'admin' ? (
-        <div className="mx-auto flex w-full max-w-7xl flex-1 items-start gap-4 px-4 pt-6 pb-6">
-          <AdminNav />
-          <main className="min-w-0 flex-1">
-            <Outlet />
-          </main>
-        </div>
-      ) : (
-        <main className={`mx-auto w-full max-w-6xl flex-1 px-4 pt-6 ${sectionOf(location.pathname) ? 'pb-24 md:pb-6' : 'pb-6'}`}>
-          <Outlet />
-        </main>
-      )}
+      <main className={`mx-auto w-full max-w-6xl flex-1 px-4 pt-6 ${sectionOf(location.pathname) ? 'pb-24 md:pb-6' : 'pb-6'}`}>
+        <Outlet />
+      </main>
       <MobileTabBar />
     </div>
   );
