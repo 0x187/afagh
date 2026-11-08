@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { Link, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 
+import { AdminNav } from '@/components/shell/AdminNav';
 import { PanelSwitcher } from '@/components/shell/PanelSwitcher';
 import { MobileTabBar, sectionOf } from '@/components/shell/MobileTabBar';
 import { SessionLockOverlay } from '@/components/shell/SessionLockOverlay';
@@ -84,9 +85,18 @@ export function AppShell() {
           </div>
         </div>
       </header>
-      <main className={`mx-auto w-full max-w-6xl flex-1 px-4 pt-6 ${sectionOf(location.pathname) ? 'pb-24 md:pb-6' : 'pb-6'}`}>
-        <Outlet />
-      </main>
+      {sectionOf(location.pathname) === 'admin' ? (
+        <div className="mx-auto flex w-full max-w-7xl flex-1 items-start gap-4 px-4 pt-6 pb-6">
+          <AdminNav />
+          <main className="min-w-0 flex-1">
+            <Outlet />
+          </main>
+        </div>
+      ) : (
+        <main className={`mx-auto w-full max-w-6xl flex-1 px-4 pt-6 ${sectionOf(location.pathname) ? 'pb-24 md:pb-6' : 'pb-6'}`}>
+          <Outlet />
+        </main>
+      )}
       <MobileTabBar />
     </div>
   );
