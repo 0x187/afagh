@@ -496,6 +496,14 @@ export const students = pgTable('students', {
   entryYear: integer('entryYear').notNull(),
   entryTerm: integer('entryTerm').default(1),
   entryDate: date('entryDate'),
+  // ── اصلاحیهٔ مادهٔ ۱۲ (۲/۱۵۵۶۵۵): دادهٔ ساختاریافتهٔ پروندهٔ معادلسازی ──
+  withdrawalOrExpulsionDate: varchar('withdrawalOrExpulsionDate', { length: 10 }),
+  previousProgramExitType: varchar('previousProgramExitType', { length: 30 }),
+  equivDestinationConfirmed: integer('equivDestinationConfirmed').notNull().default(0),
+  equivDestinationNote: text('equivDestinationNote'),
+  equivCurriculumVersionCode: varchar('equivCurriculumVersionCode', { length: 50 }),
+  equivQualityCoefficient: numeric('equivQualityCoefficient', { precision: 5, scale: 3 }),
+  equivSourceOfficialDegree: integer('equivSourceOfficialDegree').notNull().default(0),
   graduateDegreeLevelId: integer('graduateDegreeLevelId').references(() => degree_level_configs.id),
   status: varchar('status', { length: 30 }).notNull().default('ACTIVE'),
   quotaType: varchar('quotaType', { length: 50 }).notNull().default('NORMAL'),
@@ -1257,6 +1265,8 @@ export const enrollments = pgTable('enrollments', {
   samaGradeStatusCode: varchar('samaGradeStatusCode', { length: 10 }),
   /** کد اصلی اولیه سما (هنگام واردات داده) — برای مقایسه بعدی با موتور آیین‌نامه حفظ می‌شود */
   originalSamaCode: varchar('originalSamaCode', { length: 10 }),
+  /** مادهٔ ۷ (بند ۳/۱۶): پرچم «مشمول نمرهٔ صفر بهدلیل غیبت» — هنگام نهاییسازی اعمال میشود */
+  absencePenalty: integer('absencePenalty').notNull().default(0),
   // ── ثبت‌نام توسط کارشناس آموزش (به‌جای دانشجو) + ردگیری ──
   // کی زده، آیا قیود آیین‌نامه (پیش‌نیاز/ظرفیت/سقف واحد) نادیده گرفته شد و چرا
   enrolledByUserId: integer('enrolledByUserId').references(() => users.id),
@@ -2937,6 +2947,9 @@ export const defense_sessions = pgTable('defense_sessions', {
   externalId: integer('externalId').references(() => staff.id),
   status: varchar('status', { length: 30 }).default('SCHEDULED'), // SCHEDULED|CONDUCTED|CANCELLED|RESCHEDULED
   result: varchar('result', { length: 30 }), // PASSED|FAILED|CONDITIONAL
+  /** مواد ۳۶ و ۴۸: نمرهٔ کیفی (خارج از معدل) و تاریخ دفاع = تاریخ دانشآموختگی */
+  qualitativeGrade: varchar('qualitativeGrade', { length: 50 }),
+  defenseDate: varchar('defenseDate', { length: 10 }),
   minutes: text('minutes'),
   createdAt: timestamp('createdAt').defaultNow(),
   universityId: integer('universityId').references((): AnyPgColumn => universities.id),
@@ -3906,4 +3919,49 @@ export const saved_reports = pgTable('saved_reports', {
   index('idx_saved_reports_owner').on(t.ownerUserId),
   // نامِ گزارش در هر دانشگاه یکتاست تا دو گزارش هم‌نام مبهم نشوند
   uniqueIndex('uq_saved_reports_uni_name').on(t.universityId, t.name),
+]);
+
+
+// ══════════════════════════════════════════════════════════════════════
+//  انطباق آییننامهٔ ۱۴۰۲ — مهاجرت ۰۱۳۵
+//  رفتار صحیح قانونی در کد «پیشفرض» است؛ این دو جدول فقط «قابل تغییر کردن»
+//  دامنهدار و دادهٔ ساختاریافتهای را فراهم میکنند که مواد ۱۲ و ۴۱ لازم دارند.
+// ══════════════════════════════════════════════════════════════════════
+
+/** اورراید صریح مدیر: دانشگاه / مقطع / آییننامه / سال ورود + دلیل ثبتشده */
+export const compliance_policy_overrides = pgTable('compliance_policy_overrides', {
+  id: serial('id').primaryKey(),
+  key: varchar('key', { length: 80 }).notNull(),
+  value: jsonb('value').notNull(),
+  reason: text('reason').notNull().default(''),
+  universityId: integer('universityId').references((): AnyPgColumn => universities.id),
+  degreeLevelId: integer('degreeLevelId'),
+  regulationId: integer('regulationId'),
+  entryYear: integer('entryYear'),
+  updatedBy: integer('updatedBy'),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+}, (t) => [
+  index('idx_compliance_override_uni').on(t.universityId),
+  index('idx_compliance_override_key').on(t.key),
+]);
+
+/** مادهٔ ۴۱: ارزیابی جامع دکتری — پیش از این هیچ موجودیتی در سامانه نداشت */
+export const comprehensive_exams = pgTable('comprehensive_exams', {
+  id: serial('id').primaryKey(),
+  studentId: integer('studentId').notNull().references(() => students.id),
+  attemptNo: integer('attemptNo').notNull().default(1),
+  examDate: varchar('examDate', { length: 10 }),
+  gradeValue: numeric('gradeValue', { precision: 5, scale: 2 }),
+  result: varchar('result', { length: 20 }).notNull().default('PENDING'),
+  languageConfirmed: integer('languageConfirmed').notNull().default(0),
+  alternativeCode: varchar('alternativeCode', { length: 50 }),
+  alternativeConfirmed: integer('alternativeConfirmed').notNull().default(0),
+  notes: text('notes'),
+  universityId: integer('universityId').references((): AnyPgColumn => universities.id),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+}, (t) => [
+  uniqueIndex('uq_comprehensive_exam_attempt').on(t.studentId, t.attemptNo),
+  index('idx_comprehensive_exam_student').on(t.studentId),
 ]);

@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useTransition } from 'react';
 import { resetSettingAction, saveSettingsAction, uploadLogoAction } from '@/lib/settings-actions';
-import { backupDatabaseAction, listMinioObjectsAction, downloadMinioObjectAction, restoreDatabaseAction, restoreMinioObjectAction, getBackupStatsAction } from './backup-actions';
+import { backupDatabaseAction, listMinioObjectsAction, downloadMinioObjectAction, restoreDatabaseAction, restoreMinioObjectAction, getBackupStatsAction, startDatabaseBackupAction, startDatabaseBackupJobAction, getDatabaseBackupJobAction, startMinioBackupAction } from './backup-actions';
 import { SECRET_MASK, type SettingView } from '@/lib/settings-shared';
 import { askConfirm } from '@/lib/ui-feedback';
 
@@ -33,18 +33,41 @@ function BackupRestorePanel({ flash }: { flash: (ok: boolean, text: string) => v
     });
   };
 
-  const handleBackupDb = () => {
+  const handleBackupDb = (includeSecrets = false) => {
+    // دامپ پروداکشن دقیقهای طول میکشد؛ اکشن فقط jobId میدهد و کار در پسزمینه
+    // ادامه مییابد تا لبهٔ CDN درخواست بلندمدت را قطع نکند. تا آمادهشدن پول میکنیم.
     startTransition(async () => {
-      const r = await backupDatabaseAction();
+      if (includeSecrets) {
+        const confirmed = await askConfirm({
+          title: 'پشتیبان کامل شامل اسرار',
+          body: 'این فایل رازهای زندۀ دیتابیس (توکنها، OTPها، کلید درگاهها، PAN کارت) را بدون پنهانسازی در خود دارد؛ بکاپ پیشفرض آنها را [REDACTED] میکند. فقط برای disaster recovery و در محل امن نگهداری شود. ادامه میدهید؟',
+          confirmText: 'بله، بکاپ کامل بگیر',
+          danger: true,
+        });
+        if (!confirmed) return;
+      }
+      const started = await startDatabaseBackupJobAction(includeSecrets);
+      if (!started.ok) return flash(false, started.error || 'خطا');
+      for (let i = 0; i < 450; i++) { // حداکثر ~۱۵ دقیقه
+        await new Promise(r => setTimeout(r, 2000));
+        const r = await getDatabaseBackupJobAction(started.jobId!);
+        if (!r.ok) return flash(false, r.error || 'خطا');
+        if (r.status === 'done') {
+          window.location.href = `/api/admin/backup/download?key=${encodeURIComponent(r.key!)}`;
+          return flash(true, `پشتیبان دیتابیس آماده شد (${r.tables} جدول) دانلود آغاز میشود.`);
+        }
+        if (r.status === 'failed') return flash(false, r.error || 'ساخت پشتیبان دیتابیس ناموفق بود.');
+      }
+      return flash(false, 'تهیهٔ پشتیبان بیش از حد طول کشید؛ لطفاً دوباره تلاش کنید.');
+    });
+  };
+
+  const handleBackupMinio = () => {
+    startTransition(async () => {
+      const r = await startMinioBackupAction();
       if (!r.ok) return flash(false, r.error || 'خطا');
-      const blob = new Blob([r.sql || ''], { type: 'text/sql;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `afagh-backup-${new Date().toISOString().slice(0, 10)}.sql`;
-      a.click();
-      URL.revokeObjectURL(url);
-      flash(true, `پشتیبان دیتابیس دانلود شد (${r.tables} جدول)`);
+      window.location.href = `/api/admin/backup/download?key=${encodeURIComponent(r.key!)}`;
+      flash(true, `بکاپ فایل‌ها آماده شد (${r.objects} فایل) — دانلود آغاز می‌شود.`);
     });
   };
 
@@ -76,11 +99,31 @@ function BackupRestorePanel({ flash }: { flash: (ok: boolean, text: string) => v
   const handleRestoreDb = () => {
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.sql,.txt';
+    input.accept = '.sql,.txt,.sql.gz,.gz';
     input.onchange = async () => {
       const file = input.files?.[0];
       if (!file) return;
-      const text = await file.text();
+      // دامپ دیتابیس بهصورت gzip ذخیره میشود (.sql.gz)؛ پیش از ارسال به اکشن
+      // بازیابی، در مرورگر استخراج میشود تا همان متن SQL امضاشده به سرور برسد.
+      let text: string;
+      try {
+        if (/\.gz$/i.test(file.name)) {
+          type GzipCtor = new (format: string) => TransformStream<Uint8Array, Uint8Array>;
+          const DS = (globalThis as unknown as { DecompressionStream?: GzipCtor }).DecompressionStream;
+          if (!DS) return flash(false, 'مرورگر از باز کردن فایل فشرده پشتیبانی نمیکند؛ ابتدا فایل را استخراج کنید.');
+          text = await new Response(file.stream().pipeThrough(new DS('gzip'))).text();
+        } else {
+          text = await file.text();
+        }
+      } catch {
+        return flash(false, 'خواندن فایل پشتیبان ناموفق بود.');
+      }
+      // اکشن بازیابی فایل را بهصورت رشتۀ RSC دریافت میکند و سقف ۵۰ مگابایت دارد.
+      // دامپ پروداکشن بسیار بزرگتر است ⇒ صریحاً به مسیر خط فرمان هدایتش میکنیم،
+      // نه اینکه وسط ارسال با دیالوگ مرموز «An unexpected response» روبهرو شود.
+      if (new Blob([text]).size > 50 * 1024 * 1024) {
+        return flash(false, 'حجم این پشتیبان برای بازیابی از صفحه زیاد است؛ از دستور psql خط فرمان (که زیر دکمۀ دانلود نوشته شده) استفاده کنید.');
+      }
       const ok = await askConfirm({ title: 'بازیابی دیتابیس', body: 'آیا از بازیابی دیتابیس مطمئنید؟ تمام داده‌های فعلی جایگزین می‌شوند.', confirmText: 'بازیابی کن', danger: true });
       if (!ok) return;
       startTransition(async () => {
@@ -125,12 +168,46 @@ function BackupRestorePanel({ flash }: { flash: (ok: boolean, text: string) => v
       {/* پشتیبان‌گیری دیتابیس */}
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <h3 className="font-black text-slate-800 mb-3">پشتیبان‌گیری دیتابیس</h3>
-        <p className="text-sm text-slate-600 mb-4">
-          یک فایل SQL حاوی تمام جداول و داده‌ها دانلود می‌شود. برای بازیابی:
-          <code className="mx-1 text-xs bg-slate-100 px-1 rounded">psql -U afagh -d afagh_db -f backup.sql</code>
+        <p className="text-sm text-slate-600 mb-3">
+          فایل SQL فشرده (gzip) اکنون <strong>کامل و قابل بازیابی</strong> است: اسکیما،
+          sequenceها، کلیدهای اصلی/خارجی، ایندکسها، RLS و policyها، GRANTها، توابع و
+          تاریخچۀ migrations، علاوه بر دادهها. پیش از بازیابی امضا را بررسی کنید:
+          <code className="mx-1 text-xs bg-slate-100 px-1 rounded">node scripts/verify-db-backup.mjs backup.sql.gz</code>
+          سپس:
+          <code className="mx-1 text-xs bg-slate-100 px-1 rounded">gunzip -c backup.sql.gz | psql -U afagh -d afagh_db</code>
         </p>
-        <button onClick={handleBackupDb} disabled={busy} className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 disabled:opacity-50">
-          {busy ? 'در حال پشتیبان‌گیری…' : 'دانلود پشتیبان دیتابیس (SQL)'}
+        <p className="text-xs text-amber-700 mb-3">
+          <strong>هش رمزهای عبور حفظ میشود</strong> ⇒ پس از بازیابی، کاربران همان رمز قبلی را دارند.
+          فقط رازهای زنده (توکنها، OTPها، کلید درگاهها، شمارهٔ کارت) بهصورت پیشفرض{' '}
+          <strong>[REDACTED]</strong>اند. برای بازیابی صددرصدی آنها دکمۀ «کامل» را بزنید و فایل را
+          فقط در محل امن نگه دارید.
+        </p>
+        <p className="text-xs text-slate-600 mb-4 leading-6">
+          بازیابی روی دیتابیس <strong>تازه و خالی</strong> (نه سرور فعال):
+          <code className="mx-1 text-xs bg-slate-100 px-1 rounded" dir="ltr">
+            node scripts/restore-db-backup.mjs backup.sql.gz --yes
+          </code>
+          این اسکریپت نخست امضا را تأیید میکند، خالیبودن مقصد را چک مینماید و سپس{' '}
+          <code className="text-xs bg-slate-100 px-1 rounded">psql</code> را اجرا میکند.
+        </p>
+        <div className="flex flex-wrap gap-3">
+          <button onClick={() => handleBackupDb(false)} disabled={busy} className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 disabled:opacity-50">
+            {busy ? 'در حال پشتیبانگیری…' : 'دانلود پشتیبان دیتابیس (SQL.gz)'}
+          </button>
+          <button onClick={() => handleBackupDb(true)} disabled={busy} className="px-5 py-2.5 rounded-xl border border-amber-500 text-amber-800 font-bold text-sm hover:bg-amber-50 disabled:opacity-50">
+            پشتیبان کامل (شامل اسرار)
+          </button>
+        </div>
+      </div>
+
+      {/* پشتیبان‌گیری فایل‌های آرشیو (MinIO) */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5">
+        <h3 className="font-black text-slate-800 mb-3">پشتیبان‌گیری فایل‌ها (آرشیو)</h3>
+        <p className="text-sm text-slate-600 mb-4">
+          تمام فایل‌های آپلودی (عکس، اسناد، PDF) در یک فایل ZIP بسته‌بندی و دانلود می‌شود.
+        </p>
+        <button onClick={handleBackupMinio} disabled={busy} className="px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-bold text-sm hover:bg-emerald-700 disabled:opacity-50">
+          {busy ? 'در حال بسته‌بندی…' : 'دانلود بکاپ فایل‌ها (ZIP)'}
         </button>
       </div>
 
@@ -138,8 +215,12 @@ function BackupRestorePanel({ flash }: { flash: (ok: boolean, text: string) => v
       <div className="bg-white rounded-xl border border-slate-200 p-5">
         <h3 className="font-black text-slate-800 mb-3">بازیابی دیتابیس</h3>
         <p className="text-sm text-rose-600 mb-4">
-          ⚠️ بازیابی تمام داده‌های فعلی را جایگزین می‌کند. ابتدا پشتیبان بگیرید.
+          ⚠️ بازیابی تمام دادههای فعلی را جایگزین میکند. ابتدا پشتیبان بگیرید.
+          پشتیبانهای جدید (DR کامل) ساختار دیتابیس را هم بازسازی میکنند و فقط از
+          خط فرمان <code className="mx-1 text-xs bg-slate-100 px-1 rounded">psql</code> قابل بازیابیاند؛
+          این دکمه فقط برای دامپهای قدیمی کوچک است.
         </p>
+
         <button onClick={handleRestoreDb} disabled={busy} className="px-5 py-2.5 rounded-xl bg-rose-600 text-white font-bold text-sm hover:bg-rose-700 disabled:opacity-50">
           انتخاب فایل SQL و بازیابی
         </button>

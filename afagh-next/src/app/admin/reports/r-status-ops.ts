@@ -19,6 +19,7 @@ import { db } from '@/db';
 import { requireRole } from '@/lib/auth';
 import { STUDENT_STATUS_FA } from '@/lib/student-labels';
 import { calculateOfficialGpaBreakdown } from '@/lib/regulations-engine';
+import { graduationDateFor } from '@/lib/compliance-integrations';
 
 export type StatusOpsCard = {
   kind: string;
@@ -303,13 +304,19 @@ export async function graduateStudents(idsInput: unknown, graduateDateInput?: un
   if (!ids.length) return { ok: false, error: 'شناسه‌ای انتخاب نشده است' };
   const rawGd = typeof graduateDateInput === 'string' ? graduateDateInput.trim() : '';
   if (rawGd && !/^\d{4}-\d{2}-\d{2}$/.test(rawGd)) return { ok: false, error: 'تاریخ فارغ‌التحصیلی باید به شکل YYYY-MM-DD باشد' };
-  const gd = rawGd || null;
-  const r = await db.execute<{ id: number }>(
-    gd
-      ? sql`UPDATE students SET status = 'GRADUATED', "graduateDate" = ${gd} WHERE id IN (${sql.join(ids, sql`, `)}) RETURNING id`
-      : sql`UPDATE students SET status = 'GRADUATED' WHERE id IN (${sql.join(ids, sql`, `)}) RETURNING id`,
-  );
-  return { ok: true, updated: r.rows.length };
+  // مواد ۳۸ و ۵۰: تاریخ دانشآموختگی = تاریخ دفاع (پیشفرض قانونی). تاریخ دستی
+  // فقط وقتی مقدم است که مدیر «مبنای دستی» را اورراید کرده باشد.
+  let updated = 0;
+  for (const id of ids) {
+    const gd = await graduationDateFor(id, rawGd || null).catch(() => rawGd || null);
+    const r = await db.execute<{ id: number }>(
+      gd
+        ? sql`UPDATE students SET status = 'GRADUATED', "graduateDate" = ${gd} WHERE id = ${id} RETURNING id`
+        : sql`UPDATE students SET status = 'GRADUATED' WHERE id = ${id} RETURNING id`,
+    );
+    updated += r.rows.length;
+  }
+  return { ok: true, updated };
 }
 
 /** تغییر گروهی وضعیت */

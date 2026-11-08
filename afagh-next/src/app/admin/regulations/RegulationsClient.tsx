@@ -1026,7 +1026,7 @@ export default function RegulationsClient(props: {
                         className="text-emerald-600 focus:ring-emerald-500"
                       />
                       <span className="font-bold text-xs text-emerald-950">
-                        EXCLUDE_IF_PASSED (آیین‌نامه مصوب ۱۳۹۷ به بعد)
+                        EXCLUDE_IF_PASSED (آییننامه مصوب ۱۳۹۷ به بعد) · EXCLUDE_ALWAYS (بخشنامهٔ ۱۴۰۳/۱۰/۱۶)
                       </span>
                     </div>
                     <p className="text-2xs text-slate-600 leading-relaxed pr-6">

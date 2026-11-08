@@ -119,6 +119,11 @@ x-common-env: &common-env
   #   گردش کلید: مقدار قبلی را در AFAGH_PII_KEY_PREVIOUS بگذارید تا دادهٔ قدیمی خوانده شود.
   AFAGH_PII_KEY: ${AFAGH_PII_KEY:?AFAGH_PII_KEY تنظیم نشده — کلید رمزنگاری PII (۶۴ hex یا عبارت عبور)}
   AFAGH_PII_KEY_PREVIOUS: ${AFAGH_PII_KEY_PREVIOUS:-}
+  # 🔐 کلید اختصاصی امضای بکاپ SQL (حداقل ۳۲ کاراکتر تصادفی). deploy-debian.sh
+  #   آن را خودکار میسازد/برای استقرارهای قدیمی backfill میکند. خالی بماند ⇒
+  #   همچنان از AFAGH_PII_KEY مشتق میشود؛ تأیید امضا *هر دو* کلید را امتحان
+  #   میکند، پس تنظیم/گردش این کلید بکاپهای آرشیوشده را بیاعتبار نمیکند.
+  AFAGH_BACKUP_SIGNING_KEY: ${AFAGH_BACKUP_SIGNING_KEY:-}
   # کلید هدر x-cron-secret برای POST /api/cron/bi-refresh (fail-closed؛ در پنل تنظیمات هم قابل ست است)
   BI_CRON_SECRET: ${BI_CRON_SECRET:-}
   # کلید هدر x-cron-secret برای POST /api/cron/scheduled-warnings (ارسال خودکار هشدارها از پیام‌رسان‌ها)

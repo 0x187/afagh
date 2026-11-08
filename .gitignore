@@ -47,3 +47,6 @@ frontend-react/dist/
 
 # ── Local ZCode settings ──
 /.zcode/
+
+# Temporary compliance/migration working folder (contains DB dumps — never commit)
+/_backup_compliance/

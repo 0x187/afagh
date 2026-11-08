@@ -189,6 +189,18 @@ export const ADMIN_MODULES: AdminModule[] = [
     inGrid: true,
   },
   {
+    href: '/admin/compliance-policy',
+    icon: <Icon emoji="📜" />,
+    title: 'سیاستهای انطباق آییننامه',
+    desc: 'پیشفرضهای قانونی ۱۴۰۲، اورراید دامنهدار و منبع هر حکم',
+    group: 'edu',
+    roles: EDU,
+    accent: 'from-emerald-950 to-teal-950 border-emerald-700/50',
+    iconBg: 'bg-emerald-700/80 border-emerald-500/50',
+    inNav: true,
+    inGrid: true,
+  },
+  {
     href: '/admin/discipline',
     icon: <Icon emoji="🛡️" />,
     title: 'کمیته انضباطی',

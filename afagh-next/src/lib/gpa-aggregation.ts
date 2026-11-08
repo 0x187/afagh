@@ -124,7 +124,7 @@ export type OfficialGpaInput = {
   passingGrade: number;
   /** حد نصاب قبولی مجدد (تبصرهٔ ۱۳۹۱) */
   retakeMinGrade: number;
-  /** سیاست نمرهٔ مردودی: EXCLUDE_IF_PASSED | EXCLUDE_IF_PASSED_1391 | ... */
+  /** سیاست نمرهٔ مردودی: EXCLUDE_ALWAYS | EXCLUDE_IF_PASSED | EXCLUDE_IF_PASSED_1391 | KEEP_ALWAYS */
   policy: string;
   /** فقط بهترین نمرهٔ هر کد درس شمرده شود */
   dedupeRepeated: boolean;
@@ -148,6 +148,8 @@ export function aggregateOfficialGpaRows(
 ): OfficialGpaCore {
   const thresholdOf = thresholdFactory(input.passingGrade);
   const is1391 = input.policy === 'EXCLUDE_IF_PASSED_1391';
+  // بخشنامهٔ ۲/۲۱/۲۸۳۴۲۸ + دادنامهٔ ۲۱۵۶۰۳۱: نمرهٔ مردودی مطلقاً وارد معدل کل نمیشود
+  const excludeAlways = input.policy === 'EXCLUDE_ALWAYS';
 
   // نقشه‌برداری دروسِ واجدِ حذف مردودی قبلی:
   // سیاست عادی: هر قبولی (با کف عادی همان درس) مردودی قبلی را حذف می‌کند؛
@@ -201,8 +203,13 @@ export function aggregateOfficialGpaRows(
       gradingType: r.gradingType,
     })) continue;
 
-    // اعمال مصوبه حذف نمره مردودی پس از قبولی
-    if ((input.policy === 'EXCLUDE_IF_PASSED' || is1391) && !passed && passedCourses.has(String(r.code))) {
+    // اعمال سیاست نمرهٔ مردودی:
+    // EXCLUDE_ALWAYS — نمرهٔ مردودی در ریزنمرات و میانگین نیمسال میماند ولی
+    //   مطلقاً وارد معدل کل نمیشود، بدون وابستگی به قبولی مجدد (حکم لازمالاجرا).
+    // سیاستهای قدیمی — فقط پس از قبولی مجدد همان درس حذف میکنند (مادهٔ ۵۳).
+    const failedIsExcluded = excludeAlways ||
+      ((input.policy === 'EXCLUDE_IF_PASSED' || is1391) && passedCourses.has(String(r.code)));
+    if (!passed && failedIsExcluded) {
       excludedCount++;
       continue; // حذف از صورت و مخرج معدل کل
     }

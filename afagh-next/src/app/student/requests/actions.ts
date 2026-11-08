@@ -22,6 +22,7 @@ import { isGraduateDegreeLevel, isThesisProcess } from '@/lib/request-visibility
 import { issueTranscriptToken } from '@/lib/verification';
 import { qrSvg } from '@/lib/qr';
 import { getPublicBaseUrl, getSetting } from '@/lib/settings';
+import { objectionDeadlineFor } from '@/lib/compliance-integrations';
 import { archiveKey, putArchiveObject } from '@/lib/objectStore';
 import { checkUpload, MAX_UPLOAD_BYTES, sanitizeRequestFormData } from '@/lib/safe-input';
 
@@ -207,12 +208,20 @@ export async function submitGradeObjectionAction(
   if (text.length < 5) return { ok: false, error: 'متن اعتراض بسیار کوتاه است.' };
 
   try {
-    // پنجرهٔ اعتراض — اگر تنظیم نشده یا گذشته باشد، دکمه‌ها عملاً قفل‌اند
-    const deadline = await getSetting('GRADE_OBJECTION_DEADLINE');
-    if (!deadline || !/^\d{4}-\d{2}-\d{2}$/.test(deadline)) {
-      return { ok: false, error: 'پنجرهٔ اعتراض به نمره در حال حاضر باز نیست.' };
+    // مادهٔ ۸: مهلت = تاریخ اعلام نمرهٔ نهایی + ۱۰/۲۰ روز (پیشفرض قانونی،
+    // بر حسب مقطع). مهلت صریح مدیر در لایهٔ سیاست بر آن مقدم است.
+    const [brief] = await db
+      .select({ offeringId: enrollments.offeringId })
+      .from(enrollments).where(eq(enrollments.id, enrollmentId)).limit(1);
+    let announcedAt: Date | string | null = null;
+    if (brief) {
+      const [offDate] = await db
+        .select({ finalizedAt: course_offerings.gradesFinalizedAt })
+        .from(course_offerings).where(eq(course_offerings.id, brief.offeringId)).limit(1);
+      announcedAt = offDate?.finalizedAt ?? null;
     }
-    const end = new Date(deadline + 'T23:59:59');
+    const end = await objectionDeadlineFor(me.id, announcedAt).catch(() => null);
+    if (!end) return { ok: false, error: 'پنجرهٔ اعتراض به نمره در حال حاضر باز نیست.' };
     if (new Date() > end) return { ok: false, error: 'مهلت اعتراض به نمره به پایان رسیده است.' };
 
     const [enr] = await db

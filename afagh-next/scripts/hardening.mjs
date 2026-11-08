@@ -252,6 +252,8 @@ try {
     'course_offering_edu_experts',
     // گزارش‌ساز (مهاجرت 0134) — «تعریفِ گزارش»؛ مالک/نقش/عمومی. دادهٔ دانشجویی ندارد.
     'saved_reports',
+    // ارزیابی جامع دکتری (مهاجرت 0135) — studentId دارد ⇒ RLS اجباری.
+    'comprehensive_exams',
   ];
   const checks = await client.query(
     `SELECT c.relname AS table_name, c.relrowsecurity AS rls_enabled

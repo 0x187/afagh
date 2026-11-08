@@ -21,6 +21,8 @@ import { aggregateAuditTranscript } from '@/lib/gpa-aggregation';
 import { resolveStudentCurriculum, resolutionReasonMessage } from '@/lib/curriculum-apply';
 import { safeRials } from '@/lib/money';
 import { appendAudit } from '@/lib/audit';
+import { getStudentCompliance } from '@/lib/compliance-policy-server';
+import { comprehensiveExamGraduationReasons, thesisQualitativeGraduationReasons } from '@/lib/compliance-integrations';
 import {
   loadAuditStudentRow, loadCurriculumRequirementRows, loadGradedEnrollments,
 } from '@/lib/graduation/graduation-queries';
@@ -122,7 +124,10 @@ export async function auditStudent(studentId: number): Promise<AuditResult | nul
     const rp = Number(regCfg?.grading_and_gpa?.default_passing_grade);
     if (Number.isFinite(rp)) passing = rp;
   } catch { /* پیش‌فرض مقطع می‌ماند */ }
-  const minGpa = await getNumber('GRAD_MIN_GPA', 12);
+  // مواد ۲۴/۳۷/۴۹: حداقل معدل ۱۲ / ۱۴ / ۱۶ بر حسب مقطع (نه یک عدد سراسری).
+  // اورراید صریح مدیر از لایهٔ سیاست مقدم است؛ تنظیم قدیمی فقط پشتیبان است.
+  const minGpa = (await getStudentCompliance(studentId).catch(() => null))?.values.grad_min_gpa
+    ?? await getNumber('GRAD_MIN_GPA', 12);
 
   // فقط سوابق نهایی/معاف/قبول‌بدون‌نمره — نمرات موقت (PENDING) نه «گذرانده»‌اند نه در معدل
   const taken = await loadGradedEnrollments(studentId);
@@ -164,13 +169,25 @@ export async function auditStudent(studentId: number): Promise<AuditResult | nul
   if (missing.length) reasons.push(`${missing.length} درس اجباری سرفصل هنوز پاس نشده است.`);
   if (requiredUnits && passedUnits < requiredUnits) reasons.push(`واحد گذرانده (${passedUnits}) کمتر از حداقل لازم (${requiredUnits}) است.`);
   if (gpa != null && gpa < minGpa) reasons.push(`معدل کل (${gpa}) کمتر از حداقل مجاز (${minGpa}) است.`);
-  if (gpa == null) reasons.push('هنوز هیچ نمرهٔ عددی قطعی‌ای ثبت نشده است.');
+  if (gpa == null) reasons.push('هنوز هیچ نمرهٔ عددی قطعیای ثبت نشده است.');
+
+  // گام ۴: ارزیابی جامع دکتری (مادهٔ ۴۱) و نمرهٔ کیفی پایاننامه/رساله (مواد ۳۶ و ۴۸).
+  // در نبود جدول/داده، آداپتورها [] برمیگردانند تا مسدودسازی بیدلیل رخ ندهد.
+  let gateReasons: string[] = [];
+  try {
+    gateReasons = [
+      ...await comprehensiveExamGraduationReasons(studentId, gpa),
+      ...await thesisQualitativeGraduationReasons(studentId),
+    ];
+    reasons.push(...gateReasons);
+  } catch { /* fail-safe */ }
 
   // بدون سرفصل مصوب هرگز پرونده به‌صورت خودکار باز نمی‌شود
   const catalogOk = !!syl
     && missing.length === 0
     && (!requiredUnits || passedUnits >= requiredUnits)
-    && gpa != null && gpa >= minGpa;
+    && gpa != null && gpa >= minGpa
+    && gateReasons.length === 0;
 
   return {
     studentId, studentCode: row.studentCode, fullName: `${row.firstName} ${row.lastName}`,

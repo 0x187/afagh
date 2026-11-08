@@ -2,12 +2,12 @@ import 'server-only';
 import { and, asc, desc, eq, isNull, or, sql } from 'drizzle-orm';
 import { db } from '@/db';
 import {
-  academic_terms, degree_level_configs, faculties, financial_clearances, loan_products, majors, payment_cheques,
-  student_discounts, student_ledger, student_loans, student_sponsorships, student_term_states, students,
-  tuition_discount_types, tuition_sponsors, users,
+  academic_terms, degree_level_configs, faculties, financial_clearances, legacy_code_maps, loan_products, majors,
+  payment_cheques, student_discounts, student_ledger, student_loans, student_sponsorships, student_subject_fees,
+  student_term_states, students, tuition_discount_types, tuition_sponsors, users,
 } from '@/db/schema';
 import {
-  buildTranscript, computeTermAdjustments, toNum, transcriptTotals,
+  buildTranscript, computeTermAdjustments, discountAmount, toNum, transcriptTotals,
   type ChequeRow, type LoanRow, type TermCharge, type TermStatement,
 } from '../finance-rules';
 import { DEBT_LEDGER_TYPES } from '../ledger-balance';
@@ -26,13 +26,23 @@ export interface StudentFinanceDetail {
     fullName: string;
     nationalCode: string | null;
     majorTitle: string | null;
+    /** کد رشته در سیستم قدیمی (majors.majorCode) */
+    majorCode: string | null;
     degreeTitle: string | null;
+    /** کد مقطع (degree_level_configs.code) */
+    degreeCode: string | null;
     entryYear: number | null;
     status: string | null;
+    /** کد وضعیت دانشجو در سیستم قدیمی (از جدیدترین ترم) */
+    statusCode: string | null;
     // ── فیلدهای سربرگ کارنامه (انعکاس سیستم قدیمی) ──
     facultyTitle: string | null;
     quotaType: string | null;
+    /** کد سهمیه در سیستم قدیمی */
+    quotaCode: string | null;
     courseType: string | null;
+    /** کد نوع دوره (studyingMode / COURSTYPE) */
+    courseTypeCode: string | null;
     admissionMethod: string | null;
     entryDate: string | null;
     entryTerm: number | null;
@@ -70,11 +80,14 @@ export async function getStudentFinance(
     lastName: users.lastName,
     nationalCode: users.nationalCode,
     majorTitle: majors.name,
+    majorCode: majors.majorCode,
     degreeTitle: degree_level_configs.title,
+    degreeCode: degree_level_configs.code,
     entryYear: students.entryYear,
     status: students.status,
     quotaType: students.quotaType,
     courseType: students.tuitionType,
+    courseTypeCode: students.studyingMode,
     admissionMethod: students.admissionMethod,
     entryDate: students.entryDate,
     entryTerm: students.entryTerm,
@@ -125,6 +138,7 @@ export async function getStudentFinance(
         row: student_discounts,
         typeTitle: tuition_discount_types.title,
         typeCode: tuition_discount_types.code,
+        typeMaxPercent: tuition_discount_types.maxPercent,
       }).from(student_discounts)
         .leftJoin(tuition_discount_types, eq(tuition_discount_types.id, student_discounts.discountTypeId))
         .where(eq(student_discounts.studentId, studentId))
@@ -167,16 +181,39 @@ export async function getStudentFinance(
   // مالی. اولویت: statusTitle → normalizedStatusTitle → sourceStatusTitle.
   const termStates = await db.select({
     termId: student_term_states.termId,
+    statusCode: student_term_states.statusCode,
+    sourceStatusCode: student_term_states.sourceStatusCode,
     statusTitle: student_term_states.statusTitle,
     normalizedStatusTitle: student_term_states.normalizedStatusTitle,
     sourceStatusTitle: student_term_states.sourceStatusTitle,
+    termAvg: student_term_states.termAvg,
+    sourceTermAvg: student_term_states.sourceTermAvg,
+    passedUnits: student_term_states.sourcePassedUnits,
   }).from(student_term_states)
     .where(eq(student_term_states.studentId, studentId));
   const termStatuses: Record<string, string | null> = {};
+  const termStatusCodes: Record<string, string | null> = {};
+  const termAvgs: Record<string, number | null> = {};
+  const termPassedUnits: Record<string, number | null> = {};
   for (const s of termStates) {
     const title = s.statusTitle || s.normalizedStatusTitle || s.sourceStatusTitle || null;
     if (title) termStatuses[String(s.termId)] = title;
+    termStatusCodes[String(s.termId)] = s.statusCode || s.sourceStatusCode || null;
+    const avg = s.termAvg ?? s.sourceTermAvg;
+    termAvgs[String(s.termId)] = avg != null ? toNum(avg) : null;
+    termPassedUnits[String(s.termId)] = s.passedUnits != null ? toNum(s.passedUnits) : null;
   }
+
+  // کد سهمیهٔ قدیمی: نگاشت معکوس از legacy_code_maps (QUOTA) به دستهٔ داخلی
+  const [quotaMap] = studentRow.quotaType
+    ? await db.select({ legacyCode: legacy_code_maps.legacyCode })
+        .from(legacy_code_maps)
+        .where(and(
+          eq(legacy_code_maps.domain, 'QUOTA'),
+          eq(legacy_code_maps.targetCode, studentRow.quotaType),
+        ))
+        .limit(1)
+    : [];
 
   const termTitles: Record<string, string> = {};
   const termCodes: Record<string, string> = {};
@@ -265,6 +302,50 @@ export async function getStudentFinance(
     termStatuses,
   });
 
+  // ── اقلام تکمیلی کارنامهٔ قدیمی: تفکیک تخفیف (ثابت/متغیر/مبلغی)،
+  //    مبلغ موضوعی، کد وضعیت، معدل و واحد گذراندهٔ هر ترم ──
+  const subjectFeeRows = await db
+    .select({ termId: student_subject_fees.termId, amount: student_subject_fees.amount })
+    .from(student_subject_fees)
+    .where(and(eq(student_subject_fees.studentId, studentId), eq(student_subject_fees.isActive, 1)));
+  const subjectFeesByTerm = new Map<number, number>();
+  for (const r of subjectFeeRows) {
+    const k = r.termId ?? 0;
+    subjectFeesByTerm.set(k, (subjectFeesByTerm.get(k) ?? 0) + toNum(r.amount));
+  }
+
+  const fixedByTerm = new Map<number, number>();
+  const variableByTerm = new Map<number, number>();
+  const amountByTerm = new Map<number, number>();
+  for (const d of discounts) {
+    if (d.row.status !== 'APPROVED') continue;
+    const k = d.row.termId ?? 0;
+    const tuition = transcript.find((t) => t.termId === k);
+    const applied = discountAmount(
+      {
+        id: d.row.id, kind: d.row.kind, percent: d.row.percent, amount: d.row.amount,
+        appliesTo: d.row.appliesTo, maxPercent: d.typeMaxPercent, title: d.typeTitle,
+      },
+      toNum(tuition?.tuitionFixed),
+      toNum(tuition?.tuitionVariable),
+    );
+    if (d.row.appliesTo === 'FIXED') fixedByTerm.set(k, (fixedByTerm.get(k) ?? 0) + applied);
+    else if (d.row.appliesTo === 'VARIABLE') variableByTerm.set(k, (variableByTerm.get(k) ?? 0) + applied);
+    else amountByTerm.set(k, (amountByTerm.get(k) ?? 0) + applied);
+  }
+
+  const enrichedTranscript = transcript.map((t) => ({
+    ...t,
+    statusCode: termStatusCodes[String(t.termId)] ?? null,
+    termAvg: termAvgs[String(t.termId)] ?? null,
+    passedUnits: termPassedUnits[String(t.termId)] ?? null,
+    discountsFixed: fixedByTerm.get(t.termId) ?? 0,
+    discountsVariable: variableByTerm.get(t.termId) ?? 0,
+    discountsAmount: amountByTerm.get(t.termId) ?? 0,
+    subjectFees: subjectFeesByTerm.get(t.termId) ?? 0,
+    assistance: 0,
+  }));
+
   return {
     student: {
       studentId: studentRow.studentId,
@@ -273,12 +354,23 @@ export async function getStudentFinance(
       fullName: `${studentRow.firstName || ''} ${studentRow.lastName || ''}`.trim(),
       nationalCode: studentRow.nationalCode,
       majorTitle: studentRow.majorTitle,
+      majorCode: studentRow.majorCode,
       degreeTitle: studentRow.degreeTitle,
+      degreeCode: studentRow.degreeCode,
       entryYear: studentRow.entryYear,
       status: studentRow.status,
+      // کد وضعیت از جدیدترین ترمِ دارای وضعیت (همان قرارداد کارنامهٔ قدیمی)
+      statusCode: (() => {
+        const latest = termStates
+          .filter((s) => s.statusCode || s.sourceStatusCode)
+          .sort((a, b) => b.termId - a.termId)[0];
+        return latest ? (latest.statusCode || latest.sourceStatusCode || null) : null;
+      })(),
       facultyTitle: studentRow.facultyTitle,
       quotaType: studentRow.quotaType,
+      quotaCode: quotaMap?.legacyCode ?? null,
       courseType: studentRow.courseType,
+      courseTypeCode: studentRow.courseTypeCode,
       admissionMethod: studentRow.admissionMethod,
       entryDate: studentRow.entryDate,
       entryTerm: studentRow.entryTerm,
@@ -295,7 +387,7 @@ export async function getStudentFinance(
     discountTypes,
     sponsors,
     loanProducts: loanProductRows,
-    transcript,
-    totals: transcriptTotals(transcript),
+    transcript: enrichedTranscript,
+    totals: transcriptTotals(enrichedTranscript),
   };
 }

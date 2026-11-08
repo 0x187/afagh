@@ -122,7 +122,7 @@ step "۲/۸ تنظیمات و رمزهای پروداکشن"
 ENV_FILE="$ROOT/.env"
 rnd() { tr -dc 'A-Za-z0-9' </dev/urandom | head -c "${1:-28}"; }
 if [ ! -f "$ENV_FILE" ]; then
-  PGPW="$(rnd 32)"; APPDBPW="$(rnd 32)"; MINIOPW="$(rnd 32)"; REDISPW="$(rnd 32)"
+  PGPW="$(rnd 32)"; APPDBPW="$(rnd 32)"; MINIOPW="$(rnd 32)"; REDISPW="$(rnd 32)"; SIGNKEY="$(rnd 64)"
   HOST_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
   cat > "$ENV_FILE" <<EOF
 # ساخته‌شده توسط deploy-debian.sh در $(date '+%Y-%m-%d %H:%M') — این فایل را جای امنی نگه دارید
@@ -136,6 +136,8 @@ POSTGRES_PASSWORD=$PGPW
 AFAGH_APP_DB_PASSWORD=$APPDBPW
 # فاز ۲: Redis با AUTH بالا می‌آید (پیش‌تر بدون رمز بود) — compose آن را اجباری می‌کند.
 REDIS_PASSWORD=$REDISPW
+# کلید اختصاصی امضای بکاپ SQL (گردشش آرشیو قدیمی را بیاعتبار نمیکند)
+AFAGH_BACKUP_SIGNING_KEY=$SIGNKEY
 PG_HOST_PORT=5432
 REDIS_HOST_PORT=6379
 MINIO_ROOT_USER=afagh
@@ -177,6 +179,19 @@ else
     fi
     chmod 600 "$ENV_FILE"
     ok "REDIS_PASSWORD تصادفی ساخته و به .env اضافه شد"
+  fi
+  # بکاپ DR: کلید اختصاصی امضا. استقرارهای قدیمی آن را ندارند؛ بکاپهایشان
+  # با کلید مشتقازPII امضا شدهاند و تأییدکننده هر دو کلید را امتحان میکند،
+  # پس backfill کردن اینجا هیچ آرشیوی را بیاعتبار نمیکند.
+  if ! grep -q '^AFAGH_BACKUP_SIGNING_KEY=' "$ENV_FILE" || [ -z "$(grep '^AFAGH_BACKUP_SIGNING_KEY=' "$ENV_FILE" | cut -d= -f2-)" ]; then
+    SIGNKEY="$(rnd 64)"
+    if grep -q '^AFAGH_BACKUP_SIGNING_KEY=' "$ENV_FILE"; then
+      sed -i "s/^AFAGH_BACKUP_SIGNING_KEY=.*/AFAGH_BACKUP_SIGNING_KEY=$SIGNKEY/" "$ENV_FILE"
+    else
+      echo "AFAGH_BACKUP_SIGNING_KEY=$SIGNKEY" >> "$ENV_FILE"
+    fi
+    chmod 600 "$ENV_FILE"
+    ok "AFAGH_BACKUP_SIGNING_KEY تصادفی ساخته و به .env اضافه شد"
   fi
 fi
 if [ -n "$APP_PORT_ARG" ]; then
@@ -228,6 +243,13 @@ weak_secret "${REDIS_PASSWORD:-}" && die "REDIS_PASSWORD ناامن است — �
 [ "${#AFAGH_APP_DB_PASSWORD}" -ge 24 ] || die "AFAGH_APP_DB_PASSWORD کوتاه است (حداقل ۲۴ کاراکتر — رمز نقش afagh_app که به RLS گره خورده)"
 [ "${#MINIO_ROOT_PASSWORD}" -ge 16 ] || die "MINIO_ROOT_PASSWORD کوتاه است (حداقل ۱۶ کاراکتر)"
 [ "${#REDIS_PASSWORD}" -ge 24 ] || die "REDIS_PASSWORD کوتاه است (حداقل ۲۴ کاراکتر — رمز Redis که compose اجباری‌اش می‌کند)"
+# کلید امضای بکاپ: اختیاری (خالی ⇒ مشتق از PII_KEY)، ولی اگر ست شد باید قوی باشد.
+if [ -n "${AFAGH_BACKUP_SIGNING_KEY:-}" ]; then
+  [ "${#AFAGH_BACKUP_SIGNING_KEY}" -ge 32 ] || die "AFAGH_BACKUP_SIGNING_KEY کوتاه است (حداقل ۳۲ کاراکتر تصادفی)"
+  case "$AFAGH_BACKUP_SIGNING_KEY" in
+    CHANGE_ME_*) die "AFAGH_BACKUP_SIGNING_KEY هنوز مقدار نمونه است — مقدار تصادفی بگذارید" ;;
+  esac
+fi
 for pair in "POSTGRES_PASSWORD:${POSTGRES_PASSWORD}" "AFAGH_APP_DB_PASSWORD:${AFAGH_APP_DB_PASSWORD}" "MINIO_ROOT_PASSWORD:${MINIO_ROOT_PASSWORD}" "REDIS_PASSWORD:${REDIS_PASSWORD}"; do
   repeat_secret "${pair#*:}" && die "${pair%%:*} تکرار چهارتایی کاراکتر دارد — رمز تصادفی بسازید (rnd در همین اسکریپت)"
 done

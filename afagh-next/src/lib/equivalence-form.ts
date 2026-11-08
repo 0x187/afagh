@@ -13,6 +13,7 @@ import { putArchiveObject } from '@/lib/objectStore';
 import { maskNationalCode } from '@/lib/verification';
 import { createLogger } from '@/lib/logger';
 import { appendAudit } from '@/lib/audit';
+import { effectiveEquivMinGrade } from '@/lib/compliance-integrations';
 
 const log = createLogger({ mod: 'equivalence-form' });
 
@@ -113,12 +114,15 @@ export async function buildEquivalenceFormHtml(params: {
   contentHash: string;
   inquiryCode?: string | null;
   fullNationalCode?: string | null;
+  /** متن پویای حداقل نمره (مادهٔ ۱۲ الف، بر اساس مقطع) */
+  minGradeNote?: string | null;
 }): Promise<string> {
   const { universityName, trackingCode, studentName, nationalCode, studentCode, majorTitle, degreeTitle, previousUniversity, items, signatories, verifyUrl, contentHash } = params;
   const qr = await qrSvg(verifyUrl, { errorCorrectionLevel: 'M' });
   const showFull = !!params.fullNationalCode;
   const displayedCode = showFull ? String(params.fullNationalCode) : maskNationalCode(nationalCode);
   const inquiryCode = (params.inquiryCode ?? '').trim();
+  const minGradeNote = params.minGradeNote || 'حداقل نمرهٔ قابل پذیرش برای معادلسازی ۱۲ از ۲۰ است.';
 
   const rowsHtml = items.map((it, i) => `
     <tr>
@@ -208,8 +212,8 @@ export async function buildEquivalenceFormHtml(params: {
 
   <p class="note">
     بدین‌وسیله گواهی می‌شود دروس فوق پس از بررسی سرفصل و انطباق علمی توسط مدیر گروه تخصصی و تأیید نهایی
-    مدیرکل امور آموزشی، در چارت درسی این دانشگاه معادل‌سازی و در کارنامهٔ دانشجو ثبت گردید. حداقل نمرهٔ
-    قابل پذیرش برای معادل‌سازی ۱۲ از ۲۰ است. این سند صرفاً با مهر و امضای مجازهای ذیل معتبر است.
+    مدیرکل امور آموزشی، در چارت درسی این دانشگاه معادلسازی و در کارنامهٔ دانشجو ثبت گردید.
+    ${minGradeNote} این سند صرفاً با مهر و امضای مجازهای ذیل معتبر است.
   </p>
 
   <div class="sigs">${sigHtml}</div>
@@ -348,6 +352,7 @@ export async function issueEquivalenceForm(requestId: number): Promise<{ ok: boo
     verifyUrl,
     contentHash,
     inquiryCode,
+    minGradeNote: `حداقل نمرهٔ قابل پذیرش برای معادلسازی ${await effectiveEquivMinGrade(stu.id)} از ۲۰ است (مادهٔ ۱۲ الف، بر اساس مقطع تحصیلی).`,
   });
 
   const buf = Buffer.from(html, 'utf-8');

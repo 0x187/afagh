@@ -12,6 +12,8 @@ import {
   degreeCodeFor,
 } from '@/lib/student-id-formula';
 import { pickExistingProfile } from '@/lib/admissions-dedupe';
+import { resolveRegulationIdForAdmission } from '@/lib/compliance-policy-server';
+import { globalCompliance } from '@/lib/compliance-integrations';
 import {
   admissions_staging,
   degree_level_configs,
@@ -879,7 +881,13 @@ export async function assignStudentNumbers(
             universityId: row.universityId ?? null,
             majorId: mappedMajorId,
             degreeLevelId,
-            regulationId: defaultReg?.id || 1,
+            // مادهٔ ۵۳: آییننامه بر اساس سال ورود + مقطع + دانشگاه حل میشود، نه «اولین ردیف»
+            regulationId: (await resolveRegulationIdForAdmission({
+              entryYear: Number(entryYear || 1405),
+              degreeLevelId: Number(degreeLevelId),
+              universityId: row.universityId ?? null,
+              forceMode: (await globalCompliance(row.universityId ?? null).catch(() => null))?.regulation_resolution,
+            }).catch(() => null))?.regulationId ?? defaultReg?.id ?? 1,
             entryYear,
             entryTerm: 1,
             status: 'ACTIVE',
@@ -989,6 +997,14 @@ export async function registerManualStudent(params: {
     
     // Get universityId from params or current user's university
     const universityId = params.universityId ?? (await getCurrentUniversity())?.id ?? 1;
+    // مادهٔ ۵۳: حل هوشمند آییننامهٔ حاکم (SMART پیشفرض؛ FIRST_ROW فقط اورراید عیبیابی)
+    const admissionPolicy = await globalCompliance(universityId).catch(() => null);
+    const resolvedReg = await resolveRegulationIdForAdmission({
+      entryYear: Number(entryYear || 1405),
+      degreeLevelId: Number(params.degreeLevelId),
+      universityId,
+      forceMode: admissionPolicy?.regulation_resolution,
+    }).catch(() => null);
 
     // ۱. ایجاد یا یافتن کاربر یکپارچه — در سطح دانشگاه
     let [user] = await tx
@@ -1038,7 +1054,7 @@ export async function registerManualStudent(params: {
         universityId,
         majorId: params.majorId,
         degreeLevelId: params.degreeLevelId,
-        regulationId: defaultReg?.id || 1,
+        regulationId: resolvedReg?.regulationId ?? defaultReg?.id ?? 1,
         entryYear,
         entryTerm: params.entryTerm || 1,
         status: 'ACTIVE',

@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, like } from 'drizzle-orm';
 import { db } from '@/db';
 import { academic_terms, course_offerings, courses, enrollments } from '@/db/schema';
 import { parseGrade, parseUnits } from '../regulations-engine';
@@ -6,6 +6,8 @@ import { chargeTermTuition, getEquivFixedMode } from '../tuition-engine';
 import { shouldChargeFixed } from '../tuition-rules';
 import { EQUIV_MIN_GRADE, EQUIV_TERM_UNITS } from './constants';
 import { NO_UNIVERSITY_MSG, resolveTargetCourse, type EnrollDb } from './transfer';
+import { effectiveEquivLimits, equivalencyGate } from '@/lib/compliance-integrations';
+import { resolveStudentCurriculum } from '@/lib/curriculum-apply';
 
 // ══════════════════════════════════════════════════════════════════
 //  ثبت دسته‌ای معادل‌سازی — پس از تأیید مدیر گروه و مدیرکل آموزش
@@ -90,13 +92,16 @@ export async function applyEquivalenceBatch(input: {
     return { ok: false, message: NO_UNIVERSITY_MSG, termsCreated: 0, registered, rejected };
   }
 
+  // مادهٔ ۱۲ (الف): حداقل نمره و واحدهای هر نیمسال، مقطعی و قابل اورراید
+  const limits = await effectiveEquivLimits(input.studentId);
+
   // ۱) فیلتر نمره و تطبیق درس مقصد (فقط چارت دانشگاه خودِ دانشجو)
   type Ready = { course: typeof courses.$inferSelect; grade: number; units: number; sourceTitle: string };
   const ready: Ready[] = [];
   for (const it of input.items) {
     const grade = parseGrade(it.sourceGrade);
-    if (grade === null || grade < EQUIV_MIN_GRADE) {
-      rejected.push({ sourceTitle: it.sourceTitle, reason: grade === null ? 'نمره نامعتبر' : `نمرهٔ کمتر از ${EQUIV_MIN_GRADE} (غیرقابل معادل‌سازی)` });
+    if (grade === null || grade < limits.minGrade) {
+      rejected.push({ sourceTitle: it.sourceTitle, reason: grade === null ? 'نمره نامعتبر' : `نمرهٔ کمتر از ${limits.minGrade} (غیرقابل معادلسازی)` });
       continue;
     }
     const course = await resolveTargetCourse(db, input.universityId, String(it.targetCourseCode ?? '').trim());
@@ -109,7 +114,33 @@ export async function applyEquivalenceBatch(input: {
   }
 
   if (ready.length === 0) {
-    return { ok: false, message: 'هیچ درس واجد شرایطی برای معادل‌سازی یافت نشد.', termsCreated: 0, registered, rejected };
+    return { ok: false, message: 'هیچ درس واجد شرایطی برای معادلسازی یافت نشد.', termsCreated: 0, registered, rejected };
+  }
+
+  // اصلاحیهٔ ۲/۱۵۵۶۵۵ + بند ۴ مادهٔ ۱۲: سقف ۵۰٪ فقط برای انصرافی/اخراجی،
+  // قاعدهٔ پنج سال از تاریخ انصراف/اخراج، استثنای عدم تغییر برنامهٔ درسی.
+  // وقتی دادهٔ پروندهای ثبت نشده باشد، دروازه فقط «هشدار» میدهد و مسدود نمیکند.
+  let totalProgramUnits = 0;
+  let alreadyEquivalencedUnits = 0;
+  try {
+    const cv = await resolveStudentCurriculum(input.studentId);
+    totalProgramUnits = Number((cv as any)?.version?.totalRequiredUnits ?? 0) || 0;
+    const eqRows = await db
+      .select({ units: courses.units })
+      .from(enrollments)
+      .innerJoin(course_offerings, eq(course_offerings.id, enrollments.offeringId))
+      .innerJoin(courses, eq(courses.id, course_offerings.courseId))
+      .innerJoin(academic_terms, eq(academic_terms.id, course_offerings.termId))
+      .where(and(eq(enrollments.studentId, input.studentId), like(academic_terms.termCode, '%EQ%')));
+    alreadyEquivalencedUnits = eqRows.reduce((s, r) => s + (Number(r.units) || 0), 0);
+  } catch { /* دادهٔ ناقص ⇒ فقط هشدار */ }
+  const verdict = await equivalencyGate(input.studentId, {
+    requestedUnits: ready.reduce((s, r) => s + r.units, 0),
+    totalProgramUnits,
+    alreadyEquivalencedUnits,
+  }).catch(() => null);
+  if (verdict && !verdict.ok) {
+    return { ok: false, message: verdict.reasons.join(' '), termsCreated: 0, registered, rejected };
   }
 
   // ۲) دسته‌بندی هر ۲۰ واحد در یک ترم معادل‌سازی
@@ -117,7 +148,7 @@ export async function applyEquivalenceBatch(input: {
   let cur: Ready[] = [];
   let curUnits = 0;
   for (const r of ready) {
-    if (curUnits + r.units > EQUIV_TERM_UNITS && cur.length > 0) {
+    if (curUnits + r.units > limits.termUnits && cur.length > 0) {
       chunks.push(cur);
       cur = [];
       curUnits = 0;
@@ -196,7 +227,7 @@ export async function applyEquivalenceBatch(input: {
 
   return {
     ok: true,
-    message: `${registered.length} درس معادل‌سازی‌شده در ${termsCreated} نیمسال معادل‌سازی (هر ${EQUIV_TERM_UNITS} واحد) پیش از اولین ترم ثبت شد.` +
+    message: `${registered.length} درس معادلسازیشده در ${termsCreated} نیمسال معادلسازی (هر ${limits.termUnits} واحد) پیش از اولین ترم ثبت شد.` +
       (chargedTotal > 0 ? ` شهریهٔ معادل‌سازی: ${chargedTotal.toLocaleString('fa-IR')} ریال.` : ''),
     termsCreated,
     chargedTotal,
