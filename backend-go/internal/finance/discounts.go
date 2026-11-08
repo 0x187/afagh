@@ -147,12 +147,14 @@ type TermCharge struct {
 
 // DiscountRowLike discount with term scope (nil = all terms).
 type DiscountRowLike struct {
-	ID      int64
-	TermID  *int64
-	Kind    string
-	Percent any
-	Amount  any
-	Title   *string
+	ID         int64
+	TermID     *int64
+	Kind       string
+	Percent    any
+	Amount     any
+	Title      *string
+	AppliesTo  *string // FIXED | VARIABLE | BOTH (optional; used by the split view)
+	MaxPercent any
 }
 
 // SponsorRowLike sponsorship with term scope (nil = all terms).

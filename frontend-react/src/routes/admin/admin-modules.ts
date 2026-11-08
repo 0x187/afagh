@@ -253,7 +253,6 @@ export const ADMIN_MODULES: AdminModule[] = [
     "inGrid": false
   },
   {
-  {
     "href": "/admin/compliance-policy",
     "title": "سیاست‌های انطباق آیین‌نامه",
     "desc": "سیاست‌های انطباق آیین‌نامه — هنوز پورت نشده",
@@ -266,6 +265,7 @@ export const ADMIN_MODULES: AdminModule[] = [
     "inNav": true,
     "inGrid": true
   },
+  {
     "href": "/admin/regulations",
     "title": "مرکز مدیریت آیین‌نامه‌ها",
     "desc": "تدوین و نسخه‌بندی آیین‌نامه‌های آموزشی",

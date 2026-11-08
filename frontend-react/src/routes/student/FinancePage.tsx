@@ -39,6 +39,9 @@ function TermBlock({ term }: { term: FinanceTerm }) {
           {term.termTitle || 'بدون ترم'}
           {term.termCode ? <span className="ms-2 font-mono text-[10px] text-slate-500" dir="ltr">({term.termCode})</span> : null}
           {term.statusTitle ? <span className="ms-2 rounded bg-indigo-100 px-1.5 py-px text-[9px] font-bold text-indigo-800 dark:bg-indigo-950 dark:text-indigo-200">وضع نیمسال: {term.statusTitle}</span> : null}
+          {term.statusCode ? <span className="ms-1 rounded bg-slate-200 px-1.5 py-px font-mono text-[9px] text-slate-700 dark:bg-slate-700 dark:text-slate-200" dir="ltr">کد {faDigits(term.statusCode)}</span> : null}
+          {term.termAvg != null ? <span className="ms-1 rounded bg-emerald-100 px-1.5 py-px text-[9px] font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">معدل: {faNumber(term.termAvg)}</span> : null}
+          {term.passedUnits != null ? <span className="ms-1 rounded bg-amber-100 px-1.5 py-px text-[9px] font-bold text-amber-800 dark:bg-amber-950 dark:text-amber-200">گذرانده: {faNumber(term.passedUnits)} واحد</span> : null}
         </p>
         <span className={`text-xs font-black ${term.balance > 0 ? 'text-rose-700 dark:text-rose-300' : 'text-emerald-700 dark:text-emerald-300'}`}>
           مانده: {faRial(term.balance)}
@@ -92,6 +95,18 @@ function TermBlock({ term }: { term: FinanceTerm }) {
               {faNumber(term.charges)} / {faNumber(term.discounts + term.sponsorships)} / {faNumber(term.payments)}
             </td>
           </tr>
+          {(term.discountsFixed > 0 || term.discountsVariable > 0 || term.discountsAmount > 0 || term.subjectFees > 0) ? (
+            <tr className="border-t border-slate-200 bg-slate-50 text-[10px] font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-300">
+              <td className="p-1.5" colSpan={2}>
+                تخفیف (ثابت {faNumber(term.discountsFixed)} / متغیر {faNumber(term.discountsVariable)} / مبلغی {faNumber(term.discountsAmount)})
+                {term.subjectFees > 0 ? <> · مبلغ موضوعی: {faNumber(term.subjectFees)}</> : null}
+                {term.assistance > 0 ? <> · مساعده: {faNumber(term.assistance)}</> : null}
+              </td>
+              <td className="p-1.5 text-left font-mono" dir="ltr">
+                {faNumber(term.discountsFixed + term.discountsVariable + term.discountsAmount + term.subjectFees + term.assistance)}
+              </td>
+            </tr>
+          ) : null}
         </tfoot>
       </table>
     </div>

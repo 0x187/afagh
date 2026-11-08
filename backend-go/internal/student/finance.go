@@ -13,18 +13,29 @@ import (
 	"backend-go/internal/qr"
 )
 
-// FinanceStudent is the student identity in the finance document.
+// FinanceStudent is the student identity in the finance document — header
+// fields mirror the legacy Sama transcript (codes included).
 type FinanceStudent struct {
-	StudentID    int64   `json:"studentId"`
-	UserID       int64   `json:"userId"`
-	StudentCode  string  `json:"studentCode"`
-	FullName     string  `json:"fullName"`
-	NationalCode *string `json:"nationalCode"`
-	MajorTitle   *string `json:"majorTitle"`
-	DegreeTitle  *string `json:"degreeTitle"`
-	EntryYear    int     `json:"entryYear"`
-	Status       string  `json:"status"`
-	EntryTerm    *int    `json:"entryTerm"`
+	StudentID       int64   `json:"studentId"`
+	UserID          int64   `json:"userId"`
+	StudentCode     string  `json:"studentCode"`
+	FullName        string  `json:"fullName"`
+	NationalCode    *string `json:"nationalCode"`
+	MajorTitle      *string `json:"majorTitle"`
+	MajorCode       *string `json:"majorCode,omitempty"`
+	DegreeTitle     *string `json:"degreeTitle"`
+	DegreeCode      *string `json:"degreeCode,omitempty"`
+	EntryYear       int     `json:"entryYear"`
+	Status          string  `json:"status"`
+	StatusCode      *string `json:"statusCode,omitempty"`
+	EntryTerm       *int    `json:"entryTerm"`
+	FacultyTitle    *string `json:"facultyTitle,omitempty"`
+	QuotaType       *string `json:"quotaType,omitempty"`
+	QuotaCode       *string `json:"quotaCode,omitempty"`
+	CourseType      *string `json:"courseType,omitempty"`
+	CourseTypeCode  *string `json:"courseTypeCode,omitempty"`
+	AdmissionMethod *string `json:"admissionMethod,omitempty"`
+	EntryDate       *string `json:"entryDate,omitempty"`
 }
 
 // FinanceEvent is a term financial event.
@@ -49,16 +60,26 @@ type FinanceEvent struct {
 	LegacyRem         *string `json:"legacyRem,omitempty"`
 }
 
-// FinanceTerm is one term's statement.
+// FinanceTerm is one term's statement — enriched with the legacy transcript
+// columns (status code, term average, passed units, discount split by scope,
+// subject fees and assistance).
 type FinanceTerm struct {
 	TermID                   int64          `json:"termId"`
 	TermTitle                string         `json:"termTitle"`
 	TermCode                 *string        `json:"termCode"`
 	StatusTitle              *string        `json:"statusTitle"`
+	StatusCode               *string        `json:"statusCode,omitempty"`
+	TermAvg                  *float64       `json:"termAvg,omitempty"`
+	PassedUnits              *float64       `json:"passedUnits,omitempty"`
 	Charges                  float64        `json:"charges"`
 	TuitionFixed             float64        `json:"tuitionFixed"`
 	TuitionVariable          float64        `json:"tuitionVariable"`
 	Discounts                float64        `json:"discounts"`
+	DiscountsFixed           float64        `json:"discountsFixed"`
+	DiscountsVariable        float64        `json:"discountsVariable"`
+	DiscountsAmount          float64        `json:"discountsAmount"`
+	SubjectFees              float64        `json:"subjectFees"`
+	Assistance               float64        `json:"assistance"`
 	Sponsorships             float64        `json:"sponsorships"`
 	SponsorshipsFromDeposits float64        `json:"sponsorshipsFromDeposits"`
 	CharityCoverage          float64        `json:"charityCoverage"`
@@ -188,14 +209,33 @@ func (s *Service) GetFinanceByStudentID(ctx context.Context, studentID int64, te
 func (s *Service) buildFinance(ctx context.Context, userID int64, me *Record, termCookie *int64, publicBaseURL string) (*FinanceResponse, error) {
 	var (
 		fullName, nationalCode, majorTitle, degreeTitle *string
+		majorCode, degreeCode, facultyTitle             *string
+		quotaType, courseType, courseTypeCode           *string
+		admissionMethod, entryDate                      *string
 	)
 	_ = s.Pool.QueryRow(ctx, `
-		select (u."firstName" || ' ' || u."lastName"), u."nationalCode", m.name, d.title
+		select (u."firstName" || ' ' || u."lastName"), u."nationalCode", m.name, d.title,
+		       m."majorCode", d."code", f.name,
+		       st."quotaType", st."tuitionType", st."studyingMode",
+		       st."admissionMethod", st."entryDate"
 		  from students st
 		  join users u on u.id = st."userId"
 		  left join majors m on m.id = st."majorId"
+		  left join faculties f on f.id = m."facultyId"
 		  left join degree_level_configs d on d.id = st."degreeLevelId"
-		 where st.id = $1`, me.ID).Scan(&fullName, &nationalCode, &majorTitle, &degreeTitle)
+		 where st.id = $1`, me.ID).
+		Scan(&fullName, &nationalCode, &majorTitle, &degreeTitle,
+			&majorCode, &degreeCode, &facultyTitle,
+			&quotaType, &courseType, &courseTypeCode,
+			&admissionMethod, &entryDate)
+
+	// Legacy quota code — reverse lookup in legacy_code_maps (QUOTA domain).
+	var quotaCode *string
+	if quotaType != nil && *quotaType != "" {
+		_ = s.Pool.QueryRow(ctx, `
+			select "legacyCode" from legacy_code_maps
+			 where domain = 'QUOTA' and "targetCode" = $1 limit 1`, *quotaType).Scan(&quotaCode)
+	}
 
 	records, err := s.Records(ctx, userID)
 	if err != nil {
@@ -205,6 +245,10 @@ func (s *Service) buildFinance(ctx context.Context, userID int64, me *Record, te
 		Student: FinanceStudent{
 			StudentID: me.ID, UserID: userID, StudentCode: me.StudentCode,
 			NationalCode: nationalCode, MajorTitle: majorTitle, DegreeTitle: degreeTitle,
+			MajorCode: majorCode, DegreeCode: degreeCode, FacultyTitle: facultyTitle,
+			QuotaType: quotaType, QuotaCode: quotaCode,
+			CourseType: courseType, CourseTypeCode: courseTypeCode,
+			AdmissionMethod: admissionMethod, EntryDate: entryDate,
 			EntryYear: me.EntryYear, Status: me.Status, EntryTerm: me.EntryTerm,
 		},
 		Records: records, ActiveRecordID: me.ID,
@@ -261,20 +305,51 @@ func (s *Service) buildFinance(ctx context.Context, userID int64, me *Record, te
 	lrows.Close()
 
 	// Student's term states (from student_term_states) — shown per term in the
-	// finance transcript. Priority: statusTitle → normalized → source title.
+	// finance transcript. Priority: statusTitle → normalized → source title,
+	// plus the legacy status code, term average and passed units.
 	termStatuses := map[string]string{}
+	termStatusCodes := map[string]string{}
+	termAvgs := map[string]float64{}
+	termPassedUnits := map[string]float64{}
+	latestStatusCode := ""
+	latestStatusTerm := int64(-1)
 	tsrows, err := s.Pool.Query(ctx, `
-		select "termId", coalesce(nullif("statusTitle",''), nullif("normalizedStatusTitle",''), nullif("sourceStatusTitle",''))
+		select "termId",
+		       coalesce(nullif("statusTitle",''), nullif("normalizedStatusTitle",''), nullif("sourceStatusTitle",'')),
+		       coalesce(nullif("statusCode",''), nullif("sourceStatusCode",'')),
+		       coalesce("termAvg", "sourceTermAvg"),
+		       "sourcePassedUnits"
 		  from student_term_states where "studentId" = $1 and "termId" is not null`, me.ID)
 	if err == nil {
 		for tsrows.Next() {
 			var termID int64
-			var title string
-			if err := tsrows.Scan(&termID, &title); err == nil && title != "" {
-				termStatuses[itoa64(termID)] = title
+			var title, code *string
+			var avg, units *float64
+			if err := tsrows.Scan(&termID, &title, &code, &avg, &units); err == nil {
+				key := itoa64(termID)
+				if title != nil && *title != "" {
+					termStatuses[key] = *title
+				}
+				if code != nil && *code != "" {
+					termStatusCodes[key] = *code
+					if termID > latestStatusTerm {
+						latestStatusTerm = termID
+						latestStatusCode = *code
+					}
+				}
+				if avg != nil {
+					termAvgs[key] = finance.ToNum(*avg)
+				}
+				if units != nil {
+					termPassedUnits[key] = finance.ToNum(*units)
+				}
 			}
 		}
 		tsrows.Close()
+	}
+	if latestStatusCode != "" {
+		v := latestStatusCode
+		resp.Student.StatusCode = &v
 	}
 
 	// Discounts/coverages → term adjustments.
@@ -300,19 +375,41 @@ func (s *Service) buildFinance(ctx context.Context, userID int64, me *Record, te
 
 	discounts := []finance.DiscountRowLike{}
 	drows, err := s.Pool.Query(ctx, `
-		select d.id, d."termId", coalesce(d.kind,''), d.percent, d.amount::float8, dt.title
+		select d.id, d."termId", coalesce(d.kind,''), d.percent, d.amount::float8, dt.title,
+		       d."appliesTo", dt."maxPercent"
 		  from student_discounts d
 		  left join tuition_discount_types dt on dt.id = d."discountTypeId"
 		 where d."studentId" = $1 and d.status = 'APPROVED'`, me.ID)
 	if err == nil {
 		for drows.Next() {
 			var d finance.DiscountRowLike
-			if err := drows.Scan(&d.ID, &d.TermID, &d.Kind, &d.Percent, &d.Amount, &d.Title); err == nil {
+			if err := drows.Scan(&d.ID, &d.TermID, &d.Kind, &d.Percent, &d.Amount, &d.Title,
+				&d.AppliesTo, &d.MaxPercent); err == nil {
 				discounts = append(discounts, d)
 			}
 		}
 		drows.Close()
 	}
+
+	// Subject fees (active) — a legacy transcript column, summed per term.
+	subjectFees := map[int64]float64{}
+	sfrows, err := s.Pool.Query(ctx, `
+		select coalesce("termId", 0), amount::float8
+		  from student_subject_fees where "studentId" = $1 and "isActive" = 1`, me.ID)
+	if err == nil {
+		for sfrows.Next() {
+			var termID int64
+			var amount float64
+			if err := sfrows.Scan(&termID, &amount); err == nil {
+				subjectFees[termID] += amount
+			}
+		}
+		sfrows.Close()
+	}
+
+	// Per-term discount split by scope (FIXED / VARIABLE / amount) — computed
+	// from the raw approved rows exactly like the reference student-detail.
+	// Filled after the transcript is built (needs per-term tuition split).
 	sponsorships := []finance.SponsorRowLike{}
 	srows, err := s.Pool.Query(ctx, `
 		select sp.id, sp."termId", coalesce(sp."coverageKind",''),
@@ -408,6 +505,37 @@ func (s *Service) buildFinance(ctx context.Context, userID int64, me *Record, te
 		TermStatuses: termStatuses,
 	})
 
+	// Per-term discount split by scope (FIXED / VARIABLE / amount) — computed
+	// from the raw approved rows against each term's tuition split.
+	discountsFixedByTerm := map[int64]float64{}
+	discountsVariableByTerm := map[int64]float64{}
+	discountsAmountByTerm := map[int64]float64{}
+	for _, d := range discounts {
+		key := int64(0)
+		if d.TermID != nil {
+			key = *d.TermID
+		}
+		var fixed, variable float64
+		for _, t := range statements {
+			if t.TermID == key {
+				fixed = t.TuitionFixed
+				variable = t.TuitionVariable
+				break
+			}
+		}
+		applied := finance.DiscountAmount(finance.DiscountLike{
+			ID: d.ID, Kind: d.Kind, Percent: d.Percent, Amount: d.Amount,
+			AppliesTo: d.AppliesTo, MaxPercent: d.MaxPercent, Title: d.Title,
+		}, fixed, variable)
+		if d.AppliesTo != nil && *d.AppliesTo == "FIXED" {
+			discountsFixedByTerm[key] += applied
+		} else if d.AppliesTo != nil && *d.AppliesTo == "VARIABLE" {
+			discountsVariableByTerm[key] += applied
+		} else {
+			discountsAmountByTerm[key] += applied
+		}
+	}
+
 	// Filter by the selected term (cookie).
 	selection := s.Scope.GetTermScope(ctx, me.UniversityID, termCookie)
 	var selected *int64
@@ -433,6 +561,22 @@ func (s *Service) buildFinance(ctx context.Context, userID int64, me *Record, te
 			Loans: st.Loans, NetPayable: st.NetPayable, Balance: st.Balance,
 			Events: []FinanceEvent{},
 		}
+		if v, ok := termStatusCodes[itoa64(st.TermID)]; ok {
+			vv := v
+			term.StatusCode = &vv
+		}
+		if v, ok := termAvgs[itoa64(st.TermID)]; ok {
+			vv := v
+			term.TermAvg = &vv
+		}
+		if v, ok := termPassedUnits[itoa64(st.TermID)]; ok {
+			vv := v
+			term.PassedUnits = &vv
+		}
+		term.DiscountsFixed = discountsFixedByTerm[st.TermID]
+		term.DiscountsVariable = discountsVariableByTerm[st.TermID]
+		term.DiscountsAmount = discountsAmountByTerm[st.TermID]
+		term.SubjectFees = subjectFees[st.TermID]
 		for _, e := range st.Events {
 			term.Events = append(term.Events, FinanceEvent{
 				Kind: e.Kind, Label: e.Label, Amount: e.Amount, DateMs: e.DateMs, Sign: e.Sign,

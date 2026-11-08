@@ -459,10 +459,18 @@ export type FinanceTerm = {
   termTitle: string;
   termCode: string | null;
   statusTitle?: string | null;
+  statusCode?: string | null;
+  termAvg?: number | null;
+  passedUnits?: number | null;
   charges: number;
   tuitionFixed: number;
   tuitionVariable: number;
   discounts: number;
+  discountsFixed: number;
+  discountsVariable: number;
+  discountsAmount: number;
+  subjectFees: number;
+  assistance: number;
   sponsorships: number;
   sponsorshipsFromDeposits: number;
   charityCoverage: number;
