@@ -75,11 +75,20 @@ export function AppShell() {
     navigate('/login', { replace: true });
   }
 
-  if (isAdmin) {
+  const isStudent = sectionOf(location.pathname) === 'student';
+  const isProfessor = sectionOf(location.pathname) === 'professor';
+  // Per-panel chrome (tones and help hrefs mirror the reference layouts).
+  const chrome = isAdmin
+    ? { header: 'bg-indigo-950', badge: 'border-indigo-600/60 bg-indigo-900/90', help: '/help/admin', pdf: '/help/pdfs/admin.pdf', page: 'bg-sky-50/70' }
+    : isStudent
+      ? { header: 'bg-emerald-800', badge: 'border-emerald-500/50 bg-emerald-700', help: '/help/student', pdf: '/help/pdfs/student.pdf', page: 'bg-slate-100' }
+      : { header: 'bg-slate-900', badge: 'border-slate-600 bg-slate-700', help: '/help/professor', pdf: '/help/pdfs/professor.pdf', page: 'bg-slate-50' };
+
+  if (isAdmin || isStudent || isProfessor) {
     return (
-      <div className="min-h-screen bg-sky-50/70 print:!bg-white dark:bg-slate-950">
+      <div className={`min-h-screen ${chrome.page} print:!bg-white dark:bg-slate-950`}>
         <SessionLockOverlay />
-        <header className="sticky top-0 z-40 bg-indigo-950 text-white shadow-sm transition-colors print:hidden">
+        <header className={`sticky top-0 z-40 ${chrome.header} text-white shadow-sm transition-colors print:hidden`}>
           {/* Explicit two-row header (same pattern as the professor panel):
               row 1 — identity + tools; row 2 — the cartable/term/university
               switchers (visible on every size so mobile never loses them). */}
@@ -99,8 +108,14 @@ export function AppShell() {
                     className="block transition-opacity hover:opacity-90"
                   >
                     <p className="truncate text-sm font-extrabold tracking-wide">
-                      <span className="sm:hidden">داشبورد مدیریت</span>
-                      <span className="hidden sm:inline">داشبورد مدیریت جامع {curUni?.title ?? ''}</span>
+                      {isAdmin ? (
+                        <>
+                          <span className="sm:hidden">داشبورد مدیریت</span>
+                          <span className="hidden sm:inline">داشبورد مدیریت جامع {curUni?.title ?? ''}</span>
+                        </>
+                      ) : (
+                        <span>کارتابل {isStudent ? 'دانشجو' : 'استاد'} — {curUni?.title ?? ''}</span>
+                      )}
                     </p>
                   </Link>
                   <p className="truncate text-xs opacity-80">{user.name} · {user.roles.join('، ')}</p>
@@ -117,19 +132,24 @@ export function AppShell() {
 
             {/* Tools */}
             <div className="order-2 flex shrink-0 items-center gap-1.5 lg:order-3">
-              <HeaderActions helpHref="/help/admin" pdfHref="/help/pdfs/admin.pdf" />
+              <HeaderActions helpHref={chrome.help} pdfHref={chrome.pdf} />
             </div>
           </div>
         </header>
 
-        {/* Two-column body: permanent sidebar (lg+) + content with back bar */}
-        <div className="mx-auto flex w-full max-w-[2100px] items-start gap-4 p-3 pb-16 sm:p-5 lg:gap-6">
-          <AdminNav />
-          <main id="main" className="min-w-0 flex-1 pb-4">
-            <AdminBackBar />
+        {isAdmin ? (
+          <div className="mx-auto flex w-full max-w-[2100px] items-start gap-4 p-3 pb-16 sm:p-5 lg:gap-6">
+            <AdminNav />
+            <main id="main" className="min-w-0 flex-1 pb-4">
+              <AdminBackBar />
+              <Outlet />
+            </main>
+          </div>
+        ) : (
+          <main className={`mx-auto w-full max-w-6xl flex-1 px-4 pt-6 ${sectionOf(location.pathname) ? 'pb-24 md:pb-6' : 'pb-6'}`}>
             <Outlet />
           </main>
-        </div>
+        )}
         <MobileTabBar />
       </div>
     );
