@@ -55,6 +55,7 @@ func (a *App) buildHTTP() {
 	a.adminAPI.RegisterModule6(g)
 	a.adminAPI.RegisterSmallPages(g)
 	a.adminAPI.RegisterStudentsDossier(g)
+	a.adminAPI.RegisterSanjeshDrilldown(g)
 	httpapi.NewReportsBuilderAPI(a.DB.Pool, a.store, a.scopeSvc).Register(g)
 	(&httpapi.CodesAPI{Svc: a.admin, Store: a.store}).Register(g)
 	(&httpapi.MigrationAdminAPI{Admin: a.adminAPI}).Register(g)

@@ -17,6 +17,14 @@ const SamaSyncPage = lazyNamed(() => import('@/routes/admin/SamaSyncPage'), 'Sam
 const AdminReportsBuilderPage = lazyNamed(() => import('@/routes/admin/ReportsBuilderPage'), 'AdminReportsBuilderPage');
 const AdminReportsSavedPage = lazyNamed(() => import('@/routes/admin/ReportsSavedPage'), 'AdminReportsSavedPage');
 const AdminBackupPage = lazyNamed(() => import('@/routes/admin/BackupPage'), 'AdminBackupPage');
+const SanjeshTemplatesPage = lazyNamed(() => import('@/routes/admin/sanjesh/TemplatesPage'), 'SanjeshTemplatesPage');
+const SanjeshTemplateDetailPage = lazyNamed(() => import('@/routes/admin/sanjesh/TemplateDetailPage'), 'SanjeshTemplateDetailPage');
+const SanjeshFieldsPage = lazyNamed(() => import('@/routes/admin/sanjesh/FieldsPage'), 'SanjeshFieldsPage');
+const SanjeshValuesPage = lazyNamed(() => import('@/routes/admin/sanjesh/ValuesPage'), 'SanjeshValuesPage');
+const SanjeshRowsPage = lazyNamed(() => import('@/routes/admin/sanjesh/RowsPage'), 'SanjeshRowsPage');
+const SanjeshRowDetailPage = lazyNamed(() => import('@/routes/admin/sanjesh/RowDetailPage'), 'SanjeshRowDetailPage');
+const SanjeshMatchedPage = lazyNamed(() => import('@/routes/admin/sanjesh/MatchedPage'), 'SanjeshMatchedPage');
+const SanjeshEnrolledPage = lazyNamed(() => import('@/routes/admin/sanjesh/EnrolledPage'), 'SanjeshEnrolledPage');
 const AdminTermsPage = lazyNamed(() => import('@/routes/admin/TermsPage'), 'TermsPage');
 const AdminGradesAuditPage = lazyNamed(() => import('@/routes/admin/GradesAuditPage'), 'GradesAuditPage');
 const AdminSahamSettingsPage = lazyNamed(() => import('@/routes/admin/SahamSettingsPage'), 'AdminSahamSettingsPage');
@@ -315,6 +323,14 @@ export function App() {
           <Route path="admin/grades/audit" element={<AdminGradesAuditPage />} />
           <Route path="admin/saham/settings" element={<AdminSahamSettingsPage />} />
           <Route path="admin/compliance-policy" element={<AdminCompliancePolicyPage />} />
+          <Route path="admin/sanjesh/templates" element={<SanjeshTemplatesPage />} />
+          <Route path="admin/sanjesh/templates/:key" element={<SanjeshTemplateDetailPage />} />
+          <Route path="admin/sanjesh/:id/fields" element={<SanjeshFieldsPage />} />
+          <Route path="admin/sanjesh/:id/values" element={<SanjeshValuesPage />} />
+          <Route path="admin/sanjesh/:id/rows" element={<SanjeshRowsPage />} />
+          <Route path="admin/sanjesh/:id/rows/:rowId" element={<SanjeshRowDetailPage />} />
+          <Route path="admin/sanjesh/:id/matched" element={<SanjeshMatchedPage />} />
+          <Route path="admin/sanjesh/:id/enrolled" element={<SanjeshEnrolledPage />} />
           <Route path="admin/c/:group" element={<AdminCategoryPage />} />
           <Route path="admin/curriculum" element={<AdminCurriculumPage />} />
           <Route path="admin/templates" element={<AdminTemplatesPage />} />
