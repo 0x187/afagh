@@ -55,7 +55,7 @@ const GmCompensatoryPage = lazyNamed(() => import('@/routes/groupmanager/Compens
 const GmBypassPage = lazyNamed(() => import('@/routes/groupmanager/BypassPage'), 'GmBypassPage');
 const GmEquivalencePage = lazyNamed(() => import('@/routes/groupmanager/EquivalencePage'), 'GmEquivalencePage');
 const AdminDashboardPage = lazyNamed(() => import('@/routes/admin/DashboardPage'), 'AdminDashboardPage');
-const AdminStudentsPage = lazyNamed(() => import('@/routes/admin/StudentsPage'), 'AdminStudentsPage');
+const AdminStudentsPage = lazyNamed(() => import('@/routes/admin/students/StudentsManagerPage'), 'StudentsManagerPage');
 const AdminDepartmentsPage = lazyNamed(() => import('@/routes/admin/DepartmentsPage'), 'AdminDepartmentsPage');
 const AdminCodesPage = lazyNamed(() => import('@/routes/admin/CodesPage'), 'AdminCodesPage');
 const AdminMigrationPage = lazyNamed(() => import('@/routes/admin/MigrationSahamSaminPages'), 'AdminMigrationPage');

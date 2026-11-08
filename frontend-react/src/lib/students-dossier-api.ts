@@ -275,9 +275,10 @@ export type CohortStats = {
 
 export type StaffBundle = {
   ok: boolean;
-  staffList: StaffItem[];
-  userRoleIds: Record<number, number[]>;
-  total: number;
+  staffList?: StaffItem[];
+  userRoleIds?: Record<number, number[]>;
+  total?: number;
+  error?: string;
 };
 
 export type StudentProfilePatch = Record<string, string | number | null>;
@@ -464,4 +465,10 @@ export function saveUserRoles(userId: number, roleIds: number[]): Promise<{ ok: 
     '/admin/students/dossier/save-roles',
     { userId, roleIds },
   );
+}
+
+// ── Two-step verification (shared with the step-up API — grades:edit) ──
+
+export function requestStepUp(scope: string, password: string): Promise<{ ok: boolean; error?: string }> {
+  return apiPost<{ ok: boolean; error?: string }>('/step-up/request', { scope, password });
 }
