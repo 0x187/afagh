@@ -1,117 +1,19 @@
 import { useQuery } from '@tanstack/react-query';
-import { Banknote, CreditCard, Landmark, Printer, ReceiptText, ScanLine, TriangleAlert } from 'lucide-react';
+import { Printer, ReceiptText, TriangleAlert } from 'lucide-react';
 import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 
-import { Badge } from '@/components/ui/badge';
+import { FinancialTranscript } from '@/components/FinancialTranscript';
+
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { faDigits, faNumber, faRial } from '@/lib/fa';
-import { getFinance, type FinanceTerm } from '@/lib/student-api';
+import { getFinance } from '@/lib/student-api';
 
-// ═══ Student finance — port of student/finance ═══
-
-const EVENT_KIND: Record<string, string> = {
-  CHARGE: 'بدهی',
-  DISCOUNT: 'تخفیف',
-  SPONSOR: 'پوشش بنیاد',
-  PAYMENT: 'پرداخت',
-  CHARITY: 'پوشش خیرین',
-  CHEQUE: 'چک',
-  LOAN: 'وام',
-};
-
-// SAMA pay_type codes → Persian labels (payment docs meta).
-const PAY_TYPE_LABELS: Record<number, string> = {
-  0: 'نامشخص', 1: 'نقدی', 2: 'چک', 3: 'کارت‌خوان', 4: 'انتقال', 6: 'ساتنا',
-  7: 'سپرده', 8: 'سایر', 102: 'اینترنتی سامان', 108: 'درگاه بانکی',
-  157: 'آنلاین سامان', 201: 'دستگاه کارت‌خوان',
-};
-
-const last4 = (v: string) => v.slice(-4);
-
-function TermBlock({ term }: { term: FinanceTerm }) {
-  return (
-    <div className="overflow-hidden rounded-xl border border-slate-300 dark:border-slate-700">
-      <div className="flex flex-wrap items-center justify-between gap-2 bg-slate-100 px-3 py-2 dark:bg-slate-800">
-        <p className="text-xs font-black">
-          {term.termTitle || 'بدون ترم'}
-          {term.termCode ? <span className="ms-2 font-mono text-[10px] text-slate-500" dir="ltr">({term.termCode})</span> : null}
-          {term.statusTitle ? <span className="ms-2 rounded bg-indigo-100 px-1.5 py-px text-[9px] font-bold text-indigo-800 dark:bg-indigo-950 dark:text-indigo-200">وضع نیمسال: {term.statusTitle}</span> : null}
-          {term.statusCode ? <span className="ms-1 rounded bg-slate-200 px-1.5 py-px font-mono text-[9px] text-slate-700 dark:bg-slate-700 dark:text-slate-200" dir="ltr">کد {faDigits(term.statusCode)}</span> : null}
-          {term.termAvg != null ? <span className="ms-1 rounded bg-emerald-100 px-1.5 py-px text-[9px] font-bold text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200">معدل: {faNumber(term.termAvg)}</span> : null}
-          {term.passedUnits != null ? <span className="ms-1 rounded bg-amber-100 px-1.5 py-px text-[9px] font-bold text-amber-800 dark:bg-amber-950 dark:text-amber-200">گذرانده: {faNumber(term.passedUnits)} واحد</span> : null}
-        </p>
-        <span className={`text-xs font-black ${term.balance > 0 ? 'text-rose-700 dark:text-rose-300' : 'text-emerald-700 dark:text-emerald-300'}`}>
-          مانده: {faRial(term.balance)}
-        </span>
-      </div>
-      <table className="w-full border-collapse text-right text-[11px]">
-        <thead>
-          <tr className="border-b border-slate-300 bg-slate-50 font-bold text-slate-700 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-200">
-            <th className="p-1.5">شرح</th>
-            <th className="w-24 p-1.5 text-center">نوع</th>
-            <th className="w-32 p-1.5 text-left">مبلغ</th>
-          </tr>
-        </thead>
-        <tbody>
-          {term.events.length === 0 ? (
-            <tr><td colSpan={3} className="p-3 text-center text-slate-400">رویدادی ثبت نشده است.</td></tr>
-          ) : (
-            term.events.map((e, i) => (
-              <tr key={i} className="border-b border-slate-200 last:border-0 dark:border-slate-800">
-                <td className="p-1.5 font-medium">
-                  {e.label}
-                  {e.depositType ? (
-                    <span className="mx-1 inline-block whitespace-nowrap rounded border border-sky-300 bg-sky-50 px-1 py-px align-middle text-[9px] font-bold text-sky-800 dark:border-sky-700 dark:bg-sky-950 dark:text-sky-200">
-                      {e.depositType}
-                    </span>
-                  ) : null}
-                  {(e.receiptNo || e.payerName || e.accountNo || e.voucherNo || e.payTypeCode != null || e.recorderName || e.legacyRem) ? (
-                    <span className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0 text-[9px] leading-tight text-slate-500">
-                      {e.receiptNo ? <span><b>فیش:</b> <span dir="ltr" className="font-mono">{faDigits(e.receiptNo)}</span></span> : null}
-                      {e.payerName ? <span><b>پرداخت‌کننده:</b> {e.payerName}</span> : null}
-                      {e.accountNo ? <span><b>حساب:</b> <span dir="ltr" className="font-mono">{faDigits(last4(e.accountNo))}</span></span> : null}
-                      {e.payTypeCode != null ? <span><b>نوع:</b> {PAY_TYPE_LABELS[e.payTypeCode] ?? e.payTypeCode}</span> : null}
-                      {e.voucherNo ? <span><b>سند:</b> <span dir="ltr" className="font-mono">{faDigits(e.voucherNo)}</span></span> : null}
-                      {e.recorderName ? <span><b>ثبت:</b> {e.recorderName}</span> : null}
-                      {e.legacyRem ? <span className="block w-full truncate" title={e.legacyRem}><b>یادداشت اصل:</b> {e.legacyRem}</span> : null}
-                    </span>
-                  ) : null}
-                </td>
-                <td className="p-1.5 text-center text-slate-500">{EVENT_KIND[e.kind] ?? e.kind}</td>
-                <td className={`p-1.5 text-left font-mono font-bold ${e.sign > 0 ? 'text-emerald-700 dark:text-emerald-300' : 'text-rose-700 dark:text-rose-300'}`}>
-                  {e.sign > 0 ? '+' : '−'}{faNumber(e.amount)}
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-        <tfoot>
-          <tr className="border-t border-slate-300 bg-slate-50 text-[10px] font-bold dark:border-slate-700 dark:bg-slate-800/60">
-            <td className="p-1.5" colSpan={2}>بدهی (ثابت {faNumber(term.tuitionFixed)} / متغیر {faNumber(term.tuitionVariable)}) / تخفیف و پوشش / پرداخت</td>
-            <td className="p-1.5 text-left font-mono" dir="ltr">
-              {faNumber(term.charges)} / {faNumber(term.discounts + term.sponsorships)} / {faNumber(term.payments)}
-            </td>
-          </tr>
-          {(term.discountsFixed > 0 || term.discountsVariable > 0 || term.discountsAmount > 0 || term.subjectFees > 0) ? (
-            <tr className="border-t border-slate-200 bg-slate-50 text-[10px] font-bold text-slate-600 dark:border-slate-800 dark:bg-slate-800/60 dark:text-slate-300">
-              <td className="p-1.5" colSpan={2}>
-                تخفیف (ثابت {faNumber(term.discountsFixed)} / متغیر {faNumber(term.discountsVariable)} / مبلغی {faNumber(term.discountsAmount)})
-                {term.subjectFees > 0 ? <> · مبلغ موضوعی: {faNumber(term.subjectFees)}</> : null}
-                {term.assistance > 0 ? <> · مساعده: {faNumber(term.assistance)}</> : null}
-              </td>
-              <td className="p-1.5 text-left font-mono" dir="ltr">
-                {faNumber(term.discountsFixed + term.discountsVariable + term.discountsAmount + term.subjectFees + term.assistance)}
-              </td>
-            </tr>
-          ) : null}
-        </tfoot>
-      </table>
-    </div>
-  );
-}
+// ═══ Student finance — port of student/finance (the transcript itself is the
+// shared type-A FinancialTranscript component; the page keeps the records
+// selector, the QR verification block and the due-cheque reminders) ═══
 
 export function StudentFinancePage() {
   const [params, setParams] = useSearchParams();
@@ -218,106 +120,46 @@ export function StudentFinancePage() {
         </Card>
       ) : null}
 
-      <div className="print-area space-y-4 rounded-xl border-2 border-slate-800 bg-white p-4 text-slate-900 dark:border-slate-600">
-        <div className="flex flex-wrap items-start justify-between gap-3 border-b-2 border-slate-800 pb-3">
-          <div>
-            <p className="text-[11px] text-slate-500">{data.university.title} — سامانهٔ جامع آموزشی</p>
-            <h2 className="text-base font-black">کارنامهٔ مالی دانشجو</h2>
-            <p className="mt-0.5 text-[11px] text-slate-600">
-              {data.student.fullName} · {faDigits(data.student.studentCode)} · {data.student.majorTitle ?? '—'} — {data.student.degreeTitle ?? '—'}
-            </p>
-            <p className="text-[10px] text-slate-500">تاریخ صدور: {faDigits(data.issuedAt)}</p>
-          </div>
-          {data.qr ? (
-            <div className="size-24 shrink-0 overflow-hidden rounded-lg border border-slate-200 bg-white" dangerouslySetInnerHTML={{ __html: data.qr.svg }} />
-          ) : (
-            <Landmark className="size-9 text-slate-300" aria-hidden />
-          )}
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
-          {([
-            ['مجموع بدهی', faRial(t.charges), 'text-rose-700'],
-            ['تخفیف و پوشش', faRial(t.discounts + t.sponsorships), 'text-emerald-700'],
-            ['پرداخت‌ها', faRial(t.payments + t.chequesCleared), 'text-emerald-700'],
-            ['مانده', faRial(t.balance), t.balance > 0 ? 'text-rose-700' : 'text-emerald-700'],
-          ] as [string, string, string][]).map(([k, v, cls]) => (
-            <div key={k} className="rounded-lg border border-slate-200 bg-slate-50 p-2">
-              <div className="text-[10px] font-bold text-slate-500">{k}</div>
-              <div className={`mt-0.5 font-mono text-[12px] font-black ${cls}`}>{v}</div>
+      <div className="print-area">
+        <FinancialTranscript
+          student={{
+            fullName: data.student.fullName,
+            studentCode: data.student.studentCode,
+            nationalCode: data.student.nationalCode,
+            majorTitle: data.student.majorTitle,
+            majorCode: data.student.majorCode,
+            degreeTitle: data.student.degreeTitle,
+            degreeCode: data.student.degreeCode,
+            entryYear: data.student.entryYear,
+            entryTerm: data.student.entryTerm,
+            status: data.student.status,
+            statusCode: data.student.statusCode,
+            facultyTitle: data.student.facultyTitle,
+            quotaType: data.student.quotaType,
+            quotaCode: data.student.quotaCode,
+            courseType: data.student.courseType,
+            courseTypeCode: data.student.courseTypeCode,
+            admissionMethod: data.student.admissionMethod,
+            entryDate: data.student.entryDate,
+          }}
+          terms={data.terms}
+          totals={t}
+          universityTitle={data.university.title}
+          issuedAt={faDigits(data.issuedAt)}
+          official={!!data.qr}
+          cheques={data.cheques}
+          loans={data.loans}
+          verifyBlock={data.qr ? (
+            <div className="flex items-center gap-3 rounded border border-slate-400 bg-slate-50 p-2">
+              <div className="size-20 shrink-0" dangerouslySetInnerHTML={{ __html: data.qr.svg }} />
+              <div className="text-[9px] leading-4">
+                <p className="font-black">رمز استعلام اصالت</p>
+                <p className="text-slate-600">اعتبار تا: {faDigits(data.qr.expiresAt)}</p>
+                <p className="text-slate-500" dir="ltr">{data.qr.url}</p>
+              </div>
             </div>
-          ))}
-        </div>
-
-        <div className="space-y-3">
-          {data.terms.length === 0 ? (
-            <p className="py-6 text-center text-xs text-slate-400">رویداد مالی ثبت نشده است.</p>
-          ) : (
-            data.terms.map((term) => <TermBlock key={term.termId} term={term} />)
-          )}
-        </div>
-
-        {data.cheques.length > 0 ? (
-          <div>
-            <p className="mb-1 flex items-center gap-1 text-xs font-black"><Banknote className="size-3.5" aria-hidden /> چک‌ها</p>
-            <table className="w-full border-collapse text-right text-[11px]">
-              <thead>
-                <tr className="border-y border-slate-300 bg-slate-50 font-bold dark:bg-slate-800/60">
-                  <th className="p-1.5">شمارهٔ چک</th>
-                  <th className="p-1.5">بانک</th>
-                  <th className="p-1.5 text-left">مبلغ</th>
-                  <th className="p-1.5 text-center">سررسید</th>
-                  <th className="p-1.5 text-center">وضعیت</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.cheques.map((c) => (
-                  <tr key={c.id} className="border-b border-slate-200 last:border-0">
-                    <td className="p-1.5 font-mono">{faDigits(c.chequeNo ?? '—')}</td>
-                    <td className="p-1.5">{c.bankName ?? '—'}</td>
-                    <td className="p-1.5 text-left font-mono">{faNumber(c.amount)}</td>
-                    <td className="p-1.5 text-center">{c.dueDate ? faDigits(c.dueDate.slice(0, 10)) : '—'}</td>
-                    <td className="p-1.5 text-center">{c.status === 'PENDING' ? 'در جریان' : c.status === 'CLEARED' ? 'وصول‌شده' : 'برگشتی'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
-
-        {data.loans.length > 0 ? (
-          <div>
-            <p className="mb-1 flex items-center gap-1 text-xs font-black"><CreditCard className="size-3.5" aria-hidden /> وام‌ها</p>
-            <table className="w-full border-collapse text-right text-[11px]">
-              <thead>
-                <tr className="border-y border-slate-300 bg-slate-50 font-bold dark:bg-slate-800/60">
-                  <th className="p-1.5">محصول</th>
-                  <th className="p-1.5 text-left">مبلغ</th>
-                  <th className="p-1.5 text-center">اقساط</th>
-                  <th className="p-1.5 text-center">وضعیت</th>
-                </tr>
-              </thead>
-              <tbody>
-                {data.loans.map((l) => (
-                  <tr key={l.id} className="border-b border-slate-200 last:border-0">
-                    <td className="p-1.5">{l.productTitle ?? l.lender ?? '—'}</td>
-                    <td className="p-1.5 text-left font-mono">{faNumber(l.amount)}</td>
-                    <td className="p-1.5 text-center">{l.installments ? faNumber(l.installments) : '—'}</td>
-                    <td className="p-1.5 text-center">{l.status === 'ACTIVE' ? 'فعال' : l.status ?? '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : null}
-
-        {data.qr ? (
-          <div className="flex items-center gap-2 border-t border-slate-300 pt-2 text-[10px] text-slate-500">
-            <ScanLine className="size-3" aria-hidden />
-            استعلام برخط: <span dir="ltr" className="break-all font-mono">{data.qr.url}</span>
-            <Badge variant="secondary" className="text-[9px]">اعتبار: {faDigits(data.qr.expiresAt.slice(0, 10))}</Badge>
-          </div>
-        ) : null}
+          ) : undefined}
+        />
       </div>
     </div>
   );
