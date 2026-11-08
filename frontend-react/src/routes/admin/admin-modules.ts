@@ -1208,15 +1208,7 @@ export const ADMIN_MODULES: AdminModule[] = [
 // port lands, so no tile leads to a dead page.
  */
 export const PORT_PENDING: ReadonlySet<string> = new Set([
-  '/admin/virtual-classes',
   '/admin/compliance-policy',
-  '/admin/expert-scopes',
-  '/admin/grade-objections',
-  '/admin/reports/builder',
-  '/admin/reports/saved',
-  '/admin/permissions',
-  '/admin/universities',
-  '/admin/sama-sync',
 ]);
 
 export function canSeeModule(

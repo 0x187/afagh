@@ -52,6 +52,8 @@ func (a *App) buildHTTP() {
 
 	// ── Phase 6+: admin core and satellites ──
 	a.adminAPI.Register(g)
+	a.adminAPI.RegisterModule6(g)
+	httpapi.NewReportsBuilderAPI(a.DB.Pool, a.store, a.scopeSvc).Register(g)
 	(&httpapi.CodesAPI{Svc: a.admin, Store: a.store}).Register(g)
 	(&httpapi.MigrationAdminAPI{Admin: a.adminAPI}).Register(g)
 	(&httpapi.SmallAdminAPI{Admin: a.adminAPI}).Register(g)
@@ -60,6 +62,7 @@ func (a *App) buildHTTP() {
 	(&httpapi.SchedulingSuiteAPI{Admin: a.adminAPI}).Register(g)
 	(&httpapi.LastPagesAPI{Admin: a.adminAPI}).Register(g)
 	(&httpapi.ExamHandoverPublicAPI{Admin: a.adminAPI}).Register(g)
+	(&httpapi.BackupAPI{Svc: a.backupSvc, Store: a.store}).Register(g)
 
 	// ── Phase 7: payroll ──
 	(&httpapi.PayrollAPI{

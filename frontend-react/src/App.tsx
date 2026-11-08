@@ -8,6 +8,15 @@ function lazyNamed(load: () => Promise<Record<string, unknown>>, name: string) {
 }
 
 const StudentSchedulePage = lazyNamed(() => import('@/routes/student/SchedulePage'), 'StudentSchedulePage');
+const VirtualClassesAdminPage = lazyNamed(() => import('@/routes/admin/VirtualClassesAdminPage'), 'VirtualClassesAdminPage');
+const GradeObjectionsPage = lazyNamed(() => import('@/routes/admin/GradeObjectionsPage'), 'GradeObjectionsPage');
+const ExpertScopesPage = lazyNamed(() => import('@/routes/admin/ExpertScopesPage'), 'ExpertScopesPage');
+const PermissionsPage = lazyNamed(() => import('@/routes/admin/PermissionsPage'), 'PermissionsPage');
+const UniversitiesPage = lazyNamed(() => import('@/routes/admin/UniversitiesPage'), 'UniversitiesPage');
+const SamaSyncPage = lazyNamed(() => import('@/routes/admin/SamaSyncPage'), 'SamaSyncPage');
+const AdminReportsBuilderPage = lazyNamed(() => import('@/routes/admin/ReportsBuilderPage'), 'AdminReportsBuilderPage');
+const AdminReportsSavedPage = lazyNamed(() => import('@/routes/admin/ReportsSavedPage'), 'AdminReportsSavedPage');
+const AdminBackupPage = lazyNamed(() => import('@/routes/admin/BackupPage'), 'AdminBackupPage');
 const StudentDashboardPage = lazyNamed(() => import('@/routes/student/DashboardPage'), 'StudentDashboardPage');
 const StudentTranscriptPage = lazyNamed(() => import('@/routes/student/TranscriptPage'), 'StudentTranscriptPage');
 const StudentExamCardPage = lazyNamed(() => import('@/routes/student/ExamCardPage'), 'StudentExamCardPage');
@@ -287,6 +296,15 @@ export function App() {
           <Route path="admin/bi" element={<AdminBiPage />} />
           <Route path="admin/sanjesh-import" element={<AdminSanjeshImportPage />} />
           <Route path="admin/reports" element={<AdminEduReportsPage />} />
+          <Route path="admin/reports/builder" element={<AdminReportsBuilderPage />} />
+          <Route path="admin/reports/saved" element={<AdminReportsSavedPage />} />
+          <Route path="admin/virtual-classes" element={<VirtualClassesAdminPage />} />
+          <Route path="admin/grade-objections" element={<GradeObjectionsPage />} />
+          <Route path="admin/expert-scopes" element={<ExpertScopesPage />} />
+          <Route path="admin/permissions" element={<PermissionsPage />} />
+          <Route path="admin/universities" element={<UniversitiesPage />} />
+          <Route path="admin/sama-sync" element={<SamaSyncPage />} />
+          <Route path="admin/backup" element={<AdminBackupPage />} />
           <Route path="admin/c/:group" element={<AdminCategoryPage />} />
           <Route path="admin/curriculum" element={<AdminCurriculumPage />} />
           <Route path="admin/templates" element={<AdminTemplatesPage />} />

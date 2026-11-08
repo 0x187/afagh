@@ -28,6 +28,7 @@ import (
 	"backend-go/internal/admin"
 	"backend-go/internal/archive"
 	"backend-go/internal/authn"
+	"backend-go/internal/backup"
 	"backend-go/internal/bi"
 	"backend-go/internal/config"
 	"backend-go/internal/cron"
@@ -52,9 +53,10 @@ import (
 
 // App holds every long-lived object the backend needs.
 type App struct {
-	Cfg   *config.Config
-	DB    *db.DB
-	Redis *redis.Client // nil when REDIS_URL is empty
+	Cfg       *config.Config
+	DB        *db.DB
+	backupSvc *backup.Service
+	Redis     *redis.Client // nil when REDIS_URL is empty
 
 	// Server is the root HTTP server (strangler edge + gin API + SPA).
 	Server *http.Server

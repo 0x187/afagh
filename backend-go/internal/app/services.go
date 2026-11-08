@@ -7,6 +7,7 @@ import (
 	"backend-go/internal/admin"
 	"backend-go/internal/archive"
 	"backend-go/internal/authn"
+	"backend-go/internal/backup"
 	"backend-go/internal/bi"
 	"backend-go/internal/cron"
 	"backend-go/internal/enroll"
@@ -36,6 +37,7 @@ func (a *App) buildServices() {
 	a.studentSvc = student.New(a.DB.Pool, a.scopeSvc, a.settings, a.signer)
 	// The archive store is optional: without S3 the archive features degrade
 	// to their no-storage paths (same behavior as the original wiring).
+	a.backupSvc = backup.New(a.DB.Pool, "/tmp/backups")
 	if ar, err := archive.New(a.Cfg.S3Endpoint, a.Cfg.S3AccessKey, a.Cfg.S3SecretKey, a.Cfg.S3Bucket); err == nil {
 		a.studentSvc.Archive = ar
 		a.archiveStore = ar
