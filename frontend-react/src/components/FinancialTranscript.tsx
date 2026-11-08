@@ -111,13 +111,13 @@ export interface TranscriptCourseView {
   units: number;
   perUnit: number;
   amount: number;
-  grade?: number | null;
-  courseNature?: string | null;
+  grade?: number | null | undefined;
+  courseNature?: string | null | undefined;
   /** نوع درس مالی سما — همان کدی که نرخ هر واحد را تعیین می‌کند */
   maliType?: number | null;
   offeringType?: string | null;
-  theoreticalUnits?: number;
-  practicalUnits?: number;
+  theoreticalUnits?: number | null;
+  practicalUnits?: number | null;
   /** کد/برچسب وضعیت ثبت درس (پیش‌فرض: ۱=انتخاب واحد) */
   registrationCode?: string | number | null;
   registrationTitle?: string | null;
@@ -158,7 +158,7 @@ export interface TranscriptTermView {
   balance: number;
   events: TranscriptEventView[];
   courses?: TranscriptCourseView[];
-  coursesBasis?: 'TARIFF' | 'LEDGER';
+  coursesBasis?: string;
   tariffGroupCode?: string | null;
 }
 

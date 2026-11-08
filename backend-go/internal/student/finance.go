@@ -4,6 +4,7 @@ package student
 import (
 	"context"
 	"encoding/json"
+	"math"
 	"sort"
 	"strings"
 	"time"
@@ -64,33 +65,50 @@ type FinanceEvent struct {
 // columns (status code, term average, passed units, discount split by scope,
 // subject fees and assistance).
 type FinanceTerm struct {
-	TermID                   int64          `json:"termId"`
-	TermTitle                string         `json:"termTitle"`
-	TermCode                 *string        `json:"termCode"`
-	StatusTitle              *string        `json:"statusTitle"`
-	StatusCode               *string        `json:"statusCode,omitempty"`
-	TermAvg                  *float64       `json:"termAvg,omitempty"`
-	PassedUnits              *float64       `json:"passedUnits,omitempty"`
-	Charges                  float64        `json:"charges"`
-	TuitionFixed             float64        `json:"tuitionFixed"`
-	TuitionVariable          float64        `json:"tuitionVariable"`
-	Discounts                float64        `json:"discounts"`
-	DiscountsFixed           float64        `json:"discountsFixed"`
-	DiscountsVariable        float64        `json:"discountsVariable"`
-	DiscountsAmount          float64        `json:"discountsAmount"`
-	SubjectFees              float64        `json:"subjectFees"`
-	Assistance               float64        `json:"assistance"`
-	Sponsorships             float64        `json:"sponsorships"`
-	SponsorshipsFromDeposits float64        `json:"sponsorshipsFromDeposits"`
-	CharityCoverage          float64        `json:"charityCoverage"`
-	Payments                 float64        `json:"payments"`
-	ChequesCleared           float64        `json:"chequesCleared"`
-	ChequesPending           float64        `json:"chequesPending"`
-	ChequesBounced           float64        `json:"chequesBounced"`
-	Loans                    float64        `json:"loans"`
-	NetPayable               float64        `json:"netPayable"`
-	Balance                  float64        `json:"balance"`
-	Events                   []FinanceEvent `json:"events"`
+	TermID                   int64           `json:"termId"`
+	TermTitle                string          `json:"termTitle"`
+	TermCode                 *string         `json:"termCode"`
+	StatusTitle              *string         `json:"statusTitle"`
+	StatusCode               *string         `json:"statusCode,omitempty"`
+	TermAvg                  *float64        `json:"termAvg,omitempty"`
+	PassedUnits              *float64        `json:"passedUnits,omitempty"`
+	Charges                  float64         `json:"charges"`
+	TuitionFixed             float64         `json:"tuitionFixed"`
+	TuitionVariable          float64         `json:"tuitionVariable"`
+	Discounts                float64         `json:"discounts"`
+	DiscountsFixed           float64         `json:"discountsFixed"`
+	DiscountsVariable        float64         `json:"discountsVariable"`
+	DiscountsAmount          float64         `json:"discountsAmount"`
+	SubjectFees              float64         `json:"subjectFees"`
+	Assistance               float64         `json:"assistance"`
+	Sponsorships             float64         `json:"sponsorships"`
+	SponsorshipsFromDeposits float64         `json:"sponsorshipsFromDeposits"`
+	CharityCoverage          float64         `json:"charityCoverage"`
+	Payments                 float64         `json:"payments"`
+	ChequesCleared           float64         `json:"chequesCleared"`
+	ChequesPending           float64         `json:"chequesPending"`
+	ChequesBounced           float64         `json:"chequesBounced"`
+	Loans                    float64         `json:"loans"`
+	NetPayable               float64         `json:"netPayable"`
+	Balance                  float64         `json:"balance"`
+	Events                   []FinanceEvent  `json:"events"`
+	Courses                  []FinanceCourse `json:"courses,omitempty"`
+	CoursesBasis             string          `json:"coursesBasis,omitempty"`
+}
+
+// FinanceCourse is one course row of the legacy transcript (ریز دروس).
+type FinanceCourse struct {
+	CourseCode       string   `json:"courseCode"`
+	CourseTitle      string   `json:"courseTitle"`
+	Units            float64  `json:"units"`
+	PerUnit          float64  `json:"perUnit"`
+	Amount           float64  `json:"amount"`
+	Grade            *float64 `json:"grade,omitempty"`
+	CourseNature     *string  `json:"courseNature,omitempty"`
+	MaliType         *int     `json:"maliType,omitempty"`
+	OfferingType     *string  `json:"offeringType,omitempty"`
+	TheoreticalUnits *float64 `json:"theoreticalUnits,omitempty"`
+	PracticalUnits   *float64 `json:"practicalUnits,omitempty"`
 }
 
 // FinanceCheque is a cheque.
@@ -536,6 +554,153 @@ func (s *Service) buildFinance(ctx context.Context, userID int64, me *Record, te
 		}
 	}
 
+	// Per-term course rows (ریز دروس) — the same path as buildTranscriptCourses:
+	// rate lines from the year tariff (or the unified engine), allocated against
+	// the term's ledger TUITION_VARIABLE total, enriched with the academic data
+	// (grade, course nature, legacy mali type, theory/practice units).
+	courseRows := map[int64][]FinanceCourse{}
+	courseBasis := map[int64]string{}
+	if s.Tuition != nil {
+		termIDs := make([]int64, 0, len(statements))
+		for _, st := range statements {
+			termIDs = append(termIDs, st.TermID)
+		}
+		tariffMap := s.Tuition.ComputeTariffCourseLinesForTerms(ctx, me.ID, termIDs)
+		engineMap := s.Tuition.ComputeCourseTuitionForTerms(ctx, me.ID, termIDs)
+
+		// Academic metadata per (termId|courseCode).
+		type eduMeta struct {
+			Grade        *float64
+			CourseNature *string
+			LegacyMali   *int
+		}
+		eduMap := map[string]eduMeta{}
+		if len(termIDs) > 0 {
+			erows, eerr := s.Pool.Query(ctx, `
+				select o."termId", c.code, e."gradeValue", c."courseNature", c."legacyMaliType",
+				       c."theoreticalUnits", c."practicalUnits"
+				  from enrollments e
+				  join course_offerings o on o.id = e."offeringId"
+				  join courses c on c.id = o."courseId"
+				 where e."studentId" = $1 and o."termId" = any($2)`, me.ID, termIDs)
+			if eerr == nil {
+				for erows.Next() {
+					var termID int64
+					var code string
+					var g *float64
+					var nature *string
+					var legacyMali *int
+					var th, pr *float64
+					if err := erows.Scan(&termID, &code, &g, &nature, &legacyMali, &th, &pr); err == nil {
+						eduMap[itoa64(termID)+"|"+strings.TrimSpace(code)] = eduMeta{Grade: g, CourseNature: nature, LegacyMali: legacyMali}
+					}
+				}
+				erows.Close()
+			}
+		}
+
+		// Ledger TUITION_VARIABLE per term — the authoritative variable total.
+		ledgerVar := map[int64]float64{}
+		for _, t := range ledger {
+			if t.TransactionType == nil || *t.TransactionType != "TUITION_VARIABLE" {
+				continue
+			}
+			key := int64(0)
+			if t.TermID != nil {
+				key = *t.TermID
+			}
+			ledgerVar[key] += finance.ToNum(t.Amount)
+		}
+
+		for _, st := range statements {
+			lines := tariffMap[st.TermID]
+			basis := "TARIFF"
+			if len(lines) == 0 {
+				basis = "LEDGER"
+			}
+			target := ledgerVar[st.TermID]
+			type lineRef struct {
+				code, title   string
+				units, amount float64
+				mali          *int
+				offType       *string
+				th, pr        *float64
+			}
+			refs := make([]lineRef, 0, len(lines))
+			if len(lines) > 0 {
+				for _, l := range lines {
+					l := l
+					refs = append(refs, lineRef{code: l.CourseCode, title: l.CourseTitle, units: l.Units, amount: l.Amount, mali: l.MaliType, th: &l.TheoryUnits, pr: &l.PracticalUnits})
+				}
+			} else {
+				for _, l := range engineMap[st.TermID] {
+					l := l
+					ot := l.OfferingType
+					refs = append(refs, lineRef{code: l.CourseCode, title: l.CourseTitle, units: l.Units, amount: l.Amount, offType: &ot})
+				}
+			}
+			weights := make([]float64, len(refs))
+			anyPos := false
+			for i, r := range refs {
+				weights[i] = r.amount
+				if r.amount > 0 {
+					anyPos = true
+				}
+			}
+			var shares []float64
+			if target > 0 {
+				w := weights
+				if !anyPos {
+					w = make([]float64, len(refs))
+					for i, r := range refs {
+						w[i] = r.units
+					}
+				}
+				shares = finance.AllocateWeightedShares(w, target)
+			} else {
+				shares = make([]float64, len(refs))
+				for i, r := range refs {
+					shares[i] = math.Floor(r.amount + 0.5)
+				}
+			}
+			rows := make([]FinanceCourse, 0, len(refs))
+			for i, r := range refs {
+				row := FinanceCourse{
+					CourseCode: r.code, CourseTitle: r.title,
+					Units: r.units,
+					PerUnit: func() float64 {
+						if r.units > 0 {
+							return float64(int64(shares[i]/r.units + 0.5))
+						}
+						return 0
+					}(),
+					Amount:   shares[i],
+					MaliType: r.mali, OfferingType: r.offType,
+				}
+				if e, ok := eduMap[itoa64(st.TermID)+"|"+strings.TrimSpace(r.code)]; ok {
+					row.Grade = e.Grade
+					row.CourseNature = e.CourseNature
+					if r.mali == nil && e.LegacyMali != nil {
+						row.MaliType = e.LegacyMali
+					}
+				}
+				if basis == "TARIFF" {
+					if r.th != nil {
+						row.TheoreticalUnits = r.th
+					}
+					if r.pr != nil {
+						row.PracticalUnits = r.pr
+					}
+				}
+				rows = append(rows, row)
+			}
+			if len(rows) > 0 {
+				courseRows[st.TermID] = rows
+				courseBasis[st.TermID] = basis
+			}
+		}
+	}
+
 	// Filter by the selected term (cookie).
 	selection := s.Scope.GetTermScope(ctx, me.UniversityID, termCookie)
 	var selected *int64
@@ -577,6 +742,10 @@ func (s *Service) buildFinance(ctx context.Context, userID int64, me *Record, te
 		term.DiscountsVariable = discountsVariableByTerm[st.TermID]
 		term.DiscountsAmount = discountsAmountByTerm[st.TermID]
 		term.SubjectFees = subjectFees[st.TermID]
+		if rows, ok := courseRows[st.TermID]; ok {
+			term.Courses = rows
+			term.CoursesBasis = courseBasis[st.TermID]
+		}
 		for _, e := range st.Events {
 			term.Events = append(term.Events, FinanceEvent{
 				Kind: e.Kind, Label: e.Label, Amount: e.Amount, DateMs: e.DateMs, Sign: e.Sign,

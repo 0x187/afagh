@@ -482,6 +482,20 @@ export type FinanceTerm = {
   netPayable: number;
   balance: number;
   events: FinanceEvent[];
+  courses?: {
+    courseCode: string;
+    courseTitle: string;
+    units: number;
+    perUnit: number;
+    amount: number;
+    grade?: number | null;
+    courseNature?: string | null;
+    maliType?: number | null;
+    offeringType?: string | null;
+    theoreticalUnits?: number | null;
+    practicalUnits?: number | null;
+  }[];
+  coursesBasis?: string;
 };
 
 export type FinanceData = {
