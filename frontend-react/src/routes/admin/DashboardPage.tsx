@@ -49,7 +49,7 @@ function InboxTh({
         type="button"
         onClick={next}
         title="مرتب‌سازی"
-        className={`whitespace-nowrap font-bold hover:text-indigo-700 ${active ? 'text-indigo-700' : ''}`}
+        className={`whitespace-nowrap font-bold hover:text-indigo-700 dark:hover:text-indigo-300 ${active ? 'text-indigo-700 dark:text-indigo-300' : ''}`}
       >
         {label}{' '}
         <span className="inline-block w-4 text-center">
@@ -167,7 +167,7 @@ export function AdminDashboardPage() {
             <Link
               key={g.key}
               to={`/admin/c/${g.key}`}
-              className="group relative flex h-full items-start gap-3 overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-lg sm:p-4"
+              className="group relative flex h-full items-start gap-3 overflow-hidden rounded-2xl border border-slate-200 bg-white p-3 shadow-sm transition-all hover:-translate-y-0.5 hover:border-indigo-300 hover:shadow-lg dark:border-slate-700 dark:hover:border-indigo-500 sm:p-4"
             >
               <span
                 aria-hidden
@@ -177,9 +177,9 @@ export function AdminDashboardPage() {
                 {g.emoji}
               </div>
               <div className="min-w-0 flex-1">
-                <h3 className="text-[12px] font-extrabold leading-tight text-slate-800 sm:text-sm">{g.title}</h3>
-                <p className="mt-1 hidden text-[10px] leading-5 text-slate-500 sm:block">{g.desc}</p>
-                <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-black text-indigo-700">
+                <h3 className="text-[12px] font-extrabold leading-tight text-slate-800 dark:text-slate-100 sm:text-sm">{g.title}</h3>
+                <p className="mt-1 hidden text-[10px] leading-5 text-slate-500 dark:text-slate-400 sm:block">{g.desc}</p>
+                <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-indigo-50 px-2 py-0.5 text-[10px] font-black text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-200">
                   {faNumber(g.modules.length)} ماژول
                   <span aria-hidden className="transition-transform group-hover:-translate-x-0.5">←</span>
                 </span>
@@ -195,8 +195,8 @@ export function AdminDashboardPage() {
           <MakeupInboxCard />
 
           {/* 🔴 Live grade activity */}
-          <div className="card border-red-300">
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2">
+          <div className="card border-red-300 dark:border-red-900">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 pb-2 dark:border-slate-700">
               <h2 className="text-sm font-extrabold text-slate-900">🔴 فعالیت زندهٔ نمرات</h2>
               <span className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[10px] font-bold text-red-700 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
                 {(data.gradeLive ?? []).length} تغییر در ۳۰ دقیقهٔ اخیر
@@ -207,7 +207,7 @@ export function AdminDashboardPage() {
             ) : (
               <ul className="space-y-1.5 text-xs">
                 {(data.gradeLive ?? []).map((g, i) => (
-                  <li key={i} className="flex flex-wrap items-center gap-x-2 border-b border-slate-100 pb-1.5">
+                  <li key={i} className="flex flex-wrap items-center gap-x-2 border-b border-slate-100 pb-1.5 dark:border-slate-700/70">
                     <b>{g.actor}</b>
                     {g.actorRole ? <span className="text-slate-500">({g.actorRole})</span> : null}
                     <span>دانشجو <span className="font-mono" dir="ltr">{faDigits(g.studentCode ?? '—')}</span></span>
@@ -220,7 +220,7 @@ export function AdminDashboardPage() {
           </div>
 
           {/* Redis waiting-room engine status */}
-          <div className={'card flex flex-wrap items-center justify-between gap-3 ' + (data.queueLength >= 0 ? 'border-emerald-300' : 'border-red-300')}>
+          <div className={'card flex flex-wrap items-center justify-between gap-3 ' + (data.queueLength >= 0 ? 'border-emerald-300 dark:border-emerald-800' : 'border-red-300 dark:border-red-900')}>
             <div className="flex min-w-0 items-start gap-2.5">
               <span
                 aria-hidden
@@ -238,7 +238,7 @@ export function AdminDashboardPage() {
 
           {/* Council inbox */}
           <div className="card !p-0">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 dark:border-slate-700">
               <div className="min-w-0">
                 <h2 className="text-sm font-extrabold text-slate-900">کارتابل رسیدگی به درخواست‌های دانشجویی</h2>
                 <p className="mt-0.5 text-[11px] font-bold text-slate-500">شورای آموزشی · {faNumber(inbox.length)} پروندهٔ اخیر</p>
@@ -248,7 +248,7 @@ export function AdminDashboardPage() {
             <div className="overflow-x-auto">
               <table className="w-full text-right text-sm">
                 <thead>
-                  <tr className="border-b border-slate-200 text-xs text-slate-500">
+                  <tr className="border-b border-slate-200 text-xs text-slate-500 dark:border-slate-700">
                     <InboxTh label="کد رهگیری" col="track" sortKey={sortKey} sortDir={sortDir} />
                     <InboxTh label="دانشجو" col="name" sortKey={sortKey} sortDir={sortDir} />
                     <InboxTh label="موضوع / درس" col="proc" sortKey={sortKey} sortDir={sortDir} />
@@ -268,7 +268,7 @@ export function AdminDashboardPage() {
                     </tr>
                   )}
                   {inbox.map(r => (
-                    <tr key={r.id} className="border-t border-slate-100 transition-colors hover:bg-slate-50/70">
+                    <tr key={r.id} className="border-t border-slate-100 transition-colors hover:bg-slate-50/70 dark:border-slate-700/70 dark:hover:bg-slate-800/60">
                       <td className="p-2.5 font-mono text-xs font-bold text-slate-700" dir="ltr">{faDigits(r.trackingCode)}</td>
                       <td className="p-2.5">
                         <p className="font-semibold text-slate-800">{r.studentName}</p>

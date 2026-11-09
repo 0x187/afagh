@@ -78,11 +78,38 @@ export function AppShell() {
   const isStudent = sectionOf(location.pathname) === 'student';
   const isProfessor = sectionOf(location.pathname) === 'professor';
   // Per-panel chrome (tones and help hrefs mirror the reference layouts).
+  // Brand title in the header is a home-link for THIS panel — never hard-code
+  // /admin, or switching to the professor cartable and tapping the title
+  // dumps the user back into the admin dashboard (reference: professor/layout.tsx).
   const chrome = isAdmin
-    ? { header: 'bg-indigo-950', badge: 'border-indigo-600/60 bg-indigo-900/90', help: '/help/admin', pdf: '/help/pdfs/admin.pdf', page: 'bg-sky-50/70' }
+    ? {
+        header: 'bg-indigo-950',
+        badge: 'border-indigo-600/60 bg-indigo-900/90',
+        help: '/help/admin',
+        pdf: '/help/pdfs/admin.pdf',
+        page: 'bg-sky-50/70',
+        home: '/admin',
+        homeTitle: 'بازگشت به صفحه اول (داشبورد)',
+      }
     : isStudent
-      ? { header: 'bg-emerald-800', badge: 'border-emerald-500/50 bg-emerald-700', help: '/help/student', pdf: '/help/pdfs/student.pdf', page: 'bg-slate-100' }
-      : { header: 'bg-slate-900', badge: 'border-slate-600 bg-slate-700', help: '/help/professor', pdf: '/help/pdfs/professor.pdf', page: 'bg-slate-50' };
+      ? {
+          header: 'bg-emerald-800',
+          badge: 'border-emerald-500/50 bg-emerald-700',
+          help: '/help/student',
+          pdf: '/help/pdfs/student.pdf',
+          page: 'bg-slate-100',
+          home: '/student',
+          homeTitle: 'بازگشت به کارتابل دانشجو',
+        }
+      : {
+          header: 'bg-slate-900',
+          badge: 'border-slate-600 bg-slate-700',
+          help: '/help/professor',
+          pdf: '/help/pdfs/professor.pdf',
+          page: 'bg-slate-50',
+          home: '/professor',
+          homeTitle: 'بازگشت به کارتابل استاد',
+        };
 
   if (isAdmin || isStudent || isProfessor) {
     return (
@@ -97,14 +124,14 @@ export function AppShell() {
             <div className="order-1 flex min-w-0 flex-1 items-center gap-2">
               <div aria-hidden className="w-14 shrink-0 lg:hidden" />
               <div className="flex min-w-0 flex-1 items-center gap-2.5">
-                <div className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-indigo-600/60 bg-indigo-900/90 text-sm font-bold shadow-inner">
+                <div className={`flex size-8 shrink-0 items-center justify-center rounded-lg border text-sm font-bold shadow-inner ${chrome.badge}`}>
                   {(curUni?.title ?? 'آ').slice(0, 1)}
                 </div>
                 <UserAvatar userId={user.id} name={user.name} className="size-9" />
                 <div className="min-w-0">
                   <Link
-                    to="/admin"
-                    title="بازگشت به صفحه اول (داشبورد)"
+                    to={chrome.home}
+                    title={chrome.homeTitle}
                     className="block transition-opacity hover:opacity-90"
                   >
                     <p className="truncate text-sm font-extrabold tracking-wide">
@@ -113,8 +140,16 @@ export function AppShell() {
                           <span className="sm:hidden">داشبورد مدیریت</span>
                           <span className="hidden sm:inline">داشبورد مدیریت جامع {curUni?.title ?? ''}</span>
                         </>
+                      ) : isStudent ? (
+                        <>
+                          <span className="sm:hidden">دانشجو {user.name}</span>
+                          <span className="hidden sm:inline">کارتابل دانشجو — {curUni?.title ?? ''}</span>
+                        </>
                       ) : (
-                        <span>کارتابل {isStudent ? 'دانشجو' : 'استاد'} — {curUni?.title ?? ''}</span>
+                        <>
+                          <span className="sm:hidden">استاد {user.name}</span>
+                          <span className="hidden sm:inline">خوش آمدید، استاد گرامی {user.name}</span>
+                        </>
                       )}
                     </p>
                   </Link>

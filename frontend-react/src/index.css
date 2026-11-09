@@ -58,14 +58,14 @@
   --card-foreground: #1e293b;
   --popover: #ffffff;
   --popover-foreground: #1e293b;
-  --primary: #4f46e5;           /* indigo-600 — رنگ برند سامانه */
+  --primary: #4f46e5;           /* indigo-600 — brand */
   --primary-foreground: #ffffff;
   --secondary: #e2e8f0;         /* slate-200 */
   --secondary-foreground: #334155;
   --muted: #f8fafc;             /* slate-50 */
   --muted-foreground: #64748b;  /* slate-500 */
-  --accent: #eff6ff;            /* blue-50 — همان --accent-bg */
-  --accent-foreground: #1e40af; /* blue-800 — همان --accent-text */
+  --accent: #eff6ff;            /* blue-50 — same as --accent-bg */
+  --accent-foreground: #1e40af; /* blue-800 — same as --accent-text */
   --destructive: #dc2626;       /* red-600 */
   --destructive-foreground: #ffffff;
   --success: #059669;           /* emerald-600 */
@@ -75,8 +75,26 @@
   --border: #e2e8f0;            /* slate-200 */
   --input: #e2e8f0;
   --ring: #6366f1;              /* indigo-500 */
-  --header: #0f172a;            /* slate-900 — همان --header-bg */
+  --header: #0f172a;            /* slate-900 — same as --header-bg */
   --header-foreground: #ffffff;
+
+  /* Surface tokens remapped onto Tailwind utilities (parity with Next globals.css).
+     Light values equal the stock Tailwind palette so the light theme is unchanged. */
+  --bg-primary: #f1f5f9;      /* slate-100 */
+  --bg-secondary: #ffffff;    /* white */
+  --bg-tertiary: #f8fafc;     /* slate-50 */
+  --bg-muted: #e2e8f0;        /* slate-200 */
+  --t-900: #0f172a; --t-800: #1e293b; --t-700: #334155; --t-600: #475569; --t-500: #64748b;
+  --t-400: #94a3b8; --t-300: #cbd5e1; --t-200: #e2e8f0; --t-100: #f1f5f9;
+  --b-100: #f1f5f9; --b-200: #e2e8f0; --b-300: #cbd5e1; --b-400: #94a3b8;
+  --header-bg: #0f172a;
+  --header-text: #ffffff;
+  --accent-bg: #eff6ff;
+  --accent-border: #bfdbfe;
+  --accent-text: #1e40af;
+  --ui-card: #ffffff;
+  --ui-stroke: #e2e8f0;
+  --ui-shadow-2: 0 1px 2px rgba(15, 23, 42, 0.04), 0 10px 28px -14px rgba(15, 23, 42, 0.14);
 }
 
 .dark {
@@ -87,14 +105,14 @@
   --card-foreground: #f1f5f9;
   --popover: #1e293b;
   --popover-foreground: #f1f5f9;
-  --primary: #818cf8;           /* indigo-400 — کنتراست خوانا روی تیره */
+  --primary: #818cf8;           /* indigo-400 — readable on dark */
   --primary-foreground: #0f172a;
   --secondary: #334155;         /* slate-700 */
   --secondary-foreground: #e2e8f0;
   --muted: #1e293b;
   --muted-foreground: #94a3b8;  /* slate-400 */
-  --accent: #1e3a5f;            /* همان --accent-bg تیره */
-  --accent-foreground: #bfdbfe; /* همان --accent-text تیره */
+  --accent: #1e3a5f;            /* same as --accent-bg dark */
+  --accent-foreground: #bfdbfe; /* same as --accent-text dark */
   --destructive: #f87171;       /* red-400 */
   --destructive-foreground: #0f172a;
   --success: #34d399;           /* emerald-400 */
@@ -104,8 +122,26 @@
   --border: #334155;            /* slate-700 */
   --input: #334155;
   --ring: #818cf8;
-  --header: #020617;            /* slate-950 — همان --header-bg تیره */
+  --header: #020617;            /* slate-950 — same as --header-bg dark */
   --header-foreground: #f8fafc;
+
+  /* Surface tokens used by the Tailwind utility remaps below
+     (parity with afagh-next/src/app/globals.css). */
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-tertiary: #1e293b;
+  --bg-muted: #334155;
+  --t-900: #f8fafc; --t-800: #f1f5f9; --t-700: #e2e8f0; --t-600: #cbd5e1; --t-500: #94a3b8;
+  --t-400: #64748b; --t-300: #cbd5e1; --t-200: #e2e8f0; --t-100: #f1f5f9;
+  --b-100: #334155; --b-200: #334155; --b-300: #475569; --b-400: #64748b;
+  --header-bg: #020617;
+  --header-text: #f8fafc;
+  --accent-bg: #1e3a5f;
+  --accent-border: #1e40af;
+  --accent-text: #bfdbfe;
+  --ui-card: #1e293b;
+  --ui-stroke: #334155;
+  --ui-shadow-2: 0 1px 2px rgba(0, 0, 0, 0.45), 0 10px 28px -14px rgba(0, 0, 0, 0.6);
 }
 
 /* ── Vazirmatn font (self-hosted, offline) — same @font-face as globals.css ── */
@@ -256,4 +292,168 @@
   @media print and (orientation: portrait) {
     .transcript-print-area .tr-fin-row { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Theme remaps — port of afagh-next/src/app/globals.css surface mapping.
+   Light values equal stock Tailwind so the light theme is unchanged; under
+   `.dark` the CSS variables flip and every hard-coded slate/white utility
+   on the admin dashboard (and the rest of the SPA) becomes readable.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.card {
+  border-radius: 1rem;
+  border-width: 1px;
+  padding: 1rem;
+  background-color: var(--ui-card);
+  border-color: var(--ui-stroke);
+  box-shadow: var(--ui-shadow-2);
+}
+
+/* Surfaces */
+.bg-white { background-color: var(--bg-secondary) !important; }
+.bg-slate-50 { background-color: var(--bg-tertiary) !important; }
+.bg-slate-100 { background-color: var(--bg-primary) !important; }
+.bg-slate-200 { background-color: var(--bg-muted) !important; }
+.bg-slate-300 { background-color: var(--bg-muted) !important; }
+
+/* Slate text */
+.text-slate-900 { color: var(--t-900) !important; }
+.text-slate-800 { color: var(--t-800) !important; }
+.text-slate-700 { color: var(--t-700) !important; }
+.text-slate-600 { color: var(--t-600) !important; }
+.text-slate-500 { color: var(--t-500) !important; }
+.text-slate-400 { color: var(--t-400) !important; }
+.text-slate-300 { color: var(--t-300) !important; }
+.text-slate-200 { color: var(--t-200) !important; }
+.text-slate-100 { color: var(--t-100) !important; }
+
+/* Borders */
+.border-slate-100 { border-color: var(--b-100) !important; }
+.border-slate-200 { border-color: var(--b-200) !important; }
+.border-slate-300 { border-color: var(--b-300) !important; }
+.border-slate-400 { border-color: var(--b-400) !important; }
+
+/* Soft layered shadow on the dominant card pattern (parity with Next). */
+.bg-white.rounded-2xl.shadow-sm:not(:hover),
+.bg-white.rounded-3xl.shadow-sm:not(:hover) {
+  box-shadow: var(--ui-shadow-2);
+}
+
+/* ── Dark: coloured text that would stay too-dark on a dark surface ── */
+.dark .text-emerald-700, .dark .text-emerald-800 { color: #6ee7b7 !important; }
+.dark .text-emerald-600 { color: #34d399 !important; }
+.dark .text-indigo-700, .dark .text-indigo-800 { color: #a5b4fc !important; }
+.dark .text-indigo-900 { color: #e0e7ff !important; }
+.dark .text-indigo-600 { color: #818cf8 !important; }
+.dark .text-amber-700, .dark .text-amber-800 { color: #fcd34d !important; }
+.dark .text-amber-600 { color: #fbbf24 !important; }
+.dark .text-rose-700, .dark .text-rose-800 { color: #fda4af !important; }
+.dark .text-rose-600 { color: #fb7185 !important; }
+.dark .text-red-700, .dark .text-red-800 { color: #fca5a5 !important; }
+.dark .text-red-600 { color: #f87171 !important; }
+.dark .text-sky-700, .dark .text-sky-800 { color: #7dd3fc !important; }
+.dark .text-blue-700 { color: #93c5fd !important; }
+.dark .text-purple-700, .dark .text-purple-800 { color: #c4b5fd !important; }
+.dark .text-teal-700, .dark .text-teal-800 { color: #5eead4 !important; }
+.dark .text-orange-700 { color: #fdba74 !important; }
+.dark .text-green-800 { color: #86efac !important; }
+.dark .text-cyan-800 { color: #67e8f9 !important; }
+
+.dark .text-emerald-900, .dark .text-emerald-950 { color: #6ee7b7 !important; }
+.dark .text-indigo-950 { color: #a5b4fc !important; }
+.dark .text-amber-900, .dark .text-amber-950 { color: #fcd34d !important; }
+.dark .text-rose-900, .dark .text-rose-950 { color: #fda4af !important; }
+.dark .text-red-900, .dark .text-red-950 { color: #fca5a5 !important; }
+.dark .text-sky-900, .dark .text-sky-950 { color: #7dd3fc !important; }
+.dark .text-blue-900 { color: #93c5fd !important; }
+.dark .text-purple-900, .dark .text-purple-950 { color: #c4b5fd !important; }
+.dark .text-teal-900, .dark .text-teal-950 { color: #5eead4 !important; }
+.dark .text-orange-900, .dark .text-orange-950 { color: #fdba74 !important; }
+.dark .text-green-900, .dark .text-green-950 { color: #86efac !important; }
+
+/* ── Dark: light tint backgrounds → matching dark steps ── */
+.dark .bg-white\/50, .dark .bg-white\/60, .dark .bg-white\/70,
+.dark .bg-white\/80, .dark .bg-white\/90, .dark .bg-white\/95 {
+  background-color: #1e293b !important;
+}
+.dark .bg-slate-50\/50, .dark .bg-slate-50\/60, .dark .bg-slate-50\/70,
+.dark .bg-slate-50\/80, .dark .bg-slate-50\/95 {
+  background-color: #1e293b !important;
+}
+.dark .bg-slate-100\/60, .dark .bg-slate-100\/70, .dark .bg-slate-100\/80 {
+  background-color: #334155 !important;
+}
+
+.dark .bg-emerald-50 { background-color: #022c22 !important; }
+.dark .bg-emerald-100 { background-color: #064e3b !important; }
+.dark .bg-emerald-200 { background-color: #065f46 !important; }
+.dark .bg-emerald-50\/50, .dark .bg-emerald-50\/60 { background-color: rgba(6, 78, 59, 0.7) !important; }
+.dark .bg-emerald-50\/70, .dark .bg-emerald-50\/80, .dark .bg-emerald-100\/70,
+.dark .bg-emerald-100\/80 { background-color: #064e3b !important; }
+
+.dark .bg-indigo-50 { background-color: #1e1b4b !important; }
+.dark .bg-indigo-100 { background-color: #312e81 !important; }
+.dark .bg-indigo-200 { background-color: #3730a3 !important; }
+.dark .bg-indigo-50\/50, .dark .bg-indigo-50\/60 { background-color: rgba(49, 46, 129, 0.7) !important; }
+.dark .bg-indigo-50\/70, .dark .bg-indigo-50\/80 { background-color: #312e81 !important; }
+
+.dark .bg-amber-50 { background-color: #451a03 !important; }
+.dark .bg-amber-100 { background-color: #78350f !important; }
+.dark .bg-amber-200 { background-color: #92400e !important; }
+.dark .bg-amber-50\/40, .dark .bg-amber-50\/50, .dark .bg-amber-50\/60 {
+  background-color: rgba(120, 53, 15, 0.55) !important;
+}
+.dark .bg-amber-50\/70, .dark .bg-amber-50\/80 { background-color: #78350f !important; }
+
+.dark .bg-rose-50 { background-color: #4c0519 !important; }
+.dark .bg-rose-100 { background-color: #881337 !important; }
+.dark .bg-rose-200 { background-color: #9f1239 !important; }
+.dark .bg-rose-50\/30, .dark .bg-rose-50\/50, .dark .bg-rose-50\/60 {
+  background-color: rgba(136, 19, 55, 0.55) !important;
+}
+.dark .bg-rose-50\/70, .dark .bg-rose-50\/80, .dark .bg-rose-100\/80 {
+  background-color: #881337 !important;
+}
+
+.dark .bg-red-50 { background-color: #450a0a !important; }
+.dark .bg-red-100 { background-color: #7f1d1d !important; }
+.dark .bg-red-200 { background-color: #991b1b !important; }
+.dark .bg-sky-50 { background-color: #082f49 !important; }
+.dark .bg-sky-100 { background-color: #0c4a6e !important; }
+.dark .bg-sky-200 { background-color: #075985 !important; }
+.dark .bg-purple-50 { background-color: #3b0764 !important; }
+.dark .bg-purple-100 { background-color: #581c87 !important; }
+.dark .bg-purple-200 { background-color: #6b21a8 !important; }
+.dark .bg-teal-50 { background-color: #042f2e !important; }
+.dark .bg-teal-100 { background-color: #134e4a !important; }
+
+/* Borders of tinted chips/cards */
+.dark .border-emerald-200, .dark .border-emerald-300 { border-color: #065f46 !important; }
+.dark .border-indigo-200, .dark .border-indigo-300 { border-color: #3730a3 !important; }
+.dark .border-amber-200, .dark .border-amber-300 { border-color: #92400e !important; }
+.dark .border-rose-200, .dark .border-rose-300 { border-color: #9f1239 !important; }
+.dark .border-red-200, .dark .border-red-300 { border-color: #991b1b !important; }
+.dark .border-sky-200, .dark .border-sky-300 { border-color: #075985 !important; }
+.dark .border-purple-200, .dark .border-purple-300 { border-color: #6b21a8 !important; }
+
+/* Hovers that stay light otherwise */
+.dark .hover\:bg-slate-50:hover { background-color: #1e293b !important; }
+.dark .hover\:bg-slate-100:hover { background-color: #334155 !important; }
+.dark .hover\:bg-slate-200:hover { background-color: #475569 !important; }
+.dark .hover\:bg-indigo-50:hover { background-color: #312e81 !important; }
+.dark .hover\:bg-indigo-100:hover { background-color: #3730a3 !important; }
+.dark .hover\:bg-emerald-50:hover { background-color: #064e3b !important; }
+.dark .hover\:bg-amber-100:hover { background-color: #78350f !important; }
+.dark .hover\:bg-rose-100:hover { background-color: #881337 !important; }
+.dark .hover\:bg-red-100:hover { background-color: #7f1d1d !important; }
+.dark .hover\:text-slate-900:hover { color: #f1f5f9 !important; }
+.dark .hover\:text-indigo-900:hover { color: #a5b4fc !important; }
+.dark .hover\:border-indigo-300:hover { border-color: #6366f1 !important; }
+.dark .focus\:bg-white:focus { background-color: #1e293b !important; }
+
+/* Soft layered shadow on cards in dark */
+.dark .bg-white.rounded-2xl.shadow-sm:not(:hover),
+.dark .bg-white.rounded-3xl.shadow-sm:not(:hover) {
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 10px 28px -14px rgba(0, 0, 0, 0.6);
 }
