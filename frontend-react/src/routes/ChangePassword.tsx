@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ import { changePassword } from '@/lib/auth-api';
 // messages are the same strings as auth.ts and come back from the server.
 export function ChangePassword() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -42,6 +44,9 @@ export function ChangePassword() {
       return;
     }
     setOk(true);
+    // Drop the stale session so AppShell re-fetches with the cleared
+    // mustChangePassword flag instead of bouncing on the pre-change cache.
+    queryClient.removeQueries({ queryKey: ['session'] });
     setTimeout(() => navigate('/', { replace: true }), 900);
   }
 

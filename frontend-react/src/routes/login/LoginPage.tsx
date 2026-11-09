@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
 import { GraduationCap } from 'lucide-react';
 
@@ -27,6 +27,7 @@ const NOTICE_ICON: Record<string, string> = { important: '📢', warning: '⚠�
 
 export function LoginPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [uniCode, setUniCode] = useState(() => new URLSearchParams(window.location.search).get('u') ?? '');
 
   const { data: showcase, isLoading } = useQuery({
@@ -49,12 +50,18 @@ export function LoginPage() {
     if (e === 'expired') setErr('نشست شما منقضی شده است. دوباره وارد شوید.');
   }, []);
 
-  function afterOk(mustChange?: boolean) {
+  // Drop the stale anonymous session cache BEFORE navigating. Without this,
+  // AppShell can still see the pre-login `{user:null}` for up to staleTime
+  // (60s) and bounce the user straight back to /login — which looks like
+  // "login needs a refresh / several tries". removeQueries (not just
+  // invalidate) is required: on /login there is no active session observer,
+  // so refetchQueries would be a no-op and the null cache would survive.
+  async function afterOk(mustChange?: boolean) {
+    queryClient.removeQueries({ queryKey: ['session'] });
     if (mustChange) {
       navigate('/change-password', { replace: true });
       return;
     }
-    // Phase 1: the SPA destination is home; each role's inbox goes to its real route via the Home button.
     navigate('/', { replace: true });
   }
 
@@ -80,7 +87,7 @@ export function LoginPage() {
         setBusy(false);
         return;
       }
-      afterOk(res.mustChange);
+      await afterOk(res.mustChange);
     } catch (e2) {
       const msg = e2 instanceof ApiError ? e2.message : e2 instanceof Error ? e2.message : String(e2 ?? '');
       if (typeof navigator !== 'undefined' && !navigator.onLine) {
@@ -105,7 +112,7 @@ export function LoginPage() {
         setBusy(false);
         return;
       }
-      afterOk(res.mustChange);
+      await afterOk(res.mustChange);
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : 'نامشخص';
       setErr(`خطای انتخاب حساب: ${msg.slice(0, 120)}`);
