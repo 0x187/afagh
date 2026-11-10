@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Download, Landmark } from 'lucide-react';
+import { Landmark } from 'lucide-react';
 
 import { BackgroundPaths } from '@/routes/login/BackgroundPaths';
-import { InstallAppDialog } from '@/routes/login/InstallAppDialog';
 import { ShowcaseSlider } from '@/routes/login/ShowcaseSlider';
 import { ApiError, chooseAccount, getLoginShowcase, login, type LoginCandidate } from '@/lib/auth-api';
 import { toEnDigits } from '@/lib/fa';
@@ -13,7 +12,7 @@ import { toEnDigits } from '@/lib/fa';
 //
 // One centered glass card on an animated line-art backdrop: logo, welcome
 // heading, the two credential fields, the primary sign-in pill, an "or"
-// divider, and the secondary entry points (government login, install guide).
+// divider, and the government-login entry point.
 // Behaviour is the ported original unchanged: account selection for shared
 // identifiers, forced password change, the same Persian messages, and the
 // stale-session cache fix after a successful sign-in.
@@ -46,18 +45,14 @@ export function LoginPage() {
   const [code, setCode] = useState('');
   const [pass, setPass] = useState('');
   const [err, setErr] = useState('');
-  const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
   const [choice, setChoice] = useState<{ token: string; candidates: LoginCandidate[] } | null>(null);
-  const [installOpen, setInstallOpen] = useState(false);
 
   // Returned messages (e.g. user with no role) — identical to LoginCard
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('e') === 'norole') setErr('ورود موفق بود، اما برای این حساب هیچ نقشی تعریف نشده است. با مدیر سامانه تماس بگیرید.');
     if (params.get('e') === 'expired') setErr('نشست شما منقضی شده است. دوباره وارد شوید.');
-    // Deep link "?install=1" opens the install guide (the link lives on the screen too).
-    if (params.get('install') === '1') setInstallOpen(true);
   }, []);
 
   // Drop the stale anonymous session cache BEFORE navigating. Without this,
@@ -83,7 +78,6 @@ export function LoginPage() {
     }
     setBusy(true);
     setErr('');
-    setNote('');
     setChoice(null);
     try {
       const res = await login(code, pass);
@@ -242,19 +236,6 @@ export function LoginPage() {
                   </p>
                 )}
 
-                <p className="text-center text-xs leading-5 text-white/55">
-                  رمز عبور همان رمز{' '}
-                  <a
-                    href="https://amoozesh.afagh.ac.ir/SamaWeb/Login.aspx"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-white/80 underline underline-offset-4 hover:text-white"
-                  >
-                    سامانه آموزش
-                  </a>{' '}
-                  است
-                </p>
-
                 <button
                   type="submit"
                   disabled={busy}
@@ -324,41 +305,16 @@ export function LoginPage() {
                   <span className="h-px flex-1 bg-white/10" />
                 </div>
 
-                {note && (
-                  <p role="status" className="rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2 text-center text-[11px] leading-5 text-white/70">
-                    {note}
-                  </p>
-                )}
-
-                {/* Government (Dolat Man) sign-in — interface only; no provider is
-                    wired yet, so the button explains itself instead of failing. */}
+                {/* Government (Dolat Man) sign-in — interface only; no provider
+                    is wired yet, so the button is inert rather than misleading. */}
                 <button
                   type="button"
-                  onClick={() => setNote('ورود با دولت من به‌زودی فعال می‌شود؛ فعلاً با کد و رمز عبور وارد شوید.')}
-                  aria-describedby="gov-login-hint"
                   className="lgn-enter flex h-12 w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-white/[0.06] text-sm font-medium text-white/85 transition-colors hover:bg-white/10"
                   style={{ '--lgn-i': 3 } as React.CSSProperties}
                 >
                   <Landmark className="size-4" aria-hidden />
                   ورود با دولت من
-                  <span className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] font-bold text-white/55">به‌زودی</span>
                 </button>
-                <span id="gov-login-hint" className="sr-only">
-                  ورود یکپارچه با حساب دولت من هنوز راه‌اندازی نشده است.
-                </span>
-
-                <a
-                  href="?install=1"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    setInstallOpen(true);
-                  }}
-                  className="lgn-enter flex h-12 w-full items-center justify-center gap-2 rounded-full border border-white/10 bg-white/[0.06] text-sm font-medium text-white/85 transition-colors hover:bg-white/10"
-                  style={{ '--lgn-i': 4 } as React.CSSProperties}
-                >
-                  <Download className="size-4" aria-hidden />
-                  راهنمای نصب اپلیکیشن
-                </a>
               </>
             )}
           </div>
@@ -384,13 +340,7 @@ export function LoginPage() {
             <ShowcaseSlider slides={showcase?.slides ?? []} />
           </div>
         )}
-
-        <p className="lgn-enter-fade mt-6 text-center text-xs leading-5 text-white/30" style={{ '--lgn-i': 5 } as React.CSSProperties}>
-          آفاق اپ · سامانه جامع آموزشی، مالی و پژوهشی
-        </p>
       </div>
-
-      <InstallAppDialog open={installOpen} onClose={() => setInstallOpen(false)} />
     </main>
   );
 }
