@@ -493,3 +493,76 @@
 .dark .bg-white.rounded-3xl.shadow-sm:not(:hover) {
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45), 0 10px 28px -14px rgba(0, 0, 0, 0.6);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Login screen — the one dark-only surface in the SPA (visual parity with the
+   reference login). The backdrop uses line-art SVG paths that drift forever,
+   and the card content enters in sequence.
+
+   These class names are deliberately separate from Tailwind utilities: the
+   theme remaps above rewrite `.bg-white` / `.text-slate-*` under `.dark`, and
+   the login screen has to keep its own literal palette in both themes.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes lgn-path-drift {
+  to {
+    stroke-dashoffset: -1400px;
+  }
+}
+@keyframes lgn-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@keyframes lgn-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes lgn-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.lgn-drift {
+  animation-name: lgn-path-drift;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* Staggered entrance: --lgn-i is the step index (0,1,2,…). */
+.lgn-enter {
+  animation: lgn-fade-up 0.28s cubic-bezier(0.05, 0.7, 0.1, 1) both;
+  animation-delay: calc(var(--lgn-i, 0) * 55ms);
+}
+.lgn-enter-fade {
+  animation: lgn-fade-in 0.22s cubic-bezier(0.2, 0, 0, 1) both;
+  animation-delay: calc(var(--lgn-i, 0) * 45ms);
+}
+.lgn-pop {
+  animation: lgn-scale-in 0.22s cubic-bezier(0.05, 0.7, 0.1, 1) both;
+}
+
+/* Motion-sensitive users get the final state immediately. */
+@media (prefers-reduced-motion: reduce) {
+  .lgn-drift,
+  .lgn-enter,
+  .lgn-enter-fade,
+  .lgn-pop {
+    animation: none !important;
+  }
+}
