@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Landmark } from 'lucide-react';
 
 import { BackgroundPaths } from '@/routes/login/BackgroundPaths';
@@ -11,8 +11,8 @@ import { toEnDigits } from '@/lib/fa';
 // ═══ Login screen — visual port of the reference login (app.afagh.ac.ir) ═══
 //
 // One centered glass card on an animated line-art backdrop: logo, welcome
-// heading, the two credential fields, the primary sign-in pill, an "or"
-// divider, and the government-login entry point.
+// heading, the two credential fields, the primary sign-in pill, and the
+// government-login entry directly beneath it.
 // Behaviour is the ported original unchanged: account selection for shared
 // identifiers, forced password change, the same Persian messages, and the
 // stale-session cache fix after a successful sign-in.
@@ -245,6 +245,23 @@ export function LoginPage() {
                 >
                   {busy ? 'در حال ورود…' : 'ورود'}
                 </button>
+
+                {/* Government (Dolat Man) sign-in — interface only; no provider
+                    is wired yet, so the button is inert rather than misleading. */}
+                <button
+                  type="button"
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-white/[0.06] text-sm font-medium text-white/85 transition-colors hover:bg-white/10"
+                >
+                  <Landmark className="size-4" aria-hidden />
+                  ورود با دولت من
+                </button>
+
+                <p className="text-center text-xs leading-5 text-white/55">
+                  ورود اول؟ گذرواژهٔ اولیهٔ شما برابر همان کد است.{' '}
+                  <Link to="/help" className="font-bold text-white/80 underline underline-offset-4 hover:text-white">
+                    راهنمای ورود
+                  </Link>
+                </p>
               </form>
             ) : (
               <div className="lgn-enter space-y-3" style={{ '--lgn-i': 1 } as React.CSSProperties}>
@@ -294,28 +311,6 @@ export function LoginPage() {
                   بازگشت به ورود
                 </button>
               </div>
-            )}
-
-            {/* ── Alternative entry points ── */}
-            {!choice && (
-              <>
-                <div className="lgn-enter flex items-center gap-3 text-xs text-white/35" style={{ '--lgn-i': 2 } as React.CSSProperties}>
-                  <span className="h-px flex-1 bg-white/10" />
-                  یا
-                  <span className="h-px flex-1 bg-white/10" />
-                </div>
-
-                {/* Government (Dolat Man) sign-in — interface only; no provider
-                    is wired yet, so the button is inert rather than misleading. */}
-                <button
-                  type="button"
-                  className="lgn-enter flex h-12 w-full items-center justify-center gap-2 rounded-full border border-white/15 bg-white/[0.06] text-sm font-medium text-white/85 transition-colors hover:bg-white/10"
-                  style={{ '--lgn-i': 3 } as React.CSSProperties}
-                >
-                  <Landmark className="size-4" aria-hidden />
-                  ورود با دولت من
-                </button>
-              </>
             )}
           </div>
         </div>
